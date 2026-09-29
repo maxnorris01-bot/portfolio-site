@@ -1,0 +1,197 @@
+.sat-header {
+  max-width: 48rem;
+}
+
+.sat-title {
+  margin: 0.75rem 0 1rem;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sat-lede {
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+}
+
+.sat-tech {
+  margin: 1.5rem 0;
+}
+
+.sat-section {
+  margin-top: clamp(2.5rem, 6vw, 4rem);
+}
+
+/* Stat tiles */
+.sat-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.sat-stat {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.sat-stat dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.sat-stat dt {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+/* Risk bars */
+.sat-risk-bars {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.sat-risk-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: 1rem;
+}
+
+.sat-risk-label,
+.sat-risk-count {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.sat-risk-count {
+  text-align: right;
+  font-weight: 600;
+}
+
+.sat-risk-track {
+  height: 14px;
+  border-radius: 3px;
+  background: var(--color-bg);
+  overflow: hidden;
+}
+
+.sat-risk-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.risk-high {
+  background: var(--color-risk-high);
+}
+
+.risk-moderate {
+  background: var(--color-risk-moderate);
+}
+
+.risk-low {
+  background: var(--color-risk-low);
+}
+
+.sat-callout {
+  padding: 0.9rem 1rem;
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+}
+
+.sat-callout strong {
+  color: var(--color-navy);
+}
+
+/* Pipeline */
+.sat-pipeline {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sat-step {
+  position: relative;
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-navy);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.sat-step:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  top: 50%;
+  right: -0.85rem;
+  transform: translateY(-50%);
+  color: var(--color-accent);
+  font-weight: 600;
+  z-index: 1;
+}
+
+.sat-step-num {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.sat-step h3 {
+  margin: 0.35rem 0 0.4rem;
+  font-size: 1.1rem;
+}
+
+.sat-step p {
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.sat-note {
+  margin-top: 1.25rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .sat-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sat-pipeline {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .sat-step:not(:last-child)::after {
+    content: '↓';
+    top: auto;
+    right: auto;
+    bottom: -1.2rem;
+    left: 1.25rem;
+    transform: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .sat-stats {
+    grid-template-columns: 1fr;
+  }
+}
