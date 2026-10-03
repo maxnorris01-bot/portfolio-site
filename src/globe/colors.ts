@@ -10,7 +10,10 @@ export interface Category {
 }
 
 export interface Coloring {
+  /** Categories with at least one object, in legend order. */
   categories: Category[]
+  /** Per object: its category key, for hiding categories. */
+  categoryOf: (i: number) => string
   rgb: Float32Array
 }
 
@@ -74,15 +77,48 @@ export function colorize(objects: CatalogObject[], mode: ColorMode): Coloring {
   const counts = defs.map(() => 0)
   const rgbs = defs.map((d) => hexToRgb(d.color))
   const rgb = new Float32Array(objects.length * 3)
+  const index = new Uint8Array(objects.length)
   objects.forEach((o, i) => {
     const c = classify(o)
     counts[c]++
+    index[i] = c
     rgb.set(rgbs[c], i * 3)
   })
   return {
     categories: defs
       .map((d, i) => ({ ...d, count: counts[i] }))
       .filter((c) => c.count > 0),
+    categoryOf: (i) => defs[index[i]].key,
     rgb,
+  }
+}
+
+/**
+ * rgba per object for the engine: the coloring's rgb, with alpha 0 for
+ * objects in a hidden category (the point shader discards those).
+ */
+export function withVisibility(coloring: Coloring, hidden: ReadonlySet<string>): Float32Array {
+  const n = coloring.rgb.length / 3
+  const rgba = new Float32Array(n * 4)
+  for (let i = 0; i < n; i++) {
+    rgba[i * 4] = coloring.rgb[i * 3]
+    rgba[i * 4 + 1] = coloring.rgb[i * 3 + 1]
+    rgba[i * 4 + 2] = coloring.rgb[i * 3 + 2]
+    rgba[i * 4 + 3] = hidden.has(coloring.categoryOf(i)) ? 0 : 1
+  }
+  return rgba
+}
+
+/** Plain-language object type for the inspect panel. */
+export function describeType(o: CatalogObject): string {
+  switch (o.object_type) {
+    case 'PAY':
+      return o.active_payload ? 'Active payload' : 'Payload (inactive)'
+    case 'DEB':
+      return 'Debris'
+    case 'R/B':
+      return 'Rocket body'
+    default:
+      return 'Unknown type'
   }
 }

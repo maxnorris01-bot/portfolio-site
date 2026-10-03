@@ -1,7 +1,17 @@
 import * as THREE from 'three'
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js'
-import { gstime, propagate, twoline2satrec, type SatRec } from 'satellite.js'
+import {
+  degreesLat,
+  degreesLong,
+  eciToGeodetic,
+  gstime,
+  propagate,
+  twoline2satrec,
+  type SatRec,
+} from 'satellite.js'
+import { liveClock, simTimeAt, type Clock } from './clock'
 import { earthRotationY, writeInertial } from './frames'
+import { pickNearest } from './picking'
 import type { CatalogObject } from './types'
 
 // Each object is re-propagated every SLICE frames, not every frame. The
@@ -12,13 +22,30 @@ const SLICE = 10
 
 const DEFAULT_CAMERA = new THREE.Vector3(0, 1.6, 5.6)
 const POINT_PX = 2.2
-const HIGHLIGHT_PX = 26
 const CAMERA_ANIM_MS = 1400
+// Replay lets the camera get within ~2 km of the pair, close enough for a
+// multi-km miss line to be visible. Sub-100 m misses stay sub-pixel at any
+// sensible zoom; the distance label carries those.
+const FOCUS_MIN_DISTANCE = 0.0003
+// Screen-space pick radius in CSS px; larger for touch.
+const PICK_PX_MOUSE = 10
+const PICK_PX_TOUCH = 20
+const CLICK_MAX_MOVE_PX = 5
 
-export type Clock =
-  | { kind: 'live' }
-  | { kind: 'offset'; offsetMs: number }
-  | { kind: 'frozen'; atMs: number }
+// Ring colours. The two objects of a near-miss pair get different colours and
+// sizes so both stay visible as concentric rings when they're closer together
+// than a pixel (most flagged misses are).
+export const RING_A = '#ffffff'
+export const RING_B = '#f2c14e'
+export const RING_INSPECT = '#e85d3f'
+
+export type { Clock } from './clock'
+
+export interface InspectedPosition {
+  latDeg: number
+  lonDeg: number
+  altKm: number
+}
 
 function dotTexture(ring: boolean): THREE.CanvasTexture {
   const size = 64
@@ -51,6 +78,29 @@ function dotTexture(ring: boolean): THREE.CanvasTexture {
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
 
+// One always-on-top ring marking a single object.
+function makeRing(texture: THREE.Texture, color: string, px: number): THREE.Points {
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(new Float32Array(3), 3).setUsage(THREE.DynamicDrawUsage),
+  )
+  const ring = new THREE.Points(
+    geometry,
+    new THREE.PointsMaterial({
+      size: px,
+      sizeAttenuation: false,
+      map: texture,
+      transparent: true,
+      depthTest: false,
+      color,
+    }),
+  )
+  ring.renderOrder = 2
+  ring.visible = false
+  return ring
+}
+
 export class GlobeEngine {
   private readonly renderer: THREE.WebGLRenderer
   private readonly scene = new THREE.Scene()
@@ -59,17 +109,22 @@ export class GlobeEngine {
   private readonly earth: THREE.Mesh
   private readonly geometry = new THREE.BufferGeometry()
   private readonly pointsMaterial: THREE.PointsMaterial
-  private readonly highlightGeometry = new THREE.BufferGeometry()
-  private readonly highlight: THREE.Points
+  private readonly ringA: THREE.Points
+  private readonly ringB: THREE.Points
+  private readonly ringInspect: THREE.Points
+  private readonly missLine: THREE.Line
+  private readonly missLabel: HTMLDivElement
   private readonly resizeObserver: ResizeObserver
 
   private positions = new Float32Array(0)
+  private rgba = new Float32Array(0)
   private satrecs: (SatRec | null)[] = []
   private indexById = new Map<number, number>()
-  private clock: Clock = { kind: 'live' }
+  private clock: Clock = liveClock(Date.now())
   private sliceIndex = 0
   private fullPending = true
   private focusIdx: [number, number] | null = null
+  private inspectIdx: number | null = null
   private camAnim: {
     start: number
     fromPos: THREE.Vector3
@@ -78,14 +133,21 @@ export class GlobeEngine {
     toTarget: THREE.Vector3
   } | null = null
   private camAnimDone?: () => void
+  private pointerDown: { x: number; y: number } | null = null
   private raf = 0
   private disposed = false
   private readonly container: HTMLElement
   private readonly onTick?: (simMs: number) => void
+  private readonly onPick?: (index: number | null) => void
 
-  constructor(container: HTMLElement, textureUrl: string, onTick?: (simMs: number) => void) {
+  constructor(
+    container: HTMLElement,
+    textureUrl: string,
+    callbacks: { onTick?: (simMs: number) => void; onPick?: (index: number | null) => void } = {},
+  ) {
     this.container = container
-    this.onTick = onTick
+    this.onTick = callbacks.onTick
+    this.onPick = callbacks.onPick
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setClearColor(0x05070d)
@@ -114,30 +176,37 @@ export class GlobeEngine {
     this.pointsMaterial = new THREE.PointsMaterial({
       size: POINT_PX * pr,
       sizeAttenuation: false,
+      // rgba vertex colours: alpha 0 hides a point (alphaTest discards it).
       vertexColors: true,
       map: dotTexture(false),
       alphaTest: 0.5,
     })
     this.scene.add(new THREE.Points(this.geometry, this.pointsMaterial))
 
-    this.highlightGeometry.setAttribute(
-      'position',
-      new THREE.BufferAttribute(new Float32Array(6), 3).setUsage(THREE.DynamicDrawUsage),
+    const ringTexture = dotTexture(true)
+    this.ringA = makeRing(ringTexture, RING_A, 22 * pr)
+    this.ringB = makeRing(ringTexture, RING_B, 34 * pr)
+    this.ringInspect = makeRing(ringTexture, RING_INSPECT, 26 * pr)
+    this.scene.add(this.ringA, this.ringB, this.ringInspect)
+
+    const lineGeometry = new THREE.BufferGeometry()
+    lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3))
+    this.missLine = new THREE.Line(
+      lineGeometry,
+      new THREE.LineDashedMaterial({ color: 0xffffff, depthTest: false, transparent: true }),
     )
-    this.highlight = new THREE.Points(
-      this.highlightGeometry,
-      new THREE.PointsMaterial({
-        size: HIGHLIGHT_PX * pr,
-        sizeAttenuation: false,
-        map: dotTexture(true),
-        transparent: true,
-        depthTest: false,
-        color: 0xffffff,
-      }),
-    )
-    this.highlight.renderOrder = 1
-    this.highlight.visible = false
-    this.scene.add(this.highlight)
+    this.missLine.renderOrder = 1
+    this.missLine.visible = false
+    this.scene.add(this.missLine)
+
+    this.missLabel = document.createElement('div')
+    this.missLabel.className = 'globe-miss-label'
+    this.missLabel.hidden = true
+    container.appendChild(this.missLabel)
+
+    const canvas = this.renderer.domElement
+    canvas.addEventListener('pointerdown', this.handlePointerDown)
+    canvas.addEventListener('pointerup', this.handlePointerUp)
 
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(container)
@@ -155,22 +224,22 @@ export class GlobeEngine {
     this.positions = new Float32Array(objects.length * 3)
     const attr = new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage)
     this.geometry.setAttribute('position', attr)
-    this.geometry.setAttribute(
-      'color',
-      new THREE.BufferAttribute(new Float32Array(objects.length * 3).fill(1), 3),
-    )
+    this.rgba = new Float32Array(objects.length * 4).fill(1)
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(this.rgba, 4))
     this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1000)
     this.fullPending = true
-    if (this.focusIdx) this.highlight.visible = false
-    this.focusIdx = null
+    this.clearFocusMarks()
+    this.setInspected(null)
   }
 
-  /** Recolor in place: one rgb triple per catalog object. No re-propagation. */
-  setColors(rgb: Float32Array) {
-    const attr = this.geometry.getAttribute('color') as THREE.BufferAttribute | undefined
-    if (!attr || attr.array.length !== rgb.length) return
-    ;(attr.array as Float32Array).set(rgb)
-    attr.needsUpdate = true
+  /**
+   * Recolor in place: one rgba per catalog object, alpha 0 to hide it. No
+   * re-propagation.
+   */
+  setColors(rgba: Float32Array) {
+    if (rgba.length !== this.rgba.length) return
+    this.rgba.set(rgba)
+    ;(this.geometry.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true
   }
 
   /**
@@ -184,43 +253,63 @@ export class GlobeEngine {
   }
 
   simTimeMs(): number {
-    const c = this.clock
-    if (c.kind === 'frozen') return c.atMs
-    return Date.now() + (c.kind === 'offset' ? c.offsetMs : 0)
+    return simTimeAt(this.clock, Date.now())
   }
 
   /**
-   * Freeze time at a conjunction's TCA, ring both objects and fly the camera
-   * to them. Returns false if either object isn't in the loaded catalog.
+   * Freeze time at a conjunction's TCA, ring both objects, draw a dashed line
+   * between them labelled `label`, and fly the camera to them. Returns false
+   * if either object isn't in the loaded catalog.
    */
-  focusPair(aId: number, bId: number, tcaMs: number): boolean {
+  focusPair(aId: number, bId: number, tcaMs: number, label: string): boolean {
     const a = this.indexById.get(aId)
     const b = this.indexById.get(bId)
     if (a === undefined || b === undefined || !this.satrecs[a] || !this.satrecs[b]) return false
-    this.focusIdx = [a, b]
-    this.setClock({ kind: 'frozen', atMs: tcaMs }, true)
-
     const date = new Date(tcaMs)
     const pa = this.positionOf(a, date)
     const pb = this.positionOf(b, date)
     if (!pa || !pb) return false
-    const mid = pa.add(pb).multiplyScalar(0.5)
-    this.updateHighlight(date)
-    this.highlight.visible = true
-    this.controls.minDistance = 0.02
+
+    this.focusIdx = [a, b]
+    this.setClock({ kind: 'frozen', atMs: tcaMs }, true)
+    this.missLabel.textContent = label
+    this.updateFocusMarks(date)
+    this.ringA.visible = this.ringB.visible = this.missLine.visible = true
+    this.controls.minDistance = FOCUS_MIN_DISTANCE
     // Look down at the pair from just outside it, with Earth behind.
+    const mid = pa.add(pb).multiplyScalar(0.5)
     this.animateCamera(mid.clone().add(mid.clone().normalize().multiplyScalar(0.9)), mid)
     return true
   }
 
   /** Back to the free-roam view of the whole globe. The caller sets the clock. */
   resetView() {
-    this.focusIdx = null
-    this.highlight.visible = false
+    this.clearFocusMarks()
     this.animateCamera(DEFAULT_CAMERA.clone(), new THREE.Vector3(), () => {
       this.resetLimits()
       this.camera.up.set(0, 1, 0)
     })
+  }
+
+  /** Ring one object for the inspect panel, or clear with null. */
+  setInspected(index: number | null) {
+    this.inspectIdx = index !== null && this.satrecs[index] ? index : null
+    this.ringInspect.visible = this.inspectIdx !== null
+  }
+
+  /** The inspected object's position at the displayed moment. */
+  inspectedPosition(): InspectedPosition | null {
+    const rec = this.inspectIdx === null ? null : this.satrecs[this.inspectIdx]
+    if (!rec) return null
+    const date = new Date(this.simTimeMs())
+    const pv = propagate(rec, date)
+    if (!pv) return null
+    const geo = eciToGeodetic(pv.position, gstime(date))
+    return {
+      latDeg: degreesLat(geo.latitude),
+      lonDeg: degreesLong(geo.longitude),
+      altKm: geo.height,
+    }
   }
 
   dispose() {
@@ -228,8 +317,11 @@ export class GlobeEngine {
     cancelAnimationFrame(this.raf)
     this.resizeObserver.disconnect()
     this.controls.dispose()
+    const canvas = this.renderer.domElement
+    canvas.removeEventListener('pointerdown', this.handlePointerDown)
+    canvas.removeEventListener('pointerup', this.handlePointerUp)
     this.scene.traverse((obj) => {
-      if (obj instanceof THREE.Mesh || obj instanceof THREE.Points) {
+      if (obj instanceof THREE.Mesh || obj instanceof THREE.Points || obj instanceof THREE.Line) {
         obj.geometry.dispose()
         const m = obj.material as THREE.MeshBasicMaterial | THREE.PointsMaterial
         m.map?.dispose()
@@ -237,7 +329,43 @@ export class GlobeEngine {
       }
     })
     this.renderer.dispose()
-    this.renderer.domElement.remove()
+    canvas.remove()
+    this.missLabel.remove()
+  }
+
+  private handlePointerDown = (e: PointerEvent) => {
+    this.pointerDown = e.isPrimary && e.button === 0 ? { x: e.clientX, y: e.clientY } : null
+  }
+
+  // A click (not a drag-to-rotate) picks the nearest visible point within a
+  // fixed screen-space radius.
+  private handlePointerUp = (e: PointerEvent) => {
+    const down = this.pointerDown
+    this.pointerDown = null
+    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > CLICK_MAX_MOVE_PX) return
+    if (!this.satrecs.length) return
+    const rect = this.renderer.domElement.getBoundingClientRect()
+    this.camera.updateMatrixWorld()
+    const viewProj = new THREE.Matrix4().multiplyMatrices(
+      this.camera.projectionMatrix,
+      this.camera.matrixWorldInverse,
+    )
+    const p = this.camera.position
+    const index = pickNearest(
+      this.positions,
+      (i) => this.rgba[i * 4 + 3] > 0 && this.satrecs[i] !== null,
+      { viewProj: viewProj.elements, camera: [p.x, p.y, p.z], width: rect.width, height: rect.height },
+      e.clientX - rect.left,
+      e.clientY - rect.top,
+      e.pointerType === 'touch' ? PICK_PX_TOUCH : PICK_PX_MOUSE,
+    )
+    this.onPick?.(index)
+  }
+
+  private clearFocusMarks() {
+    this.focusIdx = null
+    this.ringA.visible = this.ringB.visible = this.missLine.visible = false
+    this.missLabel.hidden = true
   }
 
   private resetLimits() {
@@ -273,16 +401,74 @@ export class GlobeEngine {
     }
   }
 
-  private updateHighlight(date: Date) {
-    if (!this.focusIdx) return
-    const attr = this.highlightGeometry.getAttribute('position') as THREE.BufferAttribute
-    const arr = attr.array as Float32Array
-    this.focusIdx.forEach((idx, k) => {
-      const rec = this.satrecs[idx]
-      const pv = rec && propagate(rec, date)
-      if (pv) writeInertial(arr, k, pv.position.x, pv.position.y, pv.position.z)
-    })
+  private setRing(ring: THREE.Points, p: THREE.Vector3) {
+    const attr = ring.geometry.getAttribute('position') as THREE.BufferAttribute
+    attr.setXYZ(0, p.x, p.y, p.z)
     attr.needsUpdate = true
+  }
+
+  // Rings and the miss line are propagated exactly at the displayed moment
+  // every frame (not sliced), so they sit precisely on the objects.
+  private updateFocusMarks(date: Date) {
+    if (!this.focusIdx) return
+    const pa = this.positionOf(this.focusIdx[0], date)
+    const pb = this.positionOf(this.focusIdx[1], date)
+    if (!pa || !pb) return
+    this.setRing(this.ringA, pa)
+    this.setRing(this.ringB, pb)
+    const attr = this.missLine.geometry.getAttribute('position') as THREE.BufferAttribute
+    attr.setXYZ(0, pa.x, pa.y, pa.z)
+    attr.setXYZ(1, pb.x, pb.y, pb.z)
+    attr.needsUpdate = true
+    this.missLine.computeLineDistances()
+    // About five dashes whatever the separation.
+    const dash = Math.max(pa.distanceTo(pb) / 10, 1e-9)
+    const material = this.missLine.material as THREE.LineDashedMaterial
+    material.dashSize = dash
+    material.gapSize = dash
+  }
+
+  private updateInspectRing(date: Date) {
+    if (this.inspectIdx === null) return
+    const p = this.positionOf(this.inspectIdx, date)
+    if (p) this.setRing(this.ringInspect, p)
+  }
+
+  // Keep the miss label beside the pair on screen, hidden when the pair is
+  // behind the Earth or the camera.
+  private placeMissLabel() {
+    if (!this.focusIdx || !this.missLine.visible) return
+    const attr = this.missLine.geometry.getAttribute('position') as THREE.BufferAttribute
+    const mid = new THREE.Vector3(
+      (attr.getX(0) + attr.getX(1)) / 2,
+      (attr.getY(0) + attr.getY(1)) / 2,
+      (attr.getZ(0) + attr.getZ(1)) / 2,
+    )
+    const toMid = mid.clone().sub(this.camera.position)
+    const ray = new THREE.Ray(this.camera.position, toMid.clone().normalize())
+    const hit = ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), 1), new THREE.Vector3())
+    const behindEarth = hit !== null && hit.distanceTo(this.camera.position) < toMid.length()
+    const ndc = mid.clone().project(this.camera)
+    if (behindEarth || ndc.z > 1) {
+      this.missLabel.hidden = true
+      return
+    }
+    const { clientWidth: w, clientHeight: h } = this.container
+    this.missLabel.hidden = false
+    this.missLabel.style.transform = `translate(${((ndc.x + 1) / 2) * w + 22}px, ${((1 - ndc.y) / 2) * h - 34}px)`
+  }
+
+  // Near and far planes follow the camera so replay can zoom to a few km
+  // without clipping, while keeping depth precision at the default view.
+  private updateClipPlanes() {
+    const dist = this.camera.position.distanceTo(this.controls.target)
+    const near = Math.min(0.005, Math.max(1e-6, dist * 0.02))
+    const far = this.camera.position.length() + 40
+    if (Math.abs(near - this.camera.near) > near * 0.05 || Math.abs(far - this.camera.far) > 1) {
+      this.camera.near = near
+      this.camera.far = far
+      this.camera.updateProjectionMatrix()
+    }
   }
 
   private animateCamera(toPos: THREE.Vector3, toTarget: THREE.Vector3, done?: () => void) {
@@ -330,11 +516,14 @@ export class GlobeEngine {
       }
       this.sliceIndex = (this.sliceIndex + 1) % SLICE
       ;(this.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
-      this.updateHighlight(date)
+      this.updateFocusMarks(date)
+      this.updateInspectRing(date)
     }
 
     this.stepCamera(now)
     this.controls.update()
+    this.updateClipPlanes()
+    this.placeMissLabel()
     this.renderer.render(this.scene, this.camera)
     this.onTick?.(simMs)
     this.raf = requestAnimationFrame(this.frame)

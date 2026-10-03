@@ -1,16 +1,18 @@
-// The 3D globe (Phase 1 of the visualization plan, satellite-conjunction-
-// screening working notes 2026-10-03). Lazy-loaded by SatelliteTool so
-// three.js and satellite.js stay out of the app's main bundle.
+// The 3D globe (Phases 1 and 1b of the visualization plan, satellite-
+// conjunction-screening working notes 2026-10-03). Lazy-loaded by
+// SatelliteTool so three.js and satellite.js stay out of the main bundle.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { colorize, type ColorMode } from '../globe/colors'
+import { SPEEDS, liveClock, withSpeed, type Clock } from '../globe/clock'
+import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
-import { GlobeEngine, type Clock } from '../globe/engine'
+import { GlobeEngine, RING_A, RING_B, RING_INSPECT, type InspectedPosition } from '../globe/engine'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
 import './SatelliteGlobe.css'
 
 const TEXTURE_URL = '/textures/earth-day-2k.jpg'
 const TICK_MS = 250
+const NO_HIDDEN: ReadonlySet<string> = new Set()
 
 const COLOR_MODES: { mode: ColorMode; label: string }[] = [
   { mode: 'type', label: 'Type' },
@@ -19,6 +21,8 @@ const COLOR_MODES: { mode: ColorMode; label: string }[] = [
 ]
 
 const fmt = (n: number) => n.toLocaleString('en-US')
+const fmtKm = (km: number) =>
+  `${km.toLocaleString('en-US', { maximumFractionDigits: km < 1 ? 3 : 2 })} km`
 
 function formatUtc(ms: number) {
   return new Date(ms).toLocaleString('en-US', {
@@ -41,6 +45,12 @@ function formatOffset(deltaMs: number) {
   return deltaMs < 0 ? `${parts} ago` : `in ${parts}`
 }
 
+function formatLatLon(p: InspectedPosition) {
+  const lat = `${Math.abs(p.latDeg).toFixed(2)}° ${p.latDeg >= 0 ? 'N' : 'S'}`
+  const lon = `${Math.abs(p.lonDeg).toFixed(2)}° ${p.lonDeg >= 0 ? 'E' : 'W'}`
+  return `${lat}, ${lon}`
+}
+
 interface Props {
   /** A near-miss to replay, or null for the free-roam view. */
   focus: FocusRequest | null
@@ -54,25 +64,36 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<GlobeEngine | null>(null)
   const [time, setTime] = useState(() => ({ simMs: 0, nowMs: 0 }))
-  const [clock, setClockState] = useState<Clock>({ kind: 'live' })
+  const [clock, setClockState] = useState<Clock>(() => liveClock(Date.now()))
   const [colorMode, setColorMode] = useState<ColorMode>('type')
+  const [hidden, setHidden] = useState<Record<ColorMode, ReadonlySet<string>>>({
+    type: NO_HIDDEN,
+    owner: NO_HIDDEN,
+    flat: NO_HIDDEN,
+  })
   const [historyDates, setHistoryDates] = useState<string[]>([])
   const [current, setCurrent] = useState<ObjectsFile | null>(null)
   const [loaded, setLoaded] = useState<{ key: DatasetKey; file: ObjectsFile } | null>(null)
   const [loadError, setLoadError] = useState<DatasetKey | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [focusMissing, setFocusMissing] = useState(false)
+  const [inspect, setInspect] = useState<number | null>(null)
+  const [inspectPos, setInspectPos] = useState<InspectedPosition | null>(null)
 
   // Engine lifetime: one WebGL context per mount.
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
     let lastTick = 0
-    const engine = new GlobeEngine(container, TEXTURE_URL, (simMs) => {
-      const now = performance.now()
-      if (now - lastTick < TICK_MS) return
-      lastTick = now
-      setTime({ simMs, nowMs: Date.now() })
+    const engine = new GlobeEngine(container, TEXTURE_URL, {
+      onTick: (simMs) => {
+        const now = performance.now()
+        if (now - lastTick < TICK_MS) return
+        lastTick = now
+        setTime({ simMs, nowMs: Date.now() })
+        setInspectPos(engineRef.current?.inspectedPosition() ?? null)
+      },
+      onPick: (index) => setInspect(index),
     })
     engineRef.current = engine
     return () => {
@@ -120,6 +141,7 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
         engineRef.current.setCatalog(file.objects)
         setLoaded({ key: datasetKey, file })
         setLoadError(null)
+        setInspect(null)
       })
       .catch((err: unknown) => {
         console.error(err)
@@ -138,9 +160,23 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
     () => (loaded ? colorize(loaded.file.objects, colorMode) : null),
     [loaded, colorMode],
   )
+  const hiddenNow = hidden[colorMode]
   useEffect(() => {
-    if (coloring) engineRef.current?.setColors(coloring.rgb)
-  }, [coloring])
+    if (coloring) engineRef.current?.setColors(withVisibility(coloring, hiddenNow))
+  }, [coloring, hiddenNow])
+
+  const toggleCategory = (key: string) => {
+    setHidden((prev) => {
+      const next = new Set(prev[colorMode])
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return { ...prev, [colorMode]: next }
+    })
+  }
+
+  useEffect(() => {
+    engineRef.current?.setInspected(inspect)
+  }, [inspect])
 
   const applyClock = useCallback((next: Clock, immediate: boolean) => {
     engineRef.current?.setClock(next, immediate)
@@ -156,7 +192,7 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
     if (focus && loaded?.key === focus.datasetKey && focusedRef.current !== focus) {
       focusedRef.current = focus
       const tcaMs = Date.parse(focus.tcaUtc)
-      const ok = engine.focusPair(focus.aId, focus.bId, tcaMs)
+      const ok = engine.focusPair(focus.aId, focus.bId, tcaMs, fmtKm(focus.missKm))
       setFocusMissing(!ok)
       setClockState({ kind: 'frozen', atMs: tcaMs })
     } else if (!focus && focusedRef.current) {
@@ -166,9 +202,16 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
     }
   }, [focus, loaded])
 
+  const isLive = clock.kind === 'live'
+  const speed = clock.kind === 'live' ? clock.speed : 1
+
   const goLive = () => {
     if (focus) onExitFocus()
-    applyClock({ kind: 'live' }, true)
+    applyClock(liveClock(Date.now(), speed), true)
+  }
+
+  const onSpeed = (s: number) => {
+    applyClock(withSpeed(clock, s), false)
   }
 
   const onSlide = (value: number) => {
@@ -179,9 +222,10 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
   const bounds = current
     ? sliderBounds(time.nowMs || currentStartMs, currentStartMs, historyDates)
     : null
-  const isLive = clock.kind === 'live'
   const loadingKey = datasetKey && loaded?.key !== datasetKey && loadError !== datasetKey
   const snapshotLabel = (key: DatasetKey) => (key === 'current' ? 'latest run' : `${key} snapshot`)
+  const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
+  const offsetLabel = time.simMs ? formatOffset(time.simMs - time.nowMs) : ''
 
   return (
     <div className="globe">
@@ -207,35 +251,98 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
               ))}
             </div>
             <ul>
-              {coloring.categories.map((c) => (
-                <li key={c.key}>
-                  <span className="globe-swatch" style={{ background: c.color }} />
-                  <span className="globe-legend-label">{c.label}</span>
-                  <span className="globe-legend-count">{fmt(c.count)}</span>
-                </li>
-              ))}
+              {coloring.categories.map((c) => {
+                const swatch = <span className="globe-swatch" style={{ background: c.color }} />
+                const content = (
+                  <>
+                    {swatch}
+                    <span className="globe-legend-label">{c.label}</span>
+                    <span className="globe-legend-count">{fmt(c.count)}</span>
+                  </>
+                )
+                return (
+                  <li key={c.key}>
+                    {colorMode === 'flat' ? (
+                      <span className="globe-legend-row">{content}</span>
+                    ) : (
+                      <label
+                        className={`globe-legend-row is-toggle${hiddenNow.has(c.key) ? ' is-off' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!hiddenNow.has(c.key)}
+                          onChange={() => toggleCategory(c.key)}
+                        />
+                        {content}
+                      </label>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </div>
         )}
 
-        {focus && (
-          <div className="globe-panel globe-focus" aria-live="polite">
-            <p className="globe-focus-title">Closest approach</p>
-            <p>
-              {focus.aName}
-              <br />
-              {focus.bName}
-            </p>
-            <p className="globe-muted">
-              {focus.missKm.toLocaleString('en-US', { maximumFractionDigits: 3 })} km apart at{' '}
-              {formatUtc(Date.parse(focus.tcaUtc))} UTC
-            </p>
-            {focusMissing && (
-              <p className="globe-muted">One of these objects isn&apos;t in this snapshot.</p>
+        {(focus || inspected) && (
+          <div className="globe-side">
+            {focus && (
+              <div className="globe-panel" aria-live="polite">
+                <p className="globe-panel-title">Closest approach</p>
+                <p className="globe-pair">
+                  <span>
+                    <span className="globe-ring-key" style={{ borderColor: RING_A }} />
+                    {focus.aName}
+                  </span>
+                  <span>
+                    <span className="globe-ring-key" style={{ borderColor: RING_B }} />
+                    {focus.bName}
+                  </span>
+                </p>
+                <p className="globe-muted">
+                  {fmtKm(focus.missKm)} apart at {formatUtc(Date.parse(focus.tcaUtc))} UTC
+                </p>
+                {focusMissing && (
+                  <p className="globe-muted">One of these objects isn&apos;t in this snapshot.</p>
+                )}
+                <button type="button" className="globe-button" onClick={goLive}>
+                  ← Back to full view
+                </button>
+              </div>
             )}
-            <button type="button" className="globe-button" onClick={goLive}>
-              ← Back to full view
-            </button>
+            {inspected && (
+              <div className="globe-panel globe-inspect" aria-live="polite">
+                <div className="globe-panel-head">
+                  <p className="globe-panel-title">
+                    <span className="globe-ring-key" style={{ borderColor: RING_INSPECT }} />
+                    Selected object
+                  </p>
+                  <button
+                    type="button"
+                    className="globe-close"
+                    aria-label="Close object details"
+                    onClick={() => setInspect(null)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="globe-inspect-name">{inspected.name}</p>
+                <dl>
+                  <dt>NORAD ID</dt>
+                  <dd>{inspected.norad_id}</dd>
+                  <dt>Type</dt>
+                  <dd>{describeType(inspected)}</dd>
+                  <dt>Owner</dt>
+                  <dd>{inspected.satcat_owner?.name ?? 'Unknown'}</dd>
+                  <dt>Position</dt>
+                  <dd>{inspectPos ? formatLatLon(inspectPos) : '—'}</dd>
+                  <dt>Altitude</dt>
+                  <dd>{inspectPos ? fmtKm(Math.round(inspectPos.altKm)) : '—'}</dd>
+                </dl>
+                <p className="globe-muted">
+                  At {time.simMs ? `${formatUtc(time.simMs)} UTC` : 'the displayed time'}.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -252,19 +359,41 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
           <p className="globe-badge">Loading {snapshotLabel(datasetKey)}…</p>
         )}
 
-        <p className="globe-hint">Drag to rotate · scroll to zoom · right-drag to pan</p>
+        <p className="globe-hint">
+          Drag to rotate · scroll to zoom · right-drag to pan · click a point for details
+        </p>
       </div>
 
       <div className="globe-timebar">
-        <button
-          type="button"
-          className={`globe-live${isLive ? ' is-live' : ''}`}
-          aria-pressed={isLive}
-          onClick={goLive}
-        >
-          <span className="globe-live-dot" aria-hidden="true" />
-          Live
-        </button>
+        <div className="globe-playback">
+          <button
+            type="button"
+            className={`globe-live${isLive ? ' is-live' : ''}`}
+            aria-pressed={isLive}
+            onClick={goLive}
+          >
+            <span className="globe-live-dot" aria-hidden="true" />
+            Live
+          </button>
+          <div
+            className="globe-speed"
+            role="group"
+            aria-label="Live playback speed"
+            title={isLive ? undefined : 'Playback speed applies in Live mode'}
+          >
+            {SPEEDS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={isLive && speed === s}
+                disabled={!isLive}
+                onClick={() => onSpeed(s)}
+              >
+                {s}×
+              </button>
+            ))}
+          </div>
+        </div>
         {bounds && (
           <input
             type="range"
@@ -280,11 +409,13 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
         <p className="globe-time">
           {time.simMs ? `${formatUtc(time.simMs)} UTC` : '—'}
           <span className="globe-muted">
-            {isLive
-              ? ' · real time'
-              : time.simMs
-                ? ` · ${formatOffset(time.simMs - time.nowMs)}${clock.kind === 'frozen' ? ' · paused' : ''}`
-                : ''}
+            {!time.simMs
+              ? ''
+              : isLive
+                ? speed === 1 && Math.abs(time.simMs - time.nowMs) < 2000
+                  ? ' · real time'
+                  : ` · ${speed}× · ${offsetLabel}`
+                : ` · ${offsetLabel}${clock.kind === 'frozen' ? ' · paused' : ''}`}
           </span>
         </p>
       </div>
