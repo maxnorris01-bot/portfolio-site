@@ -31,4 +31,8 @@ function apiRoutes(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), apiRoutes()],
+  // satellite.js's entry also re-exports its WASM build, whose worker uses
+  // top-level await; only ES-module workers can bundle that. The globe uses
+  // the plain-JS API, so the worker is emitted but never loaded.
+  worker: { format: 'es' },
 })

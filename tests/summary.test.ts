@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  BUCKET_URL,
   DEFAULT_LIMIT,
+  GET,
   MAX_LIMIT,
+  REPORT_URL,
   parseLimit,
+  reportUrlFor,
   summarize,
   type Report,
   type RiskLevel,
@@ -100,4 +104,38 @@ test('parseLimit falls back to the default and clamps to the max', () => {
   assert.equal(parseLimit('0'), DEFAULT_LIMIT)
   assert.equal(parseLimit('10'), 10)
   assert.equal(parseLimit('100000'), MAX_LIMIT)
+})
+
+test('reportUrlFor maps ?date= to the dated report and rejects anything else', () => {
+  assert.equal(reportUrlFor(null), REPORT_URL)
+  assert.equal(reportUrlFor('2026-10-01'), `${BUCKET_URL}/reports/2026-10-01.json.gz`)
+  for (const bad of ['', '2026-1-01', '../current', '2026-10-01/x', '2026-13-45']) {
+    assert.equal(reportUrlFor(bad), undefined, bad)
+  }
+})
+
+test('GET ?date= summarizes that day, 404s a missing day and 400s a bad date', async (t) => {
+  const requested: string[] = []
+  t.mock.method(globalThis, 'fetch', async (url: string) => {
+    requested.push(url)
+    if (url.endsWith('2026-10-01.json.gz')) {
+      return new Response(JSON.stringify(report([conj('high', 0.4)])), {
+        headers: { etag: '"a"' },
+      })
+    }
+    return new Response('missing', { status: 404 })
+  })
+
+  const ok = await GET(new Request('http://x/api/satellite/summary?date=2026-10-01&limit=5'))
+  assert.equal(ok.status, 200)
+  assert.equal((await ok.json()).near_misses.length, 1)
+  assert.match(ok.headers.get('cache-control') ?? '', /s-maxage=86400/)
+  assert.equal(requested[0], `${BUCKET_URL}/reports/2026-10-01.json.gz`)
+
+  const missing = await GET(new Request('http://x/api/satellite/summary?date=2026-09-01'))
+  assert.equal(missing.status, 404)
+
+  const bad = await GET(new Request('http://x/api/satellite/summary?date=../../etc'))
+  assert.equal(bad.status, 400)
+  assert.equal(requested.length, 2)
 })
