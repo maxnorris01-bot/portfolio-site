@@ -1,18 +1,35 @@
-// The 3D globe (Phases 1 and 1b of the visualization plan, satellite-
+// The 3D globe (Phases 1, 1b and 1c of the visualization plan, satellite-
 // conjunction-screening working notes 2026-10-03). Lazy-loaded by
 // SatelliteTool so three.js and satellite.js stay out of the main bundle.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SPEEDS, liveClock, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
-import { GlobeEngine, RING_A, RING_B, RING_INSPECT, type InspectedPosition } from '../globe/engine'
+import {
+  GlobeEngine,
+  RING_A,
+  RING_B,
+  RING_GROUP,
+  RING_INSPECT,
+  type InspectedPosition,
+  type Neighbor,
+} from '../globe/engine'
+import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf } from '../globe/groups'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
+import CollisionHistory from './CollisionHistory'
 import './SatelliteGlobe.css'
 
 const TEXTURE_URL = '/textures/earth-day-2k.jpg'
 const TICK_MS = 250
 const NO_HIDDEN: ReadonlySet<string> = new Set()
+const ALL_GROUPS = [
+  ...NAME_GROUPS.map((g) => ({ key: g.key, label: g.label })),
+  { key: OTHER_GROUP, label: OTHER_LABEL },
+]
+// Below this, the nearest object is effectively at the same place: a docked
+// module or a co-located pair.
+const COLOCATED_KM = 0.05
 
 const COLOR_MODES: { mode: ColorMode; label: string }[] = [
   { mode: 'type', label: 'Type' },
@@ -58,9 +75,17 @@ interface Props {
   onExitFocus: () => void
   /** The snapshot the globe is showing, so the page can show its near misses. */
   onDatasetChange: (key: DatasetKey) => void
+  /** Conjunctions in the latest run, for the collision-history context. */
+  conjunctionsFlagged?: number
 }
 
-export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: Props) {
+export default function SatelliteGlobe({
+  focus,
+  onExitFocus,
+  onDatasetChange,
+  conjunctionsFlagged,
+}: Props) {
+  const stageRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<GlobeEngine | null>(null)
   const [time, setTime] = useState(() => ({ simMs: 0, nowMs: 0 }))
@@ -79,6 +104,10 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
   const [focusMissing, setFocusMissing] = useState(false)
   const [inspect, setInspect] = useState<number | null>(null)
   const [inspectPos, setInspectPos] = useState<InspectedPosition | null>(null)
+  const [neighbor, setNeighbor] = useState<Neighbor | null>(null)
+  const [hiddenGroups, setHiddenGroups] = useState<ReadonlySet<string>>(NO_HIDDEN)
+  const [station, setStation] = useState<string | null>(null)
+  const [stationPieces, setStationPieces] = useState(0)
 
   // Engine lifetime: one WebGL context per mount.
   useEffect(() => {
@@ -161,9 +190,38 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
     [loaded, colorMode],
   )
   const hiddenNow = hidden[colorMode]
+
+  // Name group per object, and how many objects each group has, for the
+  // filters and the collision-history counts.
+  const groups = useMemo(() => {
+    const keys = loaded ? loaded.file.objects.map((o) => groupOf(o.name)) : []
+    const counts: Record<string, number> = {}
+    for (const k of keys) counts[k] = (counts[k] ?? 0) + 1
+    return { keys, counts }
+  }, [loaded])
+
   useEffect(() => {
-    if (coloring) engineRef.current?.setColors(withVisibility(coloring, hiddenNow))
-  }, [coloring, hiddenNow])
+    if (!coloring) return
+    engineRef.current?.setColors(
+      withVisibility(coloring, hiddenNow, (i) => hiddenGroups.has(groups.keys[i])),
+    )
+  }, [coloring, hiddenNow, hiddenGroups, groups])
+
+  const toggleGroup = (key: string) => {
+    setHiddenGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  const showOnlyGroups = (keys: string[]) => {
+    setHiddenGroups(new Set(ALL_GROUPS.map((g) => g.key).filter((k) => !keys.includes(k))))
+  }
+  const showCollisionDebris = (keys: string[]) => {
+    showOnlyGroups(keys)
+    stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 
   const toggleCategory = (key: string) => {
     setHidden((prev) => {
@@ -174,9 +232,14 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
     })
   }
 
+  // Ring the inspected object and find its nearest neighbour once, at the
+  // moment it was selected.
   useEffect(() => {
-    engineRef.current?.setInspected(inspect)
+    const engine = engineRef.current
+    engine?.setInspected(inspect)
+    setNeighbor(inspect === null ? null : (engine?.nearestNeighbor() ?? null))
   }, [inspect])
+  const recomputeNeighbor = () => setNeighbor(engineRef.current?.nearestNeighbor() ?? null)
 
   const applyClock = useCallback((next: Clock, immediate: boolean) => {
     engineRef.current?.setClock(next, immediate)
@@ -201,6 +264,45 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
       engine.resetView()
     }
   }, [focus, loaded])
+
+  // Stations: ring every piece and follow them. Mutually exclusive with a
+  // near-miss replay.
+  const stationRef = useRef<string | null>(null)
+  useEffect(() => {
+    const engine = engineRef.current
+    if (!engine || !loaded) return
+    if (station && stationRef.current !== station) {
+      stationRef.current = station
+      const def = STATIONS.find((s) => s.key === station)
+      const ids = def
+        ? loaded.file.objects.filter((o) => def.match(o.name)).map((o) => o.norad_id)
+        : []
+      setStationPieces(engine.focusGroup(ids))
+    } else if (!station && stationRef.current) {
+      stationRef.current = null
+      // A replay taking over has already cleared the station and owns the camera.
+      if (!focus) engine.resetView()
+    }
+  }, [station, loaded, focus])
+
+  // A replay replaces a station view.
+  const [prevFocus, setPrevFocus] = useState(focus)
+  if (prevFocus !== focus) {
+    setPrevFocus(focus)
+    if (focus && station) setStation(null)
+  }
+
+  const selectStation = (key: string) => {
+    if (focus) onExitFocus()
+    stationRef.current = null
+    setStation(key)
+  }
+
+  const stationDef = STATIONS.find((s) => s.key === station) ?? null
+  const stationNames =
+    stationDef && loaded
+      ? loaded.file.objects.filter((o) => stationDef.match(o.name)).map((o) => o.name)
+      : []
 
   const isLive = clock.kind === 'live'
   const speed = clock.kind === 'live' ? clock.speed : 1
@@ -230,6 +332,7 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
   return (
     <div className="globe">
       <div
+        ref={stageRef}
         className="globe-stage"
         role="img"
         aria-label="Interactive 3D globe of every tracked object in the latest screening run"
@@ -280,11 +383,83 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
                 )
               })}
             </ul>
+            <details className="globe-filters">
+              <summary>
+                Filter by name
+                {hiddenGroups.size > 0 && (
+                  <span className="globe-filter-count"> · {hiddenGroups.size} hidden</span>
+                )}
+              </summary>
+              <ul>
+                {ALL_GROUPS.filter((g) => groups.counts[g.key]).map((g) => (
+                  <li key={g.key} className="globe-filter-row">
+                    <label
+                      className={`globe-legend-row is-toggle is-filter${hiddenGroups.has(g.key) ? ' is-off' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!hiddenGroups.has(g.key)}
+                        onChange={() => toggleGroup(g.key)}
+                      />
+                      <span className="globe-legend-label">{g.label}</span>
+                      <span className="globe-legend-count">{fmt(groups.counts[g.key])}</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="globe-only"
+                      aria-label={`Show only ${g.label}`}
+                      onClick={() => showOnlyGroups([g.key])}
+                    >
+                      only
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {hiddenGroups.size > 0 && (
+                <button
+                  type="button"
+                  className="globe-link"
+                  onClick={() => setHiddenGroups(NO_HIDDEN)}
+                >
+                  Show all
+                </button>
+              )}
+            </details>
+            <div className="globe-stations" role="group" aria-label="Go to a space station">
+              <span className="globe-muted">Stations</span>
+              {STATIONS.map((st) => (
+                <button
+                  key={st.key}
+                  type="button"
+                  aria-pressed={station === st.key}
+                  onClick={() => selectStation(st.key)}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {(focus || inspected) && (
+        {(focus || inspected || stationDef) && (
           <div className="globe-side">
+            {stationDef && (
+              <div className="globe-panel" aria-live="polite">
+                <p className="globe-panel-title">
+                  <span className="globe-ring-key" style={{ borderColor: RING_GROUP }} />
+                  {stationDef.fullName}
+                </p>
+                <p>
+                  {stationPieces
+                    ? `${stationPieces} tracked piece${stationPieces === 1 ? '' : 's'}, followed as it moves:`
+                    : 'Not in this snapshot.'}
+                </p>
+                {stationPieces > 0 && <p className="globe-muted">{stationNames.join(' · ')}</p>}
+                <button type="button" className="globe-button" onClick={() => setStation(null)}>
+                  ← Back to full view
+                </button>
+              </div>
+            )}
             {focus && (
               <div className="globe-panel" aria-live="polite">
                 <p className="globe-panel-title">Closest approach</p>
@@ -337,7 +512,28 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
                   <dd>{inspectPos ? formatLatLon(inspectPos) : '—'}</dd>
                   <dt>Altitude</dt>
                   <dd>{inspectPos ? fmtKm(Math.round(inspectPos.altKm)) : '—'}</dd>
+                  <dt>Nearest</dt>
+                  <dd>
+                    {neighbor && loaded ? (
+                      <>
+                        {fmtKm(neighbor.km)} · {loaded.file.objects[neighbor.index].name}
+                        {neighbor.km < COLOCATED_KM && (
+                          <span className="globe-muted"> (docked or co-located)</span>
+                        )}
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </dd>
                 </dl>
+                {neighbor && (
+                  <p className="globe-muted globe-neighbor-note">
+                    Nearest of every tracked object at {formatUtc(neighbor.atMs)} UTC.{' '}
+                    <button type="button" className="globe-link" onClick={recomputeNeighbor}>
+                      Update
+                    </button>
+                  </p>
+                )}
                 <p className="globe-muted">
                   At {time.simMs ? `${formatUtc(time.simMs)} UTC` : 'the displayed time'}.
                 </p>
@@ -428,6 +624,13 @@ export default function SatelliteGlobe({ focus, onExitFocus, onDatasetChange }: 
           : ''}
         Earth imagery: NASA Visible Earth (Blue Marble).
       </p>
+      {loaded && (
+        <CollisionHistory
+          counts={groups.counts}
+          conjunctionsFlagged={conjunctionsFlagged}
+          onShow={showCollisionDebris}
+        />
+      )}
     </div>
   )
 }
