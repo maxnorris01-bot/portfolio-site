@@ -236,6 +236,7 @@ export default function SatelliteTool() {
               focus={focus}
               onExitFocus={exitFocus}
               onDatasetChange={setGlobeDataset}
+              conjunctionsFlagged={summary?.conjunctions_flagged}
             />
           </Suspense>
         </section>

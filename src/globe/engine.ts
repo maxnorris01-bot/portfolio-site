@@ -11,6 +11,7 @@ import {
 } from 'satellite.js'
 import { liveClock, simTimeAt, type Clock } from './clock'
 import { earthRotationY, writeInertial } from './frames'
+import { nearestTo } from './neighbors'
 import { pickNearest } from './picking'
 import type { CatalogObject } from './types'
 
@@ -27,6 +28,14 @@ const CAMERA_ANIM_MS = 1400
 // multi-km miss line to be visible. Sub-100 m misses stay sub-pixel at any
 // sensible zoom; the distance label carries those.
 const FOCUS_MIN_DISTANCE = 0.0003
+// Free-roam zoom floor, measured from Earth's centre: 1.10 radii is ~640 km
+// up, just above Starlink's shells (Phase 1's floor was 1.15, ~960 km). Any
+// lower and the camera, which always looks at Earth's centre, sinks beneath
+// the dense LEO shell and sees almost no points; the 2k texture also turns to
+// a blur. Replay and stations allow much closer (FOCUS_MIN_DISTANCE).
+const FREE_MIN_DISTANCE = 1.1
+// Most station pieces a group ring can mark at once.
+const MAX_GROUP = 32
 // Screen-space pick radius in CSS px; larger for touch.
 const PICK_PX_MOUSE = 10
 const PICK_PX_TOUCH = 20
@@ -38,8 +47,15 @@ const CLICK_MAX_MOVE_PX = 5
 export const RING_A = '#ffffff'
 export const RING_B = '#f2c14e'
 export const RING_INSPECT = '#e85d3f'
+export const RING_GROUP = '#7fd8ff'
 
 export type { Clock } from './clock'
+
+export interface Neighbor {
+  index: number
+  km: number
+  atMs: number
+}
 
 export interface InspectedPosition {
   latDeg: number
@@ -112,6 +128,7 @@ export class GlobeEngine {
   private readonly ringA: THREE.Points
   private readonly ringB: THREE.Points
   private readonly ringInspect: THREE.Points
+  private readonly ringGroup: THREE.Points
   private readonly missLine: THREE.Line
   private readonly missLabel: HTMLDivElement
   private readonly resizeObserver: ResizeObserver
@@ -125,12 +142,16 @@ export class GlobeEngine {
   private fullPending = true
   private focusIdx: [number, number] | null = null
   private inspectIdx: number | null = null
+  private groupIdx: number[] | null = null
+  private readonly groupCentre = new THREE.Vector3()
   private camAnim: {
     start: number
     fromPos: THREE.Vector3
     toPos: THREE.Vector3
     fromTarget: THREE.Vector3
     toTarget: THREE.Vector3
+    /** When following a moving station: camera offset from its centre. */
+    followOffset?: THREE.Vector3
   } | null = null
   private camAnimDone?: () => void
   private pointerDown: { x: number; y: number } | null = null
@@ -187,7 +208,14 @@ export class GlobeEngine {
     this.ringA = makeRing(ringTexture, RING_A, 22 * pr)
     this.ringB = makeRing(ringTexture, RING_B, 34 * pr)
     this.ringInspect = makeRing(ringTexture, RING_INSPECT, 26 * pr)
-    this.scene.add(this.ringA, this.ringB, this.ringInspect)
+    this.ringGroup = makeRing(ringTexture, RING_GROUP, 30 * pr)
+    this.ringGroup.geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(new Float32Array(MAX_GROUP * 3), 3).setUsage(
+        THREE.DynamicDrawUsage,
+      ),
+    )
+    this.scene.add(this.ringA, this.ringB, this.ringInspect, this.ringGroup)
 
     const lineGeometry = new THREE.BufferGeometry()
     lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3))
@@ -229,6 +257,7 @@ export class GlobeEngine {
     this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1000)
     this.fullPending = true
     this.clearFocusMarks()
+    this.clearGroup()
     this.setInspected(null)
   }
 
@@ -270,6 +299,7 @@ export class GlobeEngine {
     const pb = this.positionOf(b, date)
     if (!pa || !pb) return false
 
+    this.clearGroup()
     this.focusIdx = [a, b]
     this.setClock({ kind: 'frozen', atMs: tcaMs }, true)
     this.missLabel.textContent = label
@@ -282,9 +312,32 @@ export class GlobeEngine {
     return true
   }
 
+  /**
+   * Ring every piece of a multi-piece object (a space station's modules), fly
+   * to them, and keep the camera following them as they move. The clock is
+   * left alone. Returns the number of pieces marked (0 if none are loaded).
+   */
+  focusGroup(ids: number[]): number {
+    const indices = ids
+      .map((id) => this.indexById.get(id))
+      .filter((i): i is number => i !== undefined && this.satrecs[i] !== null)
+      .slice(0, MAX_GROUP)
+    if (!indices.length || !this.updateGroupMarks(new Date(this.simTimeMs()), indices)) return 0
+    this.clearFocusMarks()
+    this.groupIdx = indices
+    this.ringGroup.visible = true
+    this.controls.minDistance = FOCUS_MIN_DISTANCE
+    const c = this.groupCentre
+    const offset = c.clone().normalize().multiplyScalar(0.25)
+    this.animateCamera(c.clone().add(offset), c.clone())
+    if (this.camAnim) this.camAnim.followOffset = offset
+    return indices.length
+  }
+
   /** Back to the free-roam view of the whole globe. The caller sets the clock. */
   resetView() {
     this.clearFocusMarks()
+    this.clearGroup()
     this.animateCamera(DEFAULT_CAMERA.clone(), new THREE.Vector3(), () => {
       this.resetLimits()
       this.camera.up.set(0, 1, 0)
@@ -295,6 +348,34 @@ export class GlobeEngine {
   setInspected(index: number | null) {
     this.inspectIdx = index !== null && this.satrecs[index] ? index : null
     this.ringInspect.visible = this.inspectIdx !== null
+  }
+
+  /**
+   * The object nearest the inspected one at the displayed moment, from a
+   * fresh propagation of the whole catalog (one heavier call, on click only;
+   * render positions are frame-sliced and can be ~9 frames stale). Every
+   * object counts, including ones hidden by filters.
+   */
+  nearestNeighbor(): Neighbor | null {
+    const index = this.inspectIdx
+    if (index === null) return null
+    const atMs = this.simTimeMs()
+    const date = new Date(atMs)
+    const n = this.satrecs.length
+    const pos = new Float64Array(n * 3)
+    const ok = new Uint8Array(n)
+    for (let i = 0; i < n; i++) {
+      const rec = this.satrecs[i]
+      const pv = rec && propagate(rec, date)
+      if (!pv) continue
+      pos[i * 3] = pv.position.x
+      pos[i * 3 + 1] = pv.position.y
+      pos[i * 3 + 2] = pv.position.z
+      ok[i] = 1
+    }
+    if (!ok[index]) return null
+    const nearest = nearestTo(pos, index, (i) => ok[i] === 1)
+    return nearest && { index: nearest.index, km: nearest.distance, atMs }
   }
 
   /** The inspected object's position at the displayed moment. */
@@ -362,6 +443,39 @@ export class GlobeEngine {
     this.onPick?.(index)
   }
 
+  private clearGroup() {
+    this.groupIdx = null
+    this.ringGroup.visible = false
+  }
+
+  // Ring positions and centre for a station's pieces at `date`.
+  private updateGroupMarks(date: Date, indices = this.groupIdx): boolean {
+    if (!indices) return false
+    const attr = this.ringGroup.geometry.getAttribute('position') as THREE.BufferAttribute
+    const c = new THREE.Vector3()
+    let count = 0
+    for (const i of indices) {
+      const p = this.positionOf(i, date)
+      if (!p) continue
+      attr.setXYZ(count++, p.x, p.y, p.z)
+      c.add(p)
+    }
+    if (!count) return false
+    this.groupCentre.copy(c.divideScalar(count))
+    this.ringGroup.geometry.setDrawRange(0, count)
+    attr.needsUpdate = true
+    return true
+  }
+
+  // Keep a followed station centred: move target and camera by the same step,
+  // so the user's own orbit/zoom around it is preserved.
+  private followGroup() {
+    if (!this.groupIdx || this.camAnim) return
+    const delta = this.groupCentre.clone().sub(this.controls.target)
+    this.camera.position.add(delta)
+    this.controls.target.copy(this.groupCentre)
+  }
+
   private clearFocusMarks() {
     this.focusIdx = null
     this.ringA.visible = this.ringB.visible = this.missLine.visible = false
@@ -369,7 +483,7 @@ export class GlobeEngine {
   }
 
   private resetLimits() {
-    this.controls.minDistance = 1.15
+    this.controls.minDistance = FREE_MIN_DISTANCE
     this.controls.maxDistance = 30
   }
 
@@ -462,7 +576,8 @@ export class GlobeEngine {
   // without clipping, while keeping depth precision at the default view.
   private updateClipPlanes() {
     const dist = this.camera.position.distanceTo(this.controls.target)
-    const near = Math.min(0.005, Math.max(1e-6, dist * 0.02))
+    const altitude = this.camera.position.length() - 1
+    const near = Math.max(1e-6, Math.min(0.005, dist * 0.02, altitude * 0.5))
     const far = this.camera.position.length() + 40
     if (Math.abs(near - this.camera.near) > near * 0.05 || Math.abs(far - this.camera.far) > 1) {
       this.camera.near = near
@@ -488,6 +603,11 @@ export class GlobeEngine {
     if (!a) return
     const t = Math.min(1, (now - a.start) / CAMERA_ANIM_MS)
     const k = easeInOut(t)
+    if (a.followOffset && this.groupIdx) {
+      // Aim at where the station is now, not where it was when the fly-to began.
+      a.toTarget.copy(this.groupCentre)
+      a.toPos.copy(this.groupCentre).add(a.followOffset)
+    }
     this.camera.position.lerpVectors(a.fromPos, a.toPos, k)
     this.controls.target.lerpVectors(a.fromTarget, a.toTarget, k)
     if (t === 1) {
@@ -518,9 +638,11 @@ export class GlobeEngine {
       ;(this.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
       this.updateFocusMarks(date)
       this.updateInspectRing(date)
+      this.updateGroupMarks(date)
     }
 
     this.stepCamera(now)
+    this.followGroup()
     this.controls.update()
     this.updateClipPlanes()
     this.placeMissLabel()

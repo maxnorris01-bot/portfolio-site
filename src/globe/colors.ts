@@ -95,16 +95,21 @@ export function colorize(objects: CatalogObject[], mode: ColorMode): Coloring {
 
 /**
  * rgba per object for the engine: the coloring's rgb, with alpha 0 for
- * objects in a hidden category (the point shader discards those).
+ * objects in a hidden category or hidden by `alsoHidden` (the name filters);
+ * the point shader discards those.
  */
-export function withVisibility(coloring: Coloring, hidden: ReadonlySet<string>): Float32Array {
+export function withVisibility(
+  coloring: Coloring,
+  hidden: ReadonlySet<string>,
+  alsoHidden: (i: number) => boolean = () => false,
+): Float32Array {
   const n = coloring.rgb.length / 3
   const rgba = new Float32Array(n * 4)
   for (let i = 0; i < n; i++) {
     rgba[i * 4] = coloring.rgb[i * 3]
     rgba[i * 4 + 1] = coloring.rgb[i * 3 + 1]
     rgba[i * 4 + 2] = coloring.rgb[i * 3 + 2]
-    rgba[i * 4 + 3] = hidden.has(coloring.categoryOf(i)) ? 0 : 1
+    rgba[i * 4 + 3] = hidden.has(coloring.categoryOf(i)) || alsoHidden(i) ? 0 : 1
   }
   return rgba
 }
