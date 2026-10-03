@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SPEEDS, liveClock, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
+import { formatKm } from '../globe/format'
 import {
   GlobeEngine,
   RING_A,
@@ -31,6 +32,11 @@ const ALL_GROUPS = [
 // module or a co-located pair.
 const COLOCATED_KM = 0.05
 
+const onlyGroups = (keys: string[]): ReadonlySet<string> =>
+  new Set(ALL_GROUPS.map((g) => g.key).filter((k) => !keys.includes(k)))
+const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
+  a.size === b.size && [...a].every((k) => b.has(k))
+
 const COLOR_MODES: { mode: ColorMode; label: string }[] = [
   { mode: 'type', label: 'Type' },
   { mode: 'owner', label: 'Owner' },
@@ -38,8 +44,7 @@ const COLOR_MODES: { mode: ColorMode; label: string }[] = [
 ]
 
 const fmt = (n: number) => n.toLocaleString('en-US')
-const fmtKm = (km: number) =>
-  `${km.toLocaleString('en-US', { maximumFractionDigits: km < 1 ? 3 : 2 })} km`
+const fmtKm = formatKm
 
 function formatUtc(ms: number) {
   return new Date(ms).toLocaleString('en-US', {
@@ -109,6 +114,23 @@ export default function SatelliteGlobe({
   const [station, setStation] = useState<string | null>(null)
   const [stationPieces, setStationPieces] = useState(0)
 
+  // Selection is single: picking an object replaces a near-miss pair or a
+  // station, and a click on no object clears whatever is selected. The engine
+  // has already cleared its marks and eased the camera out; `releasedRef`
+  // tells the replay/station effects not to also fly home. The handler is
+  // called from engine events, so it reads current props through a ref.
+  const releasedRef = useRef(false)
+  const handlePick = useRef<(index: number | null) => void>(() => {})
+  useEffect(() => {
+    handlePick.current = (index) => {
+      if (focus || station) releasedRef.current = true
+      if (focus) onExitFocus()
+      if (station) setStation(null)
+      if (index === null) engineRef.current?.clearSelection()
+      setInspect(index)
+    }
+  })
+
   // Engine lifetime: one WebGL context per mount.
   useEffect(() => {
     const container = containerRef.current
@@ -122,9 +144,10 @@ export default function SatelliteGlobe({
         setTime({ simMs, nowMs: Date.now() })
         setInspectPos(engineRef.current?.inspectedPosition() ?? null)
       },
-      onPick: (index) => setInspect(index),
+      onPick: (index) => handlePick.current(index),
     })
     engineRef.current = engine
+    if (import.meta.env.DEV) Object.assign(window, { __globe: engine })
     return () => {
       engine.dispose()
       engineRef.current = null
@@ -215,12 +238,43 @@ export default function SatelliteGlobe({
       return next
     })
   }
-  const showOnlyGroups = (keys: string[]) => {
-    setHiddenGroups(new Set(ALL_GROUPS.map((g) => g.key).filter((k) => !keys.includes(k))))
-  }
-  const showCollisionDebris = (keys: string[]) => {
-    showOnlyGroups(keys)
+  const showOnlyGroups = (keys: string[]) => setHiddenGroups(onlyGroups(keys))
+
+  // The collision-history buttons toggle: on isolates that event's debris,
+  // off restores exactly the view from before.
+  const [isolation, setIsolation] = useState<{
+    keys: string[]
+    prev: ReadonlySet<string>
+  } | null>(null)
+  const isolatedKeys =
+    isolation && sameSet(hiddenGroups, onlyGroups(isolation.keys)) ? isolation.keys : null
+  const toggleCollisionDebris = (keys: string[]) => {
+    if (isolation && isolatedKeys?.join() === keys.join()) {
+      setHiddenGroups(isolation.prev)
+      setIsolation(null)
+      return
+    }
+    setIsolation({ keys, prev: isolation && isolatedKeys ? isolation.prev : hiddenGroups })
+    setHiddenGroups(onlyGroups(keys))
     stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  // How many points the filters leave visible, for the always-visible reset.
+  const visibleCount = useMemo(() => {
+    if (!coloring) return 0
+    let n = 0
+    for (let i = 0; i < groups.keys.length; i++) {
+      if (!hiddenNow.has(coloring.categoryOf(i)) && !hiddenGroups.has(groups.keys[i])) n++
+    }
+    return n
+  }, [coloring, groups, hiddenNow, hiddenGroups])
+  const visibleGroupLabels = ALL_GROUPS.filter(
+    (g) => groups.counts[g.key] && !hiddenGroups.has(g.key),
+  ).map((g) => g.label)
+  const showEverything = () => {
+    setHiddenGroups(NO_HIDDEN)
+    setHidden((prev) => ({ ...prev, [colorMode]: NO_HIDDEN }))
+    setIsolation(null)
   }
 
   const toggleCategory = (key: string) => {
@@ -234,12 +288,20 @@ export default function SatelliteGlobe({
 
   // Ring the inspected object and find its nearest neighbour once, at the
   // moment it was selected.
+  // The neighbour gets the same dashed, labelled line as a near-miss replay.
   useEffect(() => {
     const engine = engineRef.current
     engine?.setInspected(inspect)
-    setNeighbor(inspect === null ? null : (engine?.nearestNeighbor() ?? null))
+    const n = inspect === null ? null : (engine?.nearestNeighbor() ?? null)
+    engine?.showNeighbor(n?.index ?? null)
+    setNeighbor(n)
   }, [inspect])
-  const recomputeNeighbor = () => setNeighbor(engineRef.current?.nearestNeighbor() ?? null)
+  const recomputeNeighbor = () => {
+    const engine = engineRef.current
+    const n = engine?.nearestNeighbor() ?? null
+    engine?.showNeighbor(n?.index ?? null)
+    setNeighbor(n)
+  }
 
   const applyClock = useCallback((next: Clock, immediate: boolean) => {
     engineRef.current?.setClock(next, immediate)
@@ -261,7 +323,8 @@ export default function SatelliteGlobe({
     } else if (!focus && focusedRef.current) {
       focusedRef.current = null
       setFocusMissing(false)
-      engine.resetView()
+      if (releasedRef.current) releasedRef.current = false
+      else engine.resetView()
     }
   }, [focus, loaded])
 
@@ -280,21 +343,26 @@ export default function SatelliteGlobe({
       setStationPieces(engine.focusGroup(ids))
     } else if (!station && stationRef.current) {
       stationRef.current = null
-      // A replay taking over has already cleared the station and owns the camera.
-      if (!focus) engine.resetView()
+      // A replay taking over, or a click elsewhere, has already handled the camera.
+      if (releasedRef.current) releasedRef.current = false
+      else if (!focus) engine.resetView()
     }
   }, [station, loaded, focus])
 
-  // A replay replaces a station view.
+  // A replay replaces a station view or an inspected object.
   const [prevFocus, setPrevFocus] = useState(focus)
   if (prevFocus !== focus) {
     setPrevFocus(focus)
-    if (focus && station) setStation(null)
+    if (focus) {
+      if (station) setStation(null)
+      if (inspect !== null) setInspect(null)
+    }
   }
 
   const selectStation = (key: string) => {
     if (focus) onExitFocus()
     stationRef.current = null
+    setInspect(null)
     setStation(key)
   }
 
@@ -495,7 +563,7 @@ export default function SatelliteGlobe({
                     type="button"
                     className="globe-close"
                     aria-label="Close object details"
-                    onClick={() => setInspect(null)}
+                    onClick={() => handlePick.current(null)}
                   >
                     ×
                   </button>
@@ -516,6 +584,7 @@ export default function SatelliteGlobe({
                   <dd>
                     {neighbor && loaded ? (
                       <>
+                        <span className="globe-ring-key" style={{ borderColor: RING_A }} />
                         {fmtKm(neighbor.km)} · {loaded.file.objects[neighbor.index].name}
                         {neighbor.km < COLOCATED_KM && (
                           <span className="globe-muted"> (docked or co-located)</span>
@@ -528,12 +597,20 @@ export default function SatelliteGlobe({
                 </dl>
                 {neighbor && (
                   <p className="globe-muted globe-neighbor-note">
-                    Nearest of every tracked object at {formatUtc(neighbor.atMs)} UTC.{' '}
+                    Nearest of every tracked object at {formatUtc(neighbor.atMs)} UTC; the line
+                    shows their distance now.{' '}
                     <button type="button" className="globe-link" onClick={recomputeNeighbor}>
                       Update
                     </button>
                   </p>
                 )}
+                <button
+                  type="button"
+                  className="globe-button"
+                  onClick={() => handlePick.current(null)}
+                >
+                  Deselect
+                </button>
                 <p className="globe-muted">
                   At {time.simMs ? `${formatUtc(time.simMs)} UTC` : 'the displayed time'}.
                 </p>
@@ -559,6 +636,21 @@ export default function SatelliteGlobe({
           Drag to rotate · scroll to zoom · right-drag to pan · click a point for details
         </p>
       </div>
+
+      {loaded && visibleCount < loaded.file.objects.length && (
+        <div className="globe-filterbar" role="status">
+          <span>
+            Showing {fmt(visibleCount)} of {fmt(loaded.file.objects.length)} objects
+            {hiddenGroups.size > 0 && visibleGroupLabels.length <= 3
+              ? `: ${visibleGroupLabels.join(', ') || 'no name groups'}`
+              : ''}
+            .
+          </span>
+          <button type="button" className="globe-button-light" onClick={showEverything}>
+            Show all objects
+          </button>
+        </div>
+      )}
 
       <div className="globe-timebar">
         <div className="globe-playback">
@@ -628,7 +720,8 @@ export default function SatelliteGlobe({
         <CollisionHistory
           counts={groups.counts}
           conjunctionsFlagged={conjunctionsFlagged}
-          onShow={showCollisionDebris}
+          activeKeys={isolatedKeys}
+          onToggle={toggleCollisionDebris}
         />
       )}
     </div>

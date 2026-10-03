@@ -10,7 +10,8 @@ import {
   type SatRec,
 } from 'satellite.js'
 import { liveClock, simTimeAt, type Clock } from './clock'
-import { earthRotationY, writeInertial } from './frames'
+import { formatKm } from './format'
+import { EARTH_RADIUS_KM, earthRotationY, writeInertial } from './frames'
 import { nearestTo } from './neighbors'
 import { pickNearest } from './picking'
 import type { CatalogObject } from './types'
@@ -36,9 +37,11 @@ const FOCUS_MIN_DISTANCE = 0.0003
 const FREE_MIN_DISTANCE = 1.1
 // Most station pieces a group ring can mark at once.
 const MAX_GROUP = 32
-// Screen-space pick radius in CSS px; larger for touch.
-const PICK_PX_MOUSE = 10
-const PICK_PX_TOUCH = 20
+// Screen-space pick radius in CSS px; larger for touch. Points are ~2 px, and
+// over the dense LEO shell a 10 px radius caught something on ~80% of clicks,
+// leaving almost no "empty space" to click to deselect.
+const PICK_PX_MOUSE = 6
+const PICK_PX_TOUCH = 16
 const CLICK_MAX_MOVE_PX = 5
 
 // Ring colours. The two objects of a near-miss pair get different colours and
@@ -129,8 +132,8 @@ export class GlobeEngine {
   private readonly ringB: THREE.Points
   private readonly ringInspect: THREE.Points
   private readonly ringGroup: THREE.Points
-  private readonly missLine: THREE.Line
-  private readonly missLabel: HTMLDivElement
+  private readonly linkLine: THREE.Line
+  private readonly linkLabel: HTMLDivElement
   private readonly resizeObserver: ResizeObserver
 
   private positions = new Float32Array(0)
@@ -140,7 +143,11 @@ export class GlobeEngine {
   private clock: Clock = liveClock(Date.now())
   private sliceIndex = 0
   private fullPending = true
-  private focusIdx: [number, number] | null = null
+  // The dashed line between two objects: a near-miss pair (fixed label, the
+  // report's miss distance) or the inspected object and its nearest neighbour
+  // (live distance). Only one at a time, since selection is single.
+  private link: { a: number; b: number; kind: 'pair' | 'neighbor'; label: string | null } | null =
+    null
   private inspectIdx: number | null = null
   private groupIdx: number[] | null = null
   private readonly groupCentre = new THREE.Vector3()
@@ -219,18 +226,18 @@ export class GlobeEngine {
 
     const lineGeometry = new THREE.BufferGeometry()
     lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3))
-    this.missLine = new THREE.Line(
+    this.linkLine = new THREE.Line(
       lineGeometry,
       new THREE.LineDashedMaterial({ color: 0xffffff, depthTest: false, transparent: true }),
     )
-    this.missLine.renderOrder = 1
-    this.missLine.visible = false
-    this.scene.add(this.missLine)
+    this.linkLine.renderOrder = 1
+    this.linkLine.visible = false
+    this.scene.add(this.linkLine)
 
-    this.missLabel = document.createElement('div')
-    this.missLabel.className = 'globe-miss-label'
-    this.missLabel.hidden = true
-    container.appendChild(this.missLabel)
+    this.linkLabel = document.createElement('div')
+    this.linkLabel.className = 'globe-miss-label'
+    this.linkLabel.hidden = true
+    container.appendChild(this.linkLabel)
 
     const canvas = this.renderer.domElement
     canvas.addEventListener('pointerdown', this.handlePointerDown)
@@ -256,9 +263,12 @@ export class GlobeEngine {
     this.geometry.setAttribute('color', new THREE.BufferAttribute(this.rgba, 4))
     this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1000)
     this.fullPending = true
-    this.clearFocusMarks()
+    this.link = null
+    this.ringA.visible = this.ringB.visible = this.linkLine.visible = false
+    this.linkLabel.hidden = true
     this.clearGroup()
-    this.setInspected(null)
+    this.inspectIdx = null
+    this.ringInspect.visible = false
   }
 
   /**
@@ -299,12 +309,11 @@ export class GlobeEngine {
     const pb = this.positionOf(b, date)
     if (!pa || !pb) return false
 
-    this.clearGroup()
-    this.focusIdx = [a, b]
+    this.clearSelection()
+    this.link = { a, b, kind: 'pair', label }
     this.setClock({ kind: 'frozen', atMs: tcaMs }, true)
-    this.missLabel.textContent = label
-    this.updateFocusMarks(date)
-    this.ringA.visible = this.ringB.visible = this.missLine.visible = true
+    this.updateLink(date)
+    this.ringA.visible = this.ringB.visible = this.linkLine.visible = true
     this.controls.minDistance = FOCUS_MIN_DISTANCE
     // Look down at the pair from just outside it, with Earth behind.
     const mid = pa.add(pb).multiplyScalar(0.5)
@@ -323,7 +332,7 @@ export class GlobeEngine {
       .filter((i): i is number => i !== undefined && this.satrecs[i] !== null)
       .slice(0, MAX_GROUP)
     if (!indices.length || !this.updateGroupMarks(new Date(this.simTimeMs()), indices)) return 0
-    this.clearFocusMarks()
+    this.clearSelection()
     this.groupIdx = indices
     this.ringGroup.visible = true
     this.controls.minDistance = FOCUS_MIN_DISTANCE
@@ -336,18 +345,46 @@ export class GlobeEngine {
 
   /** Back to the free-roam view of the whole globe. The caller sets the clock. */
   resetView() {
-    this.clearFocusMarks()
-    this.clearGroup()
+    this.clearSelection()
     this.animateCamera(DEFAULT_CAMERA.clone(), new THREE.Vector3(), () => {
       this.resetLimits()
       this.camera.up.set(0, 1, 0)
     })
   }
 
-  /** Ring one object for the inspect panel, or clear with null. */
+  /**
+   * Select one object for the inspect panel, replacing any other selection
+   * (another object, a near-miss pair or a station); null clears it.
+   */
   setInspected(index: number | null) {
-    this.inspectIdx = index !== null && this.satrecs[index] ? index : null
-    this.ringInspect.visible = this.inspectIdx !== null
+    const next = index !== null && this.satrecs[index] ? index : null
+    if (next !== null) this.clearSelection()
+    else this.clearLink('neighbor')
+    this.inspectIdx = next
+    this.ringInspect.visible = next !== null
+  }
+
+  /** Draw the dashed line from the inspected object to `index`, or remove it. */
+  showNeighbor(index: number | null) {
+    this.clearLink('neighbor')
+    if (index === null || this.inspectIdx === null || !this.satrecs[index]) return
+    this.link = { a: this.inspectIdx, b: index, kind: 'neighbor', label: null }
+    this.updateLink(new Date(this.simTimeMs()))
+    this.ringA.visible = this.linkLine.visible = true
+  }
+
+  /**
+   * Clear every selection mark (object, neighbour line, pair, station). If the
+   * camera was focused on one, ease back to free roam from where it is rather
+   * than flying home; the clock is left alone.
+   */
+  clearSelection() {
+    const wasFocused = this.link?.kind === 'pair' || this.groupIdx !== null
+    this.clearLink()
+    this.clearGroup()
+    this.inspectIdx = null
+    this.ringInspect.visible = false
+    if (wasFocused) this.releaseToFreeRoam()
   }
 
   /**
@@ -393,6 +430,24 @@ export class GlobeEngine {
     }
   }
 
+  /** Read-only state for dev-time checks (exposed on window in dev builds only). */
+  debugState() {
+    return {
+      cameraFromCentre: this.camera.position.length(),
+      cameraFromTarget: this.camera.position.distanceTo(this.controls.target),
+      minDistance: this.controls.minDistance,
+      inspected: this.inspectIdx,
+      link: this.link && { kind: this.link.kind, a: this.link.a, b: this.link.b },
+      rings: {
+        a: this.ringA.visible,
+        b: this.ringB.visible,
+        inspect: this.ringInspect.visible,
+        group: this.ringGroup.visible,
+      },
+      line: this.linkLine.visible,
+    }
+  }
+
   dispose() {
     this.disposed = true
     cancelAnimationFrame(this.raf)
@@ -411,7 +466,7 @@ export class GlobeEngine {
     })
     this.renderer.dispose()
     canvas.remove()
-    this.missLabel.remove()
+    this.linkLabel.remove()
   }
 
   private handlePointerDown = (e: PointerEvent) => {
@@ -476,10 +531,20 @@ export class GlobeEngine {
     this.controls.target.copy(this.groupCentre)
   }
 
-  private clearFocusMarks() {
-    this.focusIdx = null
-    this.ringA.visible = this.ringB.visible = this.missLine.visible = false
-    this.missLabel.hidden = true
+  private clearLink(kind?: 'pair' | 'neighbor') {
+    if (!this.link || (kind && this.link.kind !== kind)) return
+    this.link = null
+    this.ringA.visible = this.ringB.visible = this.linkLine.visible = false
+    this.linkLabel.hidden = true
+  }
+
+  // Leave a pair/station focus without jumping: aim back at Earth's centre and
+  // step out to the free-roam floor if the camera is inside it.
+  private releaseToFreeRoam() {
+    const radius = Math.max(this.camera.position.length(), FREE_MIN_DISTANCE + 0.02)
+    this.animateCamera(this.camera.position.clone().setLength(radius), new THREE.Vector3(), () =>
+      this.resetLimits(),
+    )
   }
 
   private resetLimits() {
@@ -521,23 +586,29 @@ export class GlobeEngine {
     attr.needsUpdate = true
   }
 
-  // Rings and the miss line are propagated exactly at the displayed moment
+  // Rings and the link line are propagated exactly at the displayed moment
   // every frame (not sliced), so they sit precisely on the objects.
-  private updateFocusMarks(date: Date) {
-    if (!this.focusIdx) return
-    const pa = this.positionOf(this.focusIdx[0], date)
-    const pb = this.positionOf(this.focusIdx[1], date)
+  private updateLink(date: Date) {
+    const link = this.link
+    if (!link) return
+    const pa = this.positionOf(link.a, date)
+    const pb = this.positionOf(link.b, date)
     if (!pa || !pb) return
-    this.setRing(this.ringA, pa)
-    this.setRing(this.ringB, pb)
-    const attr = this.missLine.geometry.getAttribute('position') as THREE.BufferAttribute
+    if (link.kind === 'pair') {
+      this.setRing(this.ringA, pa)
+      this.setRing(this.ringB, pb)
+    } else {
+      this.setRing(this.ringA, pb) // the neighbour; the inspect ring marks `a`
+    }
+    this.linkLabel.textContent = link.label ?? formatKm(pa.distanceTo(pb) * EARTH_RADIUS_KM)
+    const attr = this.linkLine.geometry.getAttribute('position') as THREE.BufferAttribute
     attr.setXYZ(0, pa.x, pa.y, pa.z)
     attr.setXYZ(1, pb.x, pb.y, pb.z)
     attr.needsUpdate = true
-    this.missLine.computeLineDistances()
+    this.linkLine.computeLineDistances()
     // About five dashes whatever the separation.
     const dash = Math.max(pa.distanceTo(pb) / 10, 1e-9)
-    const material = this.missLine.material as THREE.LineDashedMaterial
+    const material = this.linkLine.material as THREE.LineDashedMaterial
     material.dashSize = dash
     material.gapSize = dash
   }
@@ -551,8 +622,8 @@ export class GlobeEngine {
   // Keep the miss label beside the pair on screen, hidden when the pair is
   // behind the Earth or the camera.
   private placeMissLabel() {
-    if (!this.focusIdx || !this.missLine.visible) return
-    const attr = this.missLine.geometry.getAttribute('position') as THREE.BufferAttribute
+    if (!this.link || !this.linkLine.visible) return
+    const attr = this.linkLine.geometry.getAttribute('position') as THREE.BufferAttribute
     const mid = new THREE.Vector3(
       (attr.getX(0) + attr.getX(1)) / 2,
       (attr.getY(0) + attr.getY(1)) / 2,
@@ -564,12 +635,12 @@ export class GlobeEngine {
     const behindEarth = hit !== null && hit.distanceTo(this.camera.position) < toMid.length()
     const ndc = mid.clone().project(this.camera)
     if (behindEarth || ndc.z > 1) {
-      this.missLabel.hidden = true
+      this.linkLabel.hidden = true
       return
     }
     const { clientWidth: w, clientHeight: h } = this.container
-    this.missLabel.hidden = false
-    this.missLabel.style.transform = `translate(${((ndc.x + 1) / 2) * w + 22}px, ${((1 - ndc.y) / 2) * h - 34}px)`
+    this.linkLabel.hidden = false
+    this.linkLabel.style.transform = `translate(${((ndc.x + 1) / 2) * w + 22}px, ${((1 - ndc.y) / 2) * h - 34}px)`
   }
 
   // Near and far planes follow the camera so replay can zoom to a few km
@@ -636,8 +707,8 @@ export class GlobeEngine {
       }
       this.sliceIndex = (this.sliceIndex + 1) % SLICE
       ;(this.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
-      this.updateFocusMarks(date)
       this.updateInspectRing(date)
+      this.updateLink(date)
       this.updateGroupMarks(date)
     }
 

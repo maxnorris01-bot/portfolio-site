@@ -10,11 +10,32 @@ interface Props {
   counts: Record<string, number>
   /** Conjunctions flagged in the latest run, if known. */
   conjunctionsFlagged?: number
-  /** Show only these name groups on the globe. */
-  onShow: (groupKeys: string[]) => void
+  /** The name groups a button currently isolates on the globe, if any. */
+  activeKeys: string[] | null
+  /** Isolate these name groups, or restore the previous view if they already are. */
+  onToggle: (groupKeys: string[]) => void
 }
 
-export default function CollisionHistory({ counts, conjunctionsFlagged, onShow }: Props) {
+export default function CollisionHistory({
+  counts,
+  conjunctionsFlagged,
+  activeKeys,
+  onToggle,
+}: Props) {
+  const showButton = (keys: string[]) => {
+    const active = activeKeys?.join() === keys.join()
+    return (
+      <button
+        type="button"
+        className="globe-button-light"
+        aria-pressed={active}
+        onClick={() => onToggle(keys)}
+      >
+        {active ? 'Show everything again' : 'Show this debris on the globe'}
+      </button>
+    )
+  }
+
   const iridium = counts.iridium33deb ?? 0
   const cosmos = counts.cosmos2251deb ?? 0
   const fengyun = counts.fengyun1cdeb ?? 0
@@ -42,13 +63,7 @@ export default function CollisionHistory({ counts, conjunctionsFlagged, onShow }
             {fmt(cosmos)} are still in the catalog shown above; the rest have re-entered the
             atmosphere.
           </p>
-          <button
-            type="button"
-            className="globe-button-light"
-            onClick={() => onShow(['iridium33deb', 'cosmos2251deb'])}
-          >
-            Show this debris on the globe
-          </button>
+          {showButton(['iridium33deb', 'cosmos2251deb'])}
         </article>
         <article className="globe-history-event">
           <p className="globe-history-date">11 January 2007</p>
@@ -59,13 +74,7 @@ export default function CollisionHistory({ counts, conjunctionsFlagged, onShow }
             an anti-satellite (ASAT) test, at about 860 km altitude. It created more
             than 3,000 trackable fragments; {fmt(fengyun)} are still in the catalog shown above.
           </p>
-          <button
-            type="button"
-            className="globe-button-light"
-            onClick={() => onShow(['fengyun1cdeb'])}
-          >
-            Show this debris on the globe
-          </button>
+          {showButton(['fengyun1cdeb'])}
         </article>
       </div>
       <p className="globe-history-sources">
