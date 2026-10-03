@@ -1,11 +1,16 @@
 import { Link } from 'react-router-dom'
 import OrbitIllustration from '../components/OrbitIllustration'
 import { satelliteTool } from '../data/satelliteTool'
+import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
 import './Home.css'
 
 const credentials = ['DoD Secret Clearance', 'Physics — Cal State Northridge']
 
 export default function Home() {
+  const { state } = useSatelliteSummary()
+  const summary = state.status === 'ready' ? state.summary : null
+  const count = (n: number | undefined) => (n === undefined ? '—' : n.toLocaleString('en-US'))
+
   return (
     <main className="page">
       <section className="container home-hero">
@@ -65,11 +70,11 @@ export default function Home() {
           <dl className="home-featured-stats">
             <div>
               <dt>Objects screened</dt>
-              <dd>{satelliteTool.objectsScreened.toLocaleString('en-US')}</dd>
+              <dd>{count(summary?.objects_screened)}</dd>
             </div>
             <div>
               <dt>Conjunctions flagged</dt>
-              <dd>{satelliteTool.conjunctionsFlagged.toLocaleString('en-US')}</dd>
+              <dd>{count(summary?.conjunctions_flagged)}</dd>
             </div>
           </dl>
           <span className="card-link">See the project →</span>

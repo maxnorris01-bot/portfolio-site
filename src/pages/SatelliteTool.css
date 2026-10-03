@@ -115,6 +115,80 @@
   color: var(--color-navy);
 }
 
+/* Loading and error states */
+.sat-stats.is-loading dd {
+  color: var(--color-text-muted);
+}
+
+.sat-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.sat-error p {
+  margin: 0;
+}
+
+/* Near-miss table */
+.sat-table-wrap {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.sat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.sat-table th,
+.sat-table td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.sat-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.sat-table th {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.sat-table .num {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.sat-pair {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.sat-risk-tag {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 3px;
+  color: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sat-risk-tag.risk-moderate {
+  color: var(--color-navy);
+}
+
 /* Pipeline */
 .sat-pipeline {
   display: grid;
