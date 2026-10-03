@@ -1,7 +1,12 @@
+import { Suspense, lazy, useCallback, useRef, useState } from 'react'
 import type { NearMiss, RiskLevel, SatelliteSummary } from '../../api/satellite/summary'
+import type { DatasetKey, FocusRequest } from '../globe/types'
 import { satelliteTool } from '../data/satelliteTool'
 import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
 import './SatelliteTool.css'
+
+// three.js and satellite.js load with the globe, on this route only.
+const SatelliteGlobe = lazy(() => import('../components/SatelliteGlobe'))
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 const km = (n: number) => `${n.toLocaleString('en-US', { maximumFractionDigits: 2 })} km`
@@ -93,7 +98,17 @@ function objectLabel(o: NearMiss['object_a']) {
   return `${o.name} (${o.norad_id})`
 }
 
-function NearMissList({ summary }: { summary: SatelliteSummary }) {
+const nearMissKey = (n: NearMiss) => `${n.object_a.norad_id}-${n.object_b.norad_id}-${n.tca_utc}`
+
+function NearMissList({
+  summary,
+  selectedKey,
+  onSelect,
+}: {
+  summary: SatelliteSummary
+  selectedKey: string | null
+  onSelect: (n: NearMiss) => void
+}) {
   return (
     <div className="card sat-table-wrap">
       <table className="sat-table">
@@ -108,23 +123,46 @@ function NearMissList({ summary }: { summary: SatelliteSummary }) {
               Rel. speed
             </th>
             <th scope="col">Closest approach</th>
+            <th scope="col">
+              <span className="visually-hidden">Replay</span>
+            </th>
           </tr>
         </thead>
         <tbody>
-          {summary.near_misses.map((n) => (
-            <tr key={`${n.object_a.norad_id}-${n.object_b.norad_id}-${n.tca_utc}`}>
-              <td>
-                <span className={`sat-risk-tag risk-${n.risk_level}`}>{n.risk_level}</span>
-              </td>
-              <td className="sat-pair">
-                <span>{objectLabel(n.object_a)}</span>
-                <span>{objectLabel(n.object_b)}</span>
-              </td>
-              <td className="num">{km(n.miss_distance_km)}</td>
-              <td className="num">{n.relative_speed_km_s.toFixed(1)} km/s</td>
-              <td>{utc(n.tca_utc)}</td>
-            </tr>
-          ))}
+          {summary.near_misses.map((n) => {
+            const key = nearMissKey(n)
+            return (
+              <tr
+                key={key}
+                className={`sat-row${key === selectedKey ? ' is-selected' : ''}`}
+                onClick={() => onSelect(n)}
+              >
+                <td>
+                  <span className={`sat-risk-tag risk-${n.risk_level}`}>{n.risk_level}</span>
+                </td>
+                <td className="sat-pair">
+                  <span>{objectLabel(n.object_a)}</span>
+                  <span>{objectLabel(n.object_b)}</span>
+                </td>
+                <td className="num">{km(n.miss_distance_km)}</td>
+                <td className="num">{n.relative_speed_km_s.toFixed(1)} km/s</td>
+                <td>{utc(n.tca_utc)}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="sat-replay"
+                    aria-pressed={key === selectedKey}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelect(n)
+                    }}
+                  >
+                    Show on globe
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -134,6 +172,32 @@ function NearMissList({ summary }: { summary: SatelliteSummary }) {
 export default function SatelliteTool() {
   const { state, retry } = useSatelliteSummary()
   const summary = state.status === 'ready' ? state.summary : null
+
+  // The near-miss table follows the snapshot the globe is showing: the latest
+  // run, or a retained day's report while the slider is in the past.
+  const [globeDataset, setGlobeDataset] = useState<DatasetKey>('current')
+  const pastDate = globeDataset === 'current' ? null : globeDataset
+  const past = useSatelliteSummary({ date: pastDate, enabled: pastDate !== null })
+  const tableState = pastDate ? past.state : state
+  const tableSummary = tableState.status === 'ready' ? tableState.summary : null
+
+  const [focus, setFocus] = useState<(FocusRequest & { key: string }) | null>(null)
+  const globeRef = useRef<HTMLElement>(null)
+  const exitFocus = useCallback(() => setFocus(null), [])
+
+  const replay = (n: NearMiss) => {
+    setFocus({
+      key: nearMissKey(n),
+      datasetKey: globeDataset,
+      aId: n.object_a.norad_id,
+      bId: n.object_b.norad_id,
+      aName: n.object_a.name,
+      bName: n.object_b.name,
+      tcaUtc: n.tca_utc,
+      missKm: n.miss_distance_km,
+    })
+    globeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
     <main className="page">
@@ -162,6 +226,19 @@ export default function SatelliteTool() {
             View on GitHub ↗
           </a>
         </header>
+
+        <section ref={globeRef} className="sat-section" aria-labelledby="sat-globe">
+          <h2 id="sat-globe" className="section-title">
+            Every tracked object
+          </h2>
+          <Suspense fallback={<div className="sat-globe-fallback">Loading the globe…</div>}>
+            <SatelliteGlobe
+              focus={focus}
+              onExitFocus={exitFocus}
+              onDatasetChange={setGlobeDataset}
+            />
+          </Suspense>
+        </section>
 
         <section className="sat-section" aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
           <h2 id="sat-results" className="section-title">
@@ -200,18 +277,34 @@ export default function SatelliteTool() {
               <RiskBreakdown summary={summary} />
             </section>
 
-            <section className="sat-section" aria-labelledby="sat-near-misses">
-              <h2 id="sat-near-misses" className="section-title">
-                Top conjunctions
-              </h2>
-              <NearMissList summary={summary} />
-              <p className="sat-note">
-                Top {summary.near_misses.length} of {fmt(summary.conjunctions_flagged)}, ranked by
-                risk tier, then miss distance.
-              </p>
-            </section>
           </>
         )}
+
+        <section className="sat-section" aria-labelledby="sat-near-misses">
+          <h2 id="sat-near-misses" className="section-title">
+            Top conjunctions{pastDate ? ` · ${pastDate} snapshot` : ''}
+          </h2>
+          {tableSummary ? (
+            <>
+              <NearMissList
+                summary={tableSummary}
+                selectedKey={focus?.key ?? null}
+                onSelect={replay}
+              />
+              <p className="sat-note">
+                Top {tableSummary.near_misses.length} of{' '}
+                {fmt(tableSummary.conjunctions_flagged)}, ranked by risk tier, then miss distance.
+                Select one to replay it on the globe at its closest approach.
+              </p>
+            </>
+          ) : (
+            <p className="sat-note" role={tableState.status === 'error' ? 'alert' : undefined}>
+              {tableState.status === 'error'
+                ? 'These conjunctions couldn’t be loaded right now.'
+                : 'Loading conjunctions…'}
+            </p>
+          )}
+        </section>
 
         <section className="sat-section" aria-labelledby="sat-pipeline">
           <h2 id="sat-pipeline" className="section-title">
