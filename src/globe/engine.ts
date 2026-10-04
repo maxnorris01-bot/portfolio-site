@@ -12,8 +12,9 @@ import {
 import { liveClock, simTimeAt, type Clock } from './clock'
 import { formatKm } from './format'
 import { EARTH_RADIUS_KM, earthRotationY, writeInertial } from './frames'
-import { nearestTo } from './neighbors'
+import { nearestCandidates, nearestTo } from './neighbors'
 import { pickNearest } from './picking'
+import { DAY_MS } from './timeline'
 import type { CatalogObject } from './types'
 
 // Each object is re-propagated every SLICE frames, not every frame. The
@@ -35,6 +36,20 @@ const FOCUS_MIN_DISTANCE = 0.0003
 // the dense LEO shell and sees almost no points; the 2k texture also turns to
 // a blur. Replay and stations allow much closer (FOCUS_MIN_DISTANCE).
 const FREE_MIN_DISTANCE = 1.1
+// Live nearest neighbour (2026-10-04). An exact full-catalog scan costs ~5 ms
+// on an M5 and ~20 ms at 4x CPU throttling: fine once, too heavy every frame,
+// and at 50x the neighbour must refresh every sim-second (about every frame).
+// So candidates come from the render positions, which are at most SLICE
+// frames stale. No tracked object moves faster than NEIGHBOR_MAX_SPEED_KM_S,
+// so each stale position is off by at most speed x staleness, and only
+// objects within the bound in nearestCandidates() can be the true nearest;
+// only those are propagated exactly. After a large jump in displayed time the
+// bound is too loose (over NEIGHBOR_CANDIDATE_CAP), so the refresh waits a few
+// frames for the slices to catch up rather than scanning everything.
+const NEIGHBOR_MAX_SPEED_KM_S = 11
+const NEIGHBOR_CANDIDATE_CAP = 3000
+const NEIGHBOR_REFRESH_SIM_MS = 1000
+const NEIGHBOR_REFRESH_WALL_MS = 1000
 // Most station pieces a group ring can mark at once.
 const MAX_GROUP = 32
 // Screen-space pick radius in CSS px; larger for touch. Points are ~2 px, and
@@ -142,6 +157,10 @@ export class GlobeEngine {
   private indexById = new Map<number, number>()
   private clock: Clock = liveClock(Date.now())
   private sliceIndex = 0
+  // Displayed time at which each render slice was last propagated.
+  private readonly sliceSimMs = new Float64Array(SLICE)
+  private neighbor: { index: number; km: number } | null = null
+  private neighborRefresh = { simMs: 0, wallMs: 0, dirty: true, candidates: 0 }
   private fullPending = true
   // The dashed line between two objects: a near-miss pair (fixed label, the
   // report's miss distance) or the inspected object and its nearest neighbour
@@ -269,6 +288,7 @@ export class GlobeEngine {
     this.clearGroup()
     this.inspectIdx = null
     this.ringInspect.visible = false
+    this.neighbor = null
   }
 
   /**
@@ -278,6 +298,7 @@ export class GlobeEngine {
   setColors(rgba: Float32Array) {
     if (rgba.length !== this.rgba.length) return
     this.rgba.set(rgba)
+    this.neighborRefresh.dirty = true // visibility may have changed
     ;(this.geometry.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true
   }
 
@@ -293,6 +314,19 @@ export class GlobeEngine {
 
   simTimeMs(): number {
     return simTimeAt(this.clock, Date.now())
+  }
+
+  getClock(): Clock {
+    return this.clock
+  }
+
+  // Live at 50x reaches the end of the ~24 h forward range (the slider's
+  // limit) in about half an hour; pause there rather than run past it.
+  private clampLive(simMs: number): number {
+    const endMs = Date.now() + DAY_MS
+    if (this.clock.kind !== 'live' || simMs <= endMs) return simMs
+    this.clock = { kind: 'frozen', atMs: endMs }
+    return endMs
   }
 
   /**
@@ -362,10 +396,22 @@ export class GlobeEngine {
     else this.clearLink('neighbor')
     this.inspectIdx = next
     this.ringInspect.visible = next !== null
+    this.neighbor = null
+    this.neighborRefresh.dirty = true
   }
 
-  /** Draw the dashed line from the inspected object to `index`, or remove it. */
-  showNeighbor(index: number | null) {
+  /**
+   * The inspected object's current nearest visible neighbour (kept live):
+   * null if there is none, undefined while a refresh is pending (just after a
+   * selection or a jump in displayed time).
+   */
+  currentNeighbor(): { index: number; km: number } | null | undefined {
+    if (this.inspectIdx === null) return null
+    return this.neighborRefresh.dirty ? undefined : this.neighbor
+  }
+
+  // Draw the dashed line from the inspected object to `index`, or remove it.
+  private showNeighbor(index: number | null) {
     this.clearLink('neighbor')
     if (index === null || this.inspectIdx === null || !this.satrecs[index]) return
     this.link = { a: this.inspectIdx, b: index, kind: 'neighbor', label: null }
@@ -388,10 +434,10 @@ export class GlobeEngine {
   }
 
   /**
-   * The object nearest the inspected one at the displayed moment, from a
-   * fresh propagation of the whole catalog (one heavier call, on click only;
-   * render positions are frame-sliced and can be ~9 frames stale). Every
-   * object counts, including ones hidden by filters.
+   * The visible object nearest the inspected one at the displayed moment,
+   * from an exact propagation of the whole catalog (~5-20 ms). The live
+   * neighbour uses the cheaper bounded search in refreshNeighbor(); this is
+   * the reference it's checked against.
    */
   nearestNeighbor(): Neighbor | null {
     const index = this.inspectIdx
@@ -411,7 +457,7 @@ export class GlobeEngine {
       ok[i] = 1
     }
     if (!ok[index]) return null
-    const nearest = nearestTo(pos, index, (i) => ok[i] === 1)
+    const nearest = nearestTo(pos, index, (i) => ok[i] === 1 && this.rgba[i * 4 + 3] > 0)
     return nearest && { index: nearest.index, km: nearest.distance, atMs }
   }
 
@@ -437,6 +483,10 @@ export class GlobeEngine {
       cameraFromTarget: this.camera.position.distanceTo(this.controls.target),
       minDistance: this.controls.minDistance,
       inspected: this.inspectIdx,
+      neighbor: this.neighbor,
+      neighborCandidates: this.neighborRefresh.candidates,
+      neighborRefreshedAtSimMs: this.neighborRefresh.simMs,
+      simMs: this.simTimeMs(),
       link: this.link && { kind: this.link.kind, a: this.link.a, b: this.link.b },
       rings: {
         a: this.ringA.visible,
@@ -446,6 +496,15 @@ export class GlobeEngine {
       },
       line: this.linkLine.visible,
     }
+  }
+
+  /** Exact distance (km) between two objects at the displayed moment, for dev-time checks. */
+  debugDistanceKm(i: number, j: number): number | null {
+    const date = new Date(this.simTimeMs())
+    const a = this.satrecs[i] && propagate(this.satrecs[i] as SatRec, date)
+    const b = this.satrecs[j] && propagate(this.satrecs[j] as SatRec, date)
+    if (!a || !b) return null
+    return Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y, a.position.z - b.position.z)
   }
 
   dispose() {
@@ -613,6 +672,61 @@ export class GlobeEngine {
     material.gapSize = dash
   }
 
+  // Keep the inspected object's nearest visible neighbour current: at least
+  // once a second of wall time, every sim-second at higher speeds, and after
+  // any jump, selection or visibility change.
+  private maybeRefreshNeighbor(simMs: number) {
+    const r = this.neighborRefresh
+    if (this.inspectIdx === null) return
+    const wall = performance.now()
+    const due =
+      r.dirty ||
+      Math.abs(simMs - r.simMs) >= NEIGHBOR_REFRESH_SIM_MS ||
+      wall - r.wallMs >= NEIGHBOR_REFRESH_WALL_MS
+    if (!due) return
+    const sel = this.inspectIdx
+    let staleS = 0
+    for (const t of this.sliceSimMs) staleS = Math.max(staleS, Math.abs(simMs - t) / 1000)
+    const bound = (NEIGHBOR_MAX_SPEED_KM_S * staleS) / EARTH_RADIUS_KM // scene units
+    const pos = this.positions
+    const candidates = nearestCandidates(
+      pos,
+      sel,
+      (i) =>
+        this.rgba[i * 4 + 3] > 0 &&
+        this.satrecs[i] !== null &&
+        pos[i * 3] !== 0 &&
+        pos[i * 3 + 1] !== 0, // failed propagations sit at the origin
+      bound,
+      NEIGHBOR_CANDIDATE_CAP,
+    )
+    if (candidates === null) {
+      // Displayed time just jumped; slices catch up within SLICE frames.
+      if (this.neighbor) this.showNeighbor(null)
+      this.neighbor = null
+      r.dirty = true
+      return
+    }
+    r.simMs = simMs
+    r.wallMs = wall
+    r.dirty = false
+    r.candidates = candidates.length
+    const date = new Date(simMs)
+    const selPv = propagate(this.satrecs[sel] as SatRec, date)
+    let best: { index: number; km: number } | null = null
+    if (selPv) {
+      const p = selPv.position
+      for (const i of candidates) {
+        const pv = propagate(this.satrecs[i] as SatRec, date)
+        if (!pv) continue
+        const km = Math.hypot(pv.position.x - p.x, pv.position.y - p.y, pv.position.z - p.z)
+        if (!best || km < best.km) best = { index: i, km }
+      }
+    }
+    if (best?.index !== this.neighbor?.index) this.showNeighbor(best?.index ?? null)
+    this.neighbor = best
+  }
+
   private updateInspectRing(date: Date) {
     if (this.inspectIdx === null) return
     const p = this.positionOf(this.inspectIdx, date)
@@ -691,7 +805,7 @@ export class GlobeEngine {
 
   private frame = (now: number) => {
     if (this.disposed) return
-    const simMs = this.simTimeMs()
+    const simMs = this.clampLive(this.simTimeMs())
     const date = new Date(simMs)
     this.earth.rotation.y = earthRotationY(gstime(date))
 
@@ -699,14 +813,17 @@ export class GlobeEngine {
     if (n) {
       if (this.fullPending) {
         this.propagateRange(0, n, date)
+        this.sliceSimMs.fill(simMs)
         this.fullPending = false
       } else {
         const from = Math.floor((this.sliceIndex * n) / SLICE)
         const to = Math.floor(((this.sliceIndex + 1) * n) / SLICE)
         this.propagateRange(from, to, date)
+        this.sliceSimMs[this.sliceIndex] = simMs
       }
       this.sliceIndex = (this.sliceIndex + 1) % SLICE
       ;(this.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true
+      this.maybeRefreshNeighbor(simMs)
       this.updateInspectRing(date)
       this.updateLink(date)
       this.updateGroupMarks(date)

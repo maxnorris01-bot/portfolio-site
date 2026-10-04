@@ -8,7 +8,7 @@ export type Clock =
   | { kind: 'offset'; offsetMs: number }
   | { kind: 'frozen'; atMs: number }
 
-export const SPEEDS = [1, 2, 5, 10] as const
+export const SPEEDS = [1, 10, 50] as const
 
 export function liveClock(nowMs: number, speed = 1): Clock {
   return { kind: 'live', speed, anchorSimMs: nowMs, anchorRealMs: nowMs }
