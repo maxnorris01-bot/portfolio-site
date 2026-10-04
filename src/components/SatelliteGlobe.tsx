@@ -13,7 +13,6 @@ import {
   RING_GROUP,
   RING_INSPECT,
   type InspectedPosition,
-  type Neighbor,
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf } from '../globe/groups'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
@@ -59,10 +58,11 @@ function formatUtc(ms: number) {
 }
 
 function formatOffset(deltaMs: number) {
-  const abs = Math.abs(deltaMs)
-  const d = Math.floor(abs / DAY_MS)
-  const h = Math.floor((abs % DAY_MS) / HOUR_MS)
-  const m = Math.round((abs % HOUR_MS) / 60_000)
+  // Round to whole minutes first, so 23 h 59.6 m reads "1d 0h", not "23h 60m".
+  const totalMin = Math.round(Math.abs(deltaMs) / 60_000)
+  const d = Math.floor(totalMin / (DAY_MS / 60_000))
+  const h = Math.floor((totalMin % (DAY_MS / 60_000)) / (HOUR_MS / 60_000))
+  const m = totalMin % (HOUR_MS / 60_000)
   const parts = d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`
   return deltaMs < 0 ? `${parts} ago` : `in ${parts}`
 }
@@ -109,7 +109,9 @@ export default function SatelliteGlobe({
   const [focusMissing, setFocusMissing] = useState(false)
   const [inspect, setInspect] = useState<number | null>(null)
   const [inspectPos, setInspectPos] = useState<InspectedPosition | null>(null)
-  const [neighbor, setNeighbor] = useState<Neighbor | null>(null)
+  const [neighbor, setNeighbor] = useState<{ index: number; km: number } | null | undefined>(
+    null,
+  )
   const [hiddenGroups, setHiddenGroups] = useState<ReadonlySet<string>>(NO_HIDDEN)
   const [station, setStation] = useState<string | null>(null)
   const [stationPieces, setStationPieces] = useState(0)
@@ -143,6 +145,11 @@ export default function SatelliteGlobe({
         lastTick = now
         setTime({ simMs, nowMs: Date.now() })
         setInspectPos(engineRef.current?.inspectedPosition() ?? null)
+        setNeighbor(engineRef.current?.currentNeighbor())
+        // The engine may change the clock itself (Live pausing at the end of
+        // the forward range); keep the controls in step.
+        const engineClock = engineRef.current?.getClock()
+        if (engineClock) setClockState(engineClock)
       },
       onPick: (index) => handlePick.current(index),
     })
@@ -286,22 +293,11 @@ export default function SatelliteGlobe({
     })
   }
 
-  // Ring the inspected object and find its nearest neighbour once, at the
-  // moment it was selected.
-  // The neighbour gets the same dashed, labelled line as a near-miss replay.
+  // Select the object in the engine, which keeps its nearest visible
+  // neighbour (and the dashed line to it) live; the tick reads it back.
   useEffect(() => {
-    const engine = engineRef.current
-    engine?.setInspected(inspect)
-    const n = inspect === null ? null : (engine?.nearestNeighbor() ?? null)
-    engine?.showNeighbor(n?.index ?? null)
-    setNeighbor(n)
+    engineRef.current?.setInspected(inspect)
   }, [inspect])
-  const recomputeNeighbor = () => {
-    const engine = engineRef.current
-    const n = engine?.nearestNeighbor() ?? null
-    engine?.showNeighbor(n?.index ?? null)
-    setNeighbor(n)
-  }
 
   const applyClock = useCallback((next: Clock, immediate: boolean) => {
     engineRef.current?.setClock(next, immediate)
@@ -582,7 +578,7 @@ export default function SatelliteGlobe({
                   <dd>{inspectPos ? fmtKm(Math.round(inspectPos.altKm)) : '—'}</dd>
                   <dt>Nearest</dt>
                   <dd>
-                    {neighbor && loaded ? (
+                    {neighbor && loaded && inspect !== null ? (
                       <>
                         <span className="globe-ring-key" style={{ borderColor: RING_A }} />
                         {fmtKm(neighbor.km)} · {loaded.file.objects[neighbor.index].name}
@@ -590,20 +586,17 @@ export default function SatelliteGlobe({
                           <span className="globe-muted"> (docked or co-located)</span>
                         )}
                       </>
+                    ) : neighbor === null ? (
+                      <span className="globe-muted">No visible object</span>
                     ) : (
                       '—'
                     )}
                   </dd>
                 </dl>
-                {neighbor && (
-                  <p className="globe-muted globe-neighbor-note">
-                    Nearest of every tracked object at {formatUtc(neighbor.atMs)} UTC; the line
-                    shows their distance now.{' '}
-                    <button type="button" className="globe-link" onClick={recomputeNeighbor}>
-                      Update
-                    </button>
-                  </p>
-                )}
+                <p className="globe-muted globe-neighbor-note">
+                  Nearest neighbour is live: it follows the displayed time and counts only
+                  objects currently shown.
+                </p>
                 <button
                   type="button"
                   className="globe-button"
