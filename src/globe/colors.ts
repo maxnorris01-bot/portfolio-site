@@ -127,3 +127,21 @@ export function describeType(o: CatalogObject): string {
       return 'Unknown type'
   }
 }
+
+/**
+ * Writes `base` (the filter/colour rgba) into `out` with every point except
+ * `keep` dimmed to `factor` of its alpha. Hidden points (alpha 0) stay 0 and
+ * shown points never reach 0, so "dimmed" can't be mistaken for "hidden";
+ * with an empty `keep` list and factor 1, `out` is an exact copy.
+ */
+export function dimExcept(
+  base: Float32Array,
+  out: Float32Array,
+  keep: readonly number[],
+  factor: number,
+): void {
+  out.set(base)
+  if (factor === 1) return
+  for (let i = 3; i < out.length; i += 4) out[i] = base[i] * factor
+  for (const k of keep) if (k >= 0 && k * 4 + 3 < out.length) out[k * 4 + 3] = base[k * 4 + 3]
+}
