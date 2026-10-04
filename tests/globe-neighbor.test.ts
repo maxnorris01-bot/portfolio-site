@@ -56,3 +56,10 @@ test('returns null when the bound is too loose for the cap, and [] when nothing 
 test('playback speeds are 1x, 10x and 50x', () => {
   assert.deepEqual([...SPEEDS], [1, 10, 50])
 })
+
+test('with a zero error bound the nearest survives floating-point rounding', () => {
+  // d^2 = 3 exactly, but Math.sqrt(3) ** 2 is 2.9999999999999996: a limit
+  // rebuilt from the square root would exclude the nearest itself.
+  const pos = new Float64Array([0, 0, 0, 1, 1, 1, 5, 5, 5])
+  assert.deepEqual(nearestCandidates(pos, 0, () => true, 0, 10), [1])
+})
