@@ -138,6 +138,13 @@ function makeRing(texture: THREE.Texture, color: string, px: number): THREE.Poin
   )
   ring.renderOrder = 2
   ring.visible = false
+  // Markers move every frame, but three.js computes a bounding sphere once (at
+  // the first render after the marker becomes visible) and frustum-culls
+  // against it. A ring first shown at one conjunction was then culled at a
+  // later conjunction elsewhere whenever that first spot was out of view
+  // (rings and line missing, label still shown). A single ring is never worth
+  // culling, so don't.
+  ring.frustumCulled = false
   return ring
 }
 
@@ -193,6 +200,10 @@ export class GlobeEngine {
   private camAnimDone?: () => void
   private pointerDown: { x: number; y: number } | null = null
   private raf = 0
+  private frameNo = 0
+  // Frame number each marker was last actually rendered in (onBeforeRender
+  // only fires for objects that survive frustum culling), for dev checks.
+  private readonly drawnAt = { a: -1, b: -1, inspect: -1, group: -1, line: -1 }
   private disposed = false
   private readonly container: HTMLElement
   private readonly onTick?: (simMs: number) => void
@@ -267,12 +278,22 @@ export class GlobeEngine {
     )
     this.linkLine.renderOrder = 1
     this.linkLine.visible = false
+    this.linkLine.frustumCulled = false // moved every frame; see makeRing
     this.scene.add(this.linkLine)
 
     this.linkLabel = document.createElement('div')
     this.linkLabel.className = 'globe-miss-label'
     this.linkLabel.hidden = true
     container.appendChild(this.linkLabel)
+
+    const stamp = (key: keyof typeof this.drawnAt) => () => {
+      this.drawnAt[key] = this.frameNo
+    }
+    this.ringA.onBeforeRender = stamp('a')
+    this.ringB.onBeforeRender = stamp('b')
+    this.ringInspect.onBeforeRender = stamp('inspect')
+    this.ringGroup.onBeforeRender = stamp('group')
+    this.linkLine.onBeforeRender = stamp('line')
 
     const canvas = this.renderer.domElement
     canvas.addEventListener('pointerdown', this.handlePointerDown)
@@ -361,7 +382,7 @@ export class GlobeEngine {
     const pb = this.positionOf(b, date)
     if (!pa || !pb) return false
 
-    this.clearSelection()
+    this.clearSelection(false)
     this.link = { a, b, kind: 'pair', label }
     this.applyDim()
     this.setClock({ kind: 'frozen', atMs: tcaMs }, true)
@@ -385,7 +406,7 @@ export class GlobeEngine {
       .filter((i): i is number => i !== undefined && this.satrecs[i] !== null)
       .slice(0, MAX_GROUP)
     if (!indices.length || !this.updateGroupMarks(new Date(this.simTimeMs()), indices)) return 0
-    this.clearSelection()
+    this.clearSelection(false)
     this.groupIdx = indices
     this.ringGroup.visible = true
     this.controls.minDistance = FOCUS_MIN_DISTANCE
@@ -398,7 +419,7 @@ export class GlobeEngine {
 
   /** Back to the free-roam view of the whole globe. The caller sets the clock. */
   resetView() {
-    this.clearSelection()
+    this.clearSelection(false)
     this.animateCamera(DEFAULT_CAMERA.clone(), new THREE.Vector3(), () => {
       this.resetLimits()
       this.camera.up.set(0, 1, 0)
@@ -442,9 +463,11 @@ export class GlobeEngine {
   /**
    * Clear every selection mark (object, neighbour line, pair, station). If the
    * camera was focused on one, ease back to free roam from where it is rather
-   * than flying home; the clock is left alone.
+   * than flying home; the clock is left alone. Callers that are about to fly
+   * the camera somewhere else pass `release = false`, so two camera
+   * animations never race.
    */
-  clearSelection() {
+  clearSelection(release = true) {
     const wasFocused = this.link?.kind === 'pair' || this.groupIdx !== null
     this.clearLink()
     this.clearGroup()
@@ -452,7 +475,7 @@ export class GlobeEngine {
     this.ringInspect.visible = false
     this.neighbor = null
     this.applyDim()
-    if (wasFocused) this.releaseToFreeRoam()
+    if (wasFocused && release) this.releaseToFreeRoam()
   }
 
   // Rebuild the drawn colours from the filter state, dimming everything but
@@ -543,6 +566,21 @@ export class GlobeEngine {
         group: this.ringGroup.visible,
       },
       line: this.linkLine.visible,
+      // Markers actually rendered in the last frame (not frustum-culled).
+      drawn: Object.fromEntries(
+        Object.entries(this.drawnAt).map(([k, f]) => [k, f === this.frameNo]),
+      ),
+      label: !this.linkLabel.hidden,
+      target: this.controls.target.toArray(),
+      animating: this.camAnim !== null,
+      controlsEnabled: this.controls.enabled,
+      clock: this.clock.kind,
+      linkMid: this.link
+        ? (() => {
+            const attr = this.linkLine.geometry.getAttribute('position') as THREE.BufferAttribute
+            return [0, 1, 2].map((k) => (attr.getComponent(0, k) + attr.getComponent(1, k)) / 2)
+          })()
+        : null,
     }
   }
 
@@ -861,6 +899,7 @@ export class GlobeEngine {
 
   private frame = (now: number) => {
     if (this.disposed) return
+    this.frameNo++
     const simMs = this.clampLive(this.simTimeMs())
     const date = new Date(simMs)
     this.earth.rotation.y = earthRotationY(gstime(date))
