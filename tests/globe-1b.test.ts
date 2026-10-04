@@ -104,3 +104,18 @@ test('describeType reads object_type and active_payload', () => {
   assert.equal(describeType(obj({ object_type: 'R/B' })), 'Rocket body')
   assert.equal(describeType(obj({ object_type: null })), 'Unknown type')
 })
+
+test('dimExcept dims all but the kept points, never hides, and restores exactly', async () => {
+  const { dimExcept } = await import('../src/globe/colors.ts')
+  // Four points: shown, hidden by a filter, shown, shown.
+  const base = new Float32Array([1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
+  const out = new Float32Array(base.length)
+  dimExcept(base, out, [2], 0.2)
+  assert.deepEqual(
+    [out[3], out[7], out[11], out[15]].map((a) => Math.round(a * 100) / 100),
+    [0.2, 0, 1, 0.2],
+  )
+  assert.deepEqual(Array.from(out.slice(0, 3)), [1, 0, 0]) // colours untouched
+  dimExcept(base, out, [], 1)
+  assert.deepEqual(Array.from(out), Array.from(base))
+})

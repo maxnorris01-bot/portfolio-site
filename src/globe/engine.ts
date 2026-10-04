@@ -10,6 +10,7 @@ import {
   type SatRec,
 } from 'satellite.js'
 import { liveClock, simTimeAt, type Clock } from './clock'
+import { dimExcept } from './colors'
 import { formatKm } from './format'
 import { EARTH_RADIUS_KM, earthRotationY, writeInertial } from './frames'
 import { nearestCandidates, nearestTo } from './neighbors'
@@ -47,6 +48,11 @@ const FREE_MIN_DISTANCE = 1.1
 // bound is too loose (over NEIGHBOR_CANDIDATE_CAP), so the refresh waits a few
 // frames for the slices to catch up rather than scanning everything.
 const NEIGHBOR_MAX_SPEED_KM_S = 11
+// While one object is inspected, every other point is drawn at this fraction
+// of its normal alpha; the selected object and its live neighbour stay at
+// full strength. A faint backdrop, not hidden: dimmed points stay pickable
+// and stay eligible as the neighbour (those checks read the undimmed alpha).
+const DIM_ALPHA = 0.2
 const NEIGHBOR_CANDIDATE_CAP = 3000
 const NEIGHBOR_REFRESH_SIM_MS = 1000
 const NEIGHBOR_REFRESH_WALL_MS = 1000
@@ -152,7 +158,12 @@ export class GlobeEngine {
   private readonly resizeObserver: ResizeObserver
 
   private positions = new Float32Array(0)
+  // Filter/colour state: alpha 0 = hidden by a filter, 1 = shown. The source
+  // of truth for "visible" (picking, the neighbour search).
   private rgba = new Float32Array(0)
+  // What's drawn: `rgba` with the inspect dimming layered on top, rebuilt
+  // from `rgba` on selection or neighbour change, so un-dimming is exact.
+  private drawRgba = new Float32Array(0)
   private satrecs: (SatRec | null)[] = []
   private indexById = new Map<number, number>()
   private clock: Clock = liveClock(Date.now())
@@ -223,10 +234,15 @@ export class GlobeEngine {
     this.pointsMaterial = new THREE.PointsMaterial({
       size: POINT_PX * pr,
       sizeAttenuation: false,
-      // rgba vertex colours: alpha 0 hides a point (alphaTest discards it).
+      // rgba vertex colours: alpha 0 hides a point (filters; alphaTest
+      // discards it), a fractional alpha dims it (inspect). Blended without
+      // depth writes, so a faint point can't block a bright one behind it;
+      // points still depth-test against the Earth.
       vertexColors: true,
       map: dotTexture(false),
-      alphaTest: 0.5,
+      alphaTest: 0.01,
+      transparent: true,
+      depthWrite: false,
     })
     this.scene.add(new THREE.Points(this.geometry, this.pointsMaterial))
 
@@ -279,7 +295,8 @@ export class GlobeEngine {
     const attr = new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage)
     this.geometry.setAttribute('position', attr)
     this.rgba = new Float32Array(objects.length * 4).fill(1)
-    this.geometry.setAttribute('color', new THREE.BufferAttribute(this.rgba, 4))
+    this.drawRgba = this.rgba.slice()
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(this.drawRgba, 4))
     this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1000)
     this.fullPending = true
     this.link = null
@@ -289,6 +306,7 @@ export class GlobeEngine {
     this.inspectIdx = null
     this.ringInspect.visible = false
     this.neighbor = null
+    this.applyDim()
   }
 
   /**
@@ -299,7 +317,7 @@ export class GlobeEngine {
     if (rgba.length !== this.rgba.length) return
     this.rgba.set(rgba)
     this.neighborRefresh.dirty = true // visibility may have changed
-    ;(this.geometry.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true
+    this.applyDim()
   }
 
   /**
@@ -398,6 +416,7 @@ export class GlobeEngine {
     this.ringInspect.visible = next !== null
     this.neighbor = null
     this.neighborRefresh.dirty = true
+    this.applyDim()
   }
 
   /**
@@ -430,7 +449,24 @@ export class GlobeEngine {
     this.clearGroup()
     this.inspectIdx = null
     this.ringInspect.visible = false
+    this.neighbor = null
+    this.applyDim()
     if (wasFocused) this.releaseToFreeRoam()
+  }
+
+  // Rebuild the drawn colours from the filter state, dimming everything but
+  // the inspected object and its current neighbour while an object is
+  // inspected (not in pair or station views). Runs on selection, filter and
+  // neighbour changes only, never per frame.
+  private applyDim() {
+    const base = this.rgba
+    const draw = this.drawRgba
+    if (draw.length !== base.length) return
+    const sel = this.inspectIdx
+    if (sel === null) draw.set(base)
+    else dimExcept(base, draw, [sel, this.neighbor?.index ?? -1], DIM_ALPHA)
+    const attr = this.geometry.getAttribute('color') as THREE.BufferAttribute | undefined
+    if (attr) attr.needsUpdate = true
   }
 
   /**
@@ -484,6 +520,16 @@ export class GlobeEngine {
       minDistance: this.controls.minDistance,
       inspected: this.inspectIdx,
       neighbor: this.neighbor,
+      // Points drawn at full strength (all shown points when nothing is inspected).
+      bright: (() => {
+        const out: number[] = []
+        for (let i = 0; i < this.rgba.length / 4; i++) {
+          const a = this.rgba[i * 4 + 3]
+          if (a > 0 && this.drawRgba[i * 4 + 3] === a) out.push(i)
+          if (out.length > 50) break
+        }
+        return out.length > 50 ? 'many' : out
+      })(),
       neighborCandidates: this.neighborRefresh.candidates,
       neighborRefreshedAtSimMs: this.neighborRefresh.simMs,
       simMs: this.simTimeMs(),
@@ -702,8 +748,11 @@ export class GlobeEngine {
     )
     if (candidates === null) {
       // Displayed time just jumped; slices catch up within SLICE frames.
-      if (this.neighbor) this.showNeighbor(null)
-      this.neighbor = null
+      if (this.neighbor) {
+        this.showNeighbor(null)
+        this.neighbor = null
+        this.applyDim()
+      }
       r.dirty = true
       return
     }
@@ -723,8 +772,13 @@ export class GlobeEngine {
         if (!best || km < best.km) best = { index: i, km }
       }
     }
-    if (best?.index !== this.neighbor?.index) this.showNeighbor(best?.index ?? null)
+    const changed = best?.index !== this.neighbor?.index
     this.neighbor = best
+    if (changed) {
+      // Line, label and brightness move together, in this frame.
+      this.showNeighbor(best?.index ?? null)
+      this.applyDim()
+    }
   }
 
   private updateInspectRing(date: Date) {
