@@ -1,8 +1,4 @@
 .globe {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 21rem;
-  align-items: start;
-  gap: 1.25rem;
   --globe-bg: #05070d;
   --globe-panel: rgb(5 7 13 / 0.78);
   --globe-ink: #e8ecf4;
@@ -113,42 +109,22 @@
   font-weight: 600;
 }
 
-.globe-main {
-  min-width: 0;
-}
-
-/* Side column: the page's conjunction picker, then one panel. Panels use the
-   page's light tokens here instead of the dark in-canvas theme. */
-.globe-aside {
-  --globe-ink: var(--color-navy);
-  --globe-ink-muted: var(--color-text-secondary);
-  --globe-line: var(--color-border);
-  --globe-panel: var(--color-surface);
+.globe-side {
+  position: absolute;
+  z-index: 1;
+  top: 0.75rem;
+  right: 0.75rem;
   display: grid;
-  gap: 1rem;
-  min-width: 0;
-  color: var(--color-text);
+  gap: 0.6rem;
+  width: 17rem;
 }
 
-.globe-side-panels {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.globe-aside .globe-panel {
+.globe-side .globe-panel {
   position: static;
-  padding: 1rem 1.1rem;
-  backdrop-filter: none;
-  font-size: 0.88rem;
 }
 
-.globe-aside .globe-panel p {
+.globe-side p {
   margin: 0 0 0.5rem;
-}
-
-/* The white ring key needs an edge on a light background. */
-.globe-aside .globe-ring-key {
-  box-shadow: 0 0 0 1px var(--color-navy);
 }
 
 .globe-panel-head {
@@ -497,7 +473,7 @@
 
 /* Collision history (Phase 1c) */
 .globe-history {
-  margin: 0;
+  margin-top: 2rem;
 }
 
 .globe-history h3 {
@@ -506,18 +482,19 @@
 }
 
 .globe-history-lede {
+  max-width: 48rem;
   color: var(--color-text-secondary);
-  font-size: 0.9rem;
 }
 
 .globe-history-events {
   display: grid;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .globe-history-event {
-  padding: 0.9rem 1rem;
+  padding: 1.1rem 1.25rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -530,8 +507,7 @@
 
 .globe-history-event p {
   color: var(--color-text-secondary);
-  font-size: 0.86rem;
-  line-height: 1.5;
+  font-size: 0.92rem;
 }
 
 .globe-history-date {
@@ -582,6 +558,10 @@
 }
 
 @media (max-width: 640px) {
+  .globe-history-events {
+    grid-template-columns: 1fr;
+  }
+
   .globe-filters ul {
     max-height: 9rem;
   }
@@ -627,6 +607,36 @@
     font-size: 0.75rem;
   }
 
+  .globe-side {
+    top: auto;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+  }
+
+  .globe-side .globe-panel {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  .globe-side p {
+    margin-bottom: 0.3rem;
+  }
+
+  .globe-inspect dl {
+    grid-template-columns: auto 1fr auto 1fr;
+    gap: 0.15rem 0.6rem;
+    margin-bottom: 0;
+  }
+
+  .globe-inspect dd {
+    font-size: 0.72rem;
+  }
+
+  .globe-inspect > .globe-muted {
+    display: none;
+  }
 
   .globe-hint {
     display: none;
@@ -641,12 +651,5 @@
   /* Name filters have no swatch column. */
   .globe-legend-row.is-filter {
     grid-template-columns: auto minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 960px) {
-  /* Stack: globe and its controls, then the picker and panel full width. */
-  .globe {
-    grid-template-columns: minmax(0, 1fr);
   }
 }

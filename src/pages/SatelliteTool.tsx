@@ -43,11 +43,11 @@ function statsFor(summary: SatelliteSummary | null) {
     },
     {
       value: summary ? fmt(summary.conjunctions_flagged) : placeholder,
-      label: 'conjunctions flagged',
+      label: 'conjunctions',
     },
     {
-      // The tile says "closest approach"; the note under the tiles says it's
-      // the closest approach involving an active satellite.
+      // Short label; the note under the tiles says it's the nearest pass
+      // involving an active satellite (closest_active_approach_km).
       value:
         summary?.closest_active_approach_km != null
           ? km(summary.closest_active_approach_km)
@@ -62,94 +62,105 @@ function RiskBreakdown({ summary }: { summary: SatelliteSummary }) {
   const total = riskLevels.reduce((sum, { level }) => sum + counts[level], 0)
 
   return (
-    <div className="card">
-      <ul className="sat-risk-bars">
-        {riskLevels.map(({ level, label }) => {
-          const count = counts[level]
-          const pct = total ? (count / total) * 100 : 0
-          return (
-            <li key={level} className="sat-risk-row">
-              <span className="sat-risk-label">{label}</span>
-              <span className="sat-risk-track">
-                <span className={`sat-risk-fill risk-${level}`} style={{ width: `${pct}%` }} />
-              </span>
-              <span className="sat-risk-count">{fmt(count)}</span>
-            </li>
-          )
-        })}
-      </ul>
-      <p className="sat-callout">
-        {counts.high > 0 ? (
-          <strong>
-            {fmt(counts.high)} high-risk conjunction{counts.high === 1 ? '' : 's'} in this run.
-          </strong>
-        ) : (
-          <strong>No high-risk conjunctions in this run.</strong>
-        )}{' '}
+    <>
+      <div className="card">
+        <ul className="sat-risk-bars">
+          {riskLevels.map(({ level, label }) => {
+            const count = counts[level]
+            const pct = total ? (count / total) * 100 : 0
+            return (
+              <li key={level} className="sat-risk-row">
+                <span className="sat-risk-label">{label}</span>
+                <span className="sat-risk-track">
+                  <span className={`sat-risk-fill risk-${level}`} style={{ width: `${pct}%` }} />
+                </span>
+                <span className="sat-risk-count">{fmt(count)}</span>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+      <p className="sat-note sat-risk-note">
+        {counts.high > 0
+          ? `${fmt(counts.high)} high-risk conjunction${counts.high === 1 ? '' : 's'} in this run.`
+          : 'No high-risk conjunctions in this run.'}{' '}
         Risk tiers are a stated heuristic, not a true probability of collision.
       </p>
-    </div>
+    </>
   )
+}
+
+function objectLabel(o: NearMiss['object_a']) {
+  return `${o.name} (${o.norad_id})`
 }
 
 const nearMissKey = (n: NearMiss) => `${n.object_a.norad_id}-${n.object_b.norad_id}-${n.tca_utc}`
 
-const missKm = (km: number) =>
-  `${km.toLocaleString('en-US', { maximumFractionDigits: km < 1 ? 3 : 2 })} km`
-
-// The top conjunctions as a native select: each option carries the table's
-// information (rank, both objects, miss distance, risk tier). Choosing one
-// replays it on the globe; the current replay shows as selected, and the
-// placeholder returns when the selection is cleared.
-function ConjunctionPicker({
+function NearMissList({
   summary,
-  status,
-  snapshot,
   selectedKey,
   onSelect,
 }: {
-  summary: SatelliteSummary | null
-  status: 'loading' | 'error' | 'ready'
-  snapshot: string | null
+  summary: SatelliteSummary
   selectedKey: string | null
   onSelect: (n: NearMiss) => void
 }) {
-  const options = summary?.near_misses ?? []
-  const selected = options.some((n) => nearMissKey(n) === selectedKey) ? selectedKey! : ''
   return (
-    <div className="sat-picker">
-      <label htmlFor="sat-conjunction-select" className="sat-picker-label">
-        Top conjunctions{snapshot ? ` · ${snapshot} snapshot` : ''}
-      </label>
-      <select
-        id="sat-conjunction-select"
-        className="sat-picker-select"
-        value={selected}
-        disabled={!summary}
-        onChange={(e) => {
-          const n = options.find((o) => nearMissKey(o) === e.target.value)
-          if (n) onSelect(n)
-        }}
-      >
-        <option value="" disabled>
-          {status === 'error'
-            ? 'Conjunctions couldn’t be loaded'
-            : summary
-              ? 'Select to show on Globe'
-              : 'Loading conjunctions…'}
-        </option>
-        {options.map((n, i) => (
-          <option key={nearMissKey(n)} value={nearMissKey(n)}>
-            {`${i + 1}. ${n.object_a.name} × ${n.object_b.name} · ${missKm(n.miss_distance_km)} · ${n.risk_level}`}
-          </option>
-        ))}
-      </select>
-      {summary && (
-        <p className="sat-picker-note">
-          Top {options.length} of {fmt(summary.conjunctions_flagged)}, ranked by risk tier, then
-          miss distance.
-        </p>
-      )}
+    <div className="card sat-table-wrap">
+      <table className="sat-table">
+        <thead>
+          <tr>
+            <th scope="col">Risk</th>
+            <th scope="col">Objects</th>
+            <th scope="col" className="num">
+              Miss
+            </th>
+            <th scope="col" className="num">
+              Rel. speed
+            </th>
+            <th scope="col">Closest approach</th>
+            <th scope="col">
+              <span className="visually-hidden">Replay</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {summary.near_misses.map((n) => {
+            const key = nearMissKey(n)
+            return (
+              <tr
+                key={key}
+                className={`sat-row${key === selectedKey ? ' is-selected' : ''}`}
+                onClick={() => onSelect(n)}
+              >
+                <td>
+                  <span className={`sat-risk-tag risk-${n.risk_level}`}>{n.risk_level}</span>
+                </td>
+                <td className="sat-pair">
+                  <span>{objectLabel(n.object_a)}</span>
+                  <span>{objectLabel(n.object_b)}</span>
+                </td>
+                <td className="num">{km(n.miss_distance_km)}</td>
+                <td className="num">{n.relative_speed_km_s.toFixed(1)} km/s</td>
+                <td>{utc(n.tca_utc)}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="sat-replay"
+                    aria-pressed={key === selectedKey}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelect(n)
+                    }}
+                  >
+                    Show on globe
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -210,9 +221,11 @@ export default function SatelliteTool() {
             </a>
           </div>
           <p className="sat-lede">
-            Continuously screens public satellite tracking data for close
-            approaches using real orbital mechanics. The core pipeline makes
-            zero LLM calls.
+            <span>
+              Continuously screens public satellite tracking data for close approaches using real
+              orbital mechanics.
+            </span>
+            <span>The core pipeline makes zero LLM calls.</span>
           </p>
         </header>
 
@@ -260,24 +273,44 @@ export default function SatelliteTool() {
           </section>
         </div>
 
-        <section ref={globeRef} className="sat-section sat-globe-section" aria-label="Globe of every tracked object">
+        <section ref={globeRef} className="sat-section" aria-labelledby="sat-globe">
+          <h2 id="sat-globe" className="section-title">
+            Every tracked object
+          </h2>
           <Suspense fallback={<div className="sat-globe-fallback">Loading the globe…</div>}>
             <SatelliteGlobe
               focus={focus}
               onExitFocus={exitFocus}
               onDatasetChange={setGlobeDataset}
               conjunctionsFlagged={summary?.conjunctions_flagged}
-              sideTop={
-                <ConjunctionPicker
-                  summary={tableSummary}
-                  status={tableState.status}
-                  snapshot={pastDate}
-                  selectedKey={focus?.key ?? null}
-                  onSelect={replay}
-                />
-              }
             />
           </Suspense>
+        </section>
+
+        <section className="sat-section" aria-labelledby="sat-near-misses">
+          <h2 id="sat-near-misses" className="section-title">
+            Top conjunctions{pastDate ? ` · ${pastDate} snapshot` : ''}
+          </h2>
+          {tableSummary ? (
+            <>
+              <NearMissList
+                summary={tableSummary}
+                selectedKey={focus?.key ?? null}
+                onSelect={replay}
+              />
+              <p className="sat-note">
+                Top {tableSummary.near_misses.length} of{' '}
+                {fmt(tableSummary.conjunctions_flagged)}, ranked by risk tier, then miss distance.
+                Select one to replay it on the globe at its closest approach.
+              </p>
+            </>
+          ) : (
+            <p className="sat-note" role={tableState.status === 'error' ? 'alert' : undefined}>
+              {tableState.status === 'error'
+                ? 'These conjunctions couldn’t be loaded right now.'
+                : 'Loading conjunctions…'}
+            </p>
+          )}
         </section>
 
         <section className="sat-section" aria-labelledby="sat-pipeline">

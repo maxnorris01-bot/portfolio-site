@@ -9,11 +9,12 @@
   margin: 0;
 }
 
+/* The GitHub button follows the title with a normal gap and wraps below it
+   on narrow screens. */
 .sat-title-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem 1.5rem;
   margin: 0.9rem 0 0.75rem;
 }
@@ -26,9 +27,14 @@
 }
 
 .sat-lede {
-  max-width: 48rem;
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: 1.1rem;
+}
+
+/* Full page width; each sentence on its own line. */
+.sat-lede span {
+  display: block;
 }
 
 .sat-tech {
@@ -39,7 +45,7 @@
   font-size: 0.78rem;
 }
 
-/* Latest run beside risk breakdown */
+/* Latest run beside Risk breakdown */
 .sat-overview {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
@@ -56,42 +62,8 @@
   color: var(--color-text-muted);
 }
 
-.sat-globe-section {
-  margin-top: clamp(2rem, 5vw, 3rem);
-}
-
-/* Top-conjunction picker (side column) */
-.sat-picker {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.sat-picker-label {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--color-navy);
-}
-
-.sat-picker-select {
-  width: 100%;
-  min-width: 0;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-  color: var(--color-navy);
-  font: inherit;
-  font-size: 0.88rem;
-}
-
-.sat-picker-select:hover:not(:disabled) {
-  border-color: var(--color-navy);
-}
-
-.sat-picker-note {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
+.sat-risk-note {
+  margin-top: 0.75rem;
 }
 
 .sat-section {
@@ -125,6 +97,7 @@
 .sat-stat dt {
   color: var(--color-text-secondary);
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 /* Risk bars */
@@ -208,6 +181,100 @@
 
 .sat-error p {
   margin: 0;
+}
+
+/* Near-miss table */
+.sat-table-wrap {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.sat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.sat-table th,
+.sat-table td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.sat-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.sat-table th {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.sat-table .num {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.sat-pair {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.sat-risk-tag {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 3px;
+  color: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sat-risk-tag.risk-moderate {
+  color: var(--color-navy);
+}
+
+/* Near-miss replay */
+.sat-row {
+  cursor: pointer;
+}
+
+.sat-row:hover td,
+.sat-row.is-selected td {
+  background: var(--color-bg);
+}
+
+.sat-row.is-selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.sat-replay {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-navy);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.sat-replay[aria-pressed='true'] {
+  border-color: var(--color-accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .sat-globe-fallback {
