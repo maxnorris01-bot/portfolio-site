@@ -361,6 +361,104 @@
   font-size: 0.8rem;
 }
 
+/* Globe | Sky toggle and the Sky view (Phase 1) */
+.globe-view-toggle {
+  display: flex;
+  width: fit-content;
+  margin-bottom: 0.5rem;
+}
+
+.globe-sky-label {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  color: var(--globe-ink);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  pointer-events: none;
+  text-shadow: 0 0 4px var(--globe-bg);
+}
+
+.globe-sky-label.is-ring {
+  color: var(--globe-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
+.globe-sky-panel {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.globe-sky-panel > p,
+.globe-sky-panel form,
+.globe-sky-where p {
+  margin: 0;
+}
+
+.globe-sky-search {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.globe-sky-search-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.globe-sky-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--globe-line);
+  border-radius: var(--radius);
+  background: rgb(255 255 255 / 0.06);
+  color: var(--globe-ink);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.globe-sky-search input::placeholder {
+  color: var(--globe-ink-muted);
+}
+
+.globe-sky-error {
+  color: #f2a08e;
+}
+
+.globe-sky-where {
+  display: grid;
+  gap: 0.15rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--globe-line);
+}
+
+.globe-sky-count {
+  margin-top: 0.25rem !important;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.globe-sky-note {
+  font-size: 0.75rem;
+}
+
+.globe-sky-note a {
+  color: inherit;
+}
+
+.globe-sky-prompt {
+  pointer-events: none;
+}
+
+.globe-sky-compact-where {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Name filters and stations (Phase 1c) */
 .globe-filters {
   margin-top: 0.7rem;
@@ -663,5 +761,27 @@
   /* Name filters have no swatch column. */
   .globe-legend-row.is-filter {
     grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  /* On a phone the Sky panel (docked at the bottom) already says what to do. */
+  .globe-sky-prompt {
+    display: none;
+  }
+
+  .globe-sky-panel.is-compact {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+  }
+
+  .globe-sky-panel.is-compact .globe-panel-title {
+    display: none;
+  }
+
+  .globe-sky-panel.is-compact .globe-button {
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
 }
