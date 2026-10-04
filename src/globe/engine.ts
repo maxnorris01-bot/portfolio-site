@@ -48,9 +48,9 @@ const FREE_MIN_DISTANCE = 1.1
 // bound is too loose (over NEIGHBOR_CANDIDATE_CAP), so the refresh waits a few
 // frames for the slices to catch up rather than scanning everything.
 const NEIGHBOR_MAX_SPEED_KM_S = 11
-// While one object is inspected, every other point is drawn at this fraction
-// of its normal alpha; the selected object and its live neighbour stay at
-// full strength. A faint backdrop, not hidden: dimmed points stay pickable
+// While one object is inspected or a near-miss pair is shown, every other
+// point is drawn at this fraction of its normal alpha; the selected object and
+// its live neighbour, or the pair's two objects, stay at full strength. A faint backdrop, not hidden: dimmed points stay pickable
 // and stay eligible as the neighbour (those checks read the undimmed alpha).
 const DIM_ALPHA = 0.2
 const NEIGHBOR_CANDIDATE_CAP = 3000
@@ -363,6 +363,7 @@ export class GlobeEngine {
 
     this.clearSelection()
     this.link = { a, b, kind: 'pair', label }
+    this.applyDim()
     this.setClock({ kind: 'frozen', atMs: tcaMs }, true)
     this.updateLink(date)
     this.ringA.visible = this.ringB.visible = this.linkLine.visible = true
@@ -455,16 +456,17 @@ export class GlobeEngine {
   }
 
   // Rebuild the drawn colours from the filter state, dimming everything but
-  // the inspected object and its current neighbour while an object is
-  // inspected (not in pair or station views). Runs on selection, filter and
+  // the near-miss pair's two objects, or the inspected object and its current
+  // neighbour. Station views don't dim. Runs on selection, pair, filter and
   // neighbour changes only, never per frame.
   private applyDim() {
     const base = this.rgba
     const draw = this.drawRgba
     if (draw.length !== base.length) return
     const sel = this.inspectIdx
-    if (sel === null) draw.set(base)
-    else dimExcept(base, draw, [sel, this.neighbor?.index ?? -1], DIM_ALPHA)
+    if (this.link?.kind === 'pair') dimExcept(base, draw, [this.link.a, this.link.b], DIM_ALPHA)
+    else if (sel !== null) dimExcept(base, draw, [sel, this.neighbor?.index ?? -1], DIM_ALPHA)
+    else draw.set(base)
     const attr = this.geometry.getAttribute('color') as THREE.BufferAttribute | undefined
     if (attr) attr.needsUpdate = true
   }

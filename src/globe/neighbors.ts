@@ -60,7 +60,10 @@ export function nearestCandidates(
     if (v < min) min = v
   }
   if (min === Infinity) return []
-  const limit = (Math.sqrt(min) + 4 * errorBound) ** 2
+  // Never below min itself: rebuilding it from the square root can round down
+  // by an ulp and drop the nearest (seen with a zero bound, when the clock is
+  // frozen and every render slice is exact).
+  const limit = Math.max(min, (Math.sqrt(min) + 4 * errorBound) ** 2)
   const out: number[] = []
   for (let i = 0; i < n; i++) {
     if (d2[i] <= limit) {
