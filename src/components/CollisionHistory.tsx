@@ -59,9 +59,8 @@ export default function CollisionHistory({
             The communications satellite Iridium 33 and the Russian satellite Cosmos 2251
             collided at about 780 km altitude, at nearly right angles, over northern Russia: the
             first confirmed accidental collision between two intact satellites. By 2012, 598
-            Iridium 33 and 1,603 Cosmos 2251 fragments had been catalogued. {fmt(iridium)} and{' '}
-            {fmt(cosmos)} are still in the catalog shown above; the rest have re-entered the
-            atmosphere.
+            Iridium 33 and 1,603 Cosmos 2251 fragments had been catalogued; {fmt(iridium)} and{' '}
+            {fmt(cosmos)} remain in the catalog shown above.
           </p>
           {showButton(['iridium33deb', 'cosmos2251deb'])}
         </article>
@@ -71,8 +70,10 @@ export default function CollisionHistory({
           <p className="globe-history-tag is-deliberate">Deliberate missile test, not a collision</p>
           <p>
             China deliberately destroyed its own Fengyun-1C weather satellite with a missile in
-            an anti-satellite (ASAT) test, at about 860 km altitude. It created more
-            than 3,000 trackable fragments; {fmt(fengyun)} are still in the catalog shown above.
+            an anti-satellite (ASAT) test, at about 860 km altitude. It created more than 3,000
+            trackable fragments; {fmt(fengyun)} are still in the catalog shown above. More than
+            half of the tracked debris has a mean altitude above 850 km, so it would likely remain
+            in orbit for decades or centuries.
           </p>
           {showButton(['fengyun1cdeb'])}
         </article>

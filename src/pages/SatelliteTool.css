@@ -1,21 +1,111 @@
-.sat-header {
-  max-width: 48rem;
+.sat-eyebrow-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.25rem;
+}
+
+.sat-eyebrow-row .eyebrow {
+  margin: 0;
+}
+
+/* The GitHub button follows the title with a normal gap and wraps below it
+   on narrow screens. */
+.sat-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  margin: 0.9rem 0 0.75rem;
 }
 
 .sat-title {
-  margin: 0.75rem 0 1rem;
+  margin: 0;
   font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .sat-lede {
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: 1.1rem;
 }
 
+/* Full page width; each sentence on its own line. */
+.sat-lede span {
+  display: block;
+}
+
 .sat-tech {
-  margin: 1.5rem 0;
+  margin: 0;
+}
+
+.sat-tech .chip {
+  font-size: 0.78rem;
+}
+
+/* Latest run beside Risk breakdown. Both columns share four rows (title,
+   error, tiles/card, note) through subgrid, so the risk card is exactly as
+   tall as the tiles and both notes start on the same line, at any width
+   where the columns sit side by side. */
+.sat-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-rows: repeat(4, auto);
+  column-gap: 2rem;
+  margin-top: clamp(2rem, 5vw, 3rem);
+}
+
+.sat-overview > section {
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+}
+
+.sat-overview > section > .section-title {
+  grid-row: 1;
+}
+
+.sat-overview > section > .sat-error {
+  grid-row: 2;
+}
+
+.sat-overview > section > .sat-stats,
+.sat-overview > section > .card {
+  grid-row: 3;
+}
+
+.sat-overview > section > .sat-note {
+  grid-row: 4;
+  margin-top: 0.9rem;
+}
+
+.sat-overview .section-title {
+  font-size: 1.2rem;
+  margin-bottom: 0.9rem;
+}
+
+.sat-risk-placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Condensed to fit the tile row; the bars sit centred in whatever height
+   the shared row gives the card. */
+.sat-risk-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.9rem 1.25rem;
+}
+
+.sat-risk-card .sat-risk-bars {
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.sat-risk-card .sat-risk-row {
+  line-height: 1.3;
 }
 
 .sat-section {
@@ -25,7 +115,7 @@
 /* Stat tiles */
 .sat-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
   margin: 0;
 }
@@ -40,7 +130,8 @@
 .sat-stat dd {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  white-space: nowrap;
   font-weight: 600;
   line-height: 1.1;
 }
@@ -48,6 +139,7 @@
 .sat-stat dt {
   color: var(--color-text-secondary);
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 /* Risk bars */
@@ -292,10 +384,6 @@
 }
 
 @media (max-width: 900px) {
-  .sat-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .sat-pipeline {
     grid-template-columns: 1fr;
     gap: 1.25rem;
@@ -314,5 +402,44 @@
 @media (max-width: 420px) {
   .sat-stats {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Narrow tablet widths: still side by side, so give the tiles more of the
+   row and slightly tighter horizontal spacing (heights are unchanged) so
+   every value and label stays on one line. */
+@media (max-width: 1000px) {
+  .sat-overview {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+
+  .sat-stats {
+    gap: 0.75rem;
+  }
+
+  .sat-stat {
+    padding-inline: 0.9rem;
+  }
+
+  .sat-stat dt {
+    font-size: 0.82rem;
+    line-height: calc(0.9rem * 1.6); /* keep the tile height unchanged */
+  }
+
+  .sat-risk-card {
+    padding-inline: 1rem;
+  }
+}
+
+/* Phone widths: the columns stack, and no alignment is needed. */
+@media (max-width: 800px) {
+  .sat-overview {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    row-gap: 2rem;
+  }
+
+  .sat-overview > section {
+    display: block;
   }
 }

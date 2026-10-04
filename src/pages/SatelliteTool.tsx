@@ -43,18 +43,16 @@ function statsFor(summary: SatelliteSummary | null) {
     },
     {
       value: summary ? fmt(summary.conjunctions_flagged) : placeholder,
-      label: 'conjunctions flagged',
+      label: 'conjunctions',
     },
     {
+      // Short label; the note under the tiles says it's the nearest pass
+      // involving an active satellite (closest_active_approach_km).
       value:
         summary?.closest_active_approach_km != null
           ? km(summary.closest_active_approach_km)
           : placeholder,
-      label: 'closest active-satellite approach',
-    },
-    {
-      value: `${satelliteTool.kdTreeSpeedup}×`,
-      label: 'faster screening after the KD-tree swap',
+      label: 'closest approach',
     },
   ]
 }
@@ -64,33 +62,31 @@ function RiskBreakdown({ summary }: { summary: SatelliteSummary }) {
   const total = riskLevels.reduce((sum, { level }) => sum + counts[level], 0)
 
   return (
-    <div className="card">
-      <ul className="sat-risk-bars">
-        {riskLevels.map(({ level, label }) => {
-          const count = counts[level]
-          const pct = total ? (count / total) * 100 : 0
-          return (
-            <li key={level} className="sat-risk-row">
-              <span className="sat-risk-label">{label}</span>
-              <span className="sat-risk-track">
-                <span className={`sat-risk-fill risk-${level}`} style={{ width: `${pct}%` }} />
-              </span>
-              <span className="sat-risk-count">{fmt(count)}</span>
-            </li>
-          )
-        })}
-      </ul>
-      <p className="sat-callout">
-        {counts.high > 0 ? (
-          <strong>
-            {fmt(counts.high)} high-risk conjunction{counts.high === 1 ? '' : 's'} in this run.
-          </strong>
-        ) : (
-          <strong>No high-risk conjunctions in this run.</strong>
-        )}{' '}
+    <>
+      <div className="card sat-risk-card">
+        <ul className="sat-risk-bars">
+          {riskLevels.map(({ level, label }) => {
+            const count = counts[level]
+            const pct = total ? (count / total) * 100 : 0
+            return (
+              <li key={level} className="sat-risk-row">
+                <span className="sat-risk-label">{label}</span>
+                <span className="sat-risk-track">
+                  <span className={`sat-risk-fill risk-${level}`} style={{ width: `${pct}%` }} />
+                </span>
+                <span className="sat-risk-count">{fmt(count)}</span>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+      <p className="sat-note sat-risk-note">
+        {counts.high > 0
+          ? `${fmt(counts.high)} high-risk conjunction${counts.high === 1 ? '' : 's'} in this run.`
+          : 'No high-risk conjunctions in this run.'}{' '}
         Risk tiers are a stated heuristic, not a true probability of collision.
       </p>
-    </div>
+    </>
   )
 }
 
@@ -203,29 +199,79 @@ export default function SatelliteTool() {
     <main className="page">
       <div className="container">
         <header className="sat-header">
-          <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
-          <h1 className="sat-title">Satellite Conjunction Screening</h1>
+          <div className="sat-eyebrow-row">
+            <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
+            <ul className="chip-list sat-tech" aria-label="Tech stack">
+              {satelliteTool.techStack.map((t) => (
+                <li key={t} className="chip">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="sat-title-row">
+            <h1 className="sat-title">Satellite Conjunction Screening</h1>
+            <a
+              href={satelliteTool.repoUrl}
+              className="btn btn-secondary"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View on GitHub ↗
+            </a>
+          </div>
           <p className="sat-lede">
-            Continuously screens public satellite tracking data for close
-            approaches using real orbital mechanics. The core pipeline makes
-            zero LLM calls.
+            <span>
+              Continuously screens public satellite tracking data for close approaches using real
+              orbital mechanics.
+            </span>
+            <span>The core pipeline makes zero LLM calls.</span>
           </p>
-          <ul className="chip-list sat-tech" aria-label="Tech stack">
-            {satelliteTool.techStack.map((t) => (
-              <li key={t} className="chip">
-                {t}
-              </li>
-            ))}
-          </ul>
-          <a
-            href={satelliteTool.repoUrl}
-            className="btn btn-secondary"
-            target="_blank"
-            rel="noreferrer"
-          >
-            View on GitHub ↗
-          </a>
         </header>
+
+        <div className="sat-overview">
+          <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
+            <h2 id="sat-results" className="section-title">
+              Latest run
+            </h2>
+            {state.status === 'error' && (
+              <div className="sat-callout sat-error" role="alert">
+                <p>The latest screening results couldn&apos;t be loaded right now.</p>
+                <button type="button" className="btn btn-secondary" onClick={retry}>
+                  Try again
+                </button>
+              </div>
+            )}
+            <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
+              {statsFor(summary).map(({ value, label }) => (
+                <div key={label} className="card sat-stat">
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {summary && (
+              <p className="sat-note">
+                Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
+                passes under {summary.threshold_km} km. Closest approach is the nearest pass
+                involving an active satellite. Runs daily on Fly.io.
+              </p>
+            )}
+          </section>
+
+          <section aria-labelledby="sat-risk">
+            <h2 id="sat-risk" className="section-title">
+              Risk breakdown
+            </h2>
+            {summary ? (
+              <RiskBreakdown summary={summary} />
+            ) : (
+              <div className="card sat-risk-placeholder">
+                {state.status === 'error' ? '—' : 'Loading…'}
+              </div>
+            )}
+          </section>
+        </div>
 
         <section ref={globeRef} className="sat-section" aria-labelledby="sat-globe">
           <h2 id="sat-globe" className="section-title">
@@ -240,46 +286,6 @@ export default function SatelliteTool() {
             />
           </Suspense>
         </section>
-
-        <section className="sat-section" aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
-          <h2 id="sat-results" className="section-title">
-            Latest run
-          </h2>
-          {state.status === 'error' && (
-            <div className="sat-callout sat-error" role="alert">
-              <p>The latest screening results couldn&apos;t be loaded right now.</p>
-              <button type="button" className="btn btn-secondary" onClick={retry}>
-                Try again
-              </button>
-            </div>
-          )}
-          <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
-            {statsFor(summary).map(({ value, label }) => (
-              <div key={label} className="card sat-stat">
-                <dt>{label}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
-          {summary && (
-            <p className="sat-note">
-              Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
-              passes under {summary.threshold_km} km. Runs daily on Fly.io.
-            </p>
-          )}
-        </section>
-
-        {summary && (
-          <>
-            <section className="sat-section" aria-labelledby="sat-risk">
-              <h2 id="sat-risk" className="section-title">
-                Risk breakdown
-              </h2>
-              <RiskBreakdown summary={summary} />
-            </section>
-
-          </>
-        )}
 
         <section className="sat-section" aria-labelledby="sat-near-misses">
           <h2 id="sat-near-misses" className="section-title">
