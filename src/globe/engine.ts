@@ -61,7 +61,23 @@ const NEIGHBOR_REFRESH_WALL_MS = 1000
 const SKY_FOV_MIN = 30
 const SKY_FOV_MAX = 100
 const SKY_FOV_DEFAULT = 70
+// Look up to the zenith or down at the ground (2026-10-04 ground grid).
 const SKY_PITCH_MAX = 89
+// Sky ground: a muted slate, clearly lighter than the #05070d sky (1.51:1)
+// but far darker than any point, so the points stay the brightest things.
+const SKY_GROUND_COLOR = 0x26303c
+// Perspective grid on a ground plane one eye-height below the observer.
+// Cells of 0.6 eye-heights (about 1 m tiles for a 1.7 m eye height) span
+// about 31 degrees straight down: enough lines to read as a floor without
+// clutter. Lines fade from 3 to 18 eye-heights out (18 is about 3.2 degrees
+// below the horizon), before converging lines pile into a bright band or
+// shimmer.
+const GRID_CELL = 0.6
+const GRID_FADE_START = 3
+const GRID_FADE_END = 18
+const GRID_STEP = 0.25 // segment length along each line, so it curves correctly
+const GRID_COLOR = [0x6c / 255, 0x7a / 255, 0x8d / 255] as const
+const GRID_ALPHA = 0.35
 
 export type ViewMode = 'globe' | 'sky'
 
@@ -323,23 +339,27 @@ export class GlobeEngine {
     this.skyPoints = new THREE.Points(this.skyGeometry, this.pointsMaterial)
     this.skyPoints.frustumCulled = false
     const ground = new THREE.Mesh(
-      new THREE.SphereGeometry(DOME_RADIUS * 0.95, 48, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x0b1420, side: THREE.BackSide }),
+      new THREE.SphereGeometry(DOME_RADIUS * 0.95, 64, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: SKY_GROUND_COLOR, side: THREE.BackSide }),
     )
-    this.skyScene.add(ground, this.skyPoints)
-    for (const [elDeg, opacity] of [
-      [0, 0.55],
-      [30, 0.16],
-      [60, 0.16],
+    ground.renderOrder = 0
+    this.skyScene.add(ground, this.skyPoints, this.makeGroundGrid(DOME_RADIUS * 0.94))
+    // Rings: the horizon just in front of the ground grid and crisp; the
+    // 30/60-degree rings faint, in the sky.
+    for (const [elDeg, opacity, radius, color] of [
+      [0, 0.85, 0.93, 0xc9d1dc],
+      [30, 0.16, 0.99, 0xe8ecf4],
+      [60, 0.16, 0.99, 0xe8ecf4],
     ] as const) {
       const pts: THREE.Vector3[] = []
-      for (let az = 0; az <= 360; az += 3) {
-        pts.push(new THREE.Vector3(...skyDirection(az, elDeg)).multiplyScalar(DOME_RADIUS * 0.99))
+      for (let az = 0; az <= 360; az += 2) {
+        pts.push(new THREE.Vector3(...skyDirection(az, elDeg)).multiplyScalar(DOME_RADIUS * radius))
       }
       const ring = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: 0xe8ecf4, transparent: true, opacity }),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity }),
       )
+      ring.renderOrder = 2
       this.skyScene.add(ring)
     }
     for (const [text, az, el, cls] of [
@@ -792,7 +812,7 @@ export class GlobeEngine {
     this.skyLook.yaw = (this.skyLook.yaw - (e.clientX - prev.x) * degPerPx + 360) % 360
     this.skyLook.pitch = Math.min(
       SKY_PITCH_MAX,
-      Math.max(0, this.skyLook.pitch + (e.clientY - prev.y) * degPerPx),
+      Math.max(-SKY_PITCH_MAX, this.skyLook.pitch + (e.clientY - prev.y) * degPerPx),
     )
   }
 
@@ -1022,6 +1042,52 @@ export class GlobeEngine {
       this.showNeighbor(best?.index ?? null)
       this.applyDim()
     }
+  }
+
+  // A north/south, east/west grid on a ground plane one eye-height below the
+  // observer, seen in true perspective. The camera sits at the origin, so
+  // pushing each plane point out along its own direction onto a sphere just
+  // inside the ground keeps exactly the same image (lines converge toward the
+  // horizon) while staying in front of the ground and behind nothing else.
+  // Built once; decoration only, not part of the sky geometry.
+  private makeGroundGrid(radius: number): THREE.LineSegments {
+    const pos: number[] = []
+    const col: number[] = []
+    const fade = (d: number) => {
+      if (d <= GRID_FADE_START) return 1
+      if (d >= GRID_FADE_END) return 0
+      const t = (d - GRID_FADE_START) / (GRID_FADE_END - GRID_FADE_START)
+      return 1 - t * t * (3 - 2 * t) // smoothstep
+    }
+    const push = (x: number, z: number) => {
+      const len = Math.hypot(x, 1, z) // plane at y = -1 (one eye-height down)
+      pos.push((x / len) * radius, (-1 / len) * radius, (z / len) * radius)
+      col.push(...GRID_COLOR, GRID_ALPHA * fade(Math.hypot(x, z)))
+    }
+    const n = Math.floor(GRID_FADE_END / GRID_CELL)
+    for (let k = -n; k <= n; k++) {
+      const c = k * GRID_CELL
+      const half = Math.sqrt(Math.max(0, GRID_FADE_END ** 2 - c * c))
+      for (let t = -half; t < half; t += GRID_STEP) {
+        const t2 = Math.min(half, t + GRID_STEP)
+        // Line of constant east-west offset (runs north-south: along z)...
+        push(c, t)
+        push(c, t2)
+        // ...and of constant north-south offset (runs east-west: along x).
+        push(t, c)
+        push(t2, c)
+      }
+    }
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(col, 4))
+    const grid = new THREE.LineSegments(
+      geometry,
+      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }),
+    )
+    grid.renderOrder = 1
+    grid.frustumCulled = false
+    return grid
   }
 
   // The Sky view: every object's dome position from the sliced positions
