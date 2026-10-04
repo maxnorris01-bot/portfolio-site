@@ -46,15 +46,13 @@ function statsFor(summary: SatelliteSummary | null) {
       label: 'conjunctions flagged',
     },
     {
+      // The tile says "closest approach"; the note under the tiles says it's
+      // the closest approach involving an active satellite.
       value:
         summary?.closest_active_approach_km != null
           ? km(summary.closest_active_approach_km)
           : placeholder,
-      label: 'closest active-satellite approach',
-    },
-    {
-      value: `${satelliteTool.kdTreeSpeedup}×`,
-      label: 'faster screening after the KD-tree swap',
+      label: 'closest approach',
     },
   ]
 }
@@ -94,77 +92,64 @@ function RiskBreakdown({ summary }: { summary: SatelliteSummary }) {
   )
 }
 
-function objectLabel(o: NearMiss['object_a']) {
-  return `${o.name} (${o.norad_id})`
-}
-
 const nearMissKey = (n: NearMiss) => `${n.object_a.norad_id}-${n.object_b.norad_id}-${n.tca_utc}`
 
-function NearMissList({
+const missKm = (km: number) =>
+  `${km.toLocaleString('en-US', { maximumFractionDigits: km < 1 ? 3 : 2 })} km`
+
+// The top conjunctions as a native select: each option carries the table's
+// information (rank, both objects, miss distance, risk tier). Choosing one
+// replays it on the globe; the current replay shows as selected, and the
+// placeholder returns when the selection is cleared.
+function ConjunctionPicker({
   summary,
+  status,
+  snapshot,
   selectedKey,
   onSelect,
 }: {
-  summary: SatelliteSummary
+  summary: SatelliteSummary | null
+  status: 'loading' | 'error' | 'ready'
+  snapshot: string | null
   selectedKey: string | null
   onSelect: (n: NearMiss) => void
 }) {
+  const options = summary?.near_misses ?? []
+  const selected = options.some((n) => nearMissKey(n) === selectedKey) ? selectedKey! : ''
   return (
-    <div className="card sat-table-wrap">
-      <table className="sat-table">
-        <thead>
-          <tr>
-            <th scope="col">Risk</th>
-            <th scope="col">Objects</th>
-            <th scope="col" className="num">
-              Miss
-            </th>
-            <th scope="col" className="num">
-              Rel. speed
-            </th>
-            <th scope="col">Closest approach</th>
-            <th scope="col">
-              <span className="visually-hidden">Replay</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {summary.near_misses.map((n) => {
-            const key = nearMissKey(n)
-            return (
-              <tr
-                key={key}
-                className={`sat-row${key === selectedKey ? ' is-selected' : ''}`}
-                onClick={() => onSelect(n)}
-              >
-                <td>
-                  <span className={`sat-risk-tag risk-${n.risk_level}`}>{n.risk_level}</span>
-                </td>
-                <td className="sat-pair">
-                  <span>{objectLabel(n.object_a)}</span>
-                  <span>{objectLabel(n.object_b)}</span>
-                </td>
-                <td className="num">{km(n.miss_distance_km)}</td>
-                <td className="num">{n.relative_speed_km_s.toFixed(1)} km/s</td>
-                <td>{utc(n.tca_utc)}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="sat-replay"
-                    aria-pressed={key === selectedKey}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onSelect(n)
-                    }}
-                  >
-                    Show on globe
-                  </button>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+    <div className="sat-picker">
+      <label htmlFor="sat-conjunction-select" className="sat-picker-label">
+        Top conjunctions{snapshot ? ` · ${snapshot} snapshot` : ''}
+      </label>
+      <select
+        id="sat-conjunction-select"
+        className="sat-picker-select"
+        value={selected}
+        disabled={!summary}
+        onChange={(e) => {
+          const n = options.find((o) => nearMissKey(o) === e.target.value)
+          if (n) onSelect(n)
+        }}
+      >
+        <option value="" disabled>
+          {status === 'error'
+            ? 'Conjunctions couldn’t be loaded'
+            : summary
+              ? 'Select to show on Globe'
+              : 'Loading conjunctions…'}
+        </option>
+        {options.map((n, i) => (
+          <option key={nearMissKey(n)} value={nearMissKey(n)}>
+            {`${i + 1}. ${n.object_a.name} × ${n.object_b.name} · ${missKm(n.miss_distance_km)} · ${n.risk_level}`}
+          </option>
+        ))}
+      </select>
+      {summary && (
+        <p className="sat-picker-note">
+          Top {options.length} of {fmt(summary.conjunctions_flagged)}, ranked by risk tier, then
+          miss distance.
+        </p>
+      )}
     </div>
   )
 }
@@ -203,108 +188,96 @@ export default function SatelliteTool() {
     <main className="page">
       <div className="container">
         <header className="sat-header">
-          <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
-          <h1 className="sat-title">Satellite Conjunction Screening</h1>
+          <div className="sat-eyebrow-row">
+            <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
+            <ul className="chip-list sat-tech" aria-label="Tech stack">
+              {satelliteTool.techStack.map((t) => (
+                <li key={t} className="chip">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="sat-title-row">
+            <h1 className="sat-title">Satellite Conjunction Screening</h1>
+            <a
+              href={satelliteTool.repoUrl}
+              className="btn btn-secondary"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View on GitHub ↗
+            </a>
+          </div>
           <p className="sat-lede">
             Continuously screens public satellite tracking data for close
             approaches using real orbital mechanics. The core pipeline makes
             zero LLM calls.
           </p>
-          <ul className="chip-list sat-tech" aria-label="Tech stack">
-            {satelliteTool.techStack.map((t) => (
-              <li key={t} className="chip">
-                {t}
-              </li>
-            ))}
-          </ul>
-          <a
-            href={satelliteTool.repoUrl}
-            className="btn btn-secondary"
-            target="_blank"
-            rel="noreferrer"
-          >
-            View on GitHub ↗
-          </a>
         </header>
 
-        <section ref={globeRef} className="sat-section" aria-labelledby="sat-globe">
-          <h2 id="sat-globe" className="section-title">
-            Every tracked object
-          </h2>
+        <div className="sat-overview">
+          <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
+            <h2 id="sat-results" className="section-title">
+              Latest run
+            </h2>
+            {state.status === 'error' && (
+              <div className="sat-callout sat-error" role="alert">
+                <p>The latest screening results couldn&apos;t be loaded right now.</p>
+                <button type="button" className="btn btn-secondary" onClick={retry}>
+                  Try again
+                </button>
+              </div>
+            )}
+            <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
+              {statsFor(summary).map(({ value, label }) => (
+                <div key={label} className="card sat-stat">
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {summary && (
+              <p className="sat-note">
+                Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
+                passes under {summary.threshold_km} km. Closest approach is the nearest pass
+                involving an active satellite. Runs daily on Fly.io.
+              </p>
+            )}
+          </section>
+
+          <section aria-labelledby="sat-risk">
+            <h2 id="sat-risk" className="section-title">
+              Risk breakdown
+            </h2>
+            {summary ? (
+              <RiskBreakdown summary={summary} />
+            ) : (
+              <div className="card sat-risk-placeholder">
+                {state.status === 'error' ? '—' : 'Loading…'}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <section ref={globeRef} className="sat-section sat-globe-section" aria-label="Globe of every tracked object">
           <Suspense fallback={<div className="sat-globe-fallback">Loading the globe…</div>}>
             <SatelliteGlobe
               focus={focus}
               onExitFocus={exitFocus}
               onDatasetChange={setGlobeDataset}
               conjunctionsFlagged={summary?.conjunctions_flagged}
+              sideTop={
+                <ConjunctionPicker
+                  summary={tableSummary}
+                  status={tableState.status}
+                  snapshot={pastDate}
+                  selectedKey={focus?.key ?? null}
+                  onSelect={replay}
+                />
+              }
             />
           </Suspense>
-        </section>
-
-        <section className="sat-section" aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
-          <h2 id="sat-results" className="section-title">
-            Latest run
-          </h2>
-          {state.status === 'error' && (
-            <div className="sat-callout sat-error" role="alert">
-              <p>The latest screening results couldn&apos;t be loaded right now.</p>
-              <button type="button" className="btn btn-secondary" onClick={retry}>
-                Try again
-              </button>
-            </div>
-          )}
-          <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
-            {statsFor(summary).map(({ value, label }) => (
-              <div key={label} className="card sat-stat">
-                <dt>{label}</dt>
-                <dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
-          {summary && (
-            <p className="sat-note">
-              Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
-              passes under {summary.threshold_km} km. Runs daily on Fly.io.
-            </p>
-          )}
-        </section>
-
-        {summary && (
-          <>
-            <section className="sat-section" aria-labelledby="sat-risk">
-              <h2 id="sat-risk" className="section-title">
-                Risk breakdown
-              </h2>
-              <RiskBreakdown summary={summary} />
-            </section>
-
-          </>
-        )}
-
-        <section className="sat-section" aria-labelledby="sat-near-misses">
-          <h2 id="sat-near-misses" className="section-title">
-            Top conjunctions{pastDate ? ` · ${pastDate} snapshot` : ''}
-          </h2>
-          {tableSummary ? (
-            <>
-              <NearMissList
-                summary={tableSummary}
-                selectedKey={focus?.key ?? null}
-                onSelect={replay}
-              />
-              <p className="sat-note">
-                Top {tableSummary.near_misses.length} of{' '}
-                {fmt(tableSummary.conjunctions_flagged)}, ranked by risk tier, then miss distance.
-                Select one to replay it on the globe at its closest approach.
-              </p>
-            </>
-          ) : (
-            <p className="sat-note" role={tableState.status === 'error' ? 'alert' : undefined}>
-              {tableState.status === 'error'
-                ? 'These conjunctions couldn’t be loaded right now.'
-                : 'Loading conjunctions…'}
-            </p>
-          )}
         </section>
 
         <section className="sat-section" aria-labelledby="sat-pipeline">

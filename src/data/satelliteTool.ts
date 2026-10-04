@@ -4,11 +4,9 @@
 export interface SatelliteToolInfo {
   repoUrl: string
   techStack: string[]
-  kdTreeSpeedup: number
 }
 
 export const satelliteTool: SatelliteToolInfo = {
   repoUrl: 'https://github.com/maxnorris01-bot/satellite-conjunction-screening',
   techStack: ['Python', 'SGP4', 'scipy cKDTree', 'CelesTrak'],
-  kdTreeSpeedup: 9,
 }
