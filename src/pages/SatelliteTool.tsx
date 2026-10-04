@@ -63,7 +63,7 @@ function RiskBreakdown({ summary }: { summary: SatelliteSummary }) {
 
   return (
     <>
-      <div className="card">
+      <div className="card sat-risk-card">
         <ul className="sat-risk-bars">
           {riskLevels.map(({ level, label }) => {
             const count = counts[level]
