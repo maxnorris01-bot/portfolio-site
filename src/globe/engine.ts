@@ -382,7 +382,7 @@ export class GlobeEngine {
     const pb = this.positionOf(b, date)
     if (!pa || !pb) return false
 
-    this.clearSelection()
+    this.clearSelection(false)
     this.link = { a, b, kind: 'pair', label }
     this.applyDim()
     this.setClock({ kind: 'frozen', atMs: tcaMs }, true)
@@ -406,7 +406,7 @@ export class GlobeEngine {
       .filter((i): i is number => i !== undefined && this.satrecs[i] !== null)
       .slice(0, MAX_GROUP)
     if (!indices.length || !this.updateGroupMarks(new Date(this.simTimeMs()), indices)) return 0
-    this.clearSelection()
+    this.clearSelection(false)
     this.groupIdx = indices
     this.ringGroup.visible = true
     this.controls.minDistance = FOCUS_MIN_DISTANCE
@@ -419,7 +419,7 @@ export class GlobeEngine {
 
   /** Back to the free-roam view of the whole globe. The caller sets the clock. */
   resetView() {
-    this.clearSelection()
+    this.clearSelection(false)
     this.animateCamera(DEFAULT_CAMERA.clone(), new THREE.Vector3(), () => {
       this.resetLimits()
       this.camera.up.set(0, 1, 0)
@@ -463,9 +463,11 @@ export class GlobeEngine {
   /**
    * Clear every selection mark (object, neighbour line, pair, station). If the
    * camera was focused on one, ease back to free roam from where it is rather
-   * than flying home; the clock is left alone.
+   * than flying home; the clock is left alone. Callers that are about to fly
+   * the camera somewhere else pass `release = false`, so two camera
+   * animations never race.
    */
-  clearSelection() {
+  clearSelection(release = true) {
     const wasFocused = this.link?.kind === 'pair' || this.groupIdx !== null
     this.clearLink()
     this.clearGroup()
@@ -473,7 +475,7 @@ export class GlobeEngine {
     this.ringInspect.visible = false
     this.neighbor = null
     this.applyDim()
-    if (wasFocused) this.releaseToFreeRoam()
+    if (wasFocused && release) this.releaseToFreeRoam()
   }
 
   // Rebuild the drawn colours from the filter state, dimming everything but
