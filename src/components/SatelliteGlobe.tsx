@@ -13,10 +13,12 @@ import {
   RING_GROUP,
   RING_INSPECT,
   type InspectedPosition,
+  type InspectedSky,
   type ViewMode,
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf } from '../globe/groups'
 import { geocodePlace } from '../globe/geocode'
+import { phoneSideDock } from '../globe/layout'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
 import CollisionHistory from './CollisionHistory'
@@ -24,6 +26,8 @@ import './SatelliteGlobe.css'
 
 const TEXTURE_URL = '/textures/earth-day-2k.jpg'
 const TICK_MS = 250
+/** Matches the stylesheet's phone breakpoint. */
+const PHONE_QUERY = '(max-width: 640px)'
 const NO_HIDDEN: ReadonlySet<string> = new Set()
 const ALL_GROUPS = [
   ...NAME_GROUPS.map((g) => ({ key: g.key, label: g.label })),
@@ -84,6 +88,8 @@ interface Props {
   onDatasetChange: (key: DatasetKey) => void
   /** Conjunctions in the latest run, for the collision-history context. */
   conjunctionsFlagged?: number
+  /** Globe or Sky, chosen by the toggle in the page's section header. */
+  viewMode?: ViewMode
 }
 
 export default function SatelliteGlobe({
@@ -91,9 +97,12 @@ export default function SatelliteGlobe({
   onExitFocus,
   onDatasetChange,
   conjunctionsFlagged,
+  viewMode = 'globe',
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const legendRef = useRef<HTMLDivElement>(null)
+  const sideRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<GlobeEngine | null>(null)
   const [time, setTime] = useState(() => ({ simMs: 0, nowMs: 0 }))
   const [clock, setClockState] = useState<Clock>(() => liveClock(Date.now()))
@@ -118,7 +127,6 @@ export default function SatelliteGlobe({
   const [station, setStation] = useState<string | null>(null)
   // Sky view (Phase 1). The observer lives only in this component's state:
   // never stored, logged or sent anywhere (a typed place goes to the geocoder).
-  const [viewMode, setViewMode] = useState<ViewMode>('globe')
   const [observer, setObserver] = useState<{
     latDeg: number
     lonDeg: number
@@ -132,6 +140,15 @@ export default function SatelliteGlobe({
   // dome stays visible (it would cover most of it on a phone).
   const [skyPanelOpen, setSkyPanelOpen] = useState(true)
   const [skyGrid, setSkyGrid] = useState(true)
+  const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
+  // On a phone in the Sky view the selected object's panel starts as a
+  // two-line summary; this holds the object whose full details are open.
+  const [detailsFor, setDetailsFor] = useState<number | null>(null)
+  // On a phone in the Sky view, the side column's top offset when it has
+  // moved up under the legend to keep the selected ring uncovered (null:
+  // docked along the bottom). The ref mirrors it for the engine's tick.
+  const [sideDock, setSideDock] = useState<number | null>(null)
+  const sideDockRef = useRef<number | null>(null)
   const [stationPieces, setStationPieces] = useState(0)
 
   // Selection is single: picking an object replaces a near-miss pair or a
@@ -140,6 +157,9 @@ export default function SatelliteGlobe({
   // tells the replay/station effects not to also fly home. The handler is
   // called from engine events, so it reads current props through a ref.
   const releasedRef = useRef(false)
+  // The replay and station currently shown by the engine (see their effects).
+  const focusedRef = useRef<FocusRequest | null>(null)
+  const stationRef = useRef<string | null>(null)
   const handlePick = useRef<(index: number | null) => void>(() => {})
   useEffect(() => {
     handlePick.current = (index) => {
@@ -165,6 +185,22 @@ export default function SatelliteGlobe({
         setInspectPos(engineRef.current?.inspectedPosition() ?? null)
         setNeighbor(engineRef.current?.currentNeighbor())
         setSkyAbove(engineRef.current?.skyAboveHorizon() ?? 0)
+        setInspectSky(engineRef.current?.inspectedSky() ?? null)
+        const stage = stageRef.current
+        const side = sideRef.current
+        const legend = legendRef.current
+        const dock =
+          stage && side && window.matchMedia(PHONE_QUERY).matches
+            ? phoneSideDock({
+                ringY: engineRef.current?.inspectedSkyScreen()?.y ?? null,
+                stageHeight: stage.clientHeight,
+                sideHeight: side.offsetHeight,
+                legendBottom: legend ? legend.offsetTop + legend.offsetHeight : 0,
+                current: sideDockRef.current,
+              })
+            : null
+        sideDockRef.current = dock
+        setSideDock(dock)
         // The engine may change the clock itself (Live pausing at the end of
         // the forward range); keep the controls in step.
         const engineClock = engineRef.current?.getClock()
@@ -314,9 +350,17 @@ export default function SatelliteGlobe({
 
   // The engine follows the chosen view and observer. Declared before the
   // replay/station effects so a replay started from the Sky view finds the
-  // engine already back on the globe.
+  // engine already back on the globe. Entering the Sky view ends a near-miss
+  // pair or station view (globe camera modes) without flying the globe camera
+  // home; an inspected object stays selected in both views.
   useEffect(() => {
-    engineRef.current?.setViewMode(viewMode)
+    const engine = engineRef.current
+    if (!engine) return
+    if (viewMode === 'sky' && (focusedRef.current || stationRef.current)) {
+      releasedRef.current = true
+      engine.clearFocusKeepInspect()
+    }
+    engine.setViewMode(viewMode)
   }, [viewMode])
   useEffect(() => {
     engineRef.current?.setObserver(observer)
@@ -325,14 +369,11 @@ export default function SatelliteGlobe({
     engineRef.current?.setSkyGrid(skyGrid)
   }, [skyGrid])
 
-  // Switching views clears any globe selection (the Sky view has none yet).
-  const switchView = (mode: ViewMode) => {
-    if (mode === viewMode) return
-    if (focus) onExitFocus()
-    if (station) setStation(null)
-    setInspect(null)
-    engineRef.current?.clearSelection()
-    setViewMode(mode)
+  // A station view is a globe camera mode; entering the Sky view ends it.
+  const [prevViewMode, setPrevViewMode] = useState(viewMode)
+  if (prevViewMode !== viewMode) {
+    setPrevViewMode(viewMode)
+    if (viewMode === 'sky' && station) setStation(null)
   }
 
   const useMyLocation = () => {
@@ -391,6 +432,11 @@ export default function SatelliteGlobe({
   useEffect(() => {
     engineRef.current?.setInspected(inspect)
   }, [inspect])
+  useEffect(() => {
+    engineRef.current?.setInspectedName(
+      inspect !== null && loaded ? (loaded.file.objects[inspect]?.name ?? null) : null,
+    )
+  }, [inspect, loaded])
 
   const applyClock = useCallback((next: Clock, immediate: boolean) => {
     engineRef.current?.setClock(next, immediate)
@@ -399,7 +445,6 @@ export default function SatelliteGlobe({
 
   // Enter focus once the near-miss's own snapshot is loaded; leave it when the
   // page clears `focus`.
-  const focusedRef = useRef<FocusRequest | null>(null)
   useEffect(() => {
     const engine = engineRef.current
     if (!engine) return
@@ -419,7 +464,6 @@ export default function SatelliteGlobe({
 
   // Stations: ring every piece and follow them. Mutually exclusive with a
   // near-miss replay.
-  const stationRef = useRef<string | null>(null)
   useEffect(() => {
     const engine = engineRef.current
     if (!engine || !loaded) return
@@ -445,8 +489,6 @@ export default function SatelliteGlobe({
     if (focus) {
       if (station) setStation(null)
       if (inspect !== null) setInspect(null)
-      // Showing a conjunction always happens on the globe.
-      if (viewMode === 'sky') setViewMode('globe')
     }
   }
 
@@ -462,6 +504,20 @@ export default function SatelliteGlobe({
     stationDef && loaded
       ? loaded.file.objects.filter((o) => stationDef.match(o.name)).map((o) => o.name)
       : []
+
+  // Above-horizon count, or why there's nothing to show. Catalog counts stay
+  // in the legend; this one is separate.
+  const filtered = loaded !== null && visibleCount < loaded.file.objects.length
+  const skyCountLine =
+    skyAbove > 0 ? (
+      <p className="globe-sky-count">{fmt(skyAbove)} above your horizon</p>
+    ) : (
+      <p className="globe-sky-count is-empty">
+        {filtered
+          ? 'Nothing above your horizon with the current filters.'
+          : 'Nothing above your horizon right now.'}
+      </p>
+    )
 
   const isLive = clock.kind === 'live'
   const speed = clock.kind === 'live' ? clock.speed : 1
@@ -503,19 +559,7 @@ export default function SatelliteGlobe({
         <div ref={containerRef} className="globe-canvas" />
 
         {coloring && (
-          <div className="globe-panel globe-legend">
-            <div className="globe-segmented globe-view-toggle" role="group" aria-label="View">
-              {(['globe', 'sky'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  aria-pressed={viewMode === m}
-                  onClick={() => switchView(m)}
-                >
-                  {m === 'globe' ? 'Globe' : 'Sky'}
-                </button>
-              ))}
-            </div>
+          <div ref={legendRef} className="globe-panel globe-legend">
             <div className="globe-segmented" role="group" aria-label="Color points by">
               {COLOR_MODES.map(({ mode, label }) => (
                 <button
@@ -618,8 +662,118 @@ export default function SatelliteGlobe({
           </div>
         )}
 
-        {(focus || inspected || stationDef) && (
-          <div className="globe-side">
+        {(focus || inspected || stationDef || viewMode === 'sky') && (
+          <div
+            ref={sideRef}
+            className="globe-side"
+            style={sideDock === null ? undefined : { top: sideDock, bottom: 'auto' }}
+          >
+            {viewMode === 'sky' && (
+              <>
+                {observer && !skyPanelOpen ? (
+                  <div className="globe-panel globe-sky-panel is-compact" aria-live="polite">
+                    <div className="globe-sky-head">
+                      <p className="globe-panel-title">Your sky</p>
+                      <label className="globe-sky-grid">
+                        <input
+                          type="checkbox"
+                          checked={skyGrid}
+                          onChange={(e) => setSkyGrid(e.target.checked)}
+                        />
+                        Grid
+                      </label>
+                    </div>
+                    <p className="globe-sky-compact-where">{observer.label}</p>
+                    {skyCountLine}
+                    <div className="globe-sky-actions">
+                      <button
+                        type="button"
+                        className="globe-button"
+                        onClick={() => setSkyPanelOpen(true)}
+                      >
+                        Change location
+                      </button>
+                      <button
+                        type="button"
+                        className="globe-button"
+                        onClick={() => engineRef.current?.resetSkyView()}
+                      >
+                        Reset view
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="globe-panel globe-sky-panel" aria-live="polite">
+                    <div className="globe-sky-head">
+                        <p className="globe-panel-title">Your sky</p>
+                        <label className="globe-sky-grid">
+                          <input
+                            type="checkbox"
+                            checked={skyGrid}
+                            onChange={(e) => setSkyGrid(e.target.checked)}
+                          />
+                          Grid
+                        </label>
+                      </div>
+                    <button
+                      type="button"
+                      className="globe-button"
+                      onClick={useMyLocation}
+                      disabled={skyBusy !== null}
+                    >
+                      {skyBusy === 'locating' ? 'Finding your location…' : 'Use my location'}
+                    </button>
+                    <form className="globe-sky-search" onSubmit={searchPlace}>
+                      <label htmlFor="globe-sky-place" className="globe-muted">
+                        or a place
+                      </label>
+                      <div className="globe-sky-search-row">
+                        <input
+                          id="globe-sky-place"
+                          type="text"
+                          value={placeQuery}
+                          onChange={(e) => setPlaceQuery(e.target.value)}
+                          placeholder="City or address"
+                          autoComplete="off"
+                        />
+                        <button type="submit" className="globe-button" disabled={skyBusy !== null}>
+                          {skyBusy === 'searching' ? '…' : 'Find'}
+                        </button>
+                      </div>
+                    </form>
+                    {skyError && (
+                      <p className="globe-sky-error" role="alert">
+                        {skyError}
+                      </p>
+                    )}
+                    {observer && (
+                      <div className="globe-sky-where">
+                        <p>{observer.label}</p>
+                        <p className="globe-muted">
+                          {formatLatLon({ latDeg: observer.latDeg, lonDeg: observer.lonDeg, altKm: 0 })}
+                        </p>
+                        {skyCountLine}
+                        <button
+                          type="button"
+                          className="globe-button globe-sky-reset"
+                          onClick={() => engineRef.current?.resetSkyView()}
+                        >
+                          Reset view
+                        </button>
+                      </div>
+                    )}
+                    <p className="globe-muted globe-sky-note">
+                      Your location stays in this browser: it isn&apos;t stored or sent anywhere. A typed
+                      place is sent only to OpenStreetMap&apos;s Nominatim to look it up.{' '}
+                      <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+                        Search © OpenStreetMap contributors
+                      </a>
+                      .
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
             {stationDef && (
               <div className="globe-panel" aria-live="polite">
                 <p className="globe-panel-title">
@@ -662,12 +816,28 @@ export default function SatelliteGlobe({
               </div>
             )}
             {inspected && (
-              <div className="globe-panel globe-inspect" aria-live="polite">
+              <div
+                className={`globe-panel globe-inspect${viewMode === 'sky' ? ' is-sky' : ''}${
+                  viewMode === 'sky' && detailsFor !== inspect ? ' is-collapsed' : ''
+                }`}
+                aria-live="polite"
+              >
                 <div className="globe-panel-head">
                   <p className="globe-panel-title">
                     <span className="globe-ring-key" style={{ borderColor: RING_INSPECT }} />
                     Selected object
                   </p>
+                  {viewMode === 'sky' && (
+                    <button
+                      type="button"
+                      className="globe-inspect-more"
+                      aria-expanded={detailsFor === inspect}
+                      aria-controls="globe-inspect-details"
+                      onClick={() => setDetailsFor(detailsFor === inspect ? null : inspect)}
+                    >
+                      {detailsFor === inspect ? 'Less' : 'Details'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="globe-close"
@@ -678,143 +848,84 @@ export default function SatelliteGlobe({
                   </button>
                 </div>
                 <p className="globe-inspect-name">{inspected.name}</p>
-                <dl>
-                  <dt>NORAD ID</dt>
-                  <dd>{inspected.norad_id}</dd>
-                  <dt>Type</dt>
-                  <dd>{describeType(inspected)}</dd>
-                  <dt>Owner</dt>
-                  <dd>{inspected.satcat_owner?.name ?? 'Unknown'}</dd>
-                  <dt>Position</dt>
-                  <dd>{inspectPos ? formatLatLon(inspectPos) : '—'}</dd>
-                  <dt>Altitude</dt>
-                  <dd>{inspectPos ? fmtKm(Math.round(inspectPos.altKm)) : '—'}</dd>
-                  <dt>Nearest</dt>
-                  <dd>
-                    {neighbor && loaded && inspect !== null ? (
+                {viewMode === 'sky' && (
+                  <p className="globe-inspect-summary">
+                    {!inspectSky
+                      ? '—'
+                      : inspectSky.elDeg <= 0
+                        ? 'Below your horizon right now'
+                        : `Az ${inspectSky.azDeg.toFixed(1)}° · El ${inspectSky.elDeg.toFixed(1)}°`}
+                  </p>
+                )}
+                <div id="globe-inspect-details" className="globe-inspect-details">
+                  <dl>
+                    <dt>NORAD ID</dt>
+                    <dd>{inspected.norad_id}</dd>
+                    <dt>Type</dt>
+                    <dd>{describeType(inspected)}</dd>
+                    <dt>Owner</dt>
+                    <dd>{inspected.satcat_owner?.name ?? 'Unknown'}</dd>
+                    <dt>Position</dt>
+                    <dd>{inspectPos ? formatLatLon(inspectPos) : '—'}</dd>
+                    <dt>Altitude</dt>
+                    <dd>{inspectPos ? fmtKm(Math.round(inspectPos.altKm)) : '—'}</dd>
+                    {viewMode === 'sky' && (
                       <>
-                        <span className="globe-ring-key" style={{ borderColor: RING_A }} />
-                        {fmtKm(neighbor.km)} · {loaded.file.objects[neighbor.index].name}
-                        {neighbor.km < COLOCATED_KM && (
-                          <span className="globe-muted"> (docked or co-located)</span>
-                        )}
+                        <dt>Azimuth</dt>
+                        <dd>{inspectSky ? `${inspectSky.azDeg.toFixed(1)}°` : '—'}</dd>
+                        <dt>Elevation</dt>
+                        <dd>{inspectSky ? `${inspectSky.elDeg.toFixed(1)}°` : '—'}</dd>
+                        <dt>Range</dt>
+                        <dd>{inspectSky ? fmtKm(Math.round(inspectSky.rangeKm)) : '—'}</dd>
                       </>
-                    ) : neighbor === null ? (
-                      <span className="globe-muted">No visible object</span>
-                    ) : (
-                      '—'
                     )}
-                  </dd>
-                </dl>
-                <p className="globe-muted globe-neighbor-note">
-                  Nearest neighbour is live: it follows the displayed time and counts only
-                  objects currently shown.
-                </p>
-                <button
-                  type="button"
-                  className="globe-button"
-                  onClick={() => handlePick.current(null)}
-                >
-                  Deselect
-                </button>
-                <p className="globe-muted">
-                  At {time.simMs ? `${formatUtc(time.simMs)} UTC` : 'the displayed time'}.
-                </p>
+                    {viewMode === 'globe' && <dt>Nearest</dt>}
+                    {viewMode === 'globe' && <dd>
+                      {neighbor && loaded && inspect !== null ? (
+                        <>
+                          <span className="globe-ring-key" style={{ borderColor: RING_A }} />
+                          {fmtKm(neighbor.km)} · {loaded.file.objects[neighbor.index].name}
+                          {neighbor.km < COLOCATED_KM && (
+                            <span className="globe-muted"> (docked or co-located)</span>
+                          )}
+                        </>
+                      ) : neighbor === null ? (
+                        <span className="globe-muted">No visible object</span>
+                      ) : (
+                        '—'
+                      )}
+                    </dd>}
+                  </dl>
+                  {viewMode === 'globe' ? (
+                    <p className="globe-muted globe-neighbor-note">
+                      Nearest neighbour is live: it follows the displayed time and counts only
+                      objects currently shown.
+                    </p>
+                  ) : (
+                    inspectSky &&
+                    inspectSky.elDeg <= 0 && (
+                      <p className="globe-sky-below">Below your horizon right now.</p>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    className="globe-button"
+                    onClick={() => handlePick.current(null)}
+                  >
+                    Deselect
+                  </button>
+                  {/* In Sky the values are live and the clock sits just below the stage. */}
+                  {viewMode === 'globe' && (
+                    <p className="globe-muted">
+                      At {time.simMs ? `${formatUtc(time.simMs)} UTC` : 'the displayed time'}.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {viewMode === 'sky' && (
-          <div className="globe-side">
-            {observer && !skyPanelOpen ? (
-              <div className="globe-panel globe-sky-panel is-compact" aria-live="polite">
-                <div className="globe-sky-head">
-                  <p className="globe-panel-title">Your sky</p>
-                  <label className="globe-sky-grid">
-                    <input
-                      type="checkbox"
-                      checked={skyGrid}
-                      onChange={(e) => setSkyGrid(e.target.checked)}
-                    />
-                    Grid
-                  </label>
-                </div>
-                <p className="globe-sky-compact-where">{observer.label}</p>
-                <p className="globe-sky-count">{fmt(skyAbove)} above your horizon</p>
-                <button
-                  type="button"
-                  className="globe-button"
-                  onClick={() => setSkyPanelOpen(true)}
-                >
-                  Change location
-                </button>
-              </div>
-            ) : (
-              <div className="globe-panel globe-sky-panel" aria-live="polite">
-                <div className="globe-sky-head">
-                    <p className="globe-panel-title">Your sky</p>
-                    <label className="globe-sky-grid">
-                      <input
-                        type="checkbox"
-                        checked={skyGrid}
-                        onChange={(e) => setSkyGrid(e.target.checked)}
-                      />
-                      Grid
-                    </label>
-                  </div>
-                <button
-                  type="button"
-                  className="globe-button"
-                  onClick={useMyLocation}
-                  disabled={skyBusy !== null}
-                >
-                  {skyBusy === 'locating' ? 'Finding your location…' : 'Use my location'}
-                </button>
-                <form className="globe-sky-search" onSubmit={searchPlace}>
-                  <label htmlFor="globe-sky-place" className="globe-muted">
-                    or a place
-                  </label>
-                  <div className="globe-sky-search-row">
-                    <input
-                      id="globe-sky-place"
-                      type="text"
-                      value={placeQuery}
-                      onChange={(e) => setPlaceQuery(e.target.value)}
-                      placeholder="City or address"
-                      autoComplete="off"
-                    />
-                    <button type="submit" className="globe-button" disabled={skyBusy !== null}>
-                      {skyBusy === 'searching' ? '…' : 'Find'}
-                    </button>
-                  </div>
-                </form>
-                {skyError && (
-                  <p className="globe-sky-error" role="alert">
-                    {skyError}
-                  </p>
-                )}
-                {observer && (
-                  <div className="globe-sky-where">
-                    <p>{observer.label}</p>
-                    <p className="globe-muted">
-                      {formatLatLon({ latDeg: observer.latDeg, lonDeg: observer.lonDeg, altKm: 0 })}
-                    </p>
-                    <p className="globe-sky-count">{fmt(skyAbove)} above your horizon</p>
-                  </div>
-                )}
-                <p className="globe-muted globe-sky-note">
-                  Your location stays in this browser: it isn&apos;t stored or sent anywhere. A typed
-                  place is sent only to OpenStreetMap&apos;s Nominatim to look it up.{' '}
-                  <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
-                    Search © OpenStreetMap contributors
-                  </a>
-                  .
-                </p>
-              </div>
-            )}
-          </div>
-        )}
         {viewMode === 'sky' && !observer && (
           <p className="globe-status globe-sky-prompt">
             Choose a location to see what&apos;s above your horizon.
@@ -834,9 +945,9 @@ export default function SatelliteGlobe({
           <p className="globe-badge">Loading {snapshotLabel(datasetKey)}…</p>
         )}
 
-        <p className="globe-hint">
+        <p className={`globe-hint${viewMode === 'sky' ? ' is-sky' : ''}`}>
           {viewMode === 'sky'
-            ? 'Drag to look around · scroll or pinch to zoom'
+            ? 'Drag to look around · scroll or pinch to zoom · click a point for details'
             : 'Drag to rotate · scroll to zoom · right-drag to pan · click a point for details'}
         </p>
       </div>

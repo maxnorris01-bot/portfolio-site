@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useRef, useState } from 'react'
 import type { NearMiss, RiskLevel, SatelliteSummary } from '../../api/satellite/summary'
+import type { ViewMode } from '../globe/engine'
 import type { DatasetKey, FocusRequest } from '../globe/types'
 import { satelliteTool } from '../data/satelliteTool'
 import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
@@ -178,10 +179,20 @@ export default function SatelliteTool() {
   const tableSummary = tableState.status === 'ready' ? tableState.summary : null
 
   const [focus, setFocus] = useState<(FocusRequest & { key: string }) | null>(null)
+  // Globe or Sky: the toggle lives in this section's header, so the page owns
+  // the mode and passes it to the globe. Entering the Sky view ends a
+  // near-miss replay (a globe camera mode); showing a conjunction returns to
+  // the globe.
+  const [viewMode, setViewMode] = useState<ViewMode>('globe')
+  const switchView = (mode: ViewMode) => {
+    if (mode === 'sky' && focus) setFocus(null)
+    setViewMode(mode)
+  }
   const globeRef = useRef<HTMLElement>(null)
   const exitFocus = useCallback(() => setFocus(null), [])
 
   const replay = (n: NearMiss) => {
+    setViewMode('globe')
     setFocus({
       key: nearMissKey(n),
       datasetKey: globeDataset,
@@ -274,15 +285,30 @@ export default function SatelliteTool() {
         </div>
 
         <section ref={globeRef} className="sat-section" aria-labelledby="sat-globe">
-          <h2 id="sat-globe" className="section-title">
-            Every tracked object
-          </h2>
+          <div className="sat-section-head">
+            <h2 id="sat-globe" className="section-title">
+              Every tracked object
+            </h2>
+            <div className="sat-view-toggle" role="group" aria-label="View">
+              {(['globe', 'sky'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={viewMode === m}
+                  onClick={() => switchView(m)}
+                >
+                  {m === 'globe' ? 'Globe' : 'Sky'}
+                </button>
+              ))}
+            </div>
+          </div>
           <Suspense fallback={<div className="sat-globe-fallback">Loading the globe…</div>}>
             <SatelliteGlobe
               focus={focus}
               onExitFocus={exitFocus}
               onDatasetChange={setGlobeDataset}
               conjunctionsFlagged={summary?.conjunctions_flagged}
+              viewMode={viewMode}
             />
           </Suspense>
         </section>

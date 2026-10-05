@@ -15,7 +15,7 @@ import { formatKm } from './format'
 import { EARTH_RADIUS_KM, earthRotationY, writeInertial } from './frames'
 import { nearestCandidates, nearestTo } from './neighbors'
 import { pickNearest } from './picking'
-import { DOME_RADIUS, observerFrame, skyDirection, writeDome } from './sky'
+import { DOME_RADIUS, lookAngles, observerFrame, skyDirection, writeDome } from './sky'
 import { DAY_MS } from './timeline'
 import type { CatalogObject } from './types'
 
@@ -124,6 +124,12 @@ export interface Neighbor {
   atMs: number
 }
 
+export interface InspectedSky {
+  azDeg: number
+  elDeg: number
+  rangeKm: number
+}
+
 export interface InspectedPosition {
   latDeg: number
   lonDeg: number
@@ -229,6 +235,13 @@ export class GlobeEngine {
   private skyGridOn = true
   private readonly skyPointers = new Map<number, { x: number; y: number }>()
   private skyPinch = 0
+  // One gesture in the Sky view: it only becomes a drag (look around) once it
+  // has moved past CLICK_MAX_MOVE_PX, so a click never nudges the view, and a
+  // gesture that ever had two pointers (a pinch) never selects.
+  private skyGesture: { x: number; y: number; dragging: boolean; multi: boolean } | null = null
+  private skySelScreen: { x: number; y: number } | null = null
+  private readonly skyRingInspect: THREE.Points
+  private readonly skyInspectLabel: HTMLDivElement
   // Filter/colour state: alpha 0 = hidden by a filter, 1 = shown. The source
   // of truth for "visible" (picking, the neighbour search).
   private rgba = new Float32Array(0)
@@ -325,6 +338,8 @@ export class GlobeEngine {
     this.ringA = makeRing(ringTexture, RING_A, 22 * pr)
     this.ringB = makeRing(ringTexture, RING_B, 34 * pr)
     this.ringInspect = makeRing(ringTexture, RING_INSPECT, 26 * pr)
+    this.skyRingInspect = makeRing(ringTexture, RING_INSPECT, 26 * pr)
+    this.skyRingInspect.renderOrder = 4
     this.ringGroup = makeRing(ringTexture, RING_GROUP, 30 * pr)
     this.ringGroup.geometry.setAttribute(
       'position',
@@ -364,7 +379,11 @@ export class GlobeEngine {
     this.domeGrid = this.makeDomeGrid()
     // Points draw last so they sit on top of the (farther) dome grid.
     this.skyPoints.renderOrder = 3
-    this.skyScene.add(ground, this.floorGrid, this.domeGrid, this.skyPoints)
+    this.skyScene.add(ground, this.floorGrid, this.domeGrid, this.skyPoints, this.skyRingInspect)
+    this.skyInspectLabel = document.createElement('div')
+    this.skyInspectLabel.className = 'globe-sky-label is-selected'
+    this.skyInspectLabel.hidden = true
+    container.appendChild(this.skyInspectLabel)
     // The horizon: crisp, just in front of the ground.
     {
       const pts: THREE.Vector3[] = []
@@ -623,7 +642,12 @@ export class GlobeEngine {
     if (draw.length !== base.length) return
     const sel = this.inspectIdx
     if (this.link?.kind === 'pair') dimExcept(base, draw, [this.link.a, this.link.b], DIM_ALPHA)
-    else if (sel !== null) dimExcept(base, draw, [sel, this.neighbor?.index ?? -1], DIM_ALPHA)
+    else if (sel !== null) {
+      // The live neighbour (and its line) are globe-only; in the Sky view only
+      // the selected object stays bright.
+      const nb = this.viewMode === 'globe' ? (this.neighbor?.index ?? -1) : -1
+      dimExcept(base, draw, [sel, nb], DIM_ALPHA)
+    }
     else draw.set(base)
     const attr = this.geometry.getAttribute('color') as THREE.BufferAttribute | undefined
     if (attr) attr.needsUpdate = true
@@ -675,15 +699,70 @@ export class GlobeEngine {
   /**
    * Switch between the globe and the overhead Sky view. Same renderer, catalog,
    * clock, filters and colours; only the camera, scene and overlays change.
-   * Callers clear any globe selection first.
+   * An inspected object stays selected across the switch; a near-miss pair or
+   * station view (globe camera modes) is the caller's to end first.
    */
   setViewMode(mode: ViewMode) {
     if (mode === this.viewMode) return
     this.viewMode = mode
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.skyPointers.clear()
+    this.skyGesture = null
     this.linkLabel.hidden = true
     for (const l of this.skyLabels) l.el.hidden = mode !== 'sky'
+    this.skyInspectLabel.hidden = true
+    this.applyDim()
+  }
+
+  /**
+   * End a near-miss pair or station view without touching an inspected
+   * object (used when switching to the Sky view). The globe camera eases
+   * back to free roam from where it is.
+   */
+  clearFocusKeepInspect() {
+    const wasFocused = this.link?.kind === 'pair' || this.groupIdx !== null
+    if (this.link?.kind === 'pair') this.clearLink()
+    this.clearGroup()
+    this.applyDim()
+    if (wasFocused) this.releaseToFreeRoam()
+  }
+
+  /** The name shown beside the selected object's ring in the Sky view. */
+  setInspectedName(name: string | null) {
+    this.skyInspectLabel.textContent = name ?? ''
+  }
+
+  /** Back to the Sky view's initial look: facing the equator, default field of view. */
+  resetSkyView() {
+    this.setSkyFov(SKY_FOV_DEFAULT)
+    this.skyLook.yaw = (this.observer?.latDeg ?? 0) >= 0 ? 180 : 0
+    this.skyLook.pitch = Math.max(0, this.skyCamera.fov / 2 - 4)
+  }
+
+  /**
+   * The inspected object's azimuth, elevation and range from the observer at
+   * the displayed moment, from an exact propagation (not the sliced
+   * positions). Null without an observer or a selection.
+   */
+  inspectedSky(): InspectedSky | null {
+    const rec = this.inspectIdx === null ? null : this.satrecs[this.inspectIdx]
+    const obs = this.observer
+    if (!rec || !obs) return null
+    const date = new Date(this.simTimeMs())
+    const pv = propagate(rec, date)
+    if (!pv) return null
+    const p = new Float32Array(3)
+    writeInertial(p, 0, pv.position.x, pv.position.y, pv.position.z)
+    return lookAngles(observerFrame(obs.latDeg, obs.lonDeg, gstime(date)), [p[0], p[1], p[2]])
+  }
+
+  /**
+   * Where the selected object's ring is drawn in the Sky view, in CSS pixels
+   * from the canvas's top left; null when it isn't on screen (below the
+   * horizon, out of view, or in the Globe view).
+   */
+  inspectedSkyScreen(): { x: number; y: number } | null {
+    return this.viewMode === 'sky' ? this.skySelScreen : null
   }
 
   /** Show or hide the Sky view's dome grid and its degree labels. */
@@ -787,6 +866,7 @@ export class GlobeEngine {
     canvas.removeEventListener('pointercancel', this.handleSkyPointerEnd)
     canvas.removeEventListener('wheel', this.handleSkyWheel)
     for (const l of this.skyLabels) l.el.remove()
+    this.skyInspectLabel.remove()
     this.skyScene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
         obj.geometry.dispose()
@@ -812,6 +892,11 @@ export class GlobeEngine {
       this.skyPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       this.renderer.domElement.setPointerCapture?.(e.pointerId)
       this.skyPinch = this.pinchDistance()
+      if (this.skyPointers.size === 1) {
+        this.skyGesture = { x: e.clientX, y: e.clientY, dragging: false, multi: false }
+      } else if (this.skyGesture) {
+        this.skyGesture.multi = true
+      }
       return
     }
     this.pointerDown = e.isPrimary && e.button === 0 ? { x: e.clientX, y: e.clientY } : null
@@ -840,12 +925,40 @@ export class GlobeEngine {
       this.skyPinch = d
       return
     }
+    // Only a real drag looks around; small jitter during a click does nothing.
+    const g = this.skyGesture
+    if (g && !g.dragging) {
+      if (Math.hypot(e.clientX - g.x, e.clientY - g.y) <= CLICK_MAX_MOVE_PX) return
+      g.dragging = true
+    }
     const degPerPx = this.skyCamera.fov / Math.max(1, this.container.clientHeight)
     this.skyLook.yaw = (this.skyLook.yaw - (e.clientX - prev.x) * degPerPx + 360) % 360
     this.skyLook.pitch = Math.min(
       SKY_PITCH_MAX,
       Math.max(-SKY_PITCH_MAX, this.skyLook.pitch + (e.clientY - prev.y) * degPerPx),
     )
+  }
+
+  // A click or tap in the Sky view picks the nearest visible object above the
+  // horizon within the same screen-space radius as the globe.
+  private pickSky(e: PointerEvent) {
+    if (!this.observer || !this.satrecs.length) return
+    const rect = this.renderer.domElement.getBoundingClientRect()
+    const cam = this.skyCamera
+    cam.updateMatrixWorld()
+    const viewProj = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)
+    const sky = this.skyPositions
+    const index = pickNearest(
+      sky,
+      (i) => this.rgba[i * 4 + 3] > 0 && this.satrecs[i] !== null && sky[i * 3 + 1] > 0,
+      // The sky camera sits at the origin, inside the unit "Earth" sphere the
+      // picker tests for occlusion, so nothing is ever treated as occluded.
+      { viewProj: viewProj.elements, camera: [0, 0, 0], width: rect.width, height: rect.height },
+      e.clientX - rect.left,
+      e.clientY - rect.top,
+      e.pointerType === 'touch' ? PICK_PX_TOUCH : PICK_PX_MOUSE,
+    )
+    this.onPick?.(index)
   }
 
   private handleSkyPointerEnd = (e: PointerEvent) => {
@@ -865,7 +978,11 @@ export class GlobeEngine {
   // fixed screen-space radius.
   private handlePointerUp = (e: PointerEvent) => {
     if (this.viewMode === 'sky') {
-      this.handleSkyPointerEnd(e) // no picking in the Sky view yet (Phase 1b)
+      const g = this.skyGesture
+      const wasOnly = this.skyPointers.size === 1 && this.skyPointers.has(e.pointerId)
+      this.handleSkyPointerEnd(e)
+      if (this.skyPointers.size === 0) this.skyGesture = null
+      if (g && wasOnly && !g.dragging && !g.multi && e.button === 0) this.pickSky(e)
       return
     }
     const down = this.pointerDown
@@ -1184,10 +1301,27 @@ export class GlobeEngine {
       this.skyAbove = 0
     }
     const cam = this.skyCamera
+    const { clientWidth: w, clientHeight: h } = this.container
     cam.up.set(0, 1, 0)
     cam.lookAt(new THREE.Vector3(...skyDirection(this.skyLook.yaw, this.skyLook.pitch)))
     cam.updateMatrixWorld()
-    const { clientWidth: w, clientHeight: h } = this.container
+    // The selected object's ring and name, hidden while it's below the horizon.
+    const sel = this.inspectIdx
+    const sp = this.skyPositions
+    const showSel = obs !== null && sel !== null && sp.length > sel * 3 && sp[sel * 3 + 1] > 0
+    this.skyRingInspect.visible = showSel
+    this.skyInspectLabel.hidden = true
+    this.skySelScreen = null
+    if (showSel && sel !== null) {
+      const at = new THREE.Vector3(sp[sel * 3], sp[sel * 3 + 1], sp[sel * 3 + 2])
+      this.setRing(this.skyRingInspect, at)
+      const v = at.project(cam)
+      if (v.z <= 1 && Math.abs(v.x) <= 1.05 && Math.abs(v.y) <= 1.05) {
+        this.skyInspectLabel.hidden = !this.skyInspectLabel.textContent
+        this.skySelScreen = { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h }
+        this.skyInspectLabel.style.transform = `translate(${((v.x + 1) / 2) * w + 18}px, ${((1 - v.y) / 2) * h}px) translate(0, -50%)`
+      }
+    }
     for (const l of this.skyLabels) {
       const v = l.dir.clone().project(cam)
       const off =
