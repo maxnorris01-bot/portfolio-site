@@ -266,6 +266,12 @@
   pointer-events: none;
 }
 
+.globe-hint.is-sky {
+  /* The Sky side column can run to the bottom; the lower left is free. */
+  right: auto;
+  left: 0.75rem;
+}
+
 .globe-timebar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -362,12 +368,6 @@
 }
 
 /* Globe | Sky toggle and the Sky view (Phase 1) */
-.globe-view-toggle {
-  display: flex;
-  width: fit-content;
-  margin-bottom: 0.5rem;
-}
-
 .globe-sky-label {
   position: absolute;
   z-index: 1;
@@ -481,6 +481,35 @@
 .globe-sky-compact-where {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.globe-sky-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.globe-sky-reset {
+  justify-self: start;
+  margin-top: 0.35rem;
+}
+
+.globe-sky-count.is-empty {
+  color: var(--globe-ink-muted);
+  font-weight: 400;
+}
+
+.globe-sky-below {
+  color: var(--globe-ink-muted);
+  font-style: italic;
+}
+
+.globe-sky-label.is-selected {
+  color: var(--globe-ink);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -805,8 +834,9 @@
     grid-column: 1 / -1;
   }
 
-  .globe-sky-panel.is-compact .globe-button {
+  .globe-sky-panel.is-compact .globe-sky-actions {
     grid-column: 2;
     grid-row: 2 / span 2;
+    flex-direction: column;
   }
 }

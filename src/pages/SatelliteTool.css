@@ -328,6 +328,51 @@
   color: #a3acbd;
 }
 
+/* Section heading with the Globe | Sky toggle on the right; the toggle wraps
+   under the heading (still right-aligned) when there isn't room. */
+.sat-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.sat-section-head .section-title {
+  margin: 0;
+}
+
+.sat-view-toggle {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.sat-view-toggle button {
+  padding: 0.3rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.sat-view-toggle button[aria-pressed='true'] {
+  background: var(--color-navy);
+  color: var(--color-surface);
+  font-weight: 600;
+}
+
+.sat-view-toggle button:hover:not([aria-pressed='true']) {
+  color: var(--color-navy);
+}
+
 /* Pipeline */
 .sat-pipeline {
   display: grid;
