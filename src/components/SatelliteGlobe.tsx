@@ -131,6 +131,7 @@ export default function SatelliteGlobe({
   // After a location is found the panel folds to a one-line summary so the
   // dome stays visible (it would cover most of it on a phone).
   const [skyPanelOpen, setSkyPanelOpen] = useState(true)
+  const [skyGrid, setSkyGrid] = useState(true)
   const [stationPieces, setStationPieces] = useState(0)
 
   // Selection is single: picking an object replaces a near-miss pair or a
@@ -320,6 +321,9 @@ export default function SatelliteGlobe({
   useEffect(() => {
     engineRef.current?.setObserver(observer)
   }, [observer])
+  useEffect(() => {
+    engineRef.current?.setSkyGrid(skyGrid)
+  }, [skyGrid])
 
   // Switching views clears any globe selection (the Sky view has none yet).
   const switchView = (mode: ViewMode) => {
@@ -725,7 +729,17 @@ export default function SatelliteGlobe({
           <div className="globe-side">
             {observer && !skyPanelOpen ? (
               <div className="globe-panel globe-sky-panel is-compact" aria-live="polite">
-                <p className="globe-panel-title">Your sky</p>
+                <div className="globe-sky-head">
+                  <p className="globe-panel-title">Your sky</p>
+                  <label className="globe-sky-grid">
+                    <input
+                      type="checkbox"
+                      checked={skyGrid}
+                      onChange={(e) => setSkyGrid(e.target.checked)}
+                    />
+                    Grid
+                  </label>
+                </div>
                 <p className="globe-sky-compact-where">{observer.label}</p>
                 <p className="globe-sky-count">{fmt(skyAbove)} above your horizon</p>
                 <button
@@ -738,7 +752,17 @@ export default function SatelliteGlobe({
               </div>
             ) : (
               <div className="globe-panel globe-sky-panel" aria-live="polite">
-                <p className="globe-panel-title">Your sky</p>
+                <div className="globe-sky-head">
+                    <p className="globe-panel-title">Your sky</p>
+                    <label className="globe-sky-grid">
+                      <input
+                        type="checkbox"
+                        checked={skyGrid}
+                        onChange={(e) => setSkyGrid(e.target.checked)}
+                      />
+                      Grid
+                    </label>
+                  </div>
                 <button
                   type="button"
                   className="globe-button"
