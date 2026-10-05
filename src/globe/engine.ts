@@ -61,7 +61,36 @@ const NEIGHBOR_REFRESH_WALL_MS = 1000
 const SKY_FOV_MIN = 30
 const SKY_FOV_MAX = 100
 const SKY_FOV_DEFAULT = 70
+// Look up to the zenith or down at the ground (2026-10-04 ground grid).
 const SKY_PITCH_MAX = 89
+// Sky ground: a muted slate, clearly lighter than the #05070d sky (1.51:1)
+// but far darker than any point, so the points stay the brightest things.
+const SKY_GROUND_COLOR = 0x26303c
+// Perspective grid on a ground plane one eye-height below the observer.
+// Cells of 0.6 eye-heights (about 1 m tiles for a 1.7 m eye height) span
+// about 31 degrees straight down: enough lines to read as a floor without
+// clutter. Lines fade from 3 to 18 eye-heights out (18 is about 3.2 degrees
+// below the horizon), before converging lines pile into a bright band or
+// shimmer.
+const GRID_CELL = 0.6
+const GRID_FADE_START = 3
+const GRID_FADE_END = 18
+const GRID_STEP = 0.25 // segment length along each line, so it curves correctly
+const GRID_COLOR = [0x6c / 255, 0x7a / 255, 0x8d / 255] as const
+const GRID_ALPHA = 0.14
+// The dome grid (below) is the main depth cue. Compared with and without:
+// with no floor grid at all the ground reads as a flat slab when looking at
+// the horizon, so a very faint floor grid (GRID_ALPHA) stays.
+const SKY_FLOOR_GRID = true
+// Dome grid: elevation rings every 15 degrees and azimuth lines every 30,
+// in the same blue-grey, on a sphere just outside the points (so, seen from
+// the centre, it sits behind them with no z-fighting) and drawn first.
+const DOME_GRID_RADIUS = DOME_RADIUS * 1.01
+const DOME_RING_ALPHA = 0.28
+const DOME_AZ_ALPHA = 0.25
+const DOME_CARDINAL_ALPHA = 0.42
+const DOME_AZ_FADE_START = 70 // azimuth lines fade out toward the zenith
+const DOME_AZ_FADE_END = 84
 
 export type ViewMode = 'globe' | 'sky'
 
@@ -194,7 +223,10 @@ export class GlobeEngine {
   private skyPositions = new Float32Array(0)
   private readonly skyLook = { yaw: 180, pitch: SKY_FOV_DEFAULT / 2 - 4 }
   private skyAbove = 0
-  private readonly skyLabels: { el: HTMLDivElement; dir: THREE.Vector3 }[] = []
+  private readonly skyLabels: { el: HTMLDivElement; dir: THREE.Vector3; grid: boolean }[] = []
+  private readonly domeGrid: THREE.LineSegments
+  private readonly floorGrid: THREE.LineSegments
+  private skyGridOn = true
   private readonly skyPointers = new Map<number, { x: number; y: number }>()
   private skyPinch = 0
   // Filter/colour state: alpha 0 = hidden by a filter, 1 = shown. The source
@@ -323,34 +355,47 @@ export class GlobeEngine {
     this.skyPoints = new THREE.Points(this.skyGeometry, this.pointsMaterial)
     this.skyPoints.frustumCulled = false
     const ground = new THREE.Mesh(
-      new THREE.SphereGeometry(DOME_RADIUS * 0.95, 48, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0x0b1420, side: THREE.BackSide }),
+      new THREE.SphereGeometry(DOME_RADIUS * 0.95, 64, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: SKY_GROUND_COLOR, side: THREE.BackSide }),
     )
-    this.skyScene.add(ground, this.skyPoints)
-    for (const [elDeg, opacity] of [
-      [0, 0.55],
-      [30, 0.16],
-      [60, 0.16],
-    ] as const) {
+    ground.renderOrder = 0
+    this.floorGrid = this.makeGroundGrid(DOME_RADIUS * 0.94)
+    this.floorGrid.visible = SKY_FLOOR_GRID
+    this.domeGrid = this.makeDomeGrid()
+    // Points draw last so they sit on top of the (farther) dome grid.
+    this.skyPoints.renderOrder = 3
+    this.skyScene.add(ground, this.floorGrid, this.domeGrid, this.skyPoints)
+    // The horizon: crisp, just in front of the ground.
+    {
       const pts: THREE.Vector3[] = []
-      for (let az = 0; az <= 360; az += 3) {
-        pts.push(new THREE.Vector3(...skyDirection(az, elDeg)).multiplyScalar(DOME_RADIUS * 0.99))
+      for (let az = 0; az <= 360; az += 2) {
+        pts.push(new THREE.Vector3(...skyDirection(az, 0)).multiplyScalar(DOME_RADIUS * 0.93))
       }
-      const ring = new THREE.Line(
+      const horizon = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: 0xe8ecf4, transparent: true, opacity }),
+        new THREE.LineBasicMaterial({ color: 0xc9d1dc, transparent: true, opacity: 0.85 }),
       )
-      this.skyScene.add(ring)
+      horizon.renderOrder = 2
+      this.skyScene.add(horizon)
     }
-    for (const [text, az, el, cls] of [
-      ['N', 0, 2, ''],
-      ['E', 90, 2, ''],
-      ['S', 180, 2, ''],
-      ['W', 270, 2, ''],
-      ['30°', 0, 30, ' is-ring'],
-      ['60°', 0, 60, ' is-ring'],
-      ['Zenith', 0, 90, ' is-ring'],
-    ] as const) {
+    // Labels, all placed with skyDirection so east stays on the right. The
+    // elevation labels sit on both the north and south meridians (the view
+    // starts facing one of them); azimuth labels mark the 30-degree steps along
+    // the horizon. Grid labels hide with the grid; N/E/S/W and the zenith don't.
+    const labels: [string, number, number, string, boolean][] = [
+      ['N', 0, 2, '', false],
+      ['E', 90, 2, '', false],
+      ['S', 180, 2, '', false],
+      ['W', 270, 2, '', false],
+      ['Zenith', 0, 90, ' is-ring', false],
+    ]
+    for (const az of [0, 180]) {
+      labels.push(['30°', az, 30, ' is-ring', true], ['60°', az, 60, ' is-ring', true])
+    }
+    for (let az = 30; az < 360; az += 30) {
+      if (az % 90) labels.push([`${az}°`, az, 2, ' is-ring is-azimuth', true])
+    }
+    for (const [text, az, el, cls, grid] of labels) {
       const label = document.createElement('div')
       label.className = `globe-sky-label${cls}`
       label.textContent = text
@@ -359,6 +404,7 @@ export class GlobeEngine {
       this.skyLabels.push({
         el: label,
         dir: new THREE.Vector3(...skyDirection(az, el)).multiplyScalar(DOME_RADIUS),
+        grid,
       })
     }
 
@@ -640,6 +686,12 @@ export class GlobeEngine {
     for (const l of this.skyLabels) l.el.hidden = mode !== 'sky'
   }
 
+  /** Show or hide the Sky view's dome grid and its degree labels. */
+  setSkyGrid(on: boolean) {
+    this.skyGridOn = on
+    this.domeGrid.visible = on
+  }
+
   getViewMode(): ViewMode {
     return this.viewMode
   }
@@ -792,7 +844,7 @@ export class GlobeEngine {
     this.skyLook.yaw = (this.skyLook.yaw - (e.clientX - prev.x) * degPerPx + 360) % 360
     this.skyLook.pitch = Math.min(
       SKY_PITCH_MAX,
-      Math.max(0, this.skyLook.pitch + (e.clientY - prev.y) * degPerPx),
+      Math.max(-SKY_PITCH_MAX, this.skyLook.pitch + (e.clientY - prev.y) * degPerPx),
     )
   }
 
@@ -1024,6 +1076,91 @@ export class GlobeEngine {
     }
   }
 
+  // The dome grid: elevation rings every 15 degrees (the horizon is drawn
+  // separately, crisper) and azimuth lines every 30 from the horizon to the
+  // zenith, N/E/S/W a little stronger, fading out above DOME_AZ_FADE_START so
+  // they don't clump overhead. One line set with per-vertex alpha.
+  private makeDomeGrid(): THREE.LineSegments {
+    const pos: number[] = []
+    const col: number[] = []
+    const at = (az: number, el: number) =>
+      new THREE.Vector3(...skyDirection(az, el)).multiplyScalar(DOME_GRID_RADIUS)
+    const seg = (a: THREE.Vector3, b: THREE.Vector3, alphaA: number, alphaB: number) => {
+      pos.push(a.x, a.y, a.z, b.x, b.y, b.z)
+      col.push(...GRID_COLOR, alphaA, ...GRID_COLOR, alphaB)
+    }
+    for (let el = 15; el < 90; el += 15) {
+      for (let az = 0; az < 360; az += 2) seg(at(az, el), at(az + 2, el), DOME_RING_ALPHA, DOME_RING_ALPHA)
+    }
+    const fade = (el: number) => {
+      if (el <= DOME_AZ_FADE_START) return 1
+      const t = Math.min(1, (el - DOME_AZ_FADE_START) / (DOME_AZ_FADE_END - DOME_AZ_FADE_START))
+      return 1 - t * t * (3 - 2 * t)
+    }
+    for (let az = 0; az < 360; az += 30) {
+      const base = az % 90 === 0 ? DOME_CARDINAL_ALPHA : DOME_AZ_ALPHA
+      for (let el = 0; el < DOME_AZ_FADE_END; el += 2) {
+        seg(at(az, el), at(az, el + 2), base * fade(el), base * fade(el + 2))
+      }
+    }
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(col, 4))
+    const grid = new THREE.LineSegments(
+      geometry,
+      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }),
+    )
+    grid.renderOrder = 1
+    grid.frustumCulled = false
+    return grid
+  }
+
+  // A north/south, east/west grid on a ground plane one eye-height below the
+  // observer, seen in true perspective. The camera sits at the origin, so
+  // pushing each plane point out along its own direction onto a sphere just
+  // inside the ground keeps exactly the same image (lines converge toward the
+  // horizon) while staying in front of the ground and behind nothing else.
+  // Built once; decoration only, not part of the sky geometry.
+  private makeGroundGrid(radius: number): THREE.LineSegments {
+    const pos: number[] = []
+    const col: number[] = []
+    const fade = (d: number) => {
+      if (d <= GRID_FADE_START) return 1
+      if (d >= GRID_FADE_END) return 0
+      const t = (d - GRID_FADE_START) / (GRID_FADE_END - GRID_FADE_START)
+      return 1 - t * t * (3 - 2 * t) // smoothstep
+    }
+    const push = (x: number, z: number) => {
+      const len = Math.hypot(x, 1, z) // plane at y = -1 (one eye-height down)
+      pos.push((x / len) * radius, (-1 / len) * radius, (z / len) * radius)
+      col.push(...GRID_COLOR, GRID_ALPHA * fade(Math.hypot(x, z)))
+    }
+    const n = Math.floor(GRID_FADE_END / GRID_CELL)
+    for (let k = -n; k <= n; k++) {
+      const c = k * GRID_CELL
+      const half = Math.sqrt(Math.max(0, GRID_FADE_END ** 2 - c * c))
+      for (let t = -half; t < half; t += GRID_STEP) {
+        const t2 = Math.min(half, t + GRID_STEP)
+        // Line of constant east-west offset (runs north-south: along z)...
+        push(c, t)
+        push(c, t2)
+        // ...and of constant north-south offset (runs east-west: along x).
+        push(t, c)
+        push(t2, c)
+      }
+    }
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(col, 4))
+    const grid = new THREE.LineSegments(
+      geometry,
+      new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }),
+    )
+    grid.renderOrder = 1
+    grid.frustumCulled = false
+    return grid
+  }
+
   // The Sky view: every object's dome position from the sliced positions
   // (moved forward by velocity over each slice's staleness), the camera from
   // the look angles, then the compass labels.
@@ -1053,7 +1190,8 @@ export class GlobeEngine {
     const { clientWidth: w, clientHeight: h } = this.container
     for (const l of this.skyLabels) {
       const v = l.dir.clone().project(cam)
-      const off = v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05
+      const off =
+        v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05 || (l.grid && !this.skyGridOn)
       l.el.hidden = off
       if (!off) {
         l.el.style.transform = `translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px) translate(-50%, -50%)`
