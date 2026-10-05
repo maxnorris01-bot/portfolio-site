@@ -239,6 +239,7 @@ export class GlobeEngine {
   // has moved past CLICK_MAX_MOVE_PX, so a click never nudges the view, and a
   // gesture that ever had two pointers (a pinch) never selects.
   private skyGesture: { x: number; y: number; dragging: boolean; multi: boolean } | null = null
+  private skySelScreen: { x: number; y: number } | null = null
   private readonly skyRingInspect: THREE.Points
   private readonly skyInspectLabel: HTMLDivElement
   // Filter/colour state: alpha 0 = hidden by a filter, 1 = shown. The source
@@ -753,6 +754,15 @@ export class GlobeEngine {
     const p = new Float32Array(3)
     writeInertial(p, 0, pv.position.x, pv.position.y, pv.position.z)
     return lookAngles(observerFrame(obs.latDeg, obs.lonDeg, gstime(date)), [p[0], p[1], p[2]])
+  }
+
+  /**
+   * Where the selected object's ring is drawn in the Sky view, in CSS pixels
+   * from the canvas's top left; null when it isn't on screen (below the
+   * horizon, out of view, or in the Globe view).
+   */
+  inspectedSkyScreen(): { x: number; y: number } | null {
+    return this.viewMode === 'sky' ? this.skySelScreen : null
   }
 
   /** Show or hide the Sky view's dome grid and its degree labels. */
@@ -1301,12 +1311,14 @@ export class GlobeEngine {
     const showSel = obs !== null && sel !== null && sp.length > sel * 3 && sp[sel * 3 + 1] > 0
     this.skyRingInspect.visible = showSel
     this.skyInspectLabel.hidden = true
+    this.skySelScreen = null
     if (showSel && sel !== null) {
       const at = new THREE.Vector3(sp[sel * 3], sp[sel * 3 + 1], sp[sel * 3 + 2])
       this.setRing(this.skyRingInspect, at)
       const v = at.project(cam)
       if (v.z <= 1 && Math.abs(v.x) <= 1.05 && Math.abs(v.y) <= 1.05) {
         this.skyInspectLabel.hidden = !this.skyInspectLabel.textContent
+        this.skySelScreen = { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h }
         this.skyInspectLabel.style.transform = `translate(${((v.x + 1) / 2) * w + 18}px, ${((1 - v.y) / 2) * h}px) translate(0, -50%)`
       }
     }

@@ -18,6 +18,7 @@ import {
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf } from '../globe/groups'
 import { geocodePlace } from '../globe/geocode'
+import { phoneSideDock } from '../globe/layout'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
 import CollisionHistory from './CollisionHistory'
@@ -25,6 +26,8 @@ import './SatelliteGlobe.css'
 
 const TEXTURE_URL = '/textures/earth-day-2k.jpg'
 const TICK_MS = 250
+/** Matches the stylesheet's phone breakpoint. */
+const PHONE_QUERY = '(max-width: 640px)'
 const NO_HIDDEN: ReadonlySet<string> = new Set()
 const ALL_GROUPS = [
   ...NAME_GROUPS.map((g) => ({ key: g.key, label: g.label })),
@@ -98,6 +101,8 @@ export default function SatelliteGlobe({
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const legendRef = useRef<HTMLDivElement>(null)
+  const sideRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<GlobeEngine | null>(null)
   const [time, setTime] = useState(() => ({ simMs: 0, nowMs: 0 }))
   const [clock, setClockState] = useState<Clock>(() => liveClock(Date.now()))
@@ -136,6 +141,14 @@ export default function SatelliteGlobe({
   const [skyPanelOpen, setSkyPanelOpen] = useState(true)
   const [skyGrid, setSkyGrid] = useState(true)
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
+  // On a phone in the Sky view the selected object's panel starts as a
+  // two-line summary; this holds the object whose full details are open.
+  const [detailsFor, setDetailsFor] = useState<number | null>(null)
+  // On a phone in the Sky view, the side column's top offset when it has
+  // moved up under the legend to keep the selected ring uncovered (null:
+  // docked along the bottom). The ref mirrors it for the engine's tick.
+  const [sideDock, setSideDock] = useState<number | null>(null)
+  const sideDockRef = useRef<number | null>(null)
   const [stationPieces, setStationPieces] = useState(0)
 
   // Selection is single: picking an object replaces a near-miss pair or a
@@ -173,6 +186,21 @@ export default function SatelliteGlobe({
         setNeighbor(engineRef.current?.currentNeighbor())
         setSkyAbove(engineRef.current?.skyAboveHorizon() ?? 0)
         setInspectSky(engineRef.current?.inspectedSky() ?? null)
+        const stage = stageRef.current
+        const side = sideRef.current
+        const legend = legendRef.current
+        const dock =
+          stage && side && window.matchMedia(PHONE_QUERY).matches
+            ? phoneSideDock({
+                ringY: engineRef.current?.inspectedSkyScreen()?.y ?? null,
+                stageHeight: stage.clientHeight,
+                sideHeight: side.offsetHeight,
+                legendBottom: legend ? legend.offsetTop + legend.offsetHeight : 0,
+                current: sideDockRef.current,
+              })
+            : null
+        sideDockRef.current = dock
+        setSideDock(dock)
         // The engine may change the clock itself (Live pausing at the end of
         // the forward range); keep the controls in step.
         const engineClock = engineRef.current?.getClock()
@@ -531,7 +559,7 @@ export default function SatelliteGlobe({
         <div ref={containerRef} className="globe-canvas" />
 
         {coloring && (
-          <div className="globe-panel globe-legend">
+          <div ref={legendRef} className="globe-panel globe-legend">
             <div className="globe-segmented" role="group" aria-label="Color points by">
               {COLOR_MODES.map(({ mode, label }) => (
                 <button
@@ -635,7 +663,11 @@ export default function SatelliteGlobe({
         )}
 
         {(focus || inspected || stationDef || viewMode === 'sky') && (
-          <div className="globe-side">
+          <div
+            ref={sideRef}
+            className="globe-side"
+            style={sideDock === null ? undefined : { top: sideDock, bottom: 'auto' }}
+          >
             {viewMode === 'sky' && (
               <>
                 {observer && !skyPanelOpen ? (
@@ -784,12 +816,28 @@ export default function SatelliteGlobe({
               </div>
             )}
             {inspected && (
-              <div className="globe-panel globe-inspect" aria-live="polite">
+              <div
+                className={`globe-panel globe-inspect${viewMode === 'sky' ? ' is-sky' : ''}${
+                  viewMode === 'sky' && detailsFor !== inspect ? ' is-collapsed' : ''
+                }`}
+                aria-live="polite"
+              >
                 <div className="globe-panel-head">
                   <p className="globe-panel-title">
                     <span className="globe-ring-key" style={{ borderColor: RING_INSPECT }} />
                     Selected object
                   </p>
+                  {viewMode === 'sky' && (
+                    <button
+                      type="button"
+                      className="globe-inspect-more"
+                      aria-expanded={detailsFor === inspect}
+                      aria-controls="globe-inspect-details"
+                      onClick={() => setDetailsFor(detailsFor === inspect ? null : inspect)}
+                    >
+                      {detailsFor === inspect ? 'Less' : 'Details'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="globe-close"
@@ -800,65 +848,79 @@ export default function SatelliteGlobe({
                   </button>
                 </div>
                 <p className="globe-inspect-name">{inspected.name}</p>
-                <dl>
-                  <dt>NORAD ID</dt>
-                  <dd>{inspected.norad_id}</dd>
-                  <dt>Type</dt>
-                  <dd>{describeType(inspected)}</dd>
-                  <dt>Owner</dt>
-                  <dd>{inspected.satcat_owner?.name ?? 'Unknown'}</dd>
-                  <dt>Position</dt>
-                  <dd>{inspectPos ? formatLatLon(inspectPos) : '—'}</dd>
-                  <dt>Altitude</dt>
-                  <dd>{inspectPos ? fmtKm(Math.round(inspectPos.altKm)) : '—'}</dd>
-                  {viewMode === 'sky' && (
-                    <>
-                      <dt>Azimuth</dt>
-                      <dd>{inspectSky ? `${inspectSky.azDeg.toFixed(1)}°` : '—'}</dd>
-                      <dt>Elevation</dt>
-                      <dd>{inspectSky ? `${inspectSky.elDeg.toFixed(1)}°` : '—'}</dd>
-                      <dt>Range</dt>
-                      <dd>{inspectSky ? fmtKm(Math.round(inspectSky.rangeKm)) : '—'}</dd>
-                    </>
-                  )}
-                  {viewMode === 'globe' && <dt>Nearest</dt>}
-                  {viewMode === 'globe' && <dd>
-                    {neighbor && loaded && inspect !== null ? (
-                      <>
-                        <span className="globe-ring-key" style={{ borderColor: RING_A }} />
-                        {fmtKm(neighbor.km)} · {loaded.file.objects[neighbor.index].name}
-                        {neighbor.km < COLOCATED_KM && (
-                          <span className="globe-muted"> (docked or co-located)</span>
-                        )}
-                      </>
-                    ) : neighbor === null ? (
-                      <span className="globe-muted">No visible object</span>
-                    ) : (
-                      '—'
-                    )}
-                  </dd>}
-                </dl>
-                {viewMode === 'globe' ? (
-                  <p className="globe-muted globe-neighbor-note">
-                    Nearest neighbour is live: it follows the displayed time and counts only
-                    objects currently shown.
+                {viewMode === 'sky' && (
+                  <p className="globe-inspect-summary">
+                    {!inspectSky
+                      ? '—'
+                      : inspectSky.elDeg <= 0
+                        ? 'Below your horizon right now'
+                        : `Az ${inspectSky.azDeg.toFixed(1)}° · El ${inspectSky.elDeg.toFixed(1)}°`}
                   </p>
-                ) : (
-                  inspectSky &&
-                  inspectSky.elDeg <= 0 && (
-                    <p className="globe-sky-below">Below your horizon right now.</p>
-                  )
                 )}
-                <button
-                  type="button"
-                  className="globe-button"
-                  onClick={() => handlePick.current(null)}
-                >
-                  Deselect
-                </button>
-                <p className="globe-muted">
-                  At {time.simMs ? `${formatUtc(time.simMs)} UTC` : 'the displayed time'}.
-                </p>
+                <div id="globe-inspect-details" className="globe-inspect-details">
+                  <dl>
+                    <dt>NORAD ID</dt>
+                    <dd>{inspected.norad_id}</dd>
+                    <dt>Type</dt>
+                    <dd>{describeType(inspected)}</dd>
+                    <dt>Owner</dt>
+                    <dd>{inspected.satcat_owner?.name ?? 'Unknown'}</dd>
+                    <dt>Position</dt>
+                    <dd>{inspectPos ? formatLatLon(inspectPos) : '—'}</dd>
+                    <dt>Altitude</dt>
+                    <dd>{inspectPos ? fmtKm(Math.round(inspectPos.altKm)) : '—'}</dd>
+                    {viewMode === 'sky' && (
+                      <>
+                        <dt>Azimuth</dt>
+                        <dd>{inspectSky ? `${inspectSky.azDeg.toFixed(1)}°` : '—'}</dd>
+                        <dt>Elevation</dt>
+                        <dd>{inspectSky ? `${inspectSky.elDeg.toFixed(1)}°` : '—'}</dd>
+                        <dt>Range</dt>
+                        <dd>{inspectSky ? fmtKm(Math.round(inspectSky.rangeKm)) : '—'}</dd>
+                      </>
+                    )}
+                    {viewMode === 'globe' && <dt>Nearest</dt>}
+                    {viewMode === 'globe' && <dd>
+                      {neighbor && loaded && inspect !== null ? (
+                        <>
+                          <span className="globe-ring-key" style={{ borderColor: RING_A }} />
+                          {fmtKm(neighbor.km)} · {loaded.file.objects[neighbor.index].name}
+                          {neighbor.km < COLOCATED_KM && (
+                            <span className="globe-muted"> (docked or co-located)</span>
+                          )}
+                        </>
+                      ) : neighbor === null ? (
+                        <span className="globe-muted">No visible object</span>
+                      ) : (
+                        '—'
+                      )}
+                    </dd>}
+                  </dl>
+                  {viewMode === 'globe' ? (
+                    <p className="globe-muted globe-neighbor-note">
+                      Nearest neighbour is live: it follows the displayed time and counts only
+                      objects currently shown.
+                    </p>
+                  ) : (
+                    inspectSky &&
+                    inspectSky.elDeg <= 0 && (
+                      <p className="globe-sky-below">Below your horizon right now.</p>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    className="globe-button"
+                    onClick={() => handlePick.current(null)}
+                  >
+                    Deselect
+                  </button>
+                  {/* In Sky the values are live and the clock sits just below the stage. */}
+                  {viewMode === 'globe' && (
+                    <p className="globe-muted">
+                      At {time.simMs ? `${formatUtc(time.simMs)} UTC` : 'the displayed time'}.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
