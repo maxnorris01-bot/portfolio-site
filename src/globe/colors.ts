@@ -1,6 +1,6 @@
 import type { CatalogObject } from './types.ts'
 
-export type ColorMode = 'type' | 'owner' | 'flat'
+export type ColorMode = 'type' | 'owner' | 'flat' | 'age'
 
 export interface Category {
   key: string
@@ -15,6 +15,8 @@ export interface Coloring {
   /** Per object: its category key, for hiding categories. */
   categoryOf: (i: number) => string
   rgb: Float32Array
+  /** A short legend note for this mode, if it needs one (Age, while Unknown objects exist). */
+  note?: string
 }
 
 // Three hues validated for an all-pairs scatter on the globe's dark
@@ -24,6 +26,61 @@ export interface Coloring {
 const SERIES = ['#3987e5', '#d95926', '#199e70'] as const
 const OTHER = '#8b8f98'
 const FLAT = '#f2c14e'
+
+// Age: an ordered multi-hue ramp, blue -> green -> yellow-lime, where hue and
+// lightness both change at each step (viridis-style), so the buckets read as a
+// sequence and tell apart at a glance. A first one-hue teal ramp stepped in
+// lightness only and its neighbours were too alike on the globe (OKLab 13.5
+// worst pair under colour-blind simulation; this ramp is 19.1). Measured with
+// the dataviz validator's model (Machado 2009 protan/deutan/tritan, OKLab x100):
+// - buckets: at least 19.1 apart under every simulation, 22.9 under normal vision;
+// - at least 3:1 on the sky #05070d and the Sky ground #26303c (darkest 3.06:1);
+// - at least 11.2 from the orbit line #b0a8ff and 8.2 from the rings and
+//   neighbour line (white, gold, orange-red, cyan) under every simulation.
+// Unknown is a slightly warm grey: 15.4 from every bucket under normal vision
+// (the validator's floor), at least 10.8 under simulation, 3.83:1 on the ground.
+const AGE_RAMP = ['#5f75c1', '#05c992', '#d4f73e'] as const
+const AGE_UNKNOWN = '#8f8978'
+
+// "YYYY-NNNA": launch year, launch number of that year, piece letters. Exactly
+// this form; anything else (two-digit years, padding, lower case) is Unknown.
+const DESIGNATOR = /^(\d{4})-(\d{3})([A-Z]{1,3})$/
+const FIRST_LAUNCH_YEAR = 1957
+
+/**
+ * The launch year from a COSPAR designator ("1998-067A" -> 1998), or null for
+ * anything missing, null or not exactly in that form, including a year before
+ * the first launch or launch number 000.
+ */
+export function launchYear(designator: unknown): number | null {
+  if (typeof designator !== 'string') return null
+  const m = DESIGNATOR.exec(designator)
+  if (!m) return null
+  const year = Number(m[1])
+  if (year < FIRST_LAUNCH_YEAR || Number(m[2]) < 1) return null
+  return year
+}
+
+export type AgeBucket = 'new' | 'mid' | 'old' | 'unknown'
+
+/**
+ * An object's age bucket: whole calendar years from its launch year to the
+ * snapshot's year, so under 2 means 0-1, "2 to 10" is 2-10 inclusive, and over
+ * 10 is 11 or more. Year-only precision: an object launched in December and a
+ * snapshot in January of the year after next count as 2 years apart after 13
+ * months, so an object can land one bucket off near the edges (a possible
+ * one-year error). A launch year after the snapshot's is Unknown.
+ */
+export function ageBucket(launch: number | null, snapshotYear: number): AgeBucket {
+  if (launch === null) return 'unknown'
+  const age = snapshotYear - launch
+  if (age < 0) return 'unknown'
+  if (age < 2) return 'new'
+  if (age <= 10) return 'mid'
+  return 'old'
+}
+
+const AGE_INDEX: Record<AgeBucket, number> = { new: 0, mid: 1, old: 2, unknown: 3 }
 
 // Owner colours follow the owner, not its rank, so they don't repaint when a
 // different day's snapshot is loaded. These three are 89% of the catalog.
@@ -52,7 +109,19 @@ function hexToRgb(hex: string): [number, number, number] {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
 }
 
-export function colorize(objects: CatalogObject[], mode: ColorMode): Coloring {
+/**
+ * Colours and legend categories for `mode`. Age is measured against
+ * `snapshotUtc`, the displayed snapshot's run date (generated_at_utc), not the
+ * playing clock or today: it's the date the snapshot describes, it keeps
+ * colours steady while time plays, and the slider's retained days get their
+ * own date.
+ */
+export function colorize(
+  objects: CatalogObject[],
+  mode: ColorMode,
+  snapshotUtc?: string,
+): Coloring {
+  let note: string | undefined
   let defs: { key: string; label: string; color: string }[]
   let classify: Classifier
   if (mode === 'type') {
@@ -69,6 +138,24 @@ export function colorize(objects: CatalogObject[], mode: ColorMode): Coloring {
       { key: 'other', label: 'All other owners', color: OTHER },
     ]
     classify = ownerOf
+  } else if (mode === 'age') {
+    defs = [
+      { key: 'new', label: 'Under 2 years', color: AGE_RAMP[0] },
+      { key: 'mid', label: '2 to 10 years', color: AGE_RAMP[1] },
+      { key: 'old', label: 'Over 10 years', color: AGE_RAMP[2] },
+      { key: 'unknown', label: 'Unknown', color: AGE_UNKNOWN },
+    ]
+    const parsed = snapshotUtc ? Date.parse(snapshotUtc) : Number.NaN
+    const year = Number.isFinite(parsed) ? new Date(parsed).getUTCFullYear() : null
+    classify = (o) =>
+      year === null
+        ? AGE_INDEX.unknown
+        : AGE_INDEX[ageBucket(launchYear(o.international_designator), year)]
+    if (objects.some((o) => classify(o) === AGE_INDEX.unknown)) {
+      note = objects.some((o) => 'international_designator' in o)
+        ? 'Unknown: no valid launch designator.'
+        : 'Older snapshots lack launch data.'
+    }
   } else {
     defs = [{ key: 'all', label: 'All objects', color: FLAT }]
     classify = () => 0
@@ -87,9 +174,12 @@ export function colorize(objects: CatalogObject[], mode: ColorMode): Coloring {
   return {
     categories: defs
       .map((d, i) => ({ ...d, count: counts[i] }))
-      .filter((c) => c.count > 0),
+      // Age always lists its four buckets, so a snapshot's empty ones read as
+      // zero rather than missing; the other modes hide empty categories.
+      .filter((c) => c.count > 0 || mode === 'age'),
     categoryOf: (i) => defs[index[i]].key,
     rgb,
+    note,
   }
 }
 

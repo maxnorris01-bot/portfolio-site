@@ -52,6 +52,7 @@ const COLOR_MODES: { mode: ColorMode; label: string }[] = [
   { mode: 'type', label: 'Type' },
   { mode: 'owner', label: 'Owner' },
   { mode: 'flat', label: 'Flat' },
+  { mode: 'age', label: 'Age' },
 ]
 
 const fmt = (n: number) => n.toLocaleString('en-US')
@@ -117,6 +118,7 @@ export default function SatelliteGlobe({
     type: NO_HIDDEN,
     owner: NO_HIDDEN,
     flat: NO_HIDDEN,
+    age: NO_HIDDEN,
   })
   const [historyDates, setHistoryDates] = useState<string[]>([])
   const [current, setCurrent] = useState<ObjectsFile | null>(null)
@@ -282,7 +284,8 @@ export default function SatelliteGlobe({
   }, [loaded, onDatasetChange])
 
   const coloring = useMemo(
-    () => (loaded ? colorize(loaded.file.objects, colorMode) : null),
+    () =>
+      loaded ? colorize(loaded.file.objects, colorMode, loaded.file.generated_at_utc) : null,
     [loaded, colorMode],
   )
   const hiddenNow = hidden[colorMode]
@@ -653,6 +656,14 @@ export default function SatelliteGlobe({
                   )
                 })}
               </ul>
+              {colorMode === 'age' && (
+                <>
+                  {coloring.note && <p className="globe-legend-note">{coloring.note}</p>}
+                  <p className="globe-legend-note globe-legend-precision">
+                    Launch year vs this snapshot&apos;s date, so ±1 year at the edges.
+                  </p>
+                </>
+              )}
               <details className="globe-filters">
                 <summary>
                   Filter by name
