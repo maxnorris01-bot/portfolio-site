@@ -42,6 +42,11 @@
   min-width: 13rem;
 }
 
+/* The fold control is for the Sky view on phones only. */
+.globe-legend-fold {
+  display: none;
+}
+
 .globe-legend ul {
   display: grid;
   gap: 0.3rem;
@@ -912,5 +917,52 @@
 
   .globe-inspect.is-collapsed .globe-inspect-details {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Sky view: the legend folds to one line, so it doesn't cover the dome. */
+  .globe-legend.is-sky {
+    right: auto;
+  }
+
+  .globe-legend.is-sky .globe-legend-fold {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--globe-ink);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .globe-legend.is-sky .globe-legend-fold::before {
+    content: '▸';
+    transition: transform 0.15s;
+  }
+
+  .globe-legend.is-sky .globe-legend-fold[aria-expanded='true']::before {
+    transform: rotate(90deg);
+  }
+
+  .globe-legend.is-sky:not(.is-folded) {
+    right: 0.75rem;
+  }
+
+  .globe-legend.is-sky:not(.is-folded) .globe-legend-body {
+    margin-top: 0.5rem;
+  }
+
+  .globe-legend.is-folded .globe-legend-body {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+  .globe-legend.is-sky .globe-legend-fold::before {
+    transition: none;
   }
 }

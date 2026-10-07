@@ -144,6 +144,9 @@ export default function SatelliteGlobe({
   // On a phone in the Sky view the selected object's panel starts as a
   // two-line summary; this holds the object whose full details are open.
   const [detailsFor, setDetailsFor] = useState<number | null>(null)
+  // On a phone in the Sky view the legend folds to one line, so it doesn't
+  // cover the dome (or the selected ring); folded until opened.
+  const [legendOpen, setLegendOpen] = useState(false)
   // On a phone in the Sky view, the side column's top offset when it has
   // moved up under the legend to keep the selected ring uncovered (null:
   // docked along the bottom). The ref mirrors it for the engine's tick.
@@ -542,6 +545,23 @@ export default function SatelliteGlobe({
   const loadingKey = datasetKey && loaded?.key !== datasetKey && loadError !== datasetKey
   const snapshotLabel = (key: DatasetKey) => (key === 'current' ? 'latest run' : `${key} snapshot`)
   const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
+
+  // Screen readers hear only changes in kind: a new selection's name,
+  // "Deselected", or a newly chosen location. The numbers that change as time
+  // plays (azimuth, elevation, range, the above-horizon count) stay out of any
+  // live region; they remain readable in the panels.
+  const announcedId = inspected?.norad_id ?? null
+  const announcedPlace = observer?.label ?? null
+  const [prevAnnounced, setPrevAnnounced] = useState({ id: announcedId, place: announcedPlace })
+  const [announcement, setAnnouncement] = useState('')
+  if (prevAnnounced.id !== announcedId || prevAnnounced.place !== announcedPlace) {
+    setPrevAnnounced({ id: announcedId, place: announcedPlace })
+    if (prevAnnounced.id !== announcedId) {
+      setAnnouncement(inspected ? `Selected ${inspected.name}` : 'Deselected')
+    } else if (announcedPlace) {
+      setAnnouncement(`Showing the sky from ${announcedPlace}`)
+    }
+  }
   const offsetLabel = time.simMs ? formatOffset(time.simMs - time.nowMs) : ''
 
   return (
@@ -559,106 +579,130 @@ export default function SatelliteGlobe({
         <div ref={containerRef} className="globe-canvas" />
 
         {coloring && (
-          <div ref={legendRef} className="globe-panel globe-legend">
-            <div className="globe-segmented" role="group" aria-label="Color points by">
-              {COLOR_MODES.map(({ mode, label }) => (
-                <button
-                  key={mode}
-                  type="button"
-                  aria-pressed={colorMode === mode}
-                  onClick={() => setColorMode(mode)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <ul>
-              {coloring.categories.map((c) => {
-                const swatch = <span className="globe-swatch" style={{ background: c.color }} />
-                const content = (
-                  <>
-                    {swatch}
-                    <span className="globe-legend-label">{c.label}</span>
-                    <span className="globe-legend-count">{fmt(c.count)}</span>
-                  </>
-                )
-                return (
-                  <li key={c.key}>
-                    {colorMode === 'flat' ? (
-                      <span className="globe-legend-row">{content}</span>
-                    ) : (
-                      <label
-                        className={`globe-legend-row is-toggle${hiddenNow.has(c.key) ? ' is-off' : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={!hiddenNow.has(c.key)}
-                          onChange={() => toggleCategory(c.key)}
-                        />
-                        {content}
-                      </label>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-            <details className="globe-filters">
-              <summary>
-                Filter by name
-                {hiddenGroups.size > 0 && (
-                  <span className="globe-filter-count"> · {hiddenGroups.size} hidden</span>
+          <div
+            ref={legendRef}
+            className={`globe-panel globe-legend${viewMode === 'sky' ? ' is-sky' : ''}${
+              viewMode === 'sky' && !legendOpen ? ' is-folded' : ''
+            }`}
+          >
+            {viewMode === 'sky' && (
+              <button
+                type="button"
+                className="globe-legend-fold"
+                aria-expanded={legendOpen}
+                aria-controls="globe-legend-body"
+                onClick={() => setLegendOpen((open) => !open)}
+              >
+                Colours and filters
+                {hiddenNow.size + hiddenGroups.size > 0 && (
+                  <span className="globe-filter-count">
+                    {' '}
+                    · {hiddenNow.size + hiddenGroups.size} hidden
+                  </span>
                 )}
-              </summary>
-              <ul>
-                {ALL_GROUPS.filter((g) => groups.counts[g.key]).map((g) => (
-                  <li key={g.key} className="globe-filter-row">
-                    <label
-                      className={`globe-legend-row is-toggle is-filter${hiddenGroups.has(g.key) ? ' is-off' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!hiddenGroups.has(g.key)}
-                        onChange={() => toggleGroup(g.key)}
-                      />
-                      <span className="globe-legend-label">{g.label}</span>
-                      <span className="globe-legend-count">{fmt(groups.counts[g.key])}</span>
-                    </label>
-                    <button
-                      type="button"
-                      className="globe-only"
-                      aria-label={`Show only ${g.label}`}
-                      onClick={() => showOnlyGroups([g.key])}
-                    >
-                      only
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              {hiddenGroups.size > 0 && (
-                <button
-                  type="button"
-                  className="globe-link"
-                  onClick={() => setHiddenGroups(NO_HIDDEN)}
-                >
-                  Show all
-                </button>
-              )}
-            </details>
-            {viewMode === 'globe' && (
-              <div className="globe-stations" role="group" aria-label="Go to a space station">
-                <span className="globe-muted">Stations</span>
-                {STATIONS.map((st) => (
+              </button>
+            )}
+            <div id="globe-legend-body" className="globe-legend-body">
+              <div className="globe-segmented" role="group" aria-label="Color points by">
+                {COLOR_MODES.map(({ mode, label }) => (
                   <button
-                    key={st.key}
+                    key={mode}
                     type="button"
-                    aria-pressed={station === st.key}
-                    onClick={() => selectStation(st.key)}
+                    aria-pressed={colorMode === mode}
+                    onClick={() => setColorMode(mode)}
                   >
-                    {st.label}
+                    {label}
                   </button>
                 ))}
               </div>
-            )}
+              <ul>
+                {coloring.categories.map((c) => {
+                  const swatch = <span className="globe-swatch" style={{ background: c.color }} />
+                  const content = (
+                    <>
+                      {swatch}
+                      <span className="globe-legend-label">{c.label}</span>
+                      <span className="globe-legend-count">{fmt(c.count)}</span>
+                    </>
+                  )
+                  return (
+                    <li key={c.key}>
+                      {colorMode === 'flat' ? (
+                        <span className="globe-legend-row">{content}</span>
+                      ) : (
+                        <label
+                          className={`globe-legend-row is-toggle${hiddenNow.has(c.key) ? ' is-off' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!hiddenNow.has(c.key)}
+                            onChange={() => toggleCategory(c.key)}
+                          />
+                          {content}
+                        </label>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+              <details className="globe-filters">
+                <summary>
+                  Filter by name
+                  {hiddenGroups.size > 0 && (
+                    <span className="globe-filter-count"> · {hiddenGroups.size} hidden</span>
+                  )}
+                </summary>
+                <ul>
+                  {ALL_GROUPS.filter((g) => groups.counts[g.key]).map((g) => (
+                    <li key={g.key} className="globe-filter-row">
+                      <label
+                        className={`globe-legend-row is-toggle is-filter${hiddenGroups.has(g.key) ? ' is-off' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!hiddenGroups.has(g.key)}
+                          onChange={() => toggleGroup(g.key)}
+                        />
+                        <span className="globe-legend-label">{g.label}</span>
+                        <span className="globe-legend-count">{fmt(groups.counts[g.key])}</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="globe-only"
+                        aria-label={`Show only ${g.label}`}
+                        onClick={() => showOnlyGroups([g.key])}
+                      >
+                        only
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {hiddenGroups.size > 0 && (
+                  <button
+                    type="button"
+                    className="globe-link"
+                    onClick={() => setHiddenGroups(NO_HIDDEN)}
+                  >
+                    Show all
+                  </button>
+                )}
+              </details>
+              {viewMode === 'globe' && (
+                <div className="globe-stations" role="group" aria-label="Go to a space station">
+                  <span className="globe-muted">Stations</span>
+                  {STATIONS.map((st) => (
+                    <button
+                      key={st.key}
+                      type="button"
+                      aria-pressed={station === st.key}
+                      onClick={() => selectStation(st.key)}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -671,7 +715,7 @@ export default function SatelliteGlobe({
             {viewMode === 'sky' && (
               <>
                 {observer && !skyPanelOpen ? (
-                  <div className="globe-panel globe-sky-panel is-compact" aria-live="polite">
+                  <div className="globe-panel globe-sky-panel is-compact">
                     <div className="globe-sky-head">
                       <p className="globe-panel-title">Your sky</p>
                       <label className="globe-sky-grid">
@@ -703,7 +747,7 @@ export default function SatelliteGlobe({
                     </div>
                   </div>
                 ) : (
-                  <div className="globe-panel globe-sky-panel" aria-live="polite">
+                  <div className="globe-panel globe-sky-panel">
                     <div className="globe-sky-head">
                         <p className="globe-panel-title">Your sky</p>
                         <label className="globe-sky-grid">
@@ -820,7 +864,8 @@ export default function SatelliteGlobe({
                 className={`globe-panel globe-inspect${viewMode === 'sky' ? ' is-sky' : ''}${
                   viewMode === 'sky' && detailsFor !== inspect ? ' is-collapsed' : ''
                 }`}
-                aria-live="polite"
+                role="region"
+                aria-label="Selected object"
               >
                 <div className="globe-panel-head">
                   <p className="globe-panel-title">
@@ -951,6 +996,10 @@ export default function SatelliteGlobe({
             : 'Drag to rotate · scroll to zoom · right-drag to pan · click a point for details'}
         </p>
       </div>
+
+      <p className="visually-hidden" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
 
       {loaded && visibleCount < loaded.file.objects.length && (
         <div className="globe-filterbar" role="status">

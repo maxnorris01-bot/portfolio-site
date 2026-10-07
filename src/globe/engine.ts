@@ -16,6 +16,7 @@ import { EARTH_RADIUS_KM, earthRotationY, writeInertial } from './frames'
 import { nearestCandidates, nearestTo } from './neighbors'
 import { pickNearest } from './picking'
 import { DOME_RADIUS, lookAngles, observerFrame, skyDirection, writeDome } from './sky'
+import { geoBeltAzimuth, geoBeltElevation, ringLabelElevation } from './layout'
 import { DAY_MS } from './timeline'
 import type { CatalogObject } from './types'
 
@@ -107,6 +108,11 @@ const MAX_GROUP = 32
 const PICK_PX_MOUSE = 6
 const PICK_PX_TOUCH = 16
 const CLICK_MAX_MOVE_PX = 5
+/**
+ * How far an elevation label's centre keeps from the geostationary row, in
+ * CSS px: half the label's height plus a gap, so the row's points stay clear.
+ */
+const LABEL_CLEAR_PX = 14
 
 // Ring colours. The two objects of a near-miss pair get different colours and
 // sizes so both stay visible as concentric rings when they're closer together
@@ -229,7 +235,13 @@ export class GlobeEngine {
   private skyPositions = new Float32Array(0)
   private readonly skyLook = { yaw: 180, pitch: SKY_FOV_DEFAULT / 2 - 4 }
   private skyAbove = 0
-  private readonly skyLabels: { el: HTMLDivElement; dir: THREE.Vector3; grid: boolean }[] = []
+  private readonly skyLabels: {
+    el: HTMLDivElement
+    dir: THREE.Vector3
+    grid: boolean
+    /** For an elevation label ("30°"), the ring it marks; it may shift off the geostationary row. */
+    ring?: { az: number; el: number }
+  }[] = []
   private readonly domeGrid: THREE.LineSegments
   private readonly floorGrid: THREE.LineSegments
   private skyGridOn = true
@@ -424,6 +436,7 @@ export class GlobeEngine {
         el: label,
         dir: new THREE.Vector3(...skyDirection(az, el)).multiplyScalar(DOME_RADIUS),
         grid,
+        ring: text === '30°' || text === '60°' ? { az, el } : undefined,
       })
     }
 
@@ -1322,7 +1335,17 @@ export class GlobeEngine {
         this.skyInspectLabel.style.transform = `translate(${((v.x + 1) / 2) * w + 18}px, ${((1 - v.y) / 2) * h}px) translate(0, -50%)`
       }
     }
+    // Keep the elevation labels on the belt's meridian off the geostationary
+    // row: the clearance is a fixed on-screen distance, so it holds at any
+    // field of view.
+    const belt = obs ? geoBeltElevation(obs.latDeg) : null
+    const beltAz = obs ? geoBeltAzimuth(obs.latDeg) : null
+    const clearanceDeg = (LABEL_CLEAR_PX * cam.fov) / Math.max(h, 1)
     for (const l of this.skyLabels) {
+      if (l.ring) {
+        const el = l.ring.az === beltAz ? ringLabelElevation(l.ring.el, belt, clearanceDeg) : l.ring.el
+        l.dir.set(...skyDirection(l.ring.az, el)).multiplyScalar(DOME_RADIUS)
+      }
       const v = l.dir.clone().project(cam)
       const off =
         v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05 || (l.grid && !this.skyGridOn)
