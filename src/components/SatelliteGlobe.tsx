@@ -8,6 +8,7 @@ import { loadHistoryDates, loadObjects } from '../globe/data'
 import { formatKm } from '../globe/format'
 import {
   GlobeEngine,
+  ORBIT_COLOR,
   RING_A,
   RING_B,
   RING_GROUP,
@@ -26,6 +27,11 @@ import './SatelliteGlobe.css'
 
 const TEXTURE_URL = '/textures/earth-day-2k.jpg'
 const TICK_MS = 250
+// An orbital period for the panel: minutes under two hours, else hours.
+const formatPeriod = (ms: number) => {
+  const min = ms / 60_000
+  return min < 120 ? `${min.toFixed(1)} min period` : `${(min / 60).toFixed(1)} h period`
+}
 /** Matches the stylesheet's phone breakpoint. */
 const PHONE_QUERY = '(max-width: 640px)'
 const NO_HIDDEN: ReadonlySet<string> = new Set()
@@ -141,6 +147,7 @@ export default function SatelliteGlobe({
   const [skyPanelOpen, setSkyPanelOpen] = useState(true)
   const [skyGrid, setSkyGrid] = useState(true)
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
+  const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
   // On a phone in the Sky view the selected object's panel starts as a
   // two-line summary; this holds the object whose full details are open.
   const [detailsFor, setDetailsFor] = useState<number | null>(null)
@@ -189,6 +196,7 @@ export default function SatelliteGlobe({
         setNeighbor(engineRef.current?.currentNeighbor())
         setSkyAbove(engineRef.current?.skyAboveHorizon() ?? 0)
         setInspectSky(engineRef.current?.inspectedSky() ?? null)
+        setOrbitPeriodMs(engineRef.current?.inspectedOrbitPeriodMs() ?? null)
         const stage = stageRef.current
         const side = sideRef.current
         const legend = legendRef.current
@@ -914,6 +922,15 @@ export default function SatelliteGlobe({
                     <dd>{inspectPos ? formatLatLon(inspectPos) : '—'}</dd>
                     <dt>Altitude</dt>
                     <dd>{inspectPos ? fmtKm(Math.round(inspectPos.altKm)) : '—'}</dd>
+                    {orbitPeriodMs !== null && (
+                      <>
+                        <dt>Orbit</dt>
+                        <dd>
+                          <span className="globe-orbit-key" style={{ background: ORBIT_COLOR }} />
+                          {formatPeriod(orbitPeriodMs)}
+                        </dd>
+                      </>
+                    )}
                     {viewMode === 'sky' && (
                       <>
                         <dt>Azimuth</dt>

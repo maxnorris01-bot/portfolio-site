@@ -1,5 +1,8 @@
 import * as THREE from 'three'
 import { TrackballControls } from 'three/addons/controls/TrackballControls.js'
+import { Line2 } from 'three/addons/lines/Line2.js'
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js'
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js'
 import {
   degreesLat,
   degreesLong,
@@ -15,8 +18,17 @@ import { formatKm } from './format'
 import { EARTH_RADIUS_KM, earthRotationY, writeInertial } from './frames'
 import { nearestCandidates, nearestTo } from './neighbors'
 import { pickNearest } from './picking'
-import { DOME_RADIUS, lookAngles, observerFrame, skyDirection, writeDome } from './sky'
+import {
+  DOME_RADIUS,
+  enuToSky,
+  lookAngles,
+  observerFrame,
+  skyDirection,
+  toEnu,
+  writeDome,
+} from './sky'
 import { geoBeltAzimuth, geoBeltElevation, ringLabelElevation } from './layout'
+import { orbitNeedsRefresh, orbitPeriodMs, sampleOrbit } from './orbit'
 import { DAY_MS } from './timeline'
 import type { CatalogObject } from './types'
 
@@ -121,6 +133,20 @@ export const RING_A = '#ffffff'
 export const RING_B = '#f2c14e'
 export const RING_INSPECT = '#e85d3f'
 export const RING_GROUP = '#7fd8ff'
+// The selected object's orbit: a pale periwinkle blue. Every other line and
+// ring colour is taken (white neighbour line and pair ring, gold, the
+// orange-red selection ring); its nearest colour is the cyan station ring,
+// which never shows alongside a selected object. 9.5:1 against the sky,
+// 6.3:1 against the Sky ground.
+export const ORBIT_COLOR = '#b0a8ff'
+const ORBIT_OPACITY = 0.75
+// CSS px. Plain WebGL lines are one device pixel (half a CSS pixel on a
+// 2x screen), which disappears over the globe's point shell; wide lines don't.
+const ORBIT_WIDTH_PX = 2
+// On the Sky dome the orbit sits just behind the points (DOME_RADIUS) and in
+// front of the dome grid; the ground hemisphere hides the part below the
+// horizon.
+const SKY_ORBIT_RADIUS = DOME_RADIUS * 1.005
 
 export type { Clock } from './clock'
 
@@ -252,6 +278,13 @@ export class GlobeEngine {
   // gesture that ever had two pointers (a pinch) never selects.
   private skyGesture: { x: number; y: number; dragging: boolean; multi: boolean } | null = null
   private skySelScreen: { x: number; y: number } | null = null
+  // The selected object's orbit, sampled around `centreMs` (see orbit.ts).
+  private orbit: { idx: number; rec: SatRec; centreMs: number; periodMs: number; eci: Float32Array } | null =
+    null
+  private readonly orbitLine: Line2
+  private readonly skyOrbitLine: Line2
+  // The Sky orbit's dome points, one more than the samples to close the loop.
+  private skyOrbitPoints = new Float32Array(0)
   private readonly skyRingInspect: THREE.Points
   private readonly skyInspectLabel: HTMLDivElement
   // Filter/colour state: alpha 0 = hidden by a filter, 1 = shown. The source
@@ -292,7 +325,7 @@ export class GlobeEngine {
   private frameNo = 0
   // Frame number each marker was last actually rendered in (onBeforeRender
   // only fires for objects that survive frustum culling), for dev checks.
-  private readonly drawnAt = { a: -1, b: -1, inspect: -1, group: -1, line: -1 }
+  private readonly drawnAt = { a: -1, b: -1, inspect: -1, group: -1, line: -1, orbit: -1, skyOrbit: -1 }
   private disposed = false
   private readonly container: HTMLElement
   private readonly onTick?: (simMs: number) => void
@@ -372,6 +405,26 @@ export class GlobeEngine {
     this.linkLine.frustumCulled = false // moved every frame; see makeRing
     this.scene.add(this.linkLine)
 
+    // The selected object's orbit. Its own material, so dimming never touches
+    // it; it isn't part of the point buffers, so it never affects picking.
+    // Never frustum-culled: its geometry is replaced on every recompute and a
+    // stale bounding sphere once hid moved markers.
+    const orbitMaterial = () =>
+      new LineMaterial({
+        color: new THREE.Color(ORBIT_COLOR).getHex(),
+        linewidth: ORBIT_WIDTH_PX,
+        transparent: true,
+        opacity: ORBIT_OPACITY,
+        depthWrite: false,
+      })
+    this.orbitLine = new Line2(new LineGeometry(), orbitMaterial())
+    this.orbitLine.visible = false
+    this.orbitLine.frustumCulled = false
+    this.scene.add(this.orbitLine)
+    this.skyOrbitLine = new Line2(new LineGeometry(), orbitMaterial())
+    this.skyOrbitLine.visible = false
+    this.skyOrbitLine.frustumCulled = false
+
     this.linkLabel = document.createElement('div')
     this.linkLabel.className = 'globe-miss-label'
     this.linkLabel.hidden = true
@@ -391,7 +444,14 @@ export class GlobeEngine {
     this.domeGrid = this.makeDomeGrid()
     // Points draw last so they sit on top of the (farther) dome grid.
     this.skyPoints.renderOrder = 3
-    this.skyScene.add(ground, this.floorGrid, this.domeGrid, this.skyPoints, this.skyRingInspect)
+    this.skyScene.add(
+      ground,
+      this.floorGrid,
+      this.domeGrid,
+      this.skyOrbitLine,
+      this.skyPoints,
+      this.skyRingInspect,
+    )
     this.skyInspectLabel = document.createElement('div')
     this.skyInspectLabel.className = 'globe-sky-label is-selected'
     this.skyInspectLabel.hidden = true
@@ -448,6 +508,8 @@ export class GlobeEngine {
     this.ringInspect.onBeforeRender = stamp('inspect')
     this.ringGroup.onBeforeRender = stamp('group')
     this.linkLine.onBeforeRender = stamp('line')
+    this.orbitLine.onBeforeRender = stamp('orbit')
+    this.skyOrbitLine.onBeforeRender = stamp('skyOrbit')
 
     const canvas = this.renderer.domElement
     canvas.addEventListener('pointerdown', this.handlePointerDown)
@@ -778,6 +840,11 @@ export class GlobeEngine {
     return this.viewMode === 'sky' ? this.skySelScreen : null
   }
 
+  /** The selected object's orbital period in ms, or null without a drawn orbit. */
+  inspectedOrbitPeriodMs(): number | null {
+    return this.orbit && this.orbit.idx === this.inspectIdx ? this.orbit.periodMs : null
+  }
+
   /** Show or hide the Sky view's dome grid and its degree labels. */
   setSkyGrid(on: boolean) {
     this.skyGridOn = on
@@ -838,6 +905,12 @@ export class GlobeEngine {
         group: this.ringGroup.visible,
       },
       line: this.linkLine.visible,
+      orbit: this.orbit && {
+        index: this.orbit.idx,
+        centreMs: this.orbit.centreMs,
+        periodMs: this.orbit.periodMs,
+        points: this.orbit.eci.length / 3,
+      },
       // Markers actually rendered in the last frame (not frustum-culled).
       drawn: Object.fromEntries(
         Object.entries(this.drawnAt).map(([k, f]) => [k, f === this.frameNo]),
@@ -1078,6 +1151,7 @@ export class GlobeEngine {
     const { clientWidth: w, clientHeight: h } = this.container
     if (!w || !h) return
     this.renderer.setSize(w, h)
+    for (const line of [this.orbitLine, this.skyOrbitLine]) line.material.resolution.set(w, h)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
     this.skyCamera.aspect = w / h
@@ -1297,7 +1371,10 @@ export class GlobeEngine {
   private renderSky(simMs: number, date: Date) {
     const obs = this.observer
     this.skyPoints.visible = obs !== null && this.satrecs.length > 0
-    if (obs && this.satrecs.length) {
+    const obsFrame = obs ? observerFrame(obs.latDeg, obs.lonDeg, gstime(date)) : null
+    if (obsFrame) this.placeSkyOrbit(obsFrame)
+    else this.skyOrbitLine.visible = false
+    if (obs && obsFrame && this.satrecs.length) {
       const dt = Array.from(this.sliceSimMs, (t) => (simMs - t) / 1000)
       const pos = this.positions
       this.skyAbove = writeDome(
@@ -1305,7 +1382,7 @@ export class GlobeEngine {
         pos,
         this.velocities,
         dt,
-        observerFrame(obs.latDeg, obs.lonDeg, gstime(date)),
+        obsFrame,
         (i) => this.satrecs[i] !== null && (pos[i * 3] !== 0 || pos[i * 3 + 1] !== 0),
         (i) => this.rgba[i * 4 + 3] > 0,
       )
@@ -1355,6 +1432,67 @@ export class GlobeEngine {
       }
     }
     this.renderer.render(this.skyScene, cam)
+  }
+
+  // Keep the orbit line on the selected object: rebuild it when the selection
+  // or the loaded snapshot changes, or when the displayed time has moved more
+  // than half a period from the moment it was sampled around (orbit.ts). Runs
+  // every frame but almost always returns at the first check.
+  private syncOrbit(simMs: number) {
+    const idx = this.inspectIdx
+    const rec = idx === null ? null : this.satrecs[idx]
+    const o = this.orbit
+    if (o && o.idx === idx && o.rec === rec && !orbitNeedsRefresh(o.centreMs, simMs, o.periodMs)) return
+    if (!o && !rec) return
+    this.orbit = null
+    const periodMs = rec ? orbitPeriodMs(rec) : null
+    const eci = rec && periodMs ? sampleOrbit(rec, simMs) : null
+    this.orbitLine.geometry.dispose()
+    this.skyOrbitLine.geometry.dispose()
+    this.orbitLine.geometry = new LineGeometry()
+    this.skyOrbitLine.geometry = new LineGeometry()
+    if (idx !== null && rec && periodMs && eci) {
+      this.orbit = { idx, rec, centreMs: simMs, periodMs, eci }
+      // Wide lines are open polylines: repeat the first point to close the loop.
+      const closed = new Float32Array(eci.length + 3)
+      closed.set(eci)
+      closed.set(eci.subarray(0, 3), eci.length)
+      this.orbitLine.geometry.setPositions(closed)
+      this.skyOrbitPoints = new Float32Array(closed.length)
+      this.skyOrbitLine.geometry.setPositions(this.skyOrbitPoints)
+    }
+    this.orbitLine.visible = this.orbit !== null
+    this.skyOrbitLine.visible = false // placed each Sky frame
+  }
+
+  // The orbit on the Sky dome: each sample's direction from the observer, at
+  // the displayed moment (the Earth turns under the fixed orbit).
+  private placeSkyOrbit(frame: ReturnType<typeof observerFrame>) {
+    const o = this.orbit
+    const start = this.skyOrbitLine.geometry.getAttribute('instanceStart') as
+      | THREE.InterleavedBufferAttribute
+      | undefined
+    if (!o || !start) {
+      this.skyOrbitLine.visible = false
+      return
+    }
+    const src = o.eci
+    const pts = this.skyOrbitPoints
+    for (let i = 0; i < src.length; i += 3) {
+      const [x, y, z] = enuToSky(...toEnu(frame, src[i], src[i + 1], src[i + 2]))
+      const k = SKY_ORBIT_RADIUS / (Math.hypot(x, y, z) || 1)
+      pts[i] = x * k
+      pts[i + 1] = y * k
+      pts[i + 2] = z * k
+    }
+    pts.set(pts.subarray(0, 3), src.length)
+    // Segment i runs from point i to point i + 1, stored as start/end pairs.
+    const seg = start.data.array as Float32Array
+    for (let i = 0; i + 3 < pts.length; i += 3) {
+      seg.set(pts.subarray(i, i + 6), i * 2)
+    }
+    start.data.needsUpdate = true
+    this.skyOrbitLine.visible = true
   }
 
   private updateInspectRing(date: Date) {
@@ -1438,6 +1576,7 @@ export class GlobeEngine {
     this.frameNo++
     const simMs = this.clampLive(this.simTimeMs())
     const date = new Date(simMs)
+    this.syncOrbit(simMs)
     this.earth.rotation.y = earthRotationY(gstime(date))
 
     const n = this.satrecs.length
