@@ -43,3 +43,45 @@ export function phoneSideDock({
   const clearAtTop = ringY - CLEAR_PX > top + sideHeight
   return coveredAtBottom && clearAtTop ? top : null
 }
+
+// Elevation labels in the Sky view ("30°", "60°") sit where their rings cross
+// the north and south meridians. Seen from latitude φ, the geostationary belt
+// peaks on the equator-facing meridian at an elevation that depends only on
+// φ, and it runs level there, so near one latitude band it lies right along a
+// ring and its row of points hides that ring's label (60° near 25°, 30° near
+// 51°). The label then moves to the far side of its ring.
+
+/** Earth's equatorial radius over the geostationary orbit radius. */
+const GEO_RATIO = 6378.137 / 42164.17
+
+/**
+ * The geostationary belt's elevation, in degrees, where it crosses the
+ * equator-facing meridian (south from the northern hemisphere, north from the
+ * southern), or null when the belt is below the horizon (beyond about 81°).
+ */
+export function geoBeltElevation(latDeg: number): number | null {
+  const lat = (Math.abs(latDeg) * Math.PI) / 180
+  const up = Math.cos(lat) - GEO_RATIO
+  if (up <= 0) return null
+  return (Math.atan2(up, Math.sin(lat)) * 180) / Math.PI
+}
+
+/** The azimuth of the meridian the geostationary belt crosses. */
+export function geoBeltAzimuth(latDeg: number): 0 | 180 {
+  return latDeg >= 0 ? 180 : 0
+}
+
+/**
+ * The elevation to draw a ring's label at. Normally the ring's own; when the
+ * belt is within `clearanceDeg` of the label, the label moves to the far side
+ * of its ring, `clearanceDeg` from the belt. A belt exactly on the ring sends
+ * the label below it.
+ */
+export function ringLabelElevation(
+  ringDeg: number,
+  beltDeg: number | null,
+  clearanceDeg: number,
+): number {
+  if (beltDeg === null || Math.abs(beltDeg - ringDeg) >= clearanceDeg) return ringDeg
+  return beltDeg >= ringDeg ? beltDeg - clearanceDeg : beltDeg + clearanceDeg
+}
