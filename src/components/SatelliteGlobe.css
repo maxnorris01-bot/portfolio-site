@@ -175,6 +175,16 @@
   vertical-align: -0.05rem;
 }
 
+/* A short stroke in the orbit line's colour, keying the panel's Orbit row. */
+.globe-orbit-key {
+  display: inline-block;
+  width: 0.9rem;
+  height: 2px;
+  margin-right: 0.45rem;
+  border-radius: 1px;
+  vertical-align: 0.2rem;
+}
+
 .globe-inspect-name {
   font-weight: 600;
 }
