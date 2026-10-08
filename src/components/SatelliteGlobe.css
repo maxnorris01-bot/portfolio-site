@@ -240,6 +240,16 @@
   color: var(--globe-ink-muted);
 }
 
+/* Age mode's notes under the legend list: why objects are Unknown, and the
+   year-only precision. */
+.globe-legend-note {
+  max-width: 13rem;
+  margin: 0.45rem 0 0;
+  color: var(--globe-ink-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
 .globe-button {
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--globe-line);
@@ -782,6 +792,15 @@
 
   .globe-legend-count {
     display: none;
+  }
+
+  /* Counts are hidden on phones too; keep only the note that explains Unknown. */
+  .globe-legend-precision {
+    display: none;
+  }
+
+  .globe-legend-note {
+    max-width: none;
   }
 
   .globe-legend-row,

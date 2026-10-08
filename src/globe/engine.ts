@@ -28,7 +28,7 @@ import {
   writeDome,
 } from './sky'
 import { geoBeltAzimuth, geoBeltElevation, ringLabelElevation } from './layout'
-import { orbitNeedsRefresh, orbitPeriodMs, sampleOrbit } from './orbit'
+import { MAX_ORBITS, orbitNeedsRefresh, orbitPeriodMs, orbitTargets, sampleOrbit } from './orbit'
 import { DAY_MS } from './timeline'
 import type { CatalogObject } from './types'
 
@@ -278,13 +278,16 @@ export class GlobeEngine {
   // gesture that ever had two pointers (a pinch) never selects.
   private skyGesture: { x: number; y: number; dragging: boolean; multi: boolean } | null = null
   private skySelScreen: { x: number; y: number } | null = null
-  // The selected object's orbit, sampled around `centreMs` (see orbit.ts).
-  private orbit: { idx: number; rec: SatRec; centreMs: number; periodMs: number; eci: Float32Array } | null =
-    null
-  private readonly orbitLine: Line2
-  private readonly skyOrbitLine: Line2
-  // The Sky orbit's dome points, one more than the samples to close the loop.
-  private skyOrbitPoints = new Float32Array(0)
+  // Orbit lines for the current selection (orbitTargets in orbit.ts): one
+  // slot per line, each sampled around its own `centreMs` and refreshed on its
+  // own period. `skyPoints` holds the Sky line's dome points, one more than the
+  // samples to close the loop.
+  private readonly orbitSlots: {
+    line: Line2
+    sky: Line2
+    skyPoints: Float32Array
+    state: { idx: number; rec: SatRec; centreMs: number; periodMs: number; eci: Float32Array } | null
+  }[] = []
   private readonly skyRingInspect: THREE.Points
   private readonly skyInspectLabel: HTMLDivElement
   // Filter/colour state: alpha 0 = hidden by a filter, 1 = shown. The source
@@ -325,7 +328,17 @@ export class GlobeEngine {
   private frameNo = 0
   // Frame number each marker was last actually rendered in (onBeforeRender
   // only fires for objects that survive frustum culling), for dev checks.
-  private readonly drawnAt = { a: -1, b: -1, inspect: -1, group: -1, line: -1, orbit: -1, skyOrbit: -1 }
+  private readonly drawnAt = {
+    a: -1,
+    b: -1,
+    inspect: -1,
+    group: -1,
+    line: -1,
+    orbit: -1,
+    orbit2: -1,
+    skyOrbit: -1,
+    skyOrbit2: -1,
+  }
   private disposed = false
   private readonly container: HTMLElement
   private readonly onTick?: (simMs: number) => void
@@ -405,10 +418,13 @@ export class GlobeEngine {
     this.linkLine.frustumCulled = false // moved every frame; see makeRing
     this.scene.add(this.linkLine)
 
-    // The selected object's orbit. Its own material, so dimming never touches
-    // it; it isn't part of the point buffers, so it never affects picking.
-    // Never frustum-culled: its geometry is replaced on every recompute and a
-    // stale bounding sphere once hid moved markers.
+    // Orbit lines for the selection: the inspected object, both objects of a
+    // near-miss pair, or a station. Their own materials, so dimming never
+    // touches them; not part of the point buffers, so they never affect
+    // picking. Never frustum-culled: the geometry is replaced on every
+    // recompute and a stale bounding sphere once hid moved markers. A pair's
+    // two loops are drawn alike: the pair is symmetric, and each loop is told
+    // apart by the ring (white or gold) its object sits in.
     const orbitMaterial = () =>
       new LineMaterial({
         color: new THREE.Color(ORBIT_COLOR).getHex(),
@@ -417,13 +433,16 @@ export class GlobeEngine {
         opacity: ORBIT_OPACITY,
         depthWrite: false,
       })
-    this.orbitLine = new Line2(new LineGeometry(), orbitMaterial())
-    this.orbitLine.visible = false
-    this.orbitLine.frustumCulled = false
-    this.scene.add(this.orbitLine)
-    this.skyOrbitLine = new Line2(new LineGeometry(), orbitMaterial())
-    this.skyOrbitLine.visible = false
-    this.skyOrbitLine.frustumCulled = false
+    for (let k = 0; k < MAX_ORBITS; k++) {
+      const line = new Line2(new LineGeometry(), orbitMaterial())
+      const sky = new Line2(new LineGeometry(), orbitMaterial())
+      for (const l of [line, sky]) {
+        l.visible = false
+        l.frustumCulled = false
+      }
+      this.scene.add(line)
+      this.orbitSlots.push({ line, sky, skyPoints: new Float32Array(0), state: null })
+    }
 
     this.linkLabel = document.createElement('div')
     this.linkLabel.className = 'globe-miss-label'
@@ -448,7 +467,7 @@ export class GlobeEngine {
       ground,
       this.floorGrid,
       this.domeGrid,
-      this.skyOrbitLine,
+      ...this.orbitSlots.map((slot) => slot.sky),
       this.skyPoints,
       this.skyRingInspect,
     )
@@ -508,8 +527,10 @@ export class GlobeEngine {
     this.ringInspect.onBeforeRender = stamp('inspect')
     this.ringGroup.onBeforeRender = stamp('group')
     this.linkLine.onBeforeRender = stamp('line')
-    this.orbitLine.onBeforeRender = stamp('orbit')
-    this.skyOrbitLine.onBeforeRender = stamp('skyOrbit')
+    this.orbitSlots.forEach((slot, k) => {
+      slot.line.onBeforeRender = stamp(k ? 'orbit2' : 'orbit')
+      slot.sky.onBeforeRender = stamp(k ? 'skyOrbit2' : 'skyOrbit')
+    })
 
     const canvas = this.renderer.domElement
     canvas.addEventListener('pointerdown', this.handlePointerDown)
@@ -842,7 +863,8 @@ export class GlobeEngine {
 
   /** The selected object's orbital period in ms, or null without a drawn orbit. */
   inspectedOrbitPeriodMs(): number | null {
-    return this.orbit && this.orbit.idx === this.inspectIdx ? this.orbit.periodMs : null
+    const o = this.orbitSlots[0].state
+    return o && o.idx === this.inspectIdx ? o.periodMs : null
   }
 
   /** Show or hide the Sky view's dome grid and its degree labels. */
@@ -905,12 +927,15 @@ export class GlobeEngine {
         group: this.ringGroup.visible,
       },
       line: this.linkLine.visible,
-      orbit: this.orbit && {
-        index: this.orbit.idx,
-        centreMs: this.orbit.centreMs,
-        periodMs: this.orbit.periodMs,
-        points: this.orbit.eci.length / 3,
-      },
+      orbits: this.orbitSlots
+        .map((slot) => slot.state)
+        .filter((o) => o !== null)
+        .map((o) => ({
+          index: o.idx,
+          centreMs: o.centreMs,
+          periodMs: o.periodMs,
+          points: o.eci.length / 3,
+        })),
       // Markers actually rendered in the last frame (not frustum-culled).
       drawn: Object.fromEntries(
         Object.entries(this.drawnAt).map(([k, f]) => [k, f === this.frameNo]),
@@ -1151,7 +1176,10 @@ export class GlobeEngine {
     const { clientWidth: w, clientHeight: h } = this.container
     if (!w || !h) return
     this.renderer.setSize(w, h)
-    for (const line of [this.orbitLine, this.skyOrbitLine]) line.material.resolution.set(w, h)
+    for (const slot of this.orbitSlots) {
+      slot.line.material.resolution.set(w, h)
+      slot.sky.material.resolution.set(w, h)
+    }
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
     this.skyCamera.aspect = w / h
@@ -1372,8 +1400,10 @@ export class GlobeEngine {
     const obs = this.observer
     this.skyPoints.visible = obs !== null && this.satrecs.length > 0
     const obsFrame = obs ? observerFrame(obs.latDeg, obs.lonDeg, gstime(date)) : null
-    if (obsFrame) this.placeSkyOrbit(obsFrame)
-    else this.skyOrbitLine.visible = false
+    for (const slot of this.orbitSlots) {
+      if (obsFrame) this.placeSkyOrbit(slot, obsFrame)
+      else slot.sky.visible = false
+    }
     if (obs && obsFrame && this.satrecs.length) {
       const dt = Array.from(this.sliceSimMs, (t) => (simMs - t) / 1000)
       const pos = this.positions
@@ -1434,50 +1464,63 @@ export class GlobeEngine {
     this.renderer.render(this.skyScene, cam)
   }
 
-  // Keep the orbit line on the selected object: rebuild it when the selection
-  // or the loaded snapshot changes, or when the displayed time has moved more
-  // than half a period from the moment it was sampled around (orbit.ts). Runs
-  // every frame but almost always returns at the first check.
-  private syncOrbit(simMs: number) {
-    const idx = this.inspectIdx
+  // Keep the orbit lines on the selection (orbitTargets): each slot is
+  // rebuilt when its object or the loaded snapshot changes, or when the
+  // displayed time has moved more than half that object's period from the
+  // moment it was sampled around (orbit.ts). A near-miss pair jumps the clock
+  // to its closest approach, so its loops are sampled around that moment. Runs
+  // every frame but almost always returns at the first checks.
+  private syncOrbits(simMs: number) {
+    const targets = orbitTargets({
+      inspect: this.inspectIdx,
+      pair: this.link?.kind === 'pair' ? [this.link.a, this.link.b] : null,
+      group: this.groupIdx,
+    })
+    this.orbitSlots.forEach((slot, k) => this.syncOrbitSlot(slot, targets[k] ?? null, simMs))
+  }
+
+  private syncOrbitSlot(slot: (typeof this.orbitSlots)[number], idx: number | null, simMs: number) {
     const rec = idx === null ? null : this.satrecs[idx]
-    const o = this.orbit
+    const o = slot.state
     if (o && o.idx === idx && o.rec === rec && !orbitNeedsRefresh(o.centreMs, simMs, o.periodMs)) return
     if (!o && !rec) return
-    this.orbit = null
+    slot.state = null
     const periodMs = rec ? orbitPeriodMs(rec) : null
     const eci = rec && periodMs ? sampleOrbit(rec, simMs) : null
-    this.orbitLine.geometry.dispose()
-    this.skyOrbitLine.geometry.dispose()
-    this.orbitLine.geometry = new LineGeometry()
-    this.skyOrbitLine.geometry = new LineGeometry()
+    slot.line.geometry.dispose()
+    slot.sky.geometry.dispose()
+    slot.line.geometry = new LineGeometry()
+    slot.sky.geometry = new LineGeometry()
     if (idx !== null && rec && periodMs && eci) {
-      this.orbit = { idx, rec, centreMs: simMs, periodMs, eci }
+      slot.state = { idx, rec, centreMs: simMs, periodMs, eci }
       // Wide lines are open polylines: repeat the first point to close the loop.
       const closed = new Float32Array(eci.length + 3)
       closed.set(eci)
       closed.set(eci.subarray(0, 3), eci.length)
-      this.orbitLine.geometry.setPositions(closed)
-      this.skyOrbitPoints = new Float32Array(closed.length)
-      this.skyOrbitLine.geometry.setPositions(this.skyOrbitPoints)
+      slot.line.geometry.setPositions(closed)
+      slot.skyPoints = new Float32Array(closed.length)
+      slot.sky.geometry.setPositions(slot.skyPoints)
     }
-    this.orbitLine.visible = this.orbit !== null
-    this.skyOrbitLine.visible = false // placed each Sky frame
+    slot.line.visible = slot.state !== null
+    slot.sky.visible = false // placed each Sky frame
   }
 
-  // The orbit on the Sky dome: each sample's direction from the observer, at
+  // An orbit on the Sky dome: each sample's direction from the observer, at
   // the displayed moment (the Earth turns under the fixed orbit).
-  private placeSkyOrbit(frame: ReturnType<typeof observerFrame>) {
-    const o = this.orbit
-    const start = this.skyOrbitLine.geometry.getAttribute('instanceStart') as
+  private placeSkyOrbit(
+    slot: (typeof this.orbitSlots)[number],
+    frame: ReturnType<typeof observerFrame>,
+  ) {
+    const o = slot.state
+    const start = slot.sky.geometry.getAttribute('instanceStart') as
       | THREE.InterleavedBufferAttribute
       | undefined
     if (!o || !start) {
-      this.skyOrbitLine.visible = false
+      slot.sky.visible = false
       return
     }
     const src = o.eci
-    const pts = this.skyOrbitPoints
+    const pts = slot.skyPoints
     for (let i = 0; i < src.length; i += 3) {
       const [x, y, z] = enuToSky(...toEnu(frame, src[i], src[i + 1], src[i + 2]))
       const k = SKY_ORBIT_RADIUS / (Math.hypot(x, y, z) || 1)
@@ -1492,7 +1535,7 @@ export class GlobeEngine {
       seg.set(pts.subarray(i, i + 6), i * 2)
     }
     start.data.needsUpdate = true
-    this.skyOrbitLine.visible = true
+    slot.sky.visible = true
   }
 
   private updateInspectRing(date: Date) {
@@ -1576,7 +1619,7 @@ export class GlobeEngine {
     this.frameNo++
     const simMs = this.clampLive(this.simTimeMs())
     const date = new Date(simMs)
-    this.syncOrbit(simMs)
+    this.syncOrbits(simMs)
     this.earth.rotation.y = earthRotationY(gstime(date))
 
     const n = this.satrecs.length

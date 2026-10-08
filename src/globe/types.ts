@@ -7,6 +7,11 @@ export type DatasetKey = 'current' | (string & {})
 export interface CatalogObject {
   norad_id: number
   name: string
+  /**
+   * COSPAR designator, "YYYY-NNNA" (launch year, launch number, piece). Added
+   * to objects/current.json on 2026-10-07; older dated snapshots lack it.
+   */
+  international_designator?: string | null
   tle_line1: string
   tle_line2: string
   element_epoch_utc: string

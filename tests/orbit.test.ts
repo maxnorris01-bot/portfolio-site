@@ -2,7 +2,14 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { propagate, twoline2satrec, type SatRec } from 'satellite.js'
 import { EARTH_RADIUS_KM } from '../src/globe/frames.ts'
-import { ORBIT_SAMPLES, orbitNeedsRefresh, orbitPeriodMs, sampleOrbit } from '../src/globe/orbit.ts'
+import {
+  MAX_ORBITS,
+  ORBIT_SAMPLES,
+  orbitNeedsRefresh,
+  orbitPeriodMs,
+  orbitTargets,
+  sampleOrbit,
+} from '../src/globe/orbit.ts'
 
 // Real elements from the 2026-10-06 catalog: low Earth orbit, geostationary,
 // and a highly eccentric (e = 0.66) orbit.
@@ -92,4 +99,43 @@ test('the loop is recomputed only once the time is more than half a period away'
   assert.equal(orbitNeedsRefresh(T0, T0 - p * 0.49, p), false)
   assert.equal(orbitNeedsRefresh(T0, T0 + p * 0.51, p), true)
   assert.equal(orbitNeedsRefresh(T0, T0 - 6 * 3600e3, p), true) // a slider jump back
+})
+
+test('orbit targets follow the one selection: object, pair or station', () => {
+  const none = { inspect: null, pair: null, group: null }
+  assert.deepEqual(orbitTargets(none), [])
+  // A click-picked (or list-picked) object: its own orbit, not its neighbour's.
+  assert.deepEqual(orbitTargets({ ...none, inspect: 55 }), [55])
+  // A near-miss pair from the conjunctions list: both objects.
+  assert.deepEqual(orbitTargets({ ...none, pair: [9129, 11350] }), [9129, 11350])
+  assert.deepEqual(orbitTargets({ ...none, pair: [7, 7] }), [7])
+  // A station from the known-objects list: the station itself (its first
+  // piece; the others are docked and share the orbit).
+  assert.deepEqual(orbitTargets({ ...none, group: [55, 57, 71, 77, 4974] }), [55])
+  assert.deepEqual(orbitTargets({ ...none, group: [] }), [])
+  // Never more lines than the engine has slots.
+  for (const sel of [{ ...none, pair: [1, 2] as [number, number] }, { ...none, group: [1, 2, 3] }]) {
+    assert.ok(orbitTargets(sel).length <= MAX_ORBITS)
+  }
+})
+
+test("a pair's two loops are sampled around the closest approach and pass through both objects", () => {
+  // The replay jumps the clock to the closest approach; each loop is centred on
+  // that moment, so each object sits on its own loop there.
+  const tca = Date.parse('2026-10-07T03:12:45Z')
+  for (const rec of [recs.iss, recs.polar]) {
+    const s = sampleOrbit(rec, tca)!
+    const mid = s.length / 6
+    const [x, y, z] = eci(rec, tca)
+    const expected = [x / EARTH_RADIUS_KM, z / EARTH_RADIUS_KM, -y / EARTH_RADIUS_KM]
+    for (let c = 0; c < 3; c++) assert.ok(Math.abs(s[mid * 3 + c] - expected[c]) < 1e-5)
+  }
+})
+
+test("each of a pair's loops refreshes on its own period", () => {
+  // An hour after the closest approach, the ISS (93 min) has left its
+  // half-period span and is resampled; a geostationary partner (24 h) hasn't.
+  const tca = T0
+  assert.equal(orbitNeedsRefresh(tca, tca + 3600e3, orbitPeriodMs(recs.iss)!), true)
+  assert.equal(orbitNeedsRefresh(tca, tca + 3600e3, orbitPeriodMs(recs.geo)!), false)
 })
