@@ -20,6 +20,7 @@ import { nearestCandidates, nearestTo } from './neighbors'
 import { pickNearest } from './picking'
 import {
   DOME_RADIUS,
+  directionLookAngles,
   enuToSky,
   lookAngles,
   observerFrame,
@@ -32,6 +33,7 @@ import { MAX_ORBITS, orbitNeedsRefresh, orbitPeriodMs, orbitTargets, sampleOrbit
 import { DAY_MS } from './timeline'
 import { EARTH_FRAGMENT_SHADER, EARTH_VERTEX_SHADER } from './daynight'
 import { sunDirectionScene } from './sun'
+import { SKY_FRAGMENT_SHADER, SKY_VERTEX_SHADER, skyPalette } from './twilight'
 import type { CatalogObject } from './types'
 
 // Each object is re-propagated every SLICE frames, not every frame. The
@@ -201,6 +203,26 @@ function dotTexture(ring: boolean): THREE.CanvasTexture {
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
 
+// The Sky view's sun: a soft disc with a bright core (white; the marker's
+// colour tints it).
+function makeSunTexture(): THREE.Texture {
+  const size = 64
+  const c = size / 2
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  const g = ctx.createRadialGradient(c, c, 0, c, c, c)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.45, 'rgba(255,255,255,1)')
+  g.addColorStop(0.55, 'rgba(255,255,255,0.35)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, size, size)
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
 // One always-on-top ring marking a single object.
 function makeRing(texture: THREE.Texture, color: string, px: number): THREE.Points {
   const geometry = new THREE.BufferGeometry()
@@ -288,6 +310,17 @@ export class GlobeEngine {
   // gesture that ever had two pointers (a pinch) never selects.
   private skyGesture: { x: number; y: number; dragging: boolean; multi: boolean } | null = null
   private skySelScreen: { x: number; y: number } | null = null
+  // Sky twilight: the sky dome's colours follow the Sun's elevation for the
+  // observer (twilight.ts), with a sun marker while it's up.
+  private readonly skyDomeUniforms = {
+    zenith: { value: new THREE.Color() },
+    horizon: { value: new THREE.Color() },
+    glow: { value: new THREE.Color() },
+    sunDir: { value: new THREE.Vector3() },
+  }
+  private readonly skySunMarker: THREE.Points
+  private readonly skySunLabel: HTMLDivElement
+  private skySunAngles: { azDeg: number; elDeg: number } | null = null
   // Orbit lines for the current selection (orbitTargets in orbit.ts): one
   // slot per line, each sampled around its own `centreMs` and refreshed on its
   // own period. `skyPoints` holds the Sky line's dome points, one more than the
@@ -515,6 +548,30 @@ export class GlobeEngine {
       this.skyPoints,
       this.skyRingInspect,
     )
+    // The sky itself: a dome just outside the grid, drawn first.
+    const skyDome = new THREE.Mesh(
+      new THREE.SphereGeometry(DOME_RADIUS * 1.03, 48, 24),
+      new THREE.ShaderMaterial({
+        uniforms: this.skyDomeUniforms,
+        vertexShader: SKY_VERTEX_SHADER,
+        fragmentShader: SKY_FRAGMENT_SHADER,
+        side: THREE.BackSide,
+        depthWrite: false,
+      }),
+    )
+    skyDome.renderOrder = -1
+    this.setSkyColours(-90)
+    // The Sun while it's up: a soft warm disc, larger than any satellite, with
+    // a label so it isn't mistaken for one. Never part of the pick buffers.
+    this.skySunMarker = makeRing(makeSunTexture(), '#fff1c4', 30 * pr)
+    this.skySunMarker.renderOrder = 1
+    ;(this.skySunMarker.material as THREE.PointsMaterial).depthTest = true
+    this.skyScene.add(skyDome, this.skySunMarker)
+    this.skySunLabel = document.createElement('div')
+    this.skySunLabel.className = 'globe-sky-label is-ring'
+    this.skySunLabel.textContent = 'Sun'
+    this.skySunLabel.hidden = true
+    container.appendChild(this.skySunLabel)
     this.skyInspectLabel = document.createElement('div')
     this.skyInspectLabel.className = 'globe-sky-label is-selected'
     this.skyInspectLabel.hidden = true
@@ -943,6 +1000,19 @@ export class GlobeEngine {
   }
 
   /** Shown (not filtered) objects above the observer's horizon right now. */
+  /** The Sun's azimuth and elevation for the Sky view's observer, or null without one. */
+  skySun(): { azDeg: number; elDeg: number } | null {
+    return this.observer ? this.skySunAngles : null
+  }
+
+  // The sky dome's colours for a solar elevation (linear, from twilight.ts).
+  private setSkyColours(elDeg: number) {
+    const { zenith, horizon, glow } = skyPalette(elDeg)
+    this.skyDomeUniforms.zenith.value.setRGB(...zenith)
+    this.skyDomeUniforms.horizon.value.setRGB(...horizon)
+    this.skyDomeUniforms.glow.value.setRGB(...glow)
+  }
+
   skyAboveHorizon(): number {
     return this.observer ? this.skyAbove : 0
   }
@@ -1027,6 +1097,7 @@ export class GlobeEngine {
     canvas.removeEventListener('wheel', this.handleSkyWheel)
     for (const l of this.skyLabels) l.el.remove()
     this.skyInspectLabel.remove()
+    this.skySunLabel.remove()
     this.skyScene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
         obj.geometry.dispose()
@@ -1452,6 +1523,17 @@ export class GlobeEngine {
     const obs = this.observer
     this.skyPoints.visible = obs !== null && this.satrecs.length > 0
     const obsFrame = obs ? observerFrame(obs.latDeg, obs.lonDeg, gstime(date)) : null
+    // The sky for the Sun's elevation; without an observer, the old night sky.
+    this.skySunAngles = obsFrame ? directionLookAngles(obsFrame, sunDirectionScene(date)) : null
+    const sun = this.skySunAngles
+    this.setSkyColours(sun ? sun.elDeg : -90)
+    if (sun) {
+      const dir = skyDirection(sun.azDeg, sun.elDeg)
+      this.skyDomeUniforms.sunDir.value.set(...dir)
+      this.setRing(this.skySunMarker, new THREE.Vector3(...dir).multiplyScalar(DOME_RADIUS * 1.02))
+    }
+    // Shown while any of the disc is above the horizon; the ground hides the rest.
+    this.skySunMarker.visible = sun !== null && sun.elDeg > -1
     for (const slot of this.orbitSlots) {
       if (obsFrame) this.placeSkyOrbit(slot, obsFrame)
       else slot.sky.visible = false
@@ -1500,6 +1582,14 @@ export class GlobeEngine {
     const belt = obs ? geoBeltElevation(obs.latDeg) : null
     const beltAz = obs ? geoBeltAzimuth(obs.latDeg) : null
     const clearanceDeg = (LABEL_CLEAR_PX * cam.fov) / Math.max(h, 1)
+    this.skySunLabel.hidden = true
+    if (this.skySunMarker.visible && sun && sun.elDeg > 0) {
+      const v = new THREE.Vector3(...skyDirection(sun.azDeg, sun.elDeg)).project(cam)
+      if (v.z <= 1 && Math.abs(v.x) <= 1.05 && Math.abs(v.y) <= 1.05) {
+        this.skySunLabel.hidden = false
+        this.skySunLabel.style.transform = `translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h + 22}px) translate(-50%, 0)`
+      }
+    }
     for (const l of this.skyLabels) {
       if (l.ring) {
         const el = l.ring.az === beltAz ? ringLabelElevation(l.ring.el, belt, clearanceDeg) : l.ring.el
