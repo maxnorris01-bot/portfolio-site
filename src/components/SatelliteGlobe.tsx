@@ -26,6 +26,8 @@ import CollisionHistory from './CollisionHistory'
 import './SatelliteGlobe.css'
 
 const TEXTURE_URL = '/textures/earth-day-2k.jpg'
+// NASA Black Marble 2016 city lights, 2048x1024, for the night side.
+const NIGHT_TEXTURE_URL = '/textures/earth-night-2k.jpg'
 const TICK_MS = 250
 // An orbital period for the panel: minutes under two hours, else hours.
 const formatPeriod = (ms: number) => {
@@ -148,6 +150,8 @@ export default function SatelliteGlobe({
   // dome stays visible (it would cover most of it on a phone).
   const [skyPanelOpen, setSkyPanelOpen] = useState(true)
   const [skyGrid, setSkyGrid] = useState(true)
+  // Day/night shading on the globe; on by default.
+  const [dayNight, setDayNight] = useState(true)
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
   const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
   // On a phone in the Sky view the selected object's panel starts as a
@@ -188,39 +192,44 @@ export default function SatelliteGlobe({
     const container = containerRef.current
     if (!container) return
     let lastTick = 0
-    const engine = new GlobeEngine(container, TEXTURE_URL, {
-      onTick: (simMs) => {
-        const now = performance.now()
-        if (now - lastTick < TICK_MS) return
-        lastTick = now
-        setTime({ simMs, nowMs: Date.now() })
-        setInspectPos(engineRef.current?.inspectedPosition() ?? null)
-        setNeighbor(engineRef.current?.currentNeighbor())
-        setSkyAbove(engineRef.current?.skyAboveHorizon() ?? 0)
-        setInspectSky(engineRef.current?.inspectedSky() ?? null)
-        setOrbitPeriodMs(engineRef.current?.inspectedOrbitPeriodMs() ?? null)
-        const stage = stageRef.current
-        const side = sideRef.current
-        const legend = legendRef.current
-        const dock =
-          stage && side && window.matchMedia(PHONE_QUERY).matches
-            ? phoneSideDock({
-                ringY: engineRef.current?.inspectedSkyScreen()?.y ?? null,
-                stageHeight: stage.clientHeight,
-                sideHeight: side.offsetHeight,
-                legendBottom: legend ? legend.offsetTop + legend.offsetHeight : 0,
-                current: sideDockRef.current,
-              })
-            : null
-        sideDockRef.current = dock
-        setSideDock(dock)
-        // The engine may change the clock itself (Live pausing at the end of
-        // the forward range); keep the controls in step.
-        const engineClock = engineRef.current?.getClock()
-        if (engineClock) setClockState(engineClock)
+    const engine = new GlobeEngine(
+      container,
+      TEXTURE_URL,
+      {
+        onTick: (simMs) => {
+          const now = performance.now()
+          if (now - lastTick < TICK_MS) return
+          lastTick = now
+          setTime({ simMs, nowMs: Date.now() })
+          setInspectPos(engineRef.current?.inspectedPosition() ?? null)
+          setNeighbor(engineRef.current?.currentNeighbor())
+          setSkyAbove(engineRef.current?.skyAboveHorizon() ?? 0)
+          setInspectSky(engineRef.current?.inspectedSky() ?? null)
+          setOrbitPeriodMs(engineRef.current?.inspectedOrbitPeriodMs() ?? null)
+          const stage = stageRef.current
+          const side = sideRef.current
+          const legend = legendRef.current
+          const dock =
+            stage && side && window.matchMedia(PHONE_QUERY).matches
+              ? phoneSideDock({
+                  ringY: engineRef.current?.inspectedSkyScreen()?.y ?? null,
+                  stageHeight: stage.clientHeight,
+                  sideHeight: side.offsetHeight,
+                  legendBottom: legend ? legend.offsetTop + legend.offsetHeight : 0,
+                  current: sideDockRef.current,
+                })
+              : null
+          sideDockRef.current = dock
+          setSideDock(dock)
+          // The engine may change the clock itself (Live pausing at the end of
+          // the forward range); keep the controls in step.
+          const engineClock = engineRef.current?.getClock()
+          if (engineClock) setClockState(engineClock)
+        },
+        onPick: (index) => handlePick.current(index),
       },
-      onPick: (index) => handlePick.current(index),
-    })
+      NIGHT_TEXTURE_URL,
+    )
     engineRef.current = engine
     if (import.meta.env.DEV) Object.assign(window, { __globe: engine })
     return () => {
@@ -382,6 +391,10 @@ export default function SatelliteGlobe({
   useEffect(() => {
     engineRef.current?.setSkyGrid(skyGrid)
   }, [skyGrid])
+
+  useEffect(() => {
+    engineRef.current?.setDayNight(dayNight)
+  }, [dayNight])
 
   // A station view is a globe camera mode; entering the Sky view ends it.
   const [prevViewMode, setPrevViewMode] = useState(viewMode)
@@ -720,6 +733,16 @@ export default function SatelliteGlobe({
                     </button>
                   ))}
                 </div>
+              )}
+              {viewMode === 'globe' && (
+                <label className="globe-daynight">
+                  <input
+                    type="checkbox"
+                    checked={dayNight}
+                    onChange={(e) => setDayNight(e.target.checked)}
+                  />
+                  Day/night
+                </label>
               )}
             </div>
           </div>
@@ -1117,7 +1140,8 @@ export default function SatelliteGlobe({
         {historyDates.length === 0
           ? 'Earlier days appear on the slider as daily snapshots accumulate. '
           : ''}
-        Earth imagery: NASA Visible Earth (Blue Marble).
+        Earth imagery: NASA Visible Earth (Blue Marble); city lights: NASA Earth Observatory (Black
+        Marble 2016, Suomi NPP VIIRS).
       </p>
       {loaded && (
         <CollisionHistory

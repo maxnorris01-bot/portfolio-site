@@ -30,6 +30,8 @@ import {
 import { geoBeltAzimuth, geoBeltElevation, ringLabelElevation } from './layout'
 import { MAX_ORBITS, orbitNeedsRefresh, orbitPeriodMs, orbitTargets, sampleOrbit } from './orbit'
 import { DAY_MS } from './timeline'
+import { EARTH_FRAGMENT_SHADER, EARTH_VERTEX_SHADER } from './daynight'
+import { sunDirectionScene } from './sun'
 import type { CatalogObject } from './types'
 
 // Each object is re-propagated every SLICE frames, not every frame. The
@@ -235,6 +237,14 @@ export class GlobeEngine {
   private readonly camera: THREE.PerspectiveCamera
   private readonly controls: TrackballControls
   private readonly earth: THREE.Mesh
+  private readonly earthUniforms: {
+    dayMap: { value: THREE.Texture | null }
+    nightMap: { value: THREE.Texture }
+    tint: { value: THREE.Color }
+    sunDir: { value: THREE.Vector3 }
+    enabled: { value: number }
+    hasLights: { value: number }
+  }
   private readonly geometry = new THREE.BufferGeometry()
   private readonly pointsMaterial: THREE.PointsMaterial
   private readonly ringA: THREE.Points
@@ -348,6 +358,8 @@ export class GlobeEngine {
     container: HTMLElement,
     textureUrl: string,
     callbacks: { onTick?: (simMs: number) => void; onPick?: (index: number | null) => void } = {},
+    /** City lights for the night side; loaded after the day texture, optional. */
+    nightTextureUrl?: string,
   ) {
     this.container = container
     this.onTick = callbacks.onTick
@@ -366,13 +378,45 @@ export class GlobeEngine {
     this.controls.dynamicDampingFactor = 0.15
     this.resetLimits()
 
-    const texture = new THREE.TextureLoader().load(textureUrl)
+    // Day/night: the Earth is lit in world space by the Sun's direction, which
+    // is fixed in the inertial frame; the mesh already turns by GMST under it.
+    // Off, it's the old uniformly lit look (daynight.ts). The city-lights
+    // texture loads after the day texture so the globe still appears first;
+    // until it arrives (or if it fails) the night side is plain darkened day.
+    const loader = new THREE.TextureLoader()
+    const anisotropy = this.renderer.capabilities.getMaxAnisotropy()
+    this.earthUniforms = {
+      dayMap: { value: null as THREE.Texture | null },
+      nightMap: { value: new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) },
+      // Slightly dimmed so the points read above the surface (as before).
+      tint: { value: new THREE.Color(0xc4c4c4) },
+      sunDir: { value: new THREE.Vector3(1, 0, 0) },
+      enabled: { value: 1 },
+      hasLights: { value: 0 },
+    }
+    this.earthUniforms.nightMap.value.needsUpdate = true
+    const loadNight = () => {
+      if (!nightTextureUrl || this.disposed) return
+      loader.load(nightTextureUrl, (night) => {
+        if (this.disposed) return night.dispose()
+        night.colorSpace = THREE.SRGBColorSpace
+        night.anisotropy = anisotropy
+        this.earthUniforms.nightMap.value.dispose()
+        this.earthUniforms.nightMap.value = night
+        this.earthUniforms.hasLights.value = 1
+      })
+    }
+    const texture = loader.load(textureUrl, loadNight, undefined, loadNight)
     texture.colorSpace = THREE.SRGBColorSpace
-    texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy()
+    texture.anisotropy = anisotropy
+    this.earthUniforms.dayMap.value = texture
     this.earth = new THREE.Mesh(
       new THREE.SphereGeometry(1, 96, 64),
-      // Slightly dimmed so the points read above the surface.
-      new THREE.MeshBasicMaterial({ map: texture, color: 0xc4c4c4 }),
+      new THREE.ShaderMaterial({
+        uniforms: this.earthUniforms,
+        vertexShader: EARTH_VERTEX_SHADER,
+        fragmentShader: EARTH_FRAGMENT_SHADER,
+      }),
     )
     this.scene.add(this.earth)
 
@@ -867,6 +911,11 @@ export class GlobeEngine {
     return o && o.idx === this.inspectIdx ? o.periodMs : null
   }
 
+  /** Day/night shading on the globe (on by default); off is the old uniform lighting. */
+  setDayNight(on: boolean) {
+    this.earthUniforms.enabled.value = on ? 1 : 0
+  }
+
   /** Show or hide the Sky view's dome grid and its degree labels. */
   setSkyGrid(on: boolean) {
     this.skyGridOn = on
@@ -993,6 +1042,9 @@ export class GlobeEngine {
         m.dispose()
       }
     })
+    // The Earth's shader material holds its textures in uniforms, not `map`.
+    this.earthUniforms.dayMap.value?.dispose()
+    this.earthUniforms.nightMap.value.dispose()
     this.renderer.dispose()
     canvas.remove()
     this.linkLabel.remove()
@@ -1621,6 +1673,7 @@ export class GlobeEngine {
     const date = new Date(simMs)
     this.syncOrbits(simMs)
     this.earth.rotation.y = earthRotationY(gstime(date))
+    this.earthUniforms.sunDir.value.set(...sunDirectionScene(date))
 
     const n = this.satrecs.length
     if (n) {

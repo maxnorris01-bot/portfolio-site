@@ -614,6 +614,21 @@
   border-top: 1px solid var(--globe-line);
 }
 
+.globe-daynight {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+  color: var(--globe-ink);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.globe-daynight input {
+  margin: 0;
+  accent-color: var(--globe-ink);
+}
+
 .globe-stations button {
   padding: 0.2rem 0.65rem;
   border: 1px solid var(--globe-line);
