@@ -146,3 +146,19 @@ export function writeDome(
   }
   return above
 }
+
+/**
+ * Azimuth and elevation (degrees) of a direction given in the scene frame,
+ * such as the Sun's (sunDirectionScene), seen from an observer: the direction
+ * projected on the observer's east/north/up axes. A direction, not a point,
+ * so it ignores the observer's offset from the Earth's centre (parallax),
+ * which is negligible for the Sun.
+ */
+export function directionLookAngles(f: ObserverFrame, d: Vec3): { azDeg: number; elDeg: number } {
+  const dot = (a: Vec3) => a[0] * d[0] + a[1] * d[1] + a[2] * d[2]
+  const e = dot(f.east)
+  const n = dot(f.north)
+  const u = dot(f.up)
+  const az = (Math.atan2(e, n) * 180) / Math.PI
+  return { azDeg: (az + 360) % 360, elDeg: (Math.atan2(u, Math.hypot(e, n)) * 180) / Math.PI }
+}

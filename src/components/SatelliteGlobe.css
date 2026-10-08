@@ -508,6 +508,11 @@
   font-size: 0.75rem;
 }
 
+.globe-sky-sun {
+  color: var(--globe-ink-muted);
+  font-size: 0.8rem;
+}
+
 .globe-sky-note a {
   color: inherit;
 }
@@ -612,6 +617,21 @@
   margin-top: 0.7rem;
   padding-top: 0.6rem;
   border-top: 1px solid var(--globe-line);
+}
+
+.globe-daynight {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+  color: var(--globe-ink);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.globe-daynight input {
+  margin: 0;
+  accent-color: var(--globe-ink);
 }
 
 .globe-stations button {
@@ -887,6 +907,10 @@
     grid-column: 2;
     grid-row: 2 / span 2;
     flex-direction: column;
+  }
+
+  .globe-sky-panel.is-compact .globe-sky-sun {
+    grid-column: 1 / -1;
   }
 }
 
