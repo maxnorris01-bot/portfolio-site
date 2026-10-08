@@ -27,20 +27,6 @@ const SERIES = ['#3987e5', '#d95926', '#199e70'] as const
 const OTHER = '#8b8f98'
 const FLAT = '#f2c14e'
 
-// Age: an ordered multi-hue ramp, blue -> green -> yellow-lime, where hue and
-// lightness both change at each step (viridis-style), so the buckets read as a
-// sequence and tell apart at a glance. A first one-hue teal ramp stepped in
-// lightness only and its neighbours were too alike on the globe (OKLab 13.5
-// worst pair under colour-blind simulation; this ramp is 19.1). Measured with
-// the dataviz validator's model (Machado 2009 protan/deutan/tritan, OKLab x100):
-// - buckets: at least 19.1 apart under every simulation, 22.9 under normal vision;
-// - at least 3:1 on the sky #05070d and the Sky ground #26303c (darkest 3.06:1);
-// - at least 11.2 from the orbit line #b0a8ff and 8.2 from the rings and
-//   neighbour line (white, gold, orange-red, cyan) under every simulation.
-// Unknown is a slightly warm grey: 15.4 from every bucket under normal vision
-// (the validator's floor), at least 10.8 under simulation, 3.83:1 on the ground.
-const AGE_RAMP = ['#5f75c1', '#05c992', '#d4f73e'] as const
-const AGE_UNKNOWN = '#8f8978'
 
 // "YYYY-NNNA": launch year, launch number of that year, piece letters. Exactly
 // this form; anything else (two-digit years, padding, lower case) is Unknown.
@@ -140,10 +126,12 @@ export function colorize(
     classify = ownerOf
   } else if (mode === 'age') {
     defs = [
-      { key: 'new', label: 'Under 2 years', color: AGE_RAMP[0] },
-      { key: 'mid', label: '2 to 10 years', color: AGE_RAMP[1] },
-      { key: 'old', label: 'Over 10 years', color: AGE_RAMP[2] },
-      { key: 'unknown', label: 'Unknown', color: AGE_UNKNOWN },
+      // The shared category colours, in their fixed order, and the shared
+      // grey: Age reads like the other modes rather than as its own ramp.
+      { key: 'new', label: 'Under 2 years', color: SERIES[0] },
+      { key: 'mid', label: '2 to 10 years', color: SERIES[1] },
+      { key: 'old', label: 'Over 10 years', color: SERIES[2] },
+      { key: 'unknown', label: 'Unknown', color: OTHER },
     ]
     const parsed = snapshotUtc ? Date.parse(snapshotUtc) : Number.NaN
     const year = Number.isFinite(parsed) ? new Date(parsed).getUTCFullYear() : null

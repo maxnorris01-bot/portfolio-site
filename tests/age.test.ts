@@ -129,18 +129,19 @@ test('age lists all four buckets even when some are empty; no note when none are
   )
 })
 
-test('the age buckets are an ordered ramp: newest darkest, oldest lightest, Unknown neutral', () => {
-  const c = colorize([obj({ international_designator: '2026-001A' })], 'age', SNAPSHOT)
-  const colours = c.categories.map((x) => x.color)
-  assert.deepEqual(colours, ['#5f75c1', '#05c992', '#d4f73e', '#8f8978'])
-  // Relative luminance rises step by step, so the order reads without the legend.
-  const luminance = (hex: string) => {
-    const [r, g, b] = [1, 3, 5].map((i) => {
-      const v = Number.parseInt(hex.slice(i, i + 2), 16) / 255
-      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
-    })
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
-  }
-  const [a, b, d] = colours.slice(0, 3).map(luminance)
-  assert.ok(a < b && b < d)
+test('age reuses the shared category colours and grey, in order', () => {
+  const objects = [obj({ international_designator: '2026-001A' })]
+  const age = colorize(objects, 'age', SNAPSHOT).categories.map((x) => x.color)
+  // Type mode lists the same three series colours, then the shared grey.
+  const type = colorize(
+    [
+      obj({}),
+      obj({ object_type: 'DEB', active_payload: false }),
+      obj({ object_type: 'R/B', active_payload: false }),
+      obj({ active_payload: false }),
+    ],
+    'type',
+  ).categories.map((x) => x.color)
+  assert.deepEqual(age, type)
+  assert.deepEqual(age, ['#3987e5', '#d95926', '#199e70', '#8b8f98'])
 })
