@@ -64,3 +64,24 @@ export function sampleOrbit(
 export function orbitNeedsRefresh(centreMs: number, simMs: number, periodMs: number): boolean {
   return Math.abs(simMs - centreMs) > periodMs / 2
 }
+
+/** The most orbit lines shown at once: the two objects of a near-miss pair. */
+export const MAX_ORBITS = 2
+
+/**
+ * Which objects get an orbit line, one selection at a time: the inspected
+ * object (not its live neighbour); both objects of a near-miss pair; or a
+ * station's first piece, the station itself (its other pieces are docked to it
+ * and share its orbit). Empty when nothing is selected.
+ */
+export function orbitTargets(selection: {
+  inspect: number | null
+  pair: readonly [number, number] | null
+  group: readonly number[] | null
+}): number[] {
+  const { inspect, pair, group } = selection
+  if (inspect !== null) return [inspect]
+  if (pair) return pair[0] === pair[1] ? [pair[0]] : [pair[0], pair[1]]
+  if (group?.length) return [group[0]]
+  return []
+}

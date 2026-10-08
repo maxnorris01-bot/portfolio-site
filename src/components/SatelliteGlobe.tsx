@@ -849,6 +849,12 @@ export default function SatelliteGlobe({
                     : 'Not in this snapshot.'}
                 </p>
                 {stationPieces > 0 && <p className="globe-muted">{stationNames.join(' · ')}</p>}
+                {stationPieces > 0 && (
+                  <p className="globe-muted">
+                    <span className="globe-orbit-key" style={{ background: ORBIT_COLOR }} />
+                    Its orbit, one full period
+                  </p>
+                )}
                 <button type="button" className="globe-button" onClick={() => setStation(null)}>
                   ← Back to full view
                 </button>
@@ -870,8 +876,13 @@ export default function SatelliteGlobe({
                 <p className="globe-muted">
                   {fmtKm(focus.missKm)} apart at {formatUtc(Date.parse(focus.tcaUtc))} UTC
                 </p>
-                {focusMissing && (
+                {focusMissing ? (
                   <p className="globe-muted">One of these objects isn&apos;t in this snapshot.</p>
+                ) : (
+                  <p className="globe-muted">
+                    <span className="globe-orbit-key" style={{ background: ORBIT_COLOR }} />
+                    Both orbits, one full period each
+                  </p>
                 )}
                 <button type="button" className="globe-button" onClick={goLive}>
                   ← Back to full view
