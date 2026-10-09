@@ -507,6 +507,25 @@
   font-size: 0.8rem;
 }
 
+.globe-sky-bodies {
+  color: var(--globe-ink-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+/* Sun, Moon and planet names on the dome. */
+.globe-sky-label.is-body {
+  color: var(--globe-ink);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.globe-sky-label.is-body.is-active {
+  font-weight: 700;
+}
+
 .globe-sky-note a {
   color: inherit;
 }
@@ -903,7 +922,8 @@
     flex-direction: column;
   }
 
-  .globe-sky-panel.is-compact .globe-sky-sun {
+  .globe-sky-panel.is-compact .globe-sky-sun,
+  .globe-sky-panel.is-compact .globe-sky-bodies {
     grid-column: 1 / -1;
   }
 }

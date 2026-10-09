@@ -20,6 +20,7 @@ import {
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf } from '../globe/groups'
 import { geocodePlace } from '../globe/geocode'
 import { PHASE_LABEL, twilightPhase } from '../globe/twilight'
+import { aboveHorizon, moonPhaseName, nextSelection, type SkyBody } from '../globe/skybodies'
 import { phoneSideDock } from '../globe/layout'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
@@ -155,6 +156,12 @@ export default function SatelliteGlobe({
   const [dayNight, setDayNight] = useState(true)
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
   const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
+  // The Sky view's Sun, Moon and planets, and the selected one (a body
+  // selection and a satellite selection replace each other: nextSelection).
+  const [skyBodies, setSkyBodies] = useState<SkyBody[]>([])
+  const [skyBody, setSkyBody] = useState<string | null>(null)
+  // On a phone the body panel folds like the satellite one; the open one's key.
+  const [bodyDetailsFor, setBodyDetailsFor] = useState<string | null>(null)
   const [skySun, setSkySun] = useState<{ azDeg: number; elDeg: number } | null>(null)
   // On a phone in the Sky view the selected object's panel starts as a
   // two-line summary; this holds the object whose full details are open.
@@ -179,13 +186,22 @@ export default function SatelliteGlobe({
   const focusedRef = useRef<FocusRequest | null>(null)
   const stationRef = useRef<string | null>(null)
   const handlePick = useRef<(index: number | null) => void>(() => {})
+  const handlePickBody = useRef<(key: string) => void>(() => {})
   useEffect(() => {
     handlePick.current = (index) => {
       if (focus || station) releasedRef.current = true
       if (focus) onExitFocus()
       if (station) setStation(null)
       if (index === null) engineRef.current?.clearSelection()
-      setInspect(index)
+      const next = nextSelection({ satellite: inspect, body: skyBody }, { type: 'pickSatellite', index })
+      setSkyBody(next.body)
+      setInspect(next.satellite)
+    }
+    handlePickBody.current = (key) => {
+      const next = nextSelection({ satellite: inspect, body: skyBody }, { type: 'pickBody', key })
+      engineRef.current?.clearSelection()
+      setInspect(next.satellite)
+      setSkyBody(next.body)
     }
   })
 
@@ -209,6 +225,7 @@ export default function SatelliteGlobe({
           setInspectSky(engineRef.current?.inspectedSky() ?? null)
           setOrbitPeriodMs(engineRef.current?.inspectedOrbitPeriodMs() ?? null)
           setSkySun(engineRef.current?.skySun() ?? null)
+          setSkyBodies(engineRef.current?.skyBodiesNow() ?? [])
           const stage = stageRef.current
           const side = sideRef.current
           const legend = legendRef.current
@@ -230,6 +247,7 @@ export default function SatelliteGlobe({
           if (engineClock) setClockState(engineClock)
         },
         onPick: (index) => handlePick.current(index),
+          onPickBody: (key) => handlePickBody.current(key),
       },
       NIGHT_TEXTURE_URL,
     )
@@ -420,7 +438,14 @@ export default function SatelliteGlobe({
   if (prevViewMode !== viewMode) {
     setPrevViewMode(viewMode)
     if (viewMode === 'sky' && station) setStation(null)
+    // Planets, the Moon and the Sun exist only in Sky: leaving it clears a body.
+    const next = nextSelection({ satellite: inspect, body: skyBody }, { type: 'view', mode: viewMode })
+    if (next.body !== skyBody) setSkyBody(next.body)
   }
+
+  useEffect(() => {
+    engineRef.current?.setSelectedBody(skyBody)
+  }, [skyBody])
 
   const useMyLocation = () => {
     if (!('geolocation' in navigator)) {
@@ -563,6 +588,17 @@ export default function SatelliteGlobe({
     </p>
   )
 
+  // The Sun, Moon and planets above the horizon, highest first, as plain text
+  // (outside any live region, like the other changing numbers).
+  const skyBodiesUp = aboveHorizon(skyBodies)
+  const skyBodiesLine = observer && skyBodies.length > 0 && (
+    <p className="globe-sky-bodies">
+      {skyBodiesUp.length
+        ? `Up now: ${skyBodiesUp.map((b) => `${b.name} ${Math.round(b.elDeg)}°`).join(', ')}`
+        : 'No planets, Moon or Sun above your horizon.'}
+    </p>
+  )
+
   const skyCountLine =
     skyAbove > 0 ? (
       <p className="globe-sky-count">{fmt(skyAbove)} above your horizon</p>
@@ -604,14 +640,16 @@ export default function SatelliteGlobe({
   // "Deselected", or a newly chosen location. The numbers that change as time
   // plays (azimuth, elevation, range, the above-horizon count) stay out of any
   // live region; they remain readable in the panels.
-  const announcedId = inspected?.norad_id ?? null
+  const selectedBody = skyBody ? (skyBodies.find((b) => b.key === skyBody) ?? null) : null
+  const announcedId = inspected ? `sat:${inspected.norad_id}` : skyBody ? `body:${skyBody}` : null
   const announcedPlace = observer?.label ?? null
   const [prevAnnounced, setPrevAnnounced] = useState({ id: announcedId, place: announcedPlace })
   const [announcement, setAnnouncement] = useState('')
   if (prevAnnounced.id !== announcedId || prevAnnounced.place !== announcedPlace) {
     setPrevAnnounced({ id: announcedId, place: announcedPlace })
     if (prevAnnounced.id !== announcedId) {
-      setAnnouncement(inspected ? `Selected ${inspected.name}` : 'Deselected')
+      const name = inspected?.name ?? selectedBody?.name ?? (skyBody ? skyBody : null)
+      setAnnouncement(name ? `Selected ${name}` : 'Deselected')
     } else if (announcedPlace) {
       setAnnouncement(`Showing the sky from ${announcedPlace}`)
     }
@@ -778,7 +816,7 @@ export default function SatelliteGlobe({
           </div>
         )}
 
-        {(focus || inspected || stationDef || viewMode === 'sky') && (
+        {(focus || inspected || stationDef || viewMode === 'sky' || selectedBody) && (
           <div
             ref={sideRef}
             className="globe-side"
@@ -802,6 +840,7 @@ export default function SatelliteGlobe({
                     <p className="globe-sky-compact-where">{observer.label}</p>
                     {skyCountLine}
                     {skySunLine}
+                    {skyBodiesLine}
                     <div className="globe-sky-actions">
                       <button
                         type="button"
@@ -871,6 +910,7 @@ export default function SatelliteGlobe({
                         </p>
                         {skyCountLine}
                         {skySunLine}
+                        {skyBodiesLine}
                         <button
                           type="button"
                           className="globe-button globe-sky-reset"
@@ -942,6 +982,82 @@ export default function SatelliteGlobe({
                 <button type="button" className="globe-button" onClick={goLive}>
                   ← Back to full view
                 </button>
+              </div>
+            )}
+            {selectedBody && viewMode === 'sky' && (
+              <div
+                className={`globe-panel globe-inspect globe-body is-sky${
+                  bodyDetailsFor !== selectedBody.key ? ' is-collapsed' : ''
+                }`}
+                role="region"
+                aria-label="Selected object"
+              >
+                <div className="globe-panel-head">
+                  <p className="globe-panel-title">
+                    <span className="globe-ring-key" style={{ borderColor: RING_INSPECT }} />
+                    {selectedBody.kind === 'planet'
+                      ? 'Planet'
+                      : selectedBody.kind === 'moon'
+                        ? 'The Moon'
+                        : 'The Sun'}
+                  </p>
+                  <button
+                    type="button"
+                    className="globe-inspect-more"
+                    aria-expanded={bodyDetailsFor === selectedBody.key}
+                    aria-controls="globe-body-details"
+                    onClick={() =>
+                      setBodyDetailsFor(bodyDetailsFor === selectedBody.key ? null : selectedBody.key)
+                    }
+                  >
+                    {bodyDetailsFor === selectedBody.key ? 'Less' : 'Details'}
+                  </button>
+                  <button
+                    type="button"
+                    className="globe-close"
+                    aria-label="Close details"
+                    onClick={() => handlePick.current(null)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="globe-inspect-name">{selectedBody.name}</p>
+                <p className="globe-inspect-summary">
+                  {selectedBody.elDeg <= 0
+                    ? 'Below your horizon right now'
+                    : `Az ${selectedBody.azDeg.toFixed(1)}° · El ${selectedBody.elDeg.toFixed(1)}°`}
+                </p>
+                <div id="globe-body-details" className="globe-inspect-details">
+                  <dl>
+                    <dt>Azimuth</dt>
+                    <dd>{selectedBody.azDeg.toFixed(1)}°</dd>
+                    <dt>Elevation</dt>
+                    <dd>{selectedBody.elDeg.toFixed(1)}°</dd>
+                    <dt>Magnitude</dt>
+                    <dd>{selectedBody.mag.toFixed(1)}</dd>
+                    <dt>Distance</dt>
+                    <dd>
+                      {selectedBody.kind === 'moon'
+                        ? fmtKm(Math.round(selectedBody.distKm))
+                        : `${selectedBody.distAu.toFixed(selectedBody.distAu < 10 ? 3 : 2)} AU`}
+                    </dd>
+                    {selectedBody.illuminated !== undefined && (
+                      <>
+                        <dt>Illuminated</dt>
+                        <dd>
+                          {Math.round(selectedBody.illuminated * 100)}% ·{' '}
+                          {moonPhaseName(selectedBody.illuminated, selectedBody.waxing ?? true)}
+                        </dd>
+                      </>
+                    )}
+                  </dl>
+                  {selectedBody.elDeg <= 0 && (
+                    <p className="globe-sky-below">Below your horizon right now.</p>
+                  )}
+                  <button type="button" className="globe-button" onClick={() => handlePick.current(null)}>
+                    Deselect
+                  </button>
+                </div>
               </div>
             )}
             {inspected && (

@@ -5,6 +5,7 @@ import {
   geoBeltAzimuth,
   geoBeltElevation,
   phoneSideDock,
+  placeLabels,
   ringLabelElevation,
 } from '../src/globe/layout.ts'
 import { lookAngles, observerFrame } from '../src/globe/sky.ts'
@@ -80,4 +81,48 @@ test('a crowded ring label moves to the far side of its ring', () => {
   for (const belt of [28.5, 29.2, 30, 30.7, 31.4]) {
     assert.ok(Math.abs(ringLabelElevation(30, belt, 1.8) - belt) >= 1.8 - 1e-9, `belt ${belt}`)
   }
+})
+
+// Sky body labels.
+
+test('a body label sits below its marker when that spot is free', () => {
+  const placed = placeLabels([{ id: 'jupiter', x: 100, y: 100, r: 8, w: 50, h: 14 }], [], { w: 400, h: 300 })
+  assert.deepEqual(placed.get('jupiter'), { x: 75, y: 112, w: 50, h: 14 })
+})
+
+test('a label moves to its next spot to clear a grid label, then another label', () => {
+  // A "30°" label right under the marker pushes the planet's name to the right.
+  const grid = { x: 80, y: 110, w: 40, h: 14 }
+  const first = placeLabels([{ id: 'saturn', x: 100, y: 100, r: 6, w: 44, h: 14 }], [grid], { w: 400, h: 300 })
+  assert.deepEqual(first.get('saturn'), { x: 110, y: 93, w: 44, h: 14 })
+  // Two bodies close together: the brighter (first) keeps below, the other moves.
+  const two = placeLabels(
+    [
+      { id: 'venus', x: 100, y: 100, r: 10, w: 40, h: 14 },
+      { id: 'mercury', x: 104, y: 100, r: 7, w: 52, h: 14 },
+    ],
+    [],
+    { w: 400, h: 300 },
+  )
+  assert.deepEqual(two.get('venus'), { x: 80, y: 114, w: 40, h: 14 })
+  const m = two.get('mercury')!
+  assert.ok(m && !(m.x < 120 && 80 < m.x + m.w && m.y < 128 && 114 < m.y + m.h), 'no overlap')
+})
+
+test('a label with no free spot is hidden unless forced (the selected body)', () => {
+  const walls = [{ x: 0, y: 0, w: 400, h: 300 }]
+  const q = { id: 'neptune', x: 200, y: 150, r: 3, w: 50, h: 14 }
+  assert.equal(placeLabels([q], walls, { w: 400, h: 300 }).get('neptune'), null)
+  assert.ok(placeLabels([{ ...q, force: true }], walls, { w: 400, h: 300 }).get('neptune'))
+  // Off-screen spots are never used: a marker at the bottom edge labels above.
+  const edge = placeLabels([{ id: 'moon', x: 200, y: 295, r: 15, w: 40, h: 14 }], [], { w: 400, h: 300 })
+  assert.ok(edge.get('moon')!.y + 14 <= 295)
+})
+
+test('a spot that fails the extra test (below the horizon) is skipped', () => {
+  // Horizon at y = 200: the Sun just above it labels above, not on the ground.
+  const sun = { id: 'sun', x: 300, y: 195, r: 15, w: 30, h: 14 }
+  const r = placeLabels([sun], [], { w: 600, h: 400 }, (s) => s.y + s.h / 2 < 200).get('sun')!
+  assert.ok(r.y + r.h / 2 < 200)
+  assert.notDeepEqual(r, { x: 285, y: 214, w: 30, h: 14 }) // not the default "below" spot
 })
