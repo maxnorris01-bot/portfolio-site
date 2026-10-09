@@ -85,3 +85,67 @@ export function ringLabelElevation(
   if (beltDeg === null || Math.abs(beltDeg - ringDeg) >= clearanceDeg) return ringDeg
   return beltDeg >= ringDeg ? beltDeg - clearanceDeg : beltDeg + clearanceDeg
 }
+
+// Sky body labels (Sun, Moon, planets): each tries a few spots around its
+// marker, in priority order, and takes the first that stays on screen and
+// clears every obstacle (grid and compass labels, markers, the selected
+// satellite's label) and every label already placed. A label with no free
+// spot is hidden, except a forced one (the selected body), which takes its
+// first on-screen spot regardless.
+
+export interface Rect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export interface LabelRequest {
+  id: string
+  /** Marker centre on screen, px. */
+  x: number
+  y: number
+  /** Marker radius, px: labels sit just outside it. */
+  r: number
+  w: number
+  h: number
+  force?: boolean
+}
+
+const LABEL_GAP_PX = 4
+
+const overlaps = (a: Rect, b: Rect) =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+
+/** Candidate spots for a label, best first: below, right, above, left of its marker. */
+export function labelSpots(q: LabelRequest): Rect[] {
+  const d = q.r + LABEL_GAP_PX
+  return [
+    { x: q.x - q.w / 2, y: q.y + d, w: q.w, h: q.h },
+    { x: q.x + d, y: q.y - q.h / 2, w: q.w, h: q.h },
+    { x: q.x - q.w / 2, y: q.y - d - q.h, w: q.w, h: q.h },
+    { x: q.x - d - q.w, y: q.y - q.h / 2, w: q.w, h: q.h },
+  ]
+}
+
+/** Places labels in the given (priority) order; null means hidden. */
+export function placeLabels(
+  requests: readonly LabelRequest[],
+  obstacles: readonly Rect[],
+  bounds: { w: number; h: number },
+  /** Extra test a spot must pass, e.g. "not below the horizon". */
+  allowed: (r: Rect) => boolean = () => true,
+): Map<string, Rect | null> {
+  const placed: Rect[] = []
+  const out = new Map<string, Rect | null>()
+  const onScreen = (r: Rect) =>
+    r.x >= 0 && r.y >= 0 && r.x + r.w <= bounds.w && r.y + r.h <= bounds.h && allowed(r)
+  for (const q of requests) {
+    const spots = labelSpots(q).filter(onScreen)
+    const free = spots.find((s) => !obstacles.some((o) => overlaps(s, o)) && !placed.some((p) => overlaps(s, p)))
+    const pick = free ?? (q.force ? spots[0] : undefined) ?? null
+    if (pick) placed.push(pick)
+    out.set(q.id, pick)
+  }
+  return out
+}

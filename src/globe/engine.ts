@@ -28,7 +28,15 @@ import {
   toEnu,
   writeDome,
 } from './sky'
-import { geoBeltAzimuth, geoBeltElevation, ringLabelElevation } from './layout'
+import {
+  geoBeltAzimuth,
+  geoBeltElevation,
+  placeLabels,
+  ringLabelElevation,
+  type LabelRequest,
+  type Rect,
+} from './layout'
+import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
 import { MAX_ORBITS, orbitNeedsRefresh, orbitPeriodMs, orbitTargets, sampleOrbit } from './orbit'
 import { DAY_MS } from './timeline'
 import { EARTH_FRAGMENT_SHADER, EARTH_VERTEX_SHADER } from './daynight'
@@ -223,6 +231,27 @@ function makeSunTexture(): THREE.Texture {
   return tex
 }
 
+// A planet's disc: a filled circle with a dark rim like the satellite points
+// (white; the marker's colour tints it), so it reads on any sky.
+function makeBodyTexture(): THREE.Texture {
+  const size = 64
+  const c = size / 2
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#05070d'
+  ctx.beginPath()
+  ctx.arc(c, c, c - 1, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath()
+  ctx.arc(c, c, c * 0.78, 0, Math.PI * 2)
+  ctx.fill()
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
 // One always-on-top ring marking a single object.
 function makeRing(texture: THREE.Texture, color: string, px: number): THREE.Points {
   const geometry = new THREE.BufferGeometry()
@@ -319,6 +348,18 @@ export class GlobeEngine {
     sunDir: { value: new THREE.Vector3() },
   }
   private readonly skySunMarker: THREE.Points
+  // The Moon and planets (planets.ts, loaded lazily once there's an observer).
+  private bodyEphem: typeof import('./planets') | null = null
+  private bodyEphemLoading = false
+  private skyBodyList: SkyBody[] = []
+  private readonly bodyUpdate = { simMs: Number.NaN, realMs: 0, obsKey: '', costMs: 0 }
+  private readonly bodyMarkers = new Map<string, { points: THREE.Points; label: HTMLDivElement }>()
+  private readonly moonPhase: { canvas: HTMLCanvasElement; tex: THREE.CanvasTexture; k: number; rot: number }
+  private selectedBody: string | null = null
+  // Where each body's disc was drawn last frame (CSS px), for picking.
+  private skyBodyScreen: { key: string; x: number; y: number; r: number }[] = []
+  private readonly onPickBody?: (key: string) => void
+  private readonly labelSizes = new Map<HTMLElement, { w: number; h: number }>()
   private readonly skySunLabel: HTMLDivElement
   private skySunAngles: { azDeg: number; elDeg: number } | null = null
   // Orbit lines for the current selection (orbitTargets in orbit.ts): one
@@ -397,13 +438,18 @@ export class GlobeEngine {
   constructor(
     container: HTMLElement,
     textureUrl: string,
-    callbacks: { onTick?: (simMs: number) => void; onPick?: (index: number | null) => void } = {},
+    callbacks: {
+      onTick?: (simMs: number) => void
+      onPick?: (index: number | null) => void
+      onPickBody?: (key: string) => void
+    } = {},
     /** City lights for the night side; loaded after the day texture, optional. */
     nightTextureUrl?: string,
   ) {
     this.container = container
     this.onTick = callbacks.onTick
     this.onPick = callbacks.onPick
+    this.onPickBody = callbacks.onPickBody
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setClearColor(0x05070d)
@@ -575,10 +621,31 @@ export class GlobeEngine {
     ;(this.skySunMarker.material as THREE.PointsMaterial).depthTest = true
     this.skyScene.add(skyDome, this.skySunMarker)
     this.skySunLabel = document.createElement('div')
-    this.skySunLabel.className = 'globe-sky-label is-ring'
+    this.skySunLabel.className = 'globe-sky-label is-body'
     this.skySunLabel.textContent = 'Sun'
     this.skySunLabel.hidden = true
     container.appendChild(this.skySunLabel)
+    // The Moon and planets: a disc each (sized per update), and a name label.
+    // The Moon's disc is drawn with its phase, lit limb toward the Sun.
+    const moonCanvas = document.createElement('canvas')
+    moonCanvas.width = moonCanvas.height = 128
+    const moonTex = new THREE.CanvasTexture(moonCanvas)
+    moonTex.colorSpace = THREE.SRGBColorSpace
+    this.moonPhase = { canvas: moonCanvas, tex: moonTex, k: -1, rot: 0 }
+    const bodyTex = makeBodyTexture()
+    for (const def of SKY_BODIES) {
+      if (def.key === 'sun') continue
+      const points = makeRing(def.key === 'moon' ? moonTex : bodyTex, def.color, 10 * pr)
+      // Under the satellites, so a satellite crossing the Moon stays visible.
+      points.renderOrder = 2.5
+      this.skyScene.add(points)
+      const label = document.createElement('div')
+      label.className = 'globe-sky-label is-body'
+      label.textContent = def.name
+      label.hidden = true
+      container.appendChild(label)
+      this.bodyMarkers.set(def.key, { points, label })
+    }
     this.skyInspectLabel = document.createElement('div')
     this.skyInspectLabel.className = 'globe-sky-label is-selected'
     this.skyInspectLabel.hidden = true
@@ -861,6 +928,8 @@ export class GlobeEngine {
       const nb = this.viewMode === 'globe' ? (this.neighbor?.index ?? -1) : -1
       dimExcept(base, draw, [sel, nb], DIM_ALPHA)
     }
+    // A selected planet, Moon or Sun dims every satellite, like any selection.
+    else if (this.selectedBody !== null && this.viewMode === 'sky') dimExcept(base, draw, [], DIM_ALPHA)
     else draw.set(base)
     const attr = this.geometry.getAttribute('color') as THREE.BufferAttribute | undefined
     if (attr) attr.needsUpdate = true
@@ -924,8 +993,92 @@ export class GlobeEngine {
     this.linkLabel.hidden = true
     for (const l of this.skyLabels) l.el.hidden = mode !== 'sky'
     this.skyInspectLabel.hidden = true
+    // Bodies exist only in the Sky view: a body selection ends with it.
+    if (mode !== 'sky') {
+      this.selectedBody = null
+      this.skySunLabel.hidden = true
+      for (const m of this.bodyMarkers.values()) m.label.hidden = true
+    }
     this.applyDim()
   }
+
+  /** Select a sky body (Sun, Moon or planet key) in the Sky view, or null. */
+  setSelectedBody(key: string | null) {
+    this.selectedBody = key
+    this.applyDim()
+  }
+
+  /** The Sun, Moon and planets for the observer at the displayed time (empty until loaded). */
+  skyBodiesNow(): SkyBody[] {
+    return this.observer ? this.skyBodyList : []
+  }
+
+  // Recompute the bodies at most every 100 ms of real time and only once the
+  // displayed time has moved a second (they move slowly); at once for a new
+  // observer or a jump of more than a minute.
+  private updateSkyBodies(simMs: number, date: Date) {
+    const obs = this.observer
+    if (!obs || !this.bodyEphem) return
+    const u = this.bodyUpdate
+    const key = `${obs.latDeg},${obs.lonDeg}`
+    const now = performance.now()
+    const dSim = Math.abs(simMs - u.simMs)
+    const due = key !== u.obsKey || !(dSim < 60_000) || (dSim >= 1000 && now - u.realMs >= 100)
+    if (!due) return
+    this.skyBodyList = this.bodyEphem.computeSkyBodies(date, obs.latDeg, obs.lonDeg)
+    u.simMs = simMs
+    u.realMs = now
+    u.obsKey = key
+    u.costMs = performance.now() - now
+  }
+
+  // A label's size, measured once (labels don't change text).
+  private labelSize(el: HTMLElement): { w: number; h: number } {
+    const known = this.labelSizes.get(el)
+    if (known && known.w > 0) return known
+    const wasHidden = el.hidden
+    el.style.visibility = 'hidden'
+    el.hidden = false
+    const size = { w: el.offsetWidth, h: el.offsetHeight }
+    el.hidden = wasHidden
+    el.style.visibility = ''
+    this.labelSizes.set(el, size)
+    return size
+  }
+
+  // Redraw the Moon's disc: lit fraction k, lit limb toward `rot` (radians,
+  // canvas angle, 0 = right, clockwise). The marker's tint colours it.
+  private drawMoon(k: number, rot: number) {
+    const { canvas, tex } = this.moonPhase
+    const ctx = canvas.getContext('2d')!
+    const c = canvas.width / 2
+    const r = c - 6
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.save()
+    ctx.translate(c, c)
+    ctx.rotate(rot)
+    ctx.fillStyle = '#05070d' // a dark rim, as on the satellite points
+    ctx.beginPath()
+    ctx.arc(0, 0, r + 5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#4a505c' // the unlit part: faint, so a thin crescent still reads as a disc
+    ctx.beginPath()
+    ctx.arc(0, 0, r, 0, Math.PI * 2)
+    ctx.fill()
+    // Lit part, bright limb toward +x: the right half-disc, closed by the
+    // terminator, a half-ellipse of x radius r|1 - 2k| (bulging toward the
+    // lit limb for a crescent, away from it past half).
+    ctx.fillStyle = '#ffffff'
+    ctx.beginPath()
+    ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false)
+    const rx = Math.max(r * Math.abs(1 - 2 * k), 0.01)
+    if (k < 0.5) ctx.ellipse(0, 0, rx, r, 0, Math.PI / 2, -Math.PI / 2, true)
+    else ctx.ellipse(0, 0, rx, r, 0, Math.PI / 2, (3 * Math.PI) / 2, false)
+    ctx.fill()
+    ctx.restore()
+    tex.needsUpdate = true
+  }
+
 
   /**
    * End a near-miss pair or station view without touching an inspected
@@ -1005,6 +1158,17 @@ export class GlobeEngine {
    */
   setObserver(observer: Observer | null) {
     this.observer = observer
+    if (observer && !this.bodyEphem && !this.bodyEphemLoading) {
+      this.bodyEphemLoading = true
+      import('./planets')
+        .then((m) => {
+          if (!this.disposed) this.bodyEphem = m
+        })
+        .catch(() => {
+          // No planets this time; the Sky view works without them.
+          this.bodyEphemLoading = false
+        })
+    }
     if (observer) {
       // Face the equator (south from the northern hemisphere, north from the
       // southern): stable, and where the geostationary belt and most of the
@@ -1114,6 +1278,8 @@ export class GlobeEngine {
     for (const l of this.skyLabels) l.el.remove()
     this.skyInspectLabel.remove()
     this.skySunLabel.remove()
+    for (const m of this.bodyMarkers.values()) m.label.remove()
+    this.moonPhase.tex.dispose()
     this.skyScene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
         obj.geometry.dispose()
@@ -1192,8 +1358,32 @@ export class GlobeEngine {
   // A click or tap in the Sky view picks the nearest visible object above the
   // horizon within the same screen-space radius as the globe.
   private pickSky(e: PointerEvent) {
-    if (!this.observer || !this.satrecs.length) return
+    if (!this.observer) return
     const rect = this.renderer.domElement.getBoundingClientRect()
+    const px = e.clientX - rect.left
+    const py = e.clientY - rect.top
+    const tolerance = e.pointerType === 'touch' ? PICK_PX_TOUCH : PICK_PX_MOUSE
+    // Pick priority: a click inside a body's disc picks the body; otherwise
+    // the nearest satellite within the usual radius; otherwise a body within
+    // that radius of its disc's edge.
+    const bodyAt = (extra: number) => {
+      let best: string | null = null
+      let bestD = Infinity
+      for (const b of this.skyBodyScreen) {
+        const d = Math.hypot(px - b.x, py - b.y) - b.r
+        if (d <= extra && d < bestD) {
+          best = b.key
+          bestD = d
+        }
+      }
+      return best
+    }
+    const inDisc = bodyAt(0)
+    if (inDisc) return this.onPickBody?.(inDisc)
+    if (!this.satrecs.length) {
+      const near = bodyAt(tolerance)
+      return near ? this.onPickBody?.(near) : this.onPick?.(null)
+    }
     const cam = this.skyCamera
     cam.updateMatrixWorld()
     const viewProj = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)
@@ -1204,10 +1394,14 @@ export class GlobeEngine {
       // The sky camera sits at the origin, inside the unit "Earth" sphere the
       // picker tests for occlusion, so nothing is ever treated as occluded.
       { viewProj: viewProj.elements, camera: [0, 0, 0], width: rect.width, height: rect.height },
-      e.clientX - rect.left,
-      e.clientY - rect.top,
-      e.pointerType === 'touch' ? PICK_PX_TOUCH : PICK_PX_MOUSE,
+      px,
+      py,
+      tolerance,
     )
+    if (index === null) {
+      const near = bodyAt(tolerance)
+      if (near) return this.onPickBody?.(near)
+    }
     this.onPick?.(index)
   }
 
@@ -1602,14 +1796,6 @@ export class GlobeEngine {
     const belt = obs ? geoBeltElevation(obs.latDeg) : null
     const beltAz = obs ? geoBeltAzimuth(obs.latDeg) : null
     const clearanceDeg = (LABEL_CLEAR_PX * cam.fov) / Math.max(h, 1)
-    this.skySunLabel.hidden = true
-    if (this.skySunMarker.visible && sun && sun.elDeg > 0) {
-      const v = new THREE.Vector3(...skyDirection(sun.azDeg, sun.elDeg)).project(cam)
-      if (v.z <= 1 && Math.abs(v.x) <= 1.05 && Math.abs(v.y) <= 1.05) {
-        this.skySunLabel.hidden = false
-        this.skySunLabel.style.transform = `translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h + 22}px) translate(-50%, 0)`
-      }
-    }
     for (const l of this.skyLabels) {
       if (l.ring) {
         const el = l.ring.az === beltAz ? ringLabelElevation(l.ring.el, belt, clearanceDeg) : l.ring.el
@@ -1623,7 +1809,138 @@ export class GlobeEngine {
         l.el.style.transform = `translate(${((v.x + 1) / 2) * w}px, ${((1 - v.y) / 2) * h}px) translate(-50%, -50%)`
       }
     }
+    this.placeSkyBodies(simMs, date, cam, w, h)
     this.renderer.render(this.skyScene, cam)
+  }
+
+  // Sun, Moon and planets: markers, the Moon's phase, the selected body's
+  // ring, and labels placed clear of the grid labels and of each other.
+  private placeSkyBodies(simMs: number, date: Date, cam: THREE.PerspectiveCamera, w: number, h: number) {
+    this.updateSkyBodies(simMs, date)
+    const pr = this.renderer.getPixelRatio()
+    const sun = this.skySunAngles
+    const toScreen = (dir: THREE.Vector3) => {
+      const v = dir.clone().project(cam)
+      return v.z <= 1 && Math.abs(v.x) <= 1.05 && Math.abs(v.y) <= 1.05
+        ? { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h }
+        : null
+    }
+    const narrow = w < 640
+    const screen: typeof this.skyBodyScreen = []
+    const requests: (LabelRequest & { el: HTMLDivElement })[] = []
+    // Bodies in label priority: the selected one, then by brightness (Sun,
+    // Moon, then planets).
+    const order = [...this.skyBodyList].sort((a, b) =>
+      a.key === this.selectedBody ? -1 : b.key === this.selectedBody ? 1 : a.mag - b.mag,
+    )
+    if (!this.observer || !order.length) this.skySunLabel.hidden = true
+    for (const b of order) {
+      const isSun = b.key === 'sun'
+      const marker = isSun ? null : this.bodyMarkers.get(b.key)
+      if (!isSun && !marker) continue
+      // The Sun's marker is placed by the twilight code (sun.ts); use its angles.
+      const az = isSun && sun ? sun.azDeg : b.azDeg
+      const el = isSun && sun ? sun.elDeg : b.elDeg
+      const up = this.observer !== null && el > 0
+      const dir = new THREE.Vector3(...skyDirection(az, el))
+      const size = markerSizePx(b.kind, b.mag)
+      if (marker) {
+        marker.points.visible = up
+        if (up) {
+          this.setRing(marker.points, dir.clone().multiplyScalar(DOME_RADIUS * 0.998))
+          ;(marker.points.material as THREE.PointsMaterial).size = size * pr
+        }
+      }
+      const at = up ? toScreen(dir.clone().multiplyScalar(DOME_RADIUS)) : null
+      if (b.key === 'moon' && up && at && sun) {
+        // The lit limb faces the Sun along the sky: draw it toward where a
+        // small step from the Moon toward the Sun lands on screen.
+        const m = skyDirection(az, el)
+        const t = limbDirection(m, skyDirection(sun.azDeg, sun.elDeg))
+        const step = toScreen(
+          new THREE.Vector3(m[0] + t[0] * 0.01, m[1] + t[1] * 0.01, m[2] + t[2] * 0.01).multiplyScalar(
+            DOME_RADIUS,
+          ),
+        )
+        const rot = step ? Math.atan2(step.y - at.y, step.x - at.x) : 0
+        const k = b.illuminated ?? 0
+        const dRot = Math.abs(((rot - this.moonPhase.rot + Math.PI * 3) % (Math.PI * 2)) - Math.PI)
+        if (Math.abs(k - this.moonPhase.k) > 0.003 || dRot > (2 * Math.PI) / 180) {
+          this.moonPhase.k = k
+          this.moonPhase.rot = rot
+          this.drawMoon(k, rot)
+        }
+      }
+      const label = isSun ? this.skySunLabel : marker!.label
+      if (!at) {
+        label.hidden = true
+        continue
+      }
+      screen.push({ key: b.key, x: at.x, y: at.y, r: size / 2 })
+      if (showsLabel(b, narrow, this.selectedBody)) {
+        const { w: lw, h: lh } = this.labelSize(label)
+        requests.push({
+          id: b.key,
+          x: at.x,
+          y: at.y,
+          r: size / 2,
+          w: lw,
+          h: lh,
+          force: b.key === this.selectedBody,
+          el: label,
+        })
+      } else {
+        label.hidden = true
+      }
+    }
+    this.skyBodyScreen = screen
+
+    // The selected body's ring (sized to clear its disc), and its screen spot
+    // for the phone panel dock.
+    const ringMat = this.skyRingInspect.material as THREE.PointsMaterial
+    if (this.selectedBody) {
+      const selected = screen.find((x) => x.key === this.selectedBody)
+      this.skyRingInspect.visible = selected !== undefined
+      this.skySelScreen = selected ? { x: selected.x, y: selected.y } : null
+      const b = this.skyBodyList.find((x) => x.key === this.selectedBody)
+      if (selected && b) {
+        const az = b.key === 'sun' && sun ? sun.azDeg : b.azDeg
+        const el = b.key === 'sun' && sun ? sun.elDeg : b.elDeg
+        this.setRing(this.skyRingInspect, new THREE.Vector3(...skyDirection(az, el)).multiplyScalar(DOME_RADIUS))
+        ringMat.size = Math.max(26, selected.r * 2 + 14) * pr
+      }
+    } else if (ringMat.size !== 26 * pr) {
+      ringMat.size = 26 * pr
+    }
+
+    // Labels: obstacles are the visible grid and compass labels, every body
+    // disc, and the selected satellite's name.
+    const obstacles: Rect[] = []
+    for (const l of this.skyLabels) {
+      if (l.el.hidden) continue
+      const v = l.dir.clone().project(cam)
+      const { w: lw, h: lh } = this.labelSize(l.el)
+      obstacles.push({ x: ((v.x + 1) / 2) * w - lw / 2, y: ((1 - v.y) / 2) * h - lh / 2, w: lw, h: lh })
+    }
+    for (const s2 of screen) obstacles.push({ x: s2.x - s2.r, y: s2.y - s2.r, w: s2.r * 2, h: s2.r * 2 })
+    if (!this.skyInspectLabel.hidden && this.skySelScreen && this.selectedBody === null) {
+      const { w: lw, h: lh } = this.labelSize(this.skyInspectLabel)
+      obstacles.push({ x: this.skySelScreen.x + 18, y: this.skySelScreen.y - lh / 2, w: lw, h: lh })
+    }
+    // Labels stay in the sky: a spot whose centre is below the horizon (on
+    // the ground) is skipped.
+    const probe = new THREE.Vector3()
+    const inSky = (r: Rect) => {
+      probe.set(((r.x + r.w / 2) / w) * 2 - 1, 1 - ((r.y + r.h / 2) / h) * 2, 0.5).unproject(cam)
+      return probe.y > 0 // the camera sits at the origin, so this is the direction's "up" part
+    }
+    const placed = placeLabels(requests, obstacles, { w, h }, inSky)
+    for (const q of requests) {
+      const r = placed.get(q.id)
+      q.el.hidden = !r
+      q.el.classList.toggle('is-active', q.id === this.selectedBody)
+      if (r) q.el.style.transform = `translate(${r.x}px, ${r.y}px)`
+    }
   }
 
   // Keep the orbit lines on the selection (orbitTargets): each slot is
