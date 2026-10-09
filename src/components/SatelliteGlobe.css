@@ -350,12 +350,6 @@
   font-weight: 600;
 }
 
-.globe-speed button:disabled {
-  color: var(--color-text-muted);
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 .globe-live {
   display: inline-flex;
   align-items: center;
