@@ -2,7 +2,7 @@
 // conjunction-screening working notes 2026-10-03). Lazy-loaded by
 // SatelliteTool so three.js and satellite.js stay out of the main bundle.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SPEEDS, liveClock, withSpeed, type Clock } from '../globe/clock'
+import { SPEEDS, liveClock, scrubClock, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
 import { formatKm } from '../globe/format'
@@ -269,18 +269,34 @@ export default function SatelliteGlobe({
       ? focus.datasetKey
       : datasetFor(time.simMs || currentStartMs, currentStartMs, historyDates)
 
+  // The selected object's NORAD ID, so a selection survives a change of
+  // snapshot (playback or the slider crossing into another day).
+  const inspectedIdRef = useRef<number | null>(null)
+  useEffect(() => {
+    inspectedIdRef.current =
+      inspect !== null && loaded ? (loaded.file.objects[inspect]?.norad_id ?? null) : null
+  }, [inspect, loaded])
+
   // Load the snapshot for the displayed time. The previous one stays on screen
-  // until the new one arrives.
+  // until the new one arrives. A selected object stays selected if it's in the
+  // new snapshot too (its index can differ between snapshots).
   useEffect(() => {
     if (!datasetKey) return
     let live = true
     loadObjects(datasetKey)
       .then((file) => {
-        if (!live || !engineRef.current) return
-        engineRef.current.setCatalog(file.objects)
+        const engine = engineRef.current
+        if (!live || !engine) return
+        engine.setCatalog(file.objects)
+        const id = inspectedIdRef.current
+        const found = id === null ? -1 : file.objects.findIndex((o) => o.norad_id === id)
+        const next = found >= 0 ? found : null
+        // setCatalog clears the engine's selection; restore it directly, as the
+        // index may be the same number and not re-run the selection effect.
+        engine.setInspected(next)
         setLoaded({ key: datasetKey, file })
         setLoadError(null)
-        setInspect(null)
+        setInspect(next)
       })
       .catch((err: unknown) => {
         console.error(err)
@@ -483,7 +499,7 @@ export default function SatelliteGlobe({
       const tcaMs = Date.parse(focus.tcaUtc)
       const ok = engine.focusPair(focus.aId, focus.bId, tcaMs, fmtKm(focus.missKm))
       setFocusMissing(!ok)
-      setClockState({ kind: 'frozen', atMs: tcaMs })
+      setClockState(engine.getClock())
     } else if (!focus && focusedRef.current) {
       focusedRef.current = null
       setFocusMissing(false)
@@ -559,7 +575,8 @@ export default function SatelliteGlobe({
     )
 
   const isLive = clock.kind === 'live'
-  const speed = clock.kind === 'live' ? clock.speed : 1
+  // The selected speed applies wherever the time is: live, scrubbed or paused.
+  const speed = clock.speed
 
   const goLive = () => {
     if (focus) onExitFocus()
@@ -570,9 +587,10 @@ export default function SatelliteGlobe({
     applyClock(withSpeed(clock, s), false)
   }
 
+  // Jump to the picked moment and play on from it at the selected speed.
   const onSlide = (value: number) => {
     if (focus) onExitFocus()
-    applyClock({ kind: 'offset', offsetMs: value - Date.now() }, false)
+    applyClock(scrubClock(value, speed), false)
   }
 
   const bounds = current
@@ -1106,15 +1124,13 @@ export default function SatelliteGlobe({
           <div
             className="globe-speed"
             role="group"
-            aria-label="Live playback speed"
-            title={isLive ? undefined : 'Playback speed applies in Live mode'}
+            aria-label="Playback speed"
           >
             {SPEEDS.map((s) => (
               <button
                 key={s}
                 type="button"
-                aria-pressed={isLive && speed === s}
-                disabled={!isLive}
+                aria-pressed={speed === s}
                 onClick={() => onSpeed(s)}
               >
                 {s}×
@@ -1143,7 +1159,9 @@ export default function SatelliteGlobe({
                 ? speed === 1 && Math.abs(time.simMs - time.nowMs) < 2000
                   ? ' · real time'
                   : ` · ${speed}× · ${offsetLabel}`
-                : ` · ${offsetLabel}${clock.kind === 'frozen' ? ' · paused' : ''}`}
+                : clock.kind === 'frozen'
+                  ? ` · ${offsetLabel} · paused`
+                  : ` · ${speed}× · ${offsetLabel}`}
           </span>
         </p>
       </div>

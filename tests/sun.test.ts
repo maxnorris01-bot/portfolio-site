@@ -60,8 +60,9 @@ test('a surface point goes from lit to dark as time passes (London, 8 October 20
   }
   assert.ok(crossing !== null && crossing >= 17 * 60 && crossing <= 18 * 60, `crossing at ${crossing}`)
   const w = (deg: number) => dayNightWeights(Math.sin((deg * Math.PI) / 180))
-  assert.deepEqual(w(30), { day: 1, lights: 0 }) // daylight: as before
-  assert.ok(w(-3).day < 1 && w(-3).day > DAY_NIGHT.nightFloor) // inside the twilight band
+  assert.deepEqual(w(30), { day: DAY_NIGHT.dayGain, lights: 0 }) // daylight: brightened
+  assert.ok(DAY_NIGHT.dayGain > 1)
+  assert.ok(w(-3).day < DAY_NIGHT.dayGain && w(-3).day > DAY_NIGHT.nightFloor) // inside the twilight band
   assert.equal(w(-30).day, DAY_NIGHT.nightFloor) // night
   assert.equal(w(-30).lights, 1)
   // Monotone through the band: no hard line, no reversal.

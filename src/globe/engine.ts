@@ -12,7 +12,7 @@ import {
   twoline2satrec,
   type SatRec,
 } from 'satellite.js'
-import { liveClock, simTimeAt, type Clock } from './clock'
+import { clampToEnd, liveClock, scrubClock, simTimeAt, type Clock } from './clock'
 import { dimExcept } from './colors'
 import { formatKm } from './format'
 import { EARTH_RADIUS_KM, earthRotationY, writeInertial } from './frames'
@@ -351,7 +351,14 @@ export class GlobeEngine {
   // The dashed line between two objects: a near-miss pair (fixed label, the
   // report's miss distance) or the inspected object and its nearest neighbour
   // (live distance). Only one at a time, since selection is single.
-  private link: { a: number; b: number; kind: 'pair' | 'neighbor'; label: string | null } | null =
+  private link: {
+    a: number
+    b: number
+    kind: 'pair' | 'neighbor'
+    label: string | null
+    /** A pair's TCA: `label` (the reported miss distance) applies within a second of it. */
+    tcaMs?: number
+  } | null =
     null
   private inspectIdx: number | null = null
   private groupIdx: number[] | null = null
@@ -710,19 +717,22 @@ export class GlobeEngine {
     return this.clock
   }
 
-  // Live at 50x reaches the end of the ~24 h forward range (the slider's
-  // limit) in about half an hour; pause there rather than run past it.
-  private clampLive(simMs: number): number {
-    const endMs = Date.now() + DAY_MS
-    if (this.clock.kind !== 'live' || simMs <= endMs) return simMs
-    this.clock = { kind: 'frozen', atMs: endMs }
-    return endMs
+  // Playback (live or from a scrubbed time) at 50x reaches the end of the
+  // ~24 h forward range (the slider's limit) in about half an hour; pause
+  // there, keeping the speed, rather than run past it.
+  private clampToEnd(): number {
+    const now = Date.now()
+    const { clock, simMs } = clampToEnd(this.clock, now, now + DAY_MS)
+    this.clock = clock
+    return simMs
   }
 
   /**
-   * Freeze time at a conjunction's TCA, ring both objects, draw a dashed line
-   * between them labelled `label`, and fly the camera to them. Returns false
-   * if either object isn't in the loaded catalog.
+   * Jump to a conjunction's TCA, ring both objects, draw a dashed line between
+   * them labelled `label` (the reported miss distance; away from the TCA the
+   * label shows their live separation), and fly the camera to them. Time
+   * holds at the TCA during the fly-in, then plays on from it at the selected
+   * speed. Returns false if either object isn't in the loaded catalog.
    */
   focusPair(aId: number, bId: number, tcaMs: number, label: string): boolean {
     const a = this.indexById.get(aId)
@@ -734,15 +744,21 @@ export class GlobeEngine {
     if (!pa || !pb) return false
 
     this.clearSelection(false)
-    this.link = { a, b, kind: 'pair', label }
+    const link = { a, b, kind: 'pair' as const, label, tcaMs }
+    this.link = link
     this.applyDim()
-    this.setClock({ kind: 'frozen', atMs: tcaMs }, true)
+    this.setClock({ kind: 'frozen', speed: this.clock.speed, atMs: tcaMs }, true)
     this.updateLink(date)
     this.ringA.visible = this.ringB.visible = this.linkLine.visible = true
     this.controls.minDistance = FOCUS_MIN_DISTANCE
     // Look down at the pair from just outside it, with Earth behind.
     const mid = pa.add(pb).multiplyScalar(0.5)
-    this.animateCamera(mid.clone().add(mid.clone().normalize().multiplyScalar(0.9)), mid)
+    this.animateCamera(mid.clone().add(mid.clone().normalize().multiplyScalar(0.9)), mid, () => {
+      // Still this replay, still held at its TCA: play on from there.
+      if (this.link === link && this.clock.kind === 'frozen' && this.clock.atMs === tcaMs) {
+        this.setClock(scrubClock(tcaMs, this.clock.speed))
+      }
+    })
     return true
   }
 
@@ -1355,7 +1371,11 @@ export class GlobeEngine {
     } else {
       this.setRing(this.ringA, pb) // the neighbour; the inspect ring marks `a`
     }
-    this.linkLabel.textContent = link.label ?? formatKm(pa.distanceTo(pb) * EARTH_RADIUS_KM)
+    const atTca = link.tcaMs !== undefined && Math.abs(date.getTime() - link.tcaMs) < 1000
+    this.linkLabel.textContent =
+      link.label !== null && (link.tcaMs === undefined || atTca)
+        ? link.label
+        : formatKm(pa.distanceTo(pb) * EARTH_RADIUS_KM)
     const attr = this.linkLine.geometry.getAttribute('position') as THREE.BufferAttribute
     attr.setXYZ(0, pa.x, pa.y, pa.z)
     attr.setXYZ(1, pb.x, pb.y, pb.z)
@@ -1759,7 +1779,7 @@ export class GlobeEngine {
   private frame = (now: number) => {
     if (this.disposed) return
     this.frameNo++
-    const simMs = this.clampLive(this.simTimeMs())
+    const simMs = this.clampToEnd()
     const date = new Date(simMs)
     this.syncOrbits(simMs)
     this.earth.rotation.y = earthRotationY(gstime(date))

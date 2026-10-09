@@ -19,14 +19,6 @@ test('live at 1x is real time; speed scales elapsed time without a jump', () => 
   assert.equal(simTimeAt(back, t0 + 7000), t0 + 16_000)
 })
 
-test('speed only applies to live; slider and replay clocks ignore it', () => {
-  const offset = { kind: 'offset' as const, offsetMs: -3_600_000 }
-  assert.equal(withSpeed(offset, 10, 0), offset)
-  assert.equal(simTimeAt(offset, 10_000), 10_000 - 3_600_000)
-  const frozen = { kind: 'frozen' as const, atMs: 42 }
-  assert.equal(simTimeAt(frozen, 99_999), 42)
-})
-
 function view(distance: number): PickView {
   const camera = new THREE.PerspectiveCamera(40, 800 / 600, 0.001, 200)
   camera.position.set(0, 0, distance)
