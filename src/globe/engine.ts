@@ -344,6 +344,8 @@ export class GlobeEngine {
     lonDeg: number
   } | null = null
   private povSun!: THREE.Points
+  // The whole catalog's dots (hidden in the satellite view).
+  private catalogPoints!: THREE.Points
   private readonly onPovLost?: () => void
   private skyAbove = 0
   private readonly skyLabels: {
@@ -547,7 +549,8 @@ export class GlobeEngine {
       transparent: true,
       depthWrite: false,
     })
-    this.scene.add(new THREE.Points(this.geometry, this.pointsMaterial))
+    this.catalogPoints = new THREE.Points(this.geometry, this.pointsMaterial)
+    this.scene.add(this.catalogPoints)
 
     const ringTexture = dotTexture(true)
     this.ringA = makeRing(ringTexture, RING_A, 22 * pr)
@@ -956,10 +959,8 @@ export class GlobeEngine {
     if (draw.length !== base.length) return
     const sel = this.inspectIdx
     if (this.viewMode === 'pov') {
-      // Nothing is dimmed in the satellite view (the selected satellite is the
-      // camera, not a highlight), and the camera's own dot isn't drawn.
+      // No catalog is drawn in the satellite view, so nothing to dim.
       draw.set(base)
-      if (this.povIdx !== null && this.povIdx * 4 + 3 < draw.length) draw[this.povIdx * 4 + 3] = 0
     } else if (this.link?.kind === 'pair') dimExcept(base, draw, [this.link.a, this.link.b], DIM_ALPHA)
     else if (sel !== null) {
       // The live neighbour (and its line) are globe-only; in the Sky view only
@@ -1025,7 +1026,15 @@ export class GlobeEngine {
    */
   setViewMode(mode: ViewMode) {
     if (mode === this.viewMode) return
+    const leavingPov = this.viewMode === 'pov'
     this.viewMode = mode
+    // The satellite view pauses the catalog: coming back, propagate everything
+    // at once and refresh the neighbour, so the dots and the neighbour line
+    // are exactly current.
+    if (leavingPov) {
+      this.fullPending = true
+      this.neighborRefresh.dirty = true
+    }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
     this.skyPointers.clear()
@@ -1119,12 +1128,10 @@ export class GlobeEngine {
     cam.up.set(...view.up)
     cam.lookAt(pos[0] + view.look[0], pos[1] + view.look[1], pos[2] + view.look[2])
     cam.updateMatrixWorld()
-    // Near plane: under half the distance to the nearest neighbour (so even a
-    // conjunction partner tens of metres away still draws), between about
-    // 3 m and 6 km; docked pieces (under 5 m apart, the same position) don't
-    // count. Far plane past the Earth's far side and the Sun disc.
-    const nbKm = this.neighbor && this.neighbor.km >= 0.005 ? this.neighbor.km : Infinity
-    const near = Math.max(5e-7, Math.min(1e-3, (0.4 * nbKm) / EARTH_RADIUS_KM))
+    // Near plane: a fifth of the altitude (only the Earth and the Sun are
+    // drawn here), between about 60 m and 60 km; far plane past the Earth's
+    // far side and the Sun disc.
+    const near = Math.max(1e-5, Math.min(1e-2, (Math.hypot(...pos) - 1) * 0.2))
     const far = Math.hypot(...pos) + 25
     if (Math.abs(near - cam.near) > near * 0.05 || Math.abs(far - cam.far) > 1) {
       cam.near = near
@@ -1134,17 +1141,17 @@ export class GlobeEngine {
     const sun = this.earthUniforms.sunDir.value
     this.setRing(this.povSun, new THREE.Vector3(pos[0] + sun.x * 20, pos[1] + sun.y * 20, pos[2] + sun.z * 20))
     this.povSun.visible = true
-    // The viewpoint's own ring, orbit line and neighbour line would surround
-    // or start at the eye: hide them for this render only.
-    // A docked neighbour (under 5 m, the same position) sits at the eye: no
-    // ring or "0 km" callout for it.
-    const docked = this.neighbor !== null && this.neighbor !== undefined && this.neighbor.km < 0.005
-    if (docked) this.linkLabel.hidden = true
-    else this.placeMissLabel(cam, true)
+    // Only the Earth and the Sun: the catalog's dots, rings, the neighbour line
+    // and orbit lines are hidden for this render (and restored after, so the
+    // globe and Sky views find them as they were).
+    this.linkLabel.hidden = true
     const hidden = [
+      this.catalogPoints,
+      this.ringA,
+      this.ringB,
       this.ringInspect,
+      this.ringGroup,
       this.linkLine,
-      ...(docked ? [this.ringA] : []),
       ...this.orbitSlots.map((s2) => s2.line),
     ].filter((o) => o.visible)
     for (const o of hidden) o.visible = false
@@ -2194,21 +2201,17 @@ export class GlobeEngine {
 
   // Keep the miss label beside the pair on screen, hidden when the pair is
   // behind the Earth or the camera.
-  // `atEnd`: anchor at the line's far end (the neighbour), for the satellite
-  // view, where the line starts at the eye.
-  private placeMissLabel(cam: THREE.PerspectiveCamera = this.camera, atEnd = false) {
+  private placeMissLabel(cam: THREE.PerspectiveCamera = this.camera) {
     if (!this.link || !this.linkLine.visible) {
       this.linkLabel.hidden = true
       return
     }
     const attr = this.linkLine.geometry.getAttribute('position') as THREE.BufferAttribute
-    const mid = atEnd
-      ? new THREE.Vector3(attr.getX(1), attr.getY(1), attr.getZ(1))
-      : new THREE.Vector3(
-          (attr.getX(0) + attr.getX(1)) / 2,
-          (attr.getY(0) + attr.getY(1)) / 2,
-          (attr.getZ(0) + attr.getZ(1)) / 2,
-        )
+    const mid = new THREE.Vector3(
+      (attr.getX(0) + attr.getX(1)) / 2,
+      (attr.getY(0) + attr.getY(1)) / 2,
+      (attr.getZ(0) + attr.getZ(1)) / 2,
+    )
     const toMid = mid.clone().sub(cam.position)
     const ray = new THREE.Ray(cam.position, toMid.clone().normalize())
     const hit = ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), 1), new THREE.Vector3())
@@ -2278,7 +2281,9 @@ export class GlobeEngine {
     this.earth.rotation.y = earthRotationY(gstime(date))
     this.earthUniforms.sunDir.value.set(...sunDirectionScene(date))
 
-    const n = this.satrecs.length
+    // The satellite view draws no catalog: skip its propagation, the neighbour
+    // search and the markers there (setViewMode catches up on the way out).
+    const n = this.viewMode === 'pov' ? 0 : this.satrecs.length
     if (n) {
       if (this.fullPending) {
         this.propagateRange(0, n, date)
