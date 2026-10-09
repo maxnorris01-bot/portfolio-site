@@ -69,9 +69,15 @@ void main() {
 }
 `
 
-export const EARTH_FRAGMENT_SHADER = /* glsl */ `
+// The Earth's fragment shader. `tiled`: the satellite view's imagery tiles,
+// which sample their own tile image (`tileMap`, on `vUv`) and fall back to
+// the 2K day texture (on `vUvGlobal`) where the tile has no data (GIBS fills
+// gaps with black); the night lights always come from the global texture.
+function earthFragment(tiled: boolean) {
+  return /* glsl */ `
 uniform sampler2D dayMap;
 uniform sampler2D nightMap;
+${tiled ? 'uniform sampler2D tileMap;\nvarying vec2 vUvGlobal;' : ''}
 uniform vec3 tint;
 uniform vec3 sunDir;
 uniform float enabled;
@@ -79,15 +85,41 @@ uniform float hasLights;
 varying vec2 vUv;
 varying vec3 vNormalW;
 void main() {
-  vec3 day = texture2D(dayMap, vUv).rgb * tint;
+${
+  tiled
+    ? `  vec2 g = vUvGlobal;
+  vec3 tile = texture2D(tileMap, vUv).rgb;
+  vec3 base = texture2D(dayMap, g).rgb;
+  vec3 day = mix(base, tile, step(0.012, dot(tile, vec3(0.333)))) * tint;`
+    : `  vec2 g = vUv;
+  vec3 day = texture2D(dayMap, g).rgb * tint;`
+}
   float s = dot(normalize(vNormalW), sunDir);
   float lit = smoothstep(${f(Math.sin(DAY_NIGHT.fullNightDeg * DEG))}, ${f(Math.sin(DAY_NIGHT.fullDayDeg * DEG))}, s);
   float dark = 1.0 - smoothstep(${f(Math.sin(DAY_NIGHT.lightsFullDeg * DEG))}, 0.0, s);
   float dayW = mix(1.0, ${f(DAY_NIGHT.nightFloor)} + ${f(DAY_NIGHT.dayGain - DAY_NIGHT.nightFloor)} * lit, enabled);
   float lightsW = enabled * hasLights * dark;
-  vec3 lights = texture2D(nightMap, vUv).rgb;
+  vec3 lights = texture2D(nightMap, g).rgb;
   lights *= smoothstep(${f(DAY_NIGHT.lightsFrom)}, ${f(DAY_NIGHT.lightsTo)}, dot(lights, vec3(0.2126, 0.7152, 0.0722)));
   gl_FragColor = vec4(day * dayW + lights * lightsW, 1.0);
   #include <colorspace_fragment>
 }
 `
+}
+
+export const EARTH_FRAGMENT_SHADER = earthFragment(false)
+
+/** The satellite view's imagery tiles: the same lighting on tile images. */
+export const TILE_VERTEX_SHADER = /* glsl */ `
+attribute vec2 uvGlobal;
+varying vec2 vUv;
+varying vec2 vUvGlobal;
+varying vec3 vNormalW;
+void main() {
+  vUv = uv;
+  vUvGlobal = uvGlobal;
+  vNormalW = normalize(mat3(modelMatrix) * normal);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+export const TILE_FRAGMENT_SHADER = earthFragment(true)

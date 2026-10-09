@@ -1209,6 +1209,15 @@ export default function SatelliteGlobe({
                     <dd>{Math.round(povInfo.fov)}°</dd>
                   </dl>
                 )}
+                {povInfo && (
+                  <p className="globe-muted globe-pov-imagery">
+                    {povInfo.imagery.state === 'offline'
+                      ? 'Imagery unavailable right now: showing the built-in Earth texture.'
+                      : povInfo.imagery.date
+                        ? `Imagery: ${povInfo.imagery.date} (NASA GIBS)`
+                        : 'Imagery: loading…'}
+                  </p>
+                )}
               </div>
             )}
             {inspected && viewMode !== 'pov' && (
@@ -1452,7 +1461,9 @@ export default function SatelliteGlobe({
           ? 'Earlier days appear on the slider as daily snapshots accumulate. '
           : ''}
         Earth imagery: NASA Visible Earth (Blue Marble); city lights: NASA Earth Observatory (Black
-        Marble 2016, Suomi NPP VIIRS).
+        Marble 2016, Suomi NPP VIIRS). Satellite view: we acknowledge the use of imagery provided by
+        services from NASA&apos;s Global Imagery Browse Services (GIBS), part of NASA&apos;s Earth
+        Science Data and Information System (ESDIS).
       </p>
       {loaded && (
         <CollisionHistory

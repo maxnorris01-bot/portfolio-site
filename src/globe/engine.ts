@@ -37,8 +37,10 @@ import {
   type Rect,
 } from './layout'
 import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
+import { LEVEL_KM, minFovForImagery } from './gibs'
 import {
   POV_FOV_DEFAULT,
+  POV_FOV_MIN,
   POV_PITCH_MAX,
   applyLook,
   presetView,
@@ -344,6 +346,12 @@ export class GlobeEngine {
     lonDeg: number
   } | null = null
   private povSun!: THREE.Points
+  // NASA GIBS tiles for the satellite view's Earth (earthTiles.ts), loaded the
+  // first time the view opens; and the narrowest zoom the imagery supports.
+  private earthTiles: import('./earthTiles').EarthTiles | null = null
+  private tilesModule: typeof import('./earthTiles') | null = null
+  private tilesLoading = false
+  private povMinFov = POV_FOV_MIN
   // The whole catalog's dots (hidden in the satellite view).
   private catalogPoints!: THREE.Points
   private readonly onPovLost?: () => void
@@ -1034,6 +1042,8 @@ export class GlobeEngine {
     if (leavingPov) {
       this.fullPending = true
       this.neighborRefresh.dirty = true
+      // No tile requests outside the satellite view.
+      this.earthTiles?.pause()
     }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
@@ -1063,8 +1073,33 @@ export class GlobeEngine {
     }
     this.povIdx = index
     this.povState = null
+    if (!this.tilesModule && !this.tilesLoading) {
+      this.tilesLoading = true
+      import('./earthTiles')
+        .then((m) => {
+          if (this.disposed) return
+          this.tilesModule = m
+          this.earthTiles = new m.EarthTiles(
+            this.earth,
+            this.earthUniforms,
+            this.renderer.capabilities.getMaxAnisotropy(),
+            this.tileCaps()!,
+          )
+        })
+        .catch(() => {
+          // No tiles this time: the 2K texture stays.
+          this.tilesLoading = false
+        })
+    }
     if (this.viewMode === 'pov') this.applyDim()
     else this.setViewMode('pov')
+  }
+
+  // Phones (a narrow stage) get a lower finest level and a smaller cache.
+  private tileCaps(): import('./earthTiles').TileCaps | null {
+    const m = this.tilesModule
+    if (!m) return null
+    return this.container.clientWidth < 640 ? m.PHONE_CAPS : m.DESKTOP_CAPS
   }
 
   /** Pick a look preset; the drag offset resets. */
@@ -1082,7 +1117,7 @@ export class GlobeEngine {
 
   /** Zoom the satellite view's field of view by a factor (below 1 narrows). */
   povZoom(factor: number) {
-    this.povCamera.fov = zoomFov(this.povCamera.fov, factor)
+    this.povCamera.fov = zoomFov(this.povCamera.fov, factor, this.povMinFov)
     this.povCamera.updateProjectionMatrix()
   }
 
@@ -1090,7 +1125,17 @@ export class GlobeEngine {
   povInfo() {
     if (this.viewMode !== 'pov' || !this.povState) return null
     const { altKm, speedKmS, latDeg, lonDeg } = this.povState
-    return { altKm, speedKmS, latDeg, lonDeg, ...this.povLook, fov: this.povCamera.fov }
+    const imagery = this.earthTiles?.status() ?? { date: null, state: 'starting' as const }
+    return {
+      altKm,
+      speedKmS,
+      latDeg,
+      lonDeg,
+      ...this.povLook,
+      fov: this.povCamera.fov,
+      minFov: this.povMinFov,
+      imagery,
+    }
   }
 
   // The satellite view: the viewpoint propagated exactly (never the sliced
@@ -1138,6 +1183,7 @@ export class GlobeEngine {
       cam.far = far
       cam.updateProjectionMatrix()
     }
+    this.updatePovTiles(date, pos)
     const sun = this.earthUniforms.sunDir.value
     this.setRing(this.povSun, new THREE.Vector3(pos[0] + sun.x * 20, pos[1] + sun.y * 20, pos[2] + sun.z * 20))
     this.povSun.visible = true
@@ -1157,6 +1203,51 @@ export class GlobeEngine {
     for (const o of hidden) o.visible = false
     this.renderer.render(this.scene, cam)
     for (const o of hidden) o.visible = true
+  }
+
+  // Feed the tiles the camera in the Earth's own (rotating) axes, and set the
+  // narrowest zoom from the finest imagery level allowed here and the altitude.
+  private updatePovTiles(date: Date, pos: PovVec3) {
+    const tiles = this.earthTiles
+    const cam = this.povCamera
+    const h = Math.max(1, this.container.clientHeight)
+    const caps = tiles ? this.tileCaps() : null
+    if (tiles && caps) {
+      tiles.setCaps(caps)
+      this.earth.updateMatrixWorld()
+      const camLocal = this.earth.worldToLocal(cam.position.clone())
+      const ahead = this.earth.worldToLocal(
+        cam.position.clone().add(new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)),
+      )
+      const dir = ahead.sub(camLocal).normalize()
+      const tanV = Math.tan((cam.fov * Math.PI) / 360)
+      tiles.update(
+        {
+          cam: [camLocal.x, camLocal.y, camLocal.z],
+          dir: [dir.x, dir.y, dir.z],
+          fovDeg: cam.fov,
+          halfDiagDeg: (Math.atan(tanV * Math.hypot(1, cam.aspect)) * 180) / Math.PI,
+          screenPx: h,
+        },
+        date.getTime(),
+        this.povGroundKmPerSec(pos),
+      )
+    }
+    const altKm = (Math.hypot(...pos) - 1) * EARTH_RADIUS_KM
+    const online = tiles !== null && caps !== null && tiles.status().state !== 'offline'
+    this.povMinFov = online && caps ? minFovForImagery(altKm, LEVEL_KM(caps.maxLevel), h) : POV_FOV_MIN
+    if (cam.fov < this.povMinFov) {
+      cam.fov = this.povMinFov
+      cam.updateProjectionMatrix()
+    }
+  }
+
+  // How fast the view sweeps over the ground: the sub-satellite speed (orbital
+  // speed scaled to the surface) times the playback speed; 0 when paused.
+  private povGroundKmPerSec(pos: PovVec3): number {
+    const st = this.povState
+    if (!st || this.clock.kind === 'frozen') return 0
+    return st.speedKmS * (1 / Math.hypot(...pos)) * this.clock.speed
   }
 
   /** Select a sky body (Sun, Moon or planet key) in the Sky view, or null. */
@@ -1452,6 +1543,7 @@ export class GlobeEngine {
         m.dispose()
       }
     })
+    this.earthTiles?.dispose()
     // The Earth's shader material holds its textures in uniforms, not `map`.
     this.earthUniforms.dayMap.value?.dispose()
     this.earthUniforms.nightMap.value.dispose()

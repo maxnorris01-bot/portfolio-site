@@ -1087,9 +1087,15 @@
   gap: 0.4rem;
 }
 
+.globe-pov-imagery {
+  margin: 0.5rem 0 0 !important;
+  font-size: 0.75rem;
+}
+
 @media (max-width: 640px) {
   /* Phone: name, the three looks and Back; the read-out stays off the view. */
-  .globe-pov-facts {
+  .globe-pov-facts,
+  .globe-pov-imagery {
     display: none;
   }
 

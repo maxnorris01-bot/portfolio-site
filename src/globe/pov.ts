@@ -75,17 +75,19 @@ export function applyLook(
 
 /**
  * Field of view limits. 120 degrees is a wide, still undistorted view. The
- * narrow end is 15 degrees: at GEO the Earth's disc (17.4 degrees) then fills
- * the view, which is where the 2K day texture runs out (about 2 device pixels
- * per texel there). Narrower would only magnify blur.
+ * narrow end depends on the imagery: with NASA GIBS tiles it's computed from
+ * their resolution and the altitude (minFovForImagery in gibs.ts); 15
+ * degrees is the limit for the built-in 2K texture alone (at GEO the Earth's
+ * disc, 17.4 degrees, then fills the view), used until tiles load or if GIBS
+ * is unreachable.
  */
 export const POV_FOV_MIN = 15
 export const POV_FOV_MAX = 120
 export const POV_FOV_DEFAULT = 70
 
 /** Zoom by a factor (below 1 narrows): logarithmic, so every step feels the same. */
-export function zoomFov(fov: number, factor: number): number {
-  return Math.min(POV_FOV_MAX, Math.max(POV_FOV_MIN, fov * factor))
+export function zoomFov(fov: number, factor: number, min = POV_FOV_MIN): number {
+  return Math.min(POV_FOV_MAX, Math.max(min, fov * factor))
 }
 
 /** The field of view at position t (0 = widest, 1 = narrowest) on a logarithmic scale. */
