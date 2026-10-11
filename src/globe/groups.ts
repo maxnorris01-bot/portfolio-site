@@ -39,14 +39,61 @@ export function groupOf(name: string): string {
 
 // Space stations are several tracked pieces each (modules and attached
 // vehicles with their own catalog entries); selecting one selects them all.
+// `main` is the core module's NORAD ID: the piece the satellite view rides.
 export interface Station {
   key: string
   label: string
   fullName: string
   match: (name: string) => boolean
+  main: number
 }
 
 export const STATIONS: Station[] = [
-  { key: 'iss', label: 'ISS', fullName: 'International Space Station', match: starts('ISS (') },
-  { key: 'css', label: 'Tiangong', fullName: 'Tiangong (China Space Station)', match: starts('CSS (') },
+  {
+    key: 'iss',
+    label: 'ISS',
+    fullName: 'International Space Station',
+    match: starts('ISS ('),
+    main: 25544, // ISS (ZARYA)
+  },
+  {
+    key: 'css',
+    label: 'Tiangong',
+    fullName: 'Tiangong (China Space Station)',
+    match: starts('CSS ('),
+    main: 48274, // CSS (TIANHE)
+  },
 ]
+
+/**
+ * The catalog index the satellite view rides for a station: its core module,
+ * or if that's missing from the snapshot, its oldest tracked piece (lowest
+ * NORAD ID). The docked pieces share its orbit, so any of them gives the same
+ * view; null when the station isn't in the snapshot at all.
+ */
+export function stationViewpoint(
+  station: Station,
+  objects: readonly { name: string; norad_id: number }[],
+): number | null {
+  let best: number | null = null
+  for (let i = 0; i < objects.length; i++) {
+    const o = objects[i]
+    if (!station.match(o.name)) continue
+    if (o.norad_id === station.main) return i
+    if (best === null || o.norad_id < objects[best].norad_id) best = i
+  }
+  return best
+}
+
+/**
+ * The satellite view's viewpoint for the current selection: the selected
+ * satellite (a click, or a conjunction pair's chosen piece), else the selected
+ * station's core module, else none (the view can't be entered).
+ */
+export function viewpointFor(
+  selection: { satellite: number | null; station: Station | null },
+  objects: readonly { name: string; norad_id: number }[] | null,
+): number | null {
+  if (selection.satellite !== null) return selection.satellite
+  return selection.station && objects ? stationViewpoint(selection.station, objects) : null
+}

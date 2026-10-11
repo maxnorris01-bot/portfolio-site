@@ -76,6 +76,17 @@ test('view transitions remember where you came from; entering needs a satellite'
   assert.deepEqual(nextView(s, { type: 'show', view: 'globe', canPov: true }), { view: 'globe', from: 'globe' })
 })
 
+test('from a station view: Satellite, then Back returns to the Globe it came from', () => {
+  // Stations list ISS (globe camera mode): the satellite view is available.
+  let s = { view: 'globe' as const, from: 'globe' as const } as { view: 'globe' | 'sky' | 'pov'; from: 'globe' | 'sky' }
+  s = nextView(s, { type: 'show', view: 'pov', canPov: true })
+  assert.deepEqual(s, { view: 'pov', from: 'globe' })
+  s = nextView(s, { type: 'back' })
+  assert.deepEqual(s, { view: 'globe', from: 'globe' })
+  // "Back to full view" clears the station: nothing to ride, so Satellite does nothing.
+  assert.deepEqual(nextView(s, { type: 'show', view: 'pov', canPov: false }), s)
+})
+
 test('the Earth from GEO is about 17.4 degrees across', () => {
   assert.ok(Math.abs(angularDiameterDeg(6378.137, 42164.17) - 17.4) < 0.1)
 })
