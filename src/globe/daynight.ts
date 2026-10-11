@@ -75,7 +75,9 @@ void main() {
 // gaps with black); the night lights always come from the global texture. A tile also fades in
 // as a whole (`opacity`) and along the edges flagged in `feather` (west,
 // east, north, south; `vEdge` runs 0..1 across the drawn tile), blending into
-// whatever is drawn beneath it.
+// whatever is drawn beneath it. The 2K and night textures are only read where
+// they contribute (explicit gradients keep their mip selection right inside
+// the branches).
 function earthFragment(tiled: boolean) {
   return /* glsl */ `
 uniform sampler2D dayMap;
@@ -91,9 +93,12 @@ void main() {
 ${
   tiled
     ? `  vec2 g = vUvGlobal;
+  vec2 gdx = dFdx(g);
+  vec2 gdy = dFdy(g);
   vec3 tile = texture2D(tileMap, vUv).rgb;
-  vec3 base = texture2D(dayMap, g).rgb;
-  vec3 day = mix(base, tile, step(0.012, dot(tile, vec3(0.333)))) * tint;`
+  vec3 day = tile;
+  if (dot(tile, vec3(0.333)) < 0.012) day = textureGrad(dayMap, g, gdx, gdy).rgb;
+  day *= tint;`
     : `  vec2 g = vUv;
   vec3 day = texture2D(dayMap, g).rgb * tint;`
 }
@@ -104,7 +109,8 @@ ${
   float lightsW = enabled * hasLights * dark;
 ${
   tiled
-    ? `  vec3 lights = texture2D(nightMap, g).rgb;
+    ? `  vec3 lights = vec3(0.0);
+  if (lightsW > 0.0) lights = textureGrad(nightMap, g, gdx, gdy).rgb;
   vec2 e = vEdge;
   float fw = ${f(TILE_FEATHER)};
   float a = opacity;

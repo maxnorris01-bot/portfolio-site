@@ -352,6 +352,9 @@ export class GlobeEngine {
   private tilesModule: typeof import('./earthTiles') | null = null
   private tilesLoading = false
   private povMinFov = POV_FOV_MIN
+  // Stands in for the Earth's material while the tiles cover the whole view:
+  // only depth (the Earth still hides the Sun behind it), no shading.
+  private readonly earthDepthOnly = new THREE.MeshBasicMaterial({ colorWrite: false })
   // The whole catalog's dots (hidden in the satellite view).
   private catalogPoints!: THREE.Points
   private readonly onPovLost?: () => void
@@ -1084,6 +1087,7 @@ export class GlobeEngine {
             this.earthUniforms,
             this.renderer.capabilities.getMaxAnisotropy(),
             this.tileCaps()!,
+            this.renderer,
           )
         })
         .catch(() => {
@@ -1201,7 +1205,10 @@ export class GlobeEngine {
       ...this.orbitSlots.map((s2) => s2.line),
     ].filter((o) => o.visible)
     for (const o of hidden) o.visible = false
+    const earthMaterial = this.earth.material
+    if (this.earthTiles?.coversView()) this.earth.material = this.earthDepthOnly
     this.renderer.render(this.scene, cam)
+    this.earth.material = earthMaterial
     for (const o of hidden) o.visible = true
   }
 
@@ -1544,6 +1551,7 @@ export class GlobeEngine {
       }
     })
     this.earthTiles?.dispose()
+    this.earthDepthOnly.dispose()
     // The Earth's shader material holds its textures in uniforms, not `map`.
     this.earthUniforms.dayMap.value?.dispose()
     this.earthUniforms.nightMap.value.dispose()

@@ -78,7 +78,7 @@ interface Entry {
   lastDrawn: number
 }
 
-/** A fetched, decoded tile. */
+/** A fetched, decoded tile waiting for its turn to be uploaded to the GPU. */
 interface Ready {
   id: string
   t: TileKey
@@ -102,6 +102,8 @@ const DAY_MS = 86_400_000
 const OFFLINE_RETRY_MS = 60_000
 /** A finer tile fades in over what was there before (and out again on a zoom-out). */
 export const FADE_MS = 300
+/** Tiles uploaded to the GPU per frame at most, so a burst of arrivals doesn't stall one frame. */
+const UPLOADS_PER_FRAME = 2
 /** A tile not drawn for this long fades in again when it comes back. */
 const REAPPEAR_MS = 2000
 
@@ -165,9 +167,12 @@ export class EarthTiles {
   private prevDate: string | null = null
   /** Requests started and bytes received, for the report. */
   readonly stats = { requests: 0, bytes: 0, errors: 0, cancelled: 0, drawn: 0, wanted: 0 }
+  private ready: Ready[] = []
   private keep: ReadonlySet<string> = new Set()
   private lastTop = new Set<string>()
   private readonly leaving = new Map<string, number>()
+  private covered = false
+  private readonly renderer: THREE.WebGLRenderer | undefined
   private readonly reducedMotion =
     typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : undefined
 
@@ -176,8 +181,10 @@ export class EarthTiles {
     uniforms: SharedUniforms,
     anisotropy: number,
     caps: TileCaps,
+    renderer?: THREE.WebGLRenderer,
   ) {
     this.uniforms = uniforms
+    this.renderer = renderer
     this.anisotropy = anisotropy
     this.caps = caps
     this.cache = this.makeCache(caps.cacheTiles)
@@ -211,6 +218,8 @@ export class EarthTiles {
   pause() {
     for (const c of this.pending.values()) c.abort()
     this.pending.clear()
+    for (const r of this.ready) r.image.close()
+    this.ready = []
     this.lastTop.clear()
     this.leaving.clear()
     this.group.visible = false
@@ -262,6 +271,7 @@ export class EarthTiles {
    */
   update(view: View, simMs: number, groundKmPerSec = 0) {
     this.group.visible = true
+    this.upload()
     if (this.state === 'offline') {
       if (performance.now() - this.offlineSince < OFFLINE_RETRY_MS) return this.draw(new Map())
       this.state = 'starting'
@@ -313,8 +323,10 @@ export class EarthTiles {
       }
       return undefined
     }
+    let covered = true
     for (const t of wanted) {
       const s = source.get(tileId(t))
+      if (s === 'none') covered = false
       if (s !== 'own') continue
       const id = `${this.date}|${tileId(t)}`
       const e = this.cache.peek(id)!
@@ -324,6 +336,9 @@ export class EarthTiles {
       if (alpha < 1 || feather.some(Boolean)) {
         const under = this.loadedFallback(t)
         if (under && !draws.has(under)) draws.set(under, { role: 'under', alpha: 1, feather: NO_FEATHER })
+        // Fading in over nothing: the 2K Earth shows through, so it's needed.
+        if (!under && alpha < 1) covered = false
+        if (!under && feather.some(Boolean)) covered = false
       }
       draws.set(id, { role: 'top', alpha, feather })
     }
@@ -355,8 +370,18 @@ export class EarthTiles {
       else this.leaving.delete(id)
     }
     this.lastTop = new Set([...draws].filter(([, d]) => d.role !== 'under').map(([id]) => id))
+    this.covered = covered && wanted.length > 0
     this.draw(draws)
     this.request(missing, view, new Set(draws.keys()))
+  }
+
+  /**
+   * Whether the tiles cover everything of the Earth in view this frame, so
+   * the 2K Earth beneath needn't be shaded (it still has to hide what's
+   * behind the Earth, like the Sun).
+   */
+  coversView(): boolean {
+    return this.group.visible && this.covered
   }
 
   // The best loaded stand-in for a tile not loaded yet: the same tile from the
@@ -387,6 +412,7 @@ export class EarthTiles {
       ;(u.feather.value as THREE.Vector4).set(+d.feather[0], +d.feather[1], +d.feather[2], +d.feather[3])
       if (d.role === 'top') e.lastDrawn = now
     }
+    if (!draws.size) this.covered = false
     this.stats.drawn = n
   }
 
@@ -409,8 +435,9 @@ export class EarthTiles {
       const to = [c[0] - view.cam[0], c[1] - view.cam[1], c[2] - view.cam[2]]
       return -(to[0] * view.dir[0] + to[1] * view.dir[1] + to[2] * view.dir[2]) / Math.hypot(...to)
     }
+    const queued = new Set(this.ready.map((r) => r.id))
     const queue = missing
-      .filter((t) => !this.pending.has(`${date}|${tileId(t)}`))
+      .filter((t) => !this.pending.has(`${date}|${tileId(t)}`) && !queued.has(`${date}|${tileId(t)}`))
       .sort((a, b) => a.z - b.z || centreDist(a) - centreDist(b))
     // Token bucket: a sustained `requestsPerSec`, bursting to `concurrent`.
     const now = performance.now()
@@ -443,7 +470,7 @@ export class EarthTiles {
         this.successes++
         this.failures = 0
         this.state = 'ok'
-        this.addTile({ id, t, image: bitmap, bytes })
+        this.ready.push({ id, t, image: bitmap, bytes })
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === 'AbortError') return
@@ -453,6 +480,11 @@ export class EarthTiles {
         // Repeated failures with nothing ever loaded: treat GIBS as unreachable.
         if (this.failures >= 6 && this.successes === 0) this.goOffline()
       })
+  }
+
+  // Turn up to a couple of fetched tiles a frame into textured meshes.
+  private upload() {
+    for (let k = 0; k < UPLOADS_PER_FRAME && this.ready.length; k++) this.addTile(this.ready.shift()!)
   }
 
   private addTile({ id, t, image, bytes }: Ready) {
@@ -490,6 +522,7 @@ export class EarthTiles {
     mesh.visible = false
     mesh.frustumCulled = false
     this.group.add(mesh)
+    this.renderer?.initTexture(tex)
     this.cache.set(id, { t, mesh, tex, bytes, shownAt: 0, lastDrawn: -Infinity }, this.keep)
   }
 
