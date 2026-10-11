@@ -197,7 +197,7 @@ test('"Today\'s imagery" is off by default; the panel line follows the layer sta
 test('attribution: EOX while its tiles are visible, NASA GIBS only while the overlay is on', () => {
   assert.equal(
     EOX_ATTRIBUTION,
-    'Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016)',
+    'EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016)',
   )
   assert.deepEqual(imageryCredits('globe', status()), []) // no EOX tiles outside the satellite view
   assert.deepEqual(imageryCredits('sky', status()), [])
