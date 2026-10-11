@@ -65,6 +65,36 @@ test('the satellite view rides the selected satellite, else the selected station
   assert.equal(viewpointFor({ satellite: null, station: iss }, null), null) // no snapshot yet
 })
 
+test('picking any piece of a station by its dot rides the core module; other objects ride themselves', () => {
+  const objects = [
+    { name: 'STARLINK-1007', norad_id: 44713 },
+    { name: 'ISS (NAUKA)', norad_id: 49044 },
+    { name: 'ISS (ZARYA)', norad_id: 25544 },
+    { name: 'CSS (WENTIAN)', norad_id: 53239 },
+    { name: 'CSS (TIANHE)', norad_id: 48274 },
+    { name: 'CYGNUS NG-24', norad_id: 64001 }, // a visiting vehicle: its own object
+  ]
+  assert.equal(viewpointFor({ satellite: 1, station: null }, objects), 2) // NAUKA -> ZARYA
+  assert.equal(viewpointFor({ satellite: 2, station: null }, objects), 2) // ZARYA itself
+  assert.equal(viewpointFor({ satellite: 3, station: null }, objects), 4) // WENTIAN -> TIANHE
+  assert.equal(viewpointFor({ satellite: 5, station: null }, objects), 5)
+  assert.equal(viewpointFor({ satellite: 0, station: null }, objects), 0)
+})
+
+test('a conjunction pair involving a station can be viewed from the station; other pairs cannot', () => {
+  const objects = [
+    { name: 'JACKAL X-1L-001', norad_id: 65001 },
+    { name: 'ISS (NAUKA)', norad_id: 49044 },
+    { name: 'ISS (ZARYA)', norad_id: 25544 },
+    { name: 'FENGYUN 1C DEB', norad_id: 30413 },
+    { name: 'IRIDIUM 105', norad_id: 43838 },
+  ]
+  assert.equal(viewpointFor({ satellite: null, station: null, pair: [1, 0] }, objects), 2)
+  assert.equal(viewpointFor({ satellite: null, station: null, pair: [0, 1] }, objects), 2)
+  assert.equal(viewpointFor({ satellite: null, station: null, pair: [3, 4] }, objects), null) // as before
+  assert.equal(viewpointFor({ satellite: null, station: null, pair: [0, null] }, objects), null) // B not in snapshot
+})
+
 test('nearestTo finds the closest other object and skips invalid ones', () => {
   const pos = new Float64Array([0, 0, 0, 10, 0, 0, 3, 4, 0, 1, 0, 0])
   assert.deepEqual(nearestTo(pos, 0, () => true), { index: 3, distance: 1 })

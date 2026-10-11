@@ -186,11 +186,14 @@ export default function SatelliteTool() {
   // The satellite view (pov) remembers the view it was entered from, for Back.
   const [view, setView] = useState<{ view: View; from: MainView }>({ view: 'globe', from: 'globe' })
   const viewMode = view.view
-  // Whether a single satellite is selected (the satellite view needs one).
+  // Whether there's a viewpoint (a selected satellite or station, or a pair
+  // with a station in it): the satellite view needs one.
   const [canPov, setCanPov] = useState(false)
   const setViewMode = (mode: View) => setView((v) => nextView(v, { type: 'show', view: mode, canPov }))
+  // The Sky view ends a replay; the satellite view (from a pair with a
+  // station in it) keeps it, so Back returns to the pair.
   const switchView = (mode: View) => {
-    if (mode !== 'globe' && focus) setFocus(null)
+    if (mode === 'sky' && focus) setFocus(null)
     setViewMode(mode)
   }
   const requestView = useCallback(

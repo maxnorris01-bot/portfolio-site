@@ -431,7 +431,20 @@ export default function SatelliteGlobe({
   // selected (from the Stations list), its core module. Docked pieces share
   // that orbit and, like everything else, aren't drawn in the satellite view.
   const stationForPov = station ? (STATIONS.find((s) => s.key === station) ?? null) : null
-  const povTarget = viewpointFor({ satellite: inspect, station: stationForPov }, loaded?.file.objects ?? null)
+  // A replayed near-miss pair's catalog indices, once its own snapshot is
+  // loaded: a pair with a station on one side can be viewed from the station.
+  const pairIdx = useMemo((): readonly [number | null, number | null] | null => {
+    if (!focus || !loaded || loaded.key !== focus.datasetKey) return null
+    const at = (id: number) => {
+      const i = loaded.file.objects.findIndex((o) => o.norad_id === id)
+      return i < 0 ? null : i
+    }
+    return [at(focus.aId), at(focus.bId)]
+  }, [focus, loaded])
+  const povTarget = viewpointFor(
+    { satellite: inspect, station: stationForPov, pair: pairIdx },
+    loaded?.file.objects ?? null,
+  )
 
   // The engine follows the chosen view and observer. Declared before the
   // replay/station effects so a replay started from the Sky view finds the
@@ -1076,7 +1089,7 @@ export default function SatelliteGlobe({
                 </div>
               </div>
             )}
-            {focus && (
+            {focus && viewMode !== 'pov' && (
               <div className="globe-panel" aria-live="polite">
                 <p className="globe-panel-title">Closest approach</p>
                 <p className="globe-pair">
@@ -1100,9 +1113,21 @@ export default function SatelliteGlobe({
                     Both orbits, one full period each
                   </p>
                 )}
-                <button type="button" className="globe-button" onClick={goLive}>
-                  ← Back to full view
-                </button>
+                <div className="globe-inspect-actions">
+                  <button type="button" className="globe-button" onClick={goLive}>
+                    ← Back to full view
+                  </button>
+                  {povTarget !== null && povObject && (
+                    <button
+                      type="button"
+                      className="globe-button"
+                      aria-label={`View from ${povObject.name}`}
+                      onClick={() => onViewRequest?.('pov')}
+                    >
+                      View from here
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {selectedBody && viewMode === 'sky' && (
