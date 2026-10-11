@@ -8,6 +8,7 @@ import * as THREE from 'three'
 import { TILE_FRAGMENT_SHADER, TILE_VERTEX_SHADER } from './daynight'
 import {
   LruCache,
+  featherEdges,
   maxLevelForMotion,
   domainsUrl,
   latLonToVec,
@@ -15,6 +16,7 @@ import {
   parseDomain,
   pickImageryDate,
   selectTiles,
+  tileAt,
   tileBounds,
   tileId,
   tileSpanDeg,
@@ -22,6 +24,7 @@ import {
   utcDate,
   type DateRange,
   type TileKey,
+  type TileSource,
   type View,
 } from './gibs'
 
@@ -66,13 +69,41 @@ export interface SharedUniforms {
 export type ImageryState = 'starting' | 'ok' | 'offline'
 
 interface Entry {
+  t: TileKey
   mesh: THREE.Mesh
   tex: THREE.Texture
   bytes: number
+  /** When it last started fading in, and when it was last drawn on top. */
+  shownAt: number
+  lastDrawn: number
 }
+
+/** A fetched, decoded tile. */
+interface Ready {
+  id: string
+  t: TileKey
+  image: ImageBitmap
+  bytes: number
+}
+
+// How a tile is drawn this frame. Underlays (stand-ins kept beneath a tile
+// that is fading in or has feathered edges) go first, the tiles themselves
+// next, and finer tiles fading out after a zoom-out on top.
+const ROLE_ORDER = { under: 0, top: 1, leaving: 2 } as const
+type Role = keyof typeof ROLE_ORDER
+interface Draw {
+  role: Role
+  alpha: number
+  feather: [boolean, boolean, boolean, boolean]
+}
+const NO_FEATHER: Draw['feather'] = [false, false, false, false]
 
 const DAY_MS = 86_400_000
 const OFFLINE_RETRY_MS = 60_000
+/** A finer tile fades in over what was there before (and out again on a zoom-out). */
+export const FADE_MS = 300
+/** A tile not drawn for this long fades in again when it comes back. */
+const REAPPEAR_MS = 2000
 
 // A tile's mesh: a lat/lon grid on the unit sphere (in the Earth mesh's own
 // axes), about one vertex per degree so the curve follows the sphere, with the
@@ -85,6 +116,7 @@ function tileGeometry(t: TileKey): THREE.BufferGeometry {
   const pos: number[] = []
   const uv: number[] = []
   const uvg: number[] = []
+  const edge: number[] = []
   for (let j = 0; j <= ny; j++) {
     const lat = drawn.north - ((drawn.north - drawn.south) * j) / ny
     for (let i = 0; i <= nx; i++) {
@@ -92,6 +124,7 @@ function tileGeometry(t: TileKey): THREE.BufferGeometry {
       pos.push(...latLonToVec(lat, lon))
       uv.push((lon - full.west) / span, 1 - (full.north - lat) / span)
       uvg.push((lon + 180) / 360, (lat + 90) / 180)
+      edge.push(i / nx, j / ny)
     }
   }
   const index: number[] = []
@@ -107,6 +140,7 @@ function tileGeometry(t: TileKey): THREE.BufferGeometry {
   g.setAttribute('normal', new THREE.Float32BufferAttribute(pos, 3))
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
   g.setAttribute('uvGlobal', new THREE.Float32BufferAttribute(uvg, 2))
+  g.setAttribute('edge', new THREE.Float32BufferAttribute(edge, 2))
   g.setIndex(index)
   return g
 }
@@ -131,8 +165,18 @@ export class EarthTiles {
   private prevDate: string | null = null
   /** Requests started and bytes received, for the report. */
   readonly stats = { requests: 0, bytes: 0, errors: 0, cancelled: 0, drawn: 0, wanted: 0 }
+  private keep: ReadonlySet<string> = new Set()
+  private lastTop = new Set<string>()
+  private readonly leaving = new Map<string, number>()
+  private readonly reducedMotion =
+    typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : undefined
 
-  constructor(earth: THREE.Object3D, uniforms: SharedUniforms, anisotropy: number, caps: TileCaps) {
+  constructor(
+    earth: THREE.Object3D,
+    uniforms: SharedUniforms,
+    anisotropy: number,
+    caps: TileCaps,
+  ) {
     this.uniforms = uniforms
     this.anisotropy = anisotropy
     this.caps = caps
@@ -167,6 +211,8 @@ export class EarthTiles {
   pause() {
     for (const c of this.pending.values()) c.abort()
     this.pending.clear()
+    this.lastTop.clear()
+    this.leaving.clear()
     this.group.visible = false
   }
 
@@ -217,7 +263,7 @@ export class EarthTiles {
   update(view: View, simMs: number, groundKmPerSec = 0) {
     this.group.visible = true
     if (this.state === 'offline') {
-      if (performance.now() - this.offlineSince < OFFLINE_RETRY_MS) return this.draw(new Set())
+      if (performance.now() - this.offlineSince < OFFLINE_RETRY_MS) return this.draw(new Map())
       this.state = 'starting'
       this.domain = null
       this.failures = 0
@@ -229,27 +275,88 @@ export class EarthTiles {
       this.prevDate = this.date
       this.date = picked
     }
-    if (!this.date) return this.draw(new Set())
+    if (!this.date) return this.draw(new Map())
 
     // Moving fast (playback at 10x/50x), finer tiles would be stale before
     // they arrived: cap the level to what stays on screen a couple of seconds.
     const maxLevel = Math.min(this.caps.maxLevel, maxLevelForMotion(groundKmPerSec, this.caps.maxLevel))
     const wanted = selectTiles(view, { maxLevel, maxTiles: this.caps.maxTiles })
     this.stats.wanted = wanted.length
-    const show = new Set<string>()
+    const now = performance.now()
+    const fadeMs = this.reducedMotion?.matches ? 0 : FADE_MS
+    const draws = new Map<string, Draw>()
     const missing: TileKey[] = []
+    const source = new Map<string, TileSource>()
+    const levels = new Set<number>()
     for (const t of wanted) {
-      const id = `${this.date}|${tileId(t)}`
-      if (this.cache.get(id)) {
-        show.add(id)
+      levels.add(t.z)
+      if (this.cache.get(`${this.date}|${tileId(t)}`)) {
+        source.set(tileId(t), 'own')
         continue
       }
       missing.push(t)
       const fallback = this.loadedFallback(t)
-      if (fallback) show.add(fallback)
+      source.set(tileId(t), fallback ? 'standin' : 'none')
+      if (fallback) draws.set(fallback, { role: 'under', alpha: 1, feather: NO_FEATHER })
     }
-    this.draw(show)
-    this.request(missing, view, show)
+    // Tiles that were drawn finer last frame: a tile replacing them (a
+    // zoom-out) appears at once beneath them while they fade out on top.
+    const coarserThanLast = new Set<string>()
+    for (const id of this.lastTop) {
+      const e = this.cache.peek(id)
+      for (let p = e ? parent(e.t) : null; p; p = parent(p)) coarserThanLast.add(tileId(p))
+    }
+    const sourceAt = (lat: number, lon: number) => {
+      for (const z of levels) {
+        const s = source.get(tileId(tileAt(lat, lon, z)))
+        if (s) return s
+      }
+      return undefined
+    }
+    for (const t of wanted) {
+      const s = source.get(tileId(t))
+      if (s !== 'own') continue
+      const id = `${this.date}|${tileId(t)}`
+      const e = this.cache.peek(id)!
+      if (now - e.lastDrawn > REAPPEAR_MS) e.shownAt = coarserThanLast.has(tileId(t)) ? -Infinity : now
+      const alpha = fadeMs > 0 ? Math.min(1, (now - e.shownAt) / fadeMs) : 1
+      const feather = featherEdges(t, sourceAt)
+      if (alpha < 1 || feather.some(Boolean)) {
+        const under = this.loadedFallback(t)
+        if (under && !draws.has(under)) draws.set(under, { role: 'under', alpha: 1, feather: NO_FEATHER })
+      }
+      draws.set(id, { role: 'top', alpha, feather })
+    }
+    // Finer tiles leaving after a zoom-out stay until the coarser tile that
+    // replaces them has loaded, then fade out over it.
+    const missingIds = new Set(missing.map(tileId))
+    for (const id of this.lastTop) {
+      if (draws.has(id)) continue
+      const e = this.cache.peek(id)
+      let replaced = false
+      let awaited = false
+      for (let p = e ? parent(e.t) : null; p && !replaced && !awaited; p = parent(p)) {
+        replaced = [this.date, this.prevDate].some((d) => draws.get(`${d}|${tileId(p!)}`)?.role === 'top')
+        awaited = missingIds.has(tileId(p))
+      }
+      if (e && awaited) {
+        this.leaving.delete(id)
+        draws.set(id, { role: 'leaving', alpha: 1, feather: NO_FEATHER })
+        continue
+      }
+      if (!e || !replaced || fadeMs === 0) {
+        this.leaving.delete(id)
+        continue
+      }
+      const since = this.leaving.get(id) ?? now
+      this.leaving.set(id, since)
+      const alpha = 1 - (now - since) / fadeMs
+      if (alpha > 0) draws.set(id, { role: 'leaving', alpha, feather: NO_FEATHER })
+      else this.leaving.delete(id)
+    }
+    this.lastTop = new Set([...draws].filter(([, d]) => d.role !== 'under').map(([id]) => id))
+    this.draw(draws)
+    this.request(missing, view, new Set(draws.keys()))
   }
 
   // The best loaded stand-in for a tile not loaded yet: the same tile from the
@@ -264,13 +371,23 @@ export class EarthTiles {
     return null
   }
 
-  private draw(show: ReadonlySet<string>) {
+  private draw(draws: ReadonlyMap<string, Draw>) {
+    const now = performance.now()
     for (const mesh of this.group.children) mesh.visible = false
-    for (const id of show) {
+    let n = 0
+    for (const [id, d] of draws) {
       const e = this.cache.peek(id)
-      if (e) e.mesh.visible = true
+      if (!e) continue
+      n++
+      e.mesh.visible = true
+      // Coarse first; within a level, stand-ins beneath, then the tile, then leavers.
+      e.mesh.renderOrder = 10 + e.t.z * 3 + ROLE_ORDER[d.role]
+      const u = (e.mesh.material as THREE.ShaderMaterial).uniforms
+      u.opacity.value = d.alpha
+      ;(u.feather.value as THREE.Vector4).set(+d.feather[0], +d.feather[1], +d.feather[2], +d.feather[3])
+      if (d.role === 'top') e.lastDrawn = now
     }
-    this.stats.drawn = show.size
+    this.stats.drawn = n
   }
 
   private request(missing: TileKey[], view: View, keep: ReadonlySet<string>) {
@@ -299,14 +416,15 @@ export class EarthTiles {
     const now = performance.now()
     this.tokens = Math.min(this.caps.concurrent, this.tokens + ((now - this.tokensAt) / 1000) * this.caps.requestsPerSec)
     this.tokensAt = now
+    this.keep = keep
     for (const t of queue) {
       if (this.pending.size >= this.caps.concurrent || this.tokens < 1) break
       this.tokens -= 1
-      this.load(t, date, keep)
+      this.load(t, date)
     }
   }
 
-  private load(t: TileKey, date: string, keep: ReadonlySet<string>) {
+  private load(t: TileKey, date: string) {
     const id = `${date}|${tileId(t)}`
     const ctl = new AbortController()
     this.pending.set(id, ctl)
@@ -325,38 +443,7 @@ export class EarthTiles {
         this.successes++
         this.failures = 0
         this.state = 'ok'
-        const tex = new THREE.Texture(bitmap)
-        tex.flipY = false
-        tex.colorSpace = THREE.SRGBColorSpace
-        // A little anisotropy keeps oblique views sharp; more costs fill rate.
-        tex.anisotropy = Math.min(4, this.anisotropy)
-        tex.needsUpdate = true
-        const u = this.uniforms
-        const mesh = new THREE.Mesh(
-          tileGeometry(t),
-          new THREE.ShaderMaterial({
-            uniforms: {
-              tileMap: { value: tex },
-              dayMap: u.dayMap,
-              nightMap: u.nightMap,
-              tint: u.tint,
-              sunDir: u.sunDir,
-              enabled: u.enabled,
-              hasLights: u.hasLights,
-            },
-            vertexShader: TILE_VERTEX_SHADER,
-            fragmentShader: TILE_FRAGMENT_SHADER,
-            // Drawn over the 2K Earth in level order (finer last), without
-            // depth testing; back faces are culled, so the far side never shows.
-            depthTest: false,
-            depthWrite: false,
-          }),
-        )
-        mesh.renderOrder = 10 + t.z
-        mesh.visible = false
-        mesh.frustumCulled = false
-        this.group.add(mesh)
-        this.cache.set(id, { mesh, tex, bytes }, keep)
+        this.addTile({ id, t, image: bitmap, bytes })
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === 'AbortError') return
@@ -366,6 +453,44 @@ export class EarthTiles {
         // Repeated failures with nothing ever loaded: treat GIBS as unreachable.
         if (this.failures >= 6 && this.successes === 0) this.goOffline()
       })
+  }
+
+  private addTile({ id, t, image, bytes }: Ready) {
+    const tex = new THREE.Texture(image)
+    tex.flipY = false
+    tex.colorSpace = THREE.SRGBColorSpace
+    // A little anisotropy keeps oblique views sharp; more costs fill rate.
+    tex.anisotropy = Math.min(4, this.anisotropy)
+    tex.needsUpdate = true
+    const u = this.uniforms
+    const mesh = new THREE.Mesh(
+      tileGeometry(t),
+      new THREE.ShaderMaterial({
+        uniforms: {
+          tileMap: { value: tex },
+          opacity: { value: 1 },
+          feather: { value: new THREE.Vector4() },
+          dayMap: u.dayMap,
+          nightMap: u.nightMap,
+          tint: u.tint,
+          sunDir: u.sunDir,
+          enabled: u.enabled,
+          hasLights: u.hasLights,
+        },
+        vertexShader: TILE_VERTEX_SHADER,
+        fragmentShader: TILE_FRAGMENT_SHADER,
+        // Drawn over the 2K Earth in level order (finer last), without
+        // depth testing; back faces are culled, so the far side never shows.
+        // All tiles are blended, so they sort together by renderOrder.
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+      }),
+    )
+    mesh.visible = false
+    mesh.frustumCulled = false
+    this.group.add(mesh)
+    this.cache.set(id, { t, mesh, tex, bytes, shownAt: 0, lastDrawn: -Infinity }, this.keep)
   }
 
   /** For tests and the report: what's in memory. */

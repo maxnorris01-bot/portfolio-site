@@ -306,3 +306,42 @@ export class LruCache<V> {
     this.map.clear()
   }
 }
+
+/**
+ * What covers a spot on the globe this frame: the wanted tile itself at the
+ * current date (`own`), a stand-in for it (an older date's copy or a coarser
+ * ancestor) or nothing yet (the 2K texture shows).
+ */
+export type TileSource = 'own' | 'standin' | 'none'
+
+/**
+ * Which edges of a drawn tile should fade into what's beneath it, as
+ * [west, east, north, south]: those whose neighbour is a stand-in or missing,
+ * where imagery from another day or a blurrier level would otherwise meet it
+ * in a hard line. Neighbours are probed just outside each edge (wrapping
+ * across the antimeridian; nothing lies beyond the poles), and `sourceAt`
+ * returns undefined for spots outside the view, which never feather.
+ */
+export function featherEdges(
+  t: TileKey,
+  sourceAt: (latDeg: number, lonDeg: number) => TileSource | undefined,
+): [boolean, boolean, boolean, boolean] {
+  const b = tileBounds(t).drawn
+  const eps = tileSpanDeg(t.z) * 0.01
+  const wrap = (lon: number) => ((((lon + 180) % 360) + 360) % 360) - 180
+  const differs = (lat: number, lon: number) => {
+    if (lat > 90 || lat < -90) return false
+    const s = sourceAt(lat, wrap(lon))
+    return s === 'standin' || s === 'none'
+  }
+  const along = [0.2, 0.5, 0.8]
+  const lats = along.map((f) => b.north - (b.north - b.south) * f)
+  const lons = along.map((f) => b.west + (b.east - b.west) * f)
+  return [
+    lats.some((lat) => differs(lat, b.west - eps)),
+    lats.some((lat) => differs(lat, b.east + eps)),
+    lons.some((lon) => differs(b.north + eps, lon)),
+    lons.some((lon) => differs(b.south - eps, lon)),
+  ]
+}
+

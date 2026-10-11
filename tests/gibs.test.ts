@@ -7,6 +7,7 @@ import {
   maxLevelForMotion,
   children,
   domainsUrl,
+  featherEdges,
   latLonToVec,
   levelFor,
   matrixHeight,
@@ -22,6 +23,7 @@ import {
   tileUrl,
   tileVisible,
   vecToLatLon,
+  type TileSource,
   type View,
 } from '../src/globe/gibs.ts'
 
@@ -187,4 +189,23 @@ test('moving fast caps the tile level, paused keeps full detail', () => {
   assert.equal(maxLevelForMotion(360), 5) // 50x: 720 km in 2 s
   assert.equal(maxLevelForMotion(360, 7), 5)
   assert.equal(maxLevelForMotion(10_000), 0)
+})
+
+test('edges feather only toward stand-ins or missing tiles, across the antimeridian, never past a pole', () => {
+  const t = { z: 3, row: 1, col: 5 } // 54..18 N, 0..36 E
+  const own = () => 'own' as TileSource
+  assert.deepEqual(featherEdges(t, own), [false, false, false, false])
+  // The western neighbour is an older day's copy, the southern one isn't loaded.
+  const mixed = (lat: number, lon: number): TileSource => (lon < 0 ? 'standin' : lat < 18 ? 'none' : 'own')
+  assert.deepEqual(featherEdges(t, mixed), [true, false, false, true])
+  // Outside the view (undefined) never feathers.
+  assert.deepEqual(featherEdges(t, () => undefined), [false, false, false, false])
+  // The last column's eastern neighbour is column 0, across 180 degrees.
+  const east = { z: 3, row: 1, col: matrixWidth(3) - 1 }
+  const probes: number[] = []
+  featherEdges(east, (_lat, lon) => (probes.push(lon), 'own'))
+  assert.ok(probes.every((lon) => lon >= -180 && lon < 180))
+  assert.deepEqual(featherEdges(east, (_lat, lon) => (lon < -170 ? 'none' : 'own')), [false, true, false, false])
+  // The top row has nothing north of it: no feather there even if everything else is missing.
+  assert.equal(featherEdges({ z: 3, row: 0, col: 2 }, () => 'none')[2], false)
 })
