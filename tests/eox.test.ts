@@ -28,7 +28,10 @@ import {
 } from '../src/globe/gibs.ts'
 import {
   TODAY_IMAGERY_DEFAULT,
-  TODAY_IMAGERY_NOTE,
+  IMAGERY_EXPLAINER,
+  TODAY_FADE_NOTE,
+  overlayFade,
+  overlayFadeAltitudesKm,
   imageryCredits,
   imageryLine,
   type ImageryStatus,
@@ -176,7 +179,9 @@ const status = (o: Partial<ImageryStatus> = {}): ImageryStatus => ({
 
 test('"Today\'s imagery" is off by default; the panel line follows the layer state', () => {
   assert.equal(TODAY_IMAGERY_DEFAULT, false)
-  assert.equal(TODAY_IMAGERY_NOTE, 'Daily mosaic; swath edges are visible.')
+  assert.match(IMAGERY_EXPLAINER, /cloud-free 2016 composite/)
+  assert.match(IMAGERY_EXPLAINER, /visible seams between satellite passes/)
+  assert.equal(TODAY_FADE_NOTE, "Zoom in close and Today's imagery fades to the sharper base map")
   assert.equal(imageryLine(status()), 'Imagery: Sentinel-2 cloudless, 2016 composite')
   assert.equal(
     imageryLine(status({ overlay: { date: '2026-10-09', state: 'ok', drawn: 12 } })),
@@ -212,4 +217,21 @@ test('EOX tone calibration: typical land keeps the 2K brightness, deserts no lon
   // Even pure white stays below 1 after the lit side's 1.6x gain.
   assert.ok(toneMap(1) * 1.6 < 0.8)
   assert.deepEqual(GIBS_SOURCE.tone, [1, 1]) // GIBS unchanged
+})
+
+test("Today's imagery fades out smoothly as the view gets closer than its finest level", () => {
+  const texel = 0.2446 // GIBS level 8, km per pixel
+  assert.equal(overlayFade(1, texel), 1) // wide: fully shown
+  assert.equal(overlayFade(texel, texel), 1) // one image pixel per screen pixel: still fully shown
+  assert.equal(overlayFade(texel / 2, texel), 0) // one image pixel over two screen pixels: gone
+  assert.equal(overlayFade(0.01, texel), 0)
+  const mid = overlayFade(texel * 0.75, texel)
+  assert.ok(mid > 0.4 && mid < 0.6)
+  for (let g = 0.1; g < 0.3; g += 0.005) assert.ok(overlayFade(g + 0.005, texel) >= overlayFade(g, texel)) // monotonic
+  // At the descend zoom's 30 degree field of view on a 576 px tall view: ~263 km down to ~131 km.
+  const { fullKm, goneKm } = overlayFadeAltitudesKm(texel, 30, 576)
+  assert.ok(Math.abs(fullKm - 263) < 2 && Math.abs(goneKm - 131) < 1, `${fullKm} ${goneKm}`)
+  // Credits follow visibility: faded out, NASA's acknowledgment goes.
+  assert.deepEqual(imageryCredits('pov', status({ overlay: { date: '2026-10-09', state: 'ok', drawn: 0, fade: 0 } })), [EOX_ATTRIBUTION])
+  assert.match(imageryLine(status({ overlay: { date: '2026-10-09', state: 'ok', drawn: 0, fade: 0 } })), /fades out this close/)
 })

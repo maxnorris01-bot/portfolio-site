@@ -38,7 +38,8 @@ import {
 } from './layout'
 import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
 import { EOX_LEVEL_KM } from './eox'
-import { minFovForImagery } from './gibs'
+import { LEVEL_KM, minFovForImagery } from './gibs'
+import { overlayFade } from './imagery'
 import {
   DESCEND_FOV,
   DOUBLE_CLICK_ZOOM,
@@ -374,6 +375,8 @@ export class GlobeEngine {
   private baseTiles: import('./earthTiles').EarthTiles | null = null
   private overlayTiles: import('./earthTiles').EarthTiles | null = null
   private todayImagery = false
+  /** Today's imagery's fade with zoom (1 shown, 0 faded out up close). */
+  private overlayFadeNow = 1
   private tilesModule: typeof import('./earthTiles') | null = null
   private tilesLoading = false
   private povMinFov = POV_FOV_MIN
@@ -1330,7 +1333,7 @@ export class GlobeEngine {
     const starting = { date: null, state: 'starting' as const, drawn: 0 }
     const imagery = {
       base: this.baseTiles?.status() ?? starting,
-      overlay: this.todayImagery ? (this.overlayTiles?.status() ?? starting) : null,
+      overlay: this.todayImagery ? { ...(this.overlayTiles?.status() ?? starting), fade: this.overlayFadeNow } : null,
     }
     return {
       altKm,
@@ -1469,8 +1472,15 @@ export class GlobeEngine {
       base.update(view, date.getTime(), ground)
       if (this.todayImagery && this.tilesModule) {
         this.overlayTiles ??= this.makeTiles(this.tilesModule.GIBS_SOURCE)
-        this.overlayTiles.setCaps(this.tileCaps(this.overlayTiles.source))
-        this.overlayTiles.update(view, date.getTime(), ground)
+        const caps = this.tileCaps(this.overlayTiles.source)
+        this.overlayTiles.setCaps(caps)
+        // Fade it out as the view gets closer than its finest level supports;
+        // fully faded, it's hidden and fetches nothing.
+        this.overlayFadeNow = overlayFade(this.groundKmPerPxAtCentre(fovNow, h), LEVEL_KM(caps.maxLevel))
+        if (this.overlayFadeNow > 0) {
+          this.overlayTiles.setLayerOpacity(this.overlayFadeNow)
+          this.overlayTiles.update(view, date.getTime(), ground)
+        } else this.overlayTiles.pause()
       }
     }
     // The zoom limit follows the base imagery (EOX, ~10 m at its finest level);
@@ -1484,6 +1494,20 @@ export class GlobeEngine {
       cam.fov = this.povMinFov
       cam.updateProjectionMatrix()
     }
+  }
+
+  // The ground size of one screen pixel at the centre of the view, km (very
+  // large when the centre is sky).
+  private groundKmPerPxAtCentre(fovDeg: number, screenPx: number): number {
+    const cam = this.povCamera
+    const o = cam.position
+    const d = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
+    const b = o.dot(d)
+    const disc = b * b - (o.dot(o) - 1)
+    if (disc < 0) return Infinity
+    const t = -b - Math.sqrt(disc)
+    if (t < 0) return Infinity
+    return (t * EARTH_RADIUS_KM * 2 * Math.tan((fovDeg * Math.PI) / 360)) / screenPx
   }
 
   // How fast the view sweeps over the ground: the sub-satellite speed (orbital

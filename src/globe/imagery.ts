@@ -12,6 +12,8 @@ export interface LayerStatus {
   state: 'starting' | 'ok' | 'offline'
   /** Tiles drawn this frame. */
   drawn: number
+  /** The overlay's fade (1 visible, 0 faded out up close); absent for the base. */
+  fade?: number
 }
 
 export interface ImageryStatus {
@@ -24,13 +26,20 @@ export interface ImageryStatus {
 /** "Today's imagery" starts off: the base layer alone is the default. */
 export const TODAY_IMAGERY_DEFAULT = false
 
-/** The note shown beside the "Today's imagery" switch. */
-export const TODAY_IMAGERY_NOTE = 'Daily mosaic; swath edges are visible.'
+/** The plain-language explanation beside the "Base map | Today's imagery" control. */
+export const IMAGERY_EXPLAINER =
+  'The base map is a cloud-free 2016 composite: sharp and seamless, but it does not show current ' +
+  "weather. Today's imagery shows real clouds and storms for the date on the slider, with visible " +
+  'seams between satellite passes.'
+
+/** Shown while Today's imagery is on. */
+export const TODAY_FADE_NOTE = "Zoom in close and Today's imagery fades to the sharper base map"
 
 /** The satellite view panel's imagery line. */
 export function imageryLine({ base, overlay }: ImageryStatus): string {
   if (overlay) {
     if (overlay.state === 'offline') return "Imagery: today's imagery is unavailable right now."
+    if ((overlay.fade ?? 1) <= 0) return "Imagery: Sentinel-2 cloudless, 2016 composite (today's imagery fades out this close)"
     return overlay.date ? `Imagery: ${overlay.date} (NASA GIBS)` : 'Imagery: loading…'
   }
   if (base.state === 'offline') return 'Imagery unavailable right now: showing the built-in Earth texture.'
@@ -49,6 +58,28 @@ export function imageryCredits(viewMode: string, imagery: ImageryStatus | null):
   if (viewMode !== 'pov' || !imagery) return []
   const out: string[] = []
   if (imagery.base.drawn > 0) out.push(sentence(EOX_ATTRIBUTION))
-  if (imagery.overlay) out.push(sentence(GIBS_ACKNOWLEDGMENT))
+  if (imagery.overlay && (imagery.overlay.fade ?? 1) > 0) out.push(sentence(GIBS_ACKNOWLEDGMENT))
   return out
+}
+
+/**
+ * Today's imagery is coarser than the base map, so it fades out as the user
+ * zooms in: fully shown while one of its pixels (`texelKm`, its finest
+ * level) covers at most one screen pixel, gone once it would cover two, with
+ * a smooth ramp between. `groundKmPerPx` is the ground size of a screen
+ * pixel at the centre of the view.
+ */
+export function overlayFade(groundKmPerPx: number, texelKm: number): number {
+  const t = Math.max(0, Math.min(1, (groundKmPerPx - texelKm / 2) / (texelKm / 2)))
+  return t * t * (3 - 2 * t)
+}
+
+/**
+ * The camera heights (looking straight down) between which the overlay
+ * fades: fully shown above `fullKm`, gone below `goneKm`.
+ */
+export function overlayFadeAltitudesKm(texelKm: number, fovDeg: number, screenPx: number): { fullKm: number; goneKm: number } {
+  const kmPerPxAt = (altKm: number) => (2 * altKm * Math.tan((fovDeg * Math.PI) / 360)) / screenPx
+  const perKm = kmPerPxAt(1)
+  return { fullKm: texelKm / perKm, goneKm: texelKm / 2 / perKm }
 }

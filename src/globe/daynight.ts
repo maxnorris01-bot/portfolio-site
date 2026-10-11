@@ -86,6 +86,7 @@ function earthFragment(tiled: boolean, overlay = false) {
 uniform sampler2D dayMap;
 uniform sampler2D nightMap;
 ${tiled ? 'uniform sampler2D tileMap;\nuniform float opacity;\nuniform vec4 feather;\nuniform vec2 tone;\nvarying vec2 vUvGlobal;\nvarying vec2 vEdge;' : ''}
+${overlay ? 'uniform float layerOpacity;' : ''}
 uniform vec3 tint;
 uniform vec3 sunDir;
 uniform float enabled;
@@ -126,7 +127,7 @@ ${
   a *= mix(1.0, smoothstep(0.0, fw, e.x), feather.x);
   a *= mix(1.0, smoothstep(0.0, fw, 1.0 - e.x), feather.y);
   a *= mix(1.0, smoothstep(0.0, fw, e.y), feather.z);
-  a *= mix(1.0, smoothstep(0.0, fw, 1.0 - e.y), feather.w);${overlay ? '\n  a *= tile.a;' : ''}`
+  a *= mix(1.0, smoothstep(0.0, fw, 1.0 - e.y), feather.w);${overlay ? '\n  a *= tile.a * layerOpacity;' : ''}`
     : `  vec3 lights = texture2D(nightMap, g).rgb;
   float a = 1.0;`
 }

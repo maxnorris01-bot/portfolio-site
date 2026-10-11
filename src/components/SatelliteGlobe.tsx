@@ -18,7 +18,13 @@ import {
   type ViewMode,
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf, viewpointFor } from '../globe/groups'
-import { TODAY_IMAGERY_DEFAULT, TODAY_IMAGERY_NOTE, imageryCredits, imageryLine } from '../globe/imagery'
+import {
+  IMAGERY_EXPLAINER,
+  TODAY_FADE_NOTE,
+  TODAY_IMAGERY_DEFAULT,
+  imageryCredits,
+  imageryLine,
+} from '../globe/imagery'
 import { geocodePlace } from '../globe/geocode'
 import { PHASE_LABEL, twilightPhase } from '../globe/twilight'
 import { aboveHorizon, moonPhaseName, nextSelection, type SkyBody } from '../globe/skybodies'
@@ -1309,6 +1315,28 @@ export default function SatelliteGlobe({
                   </button>
                 </div>
                 <p className="globe-inspect-name">{povObject.name}</p>
+                <div className="globe-pov-imagery-choice" role="group" aria-label="Imagery" aria-describedby="globe-pov-explainer">
+                  <button type="button" aria-pressed={!todayImagery} onClick={() => setTodayImagery(false)}>
+                    Base map
+                  </button>
+                  <button type="button" aria-pressed={todayImagery} onClick={() => setTodayImagery(true)}>
+                    Today&apos;s imagery
+                  </button>
+                </div>
+                {todayImagery && (
+                  <p className="globe-pov-date">
+                    {povInfo?.imagery.overlay?.date ? (
+                      <strong>{povInfo.imagery.overlay.date}</strong>
+                    ) : (
+                      <strong>Loading…</strong>
+                    )}{' '}
+                    · follows the time slider
+                  </p>
+                )}
+                <p id="globe-pov-explainer" className="globe-muted globe-pov-explainer">
+                  {IMAGERY_EXPLAINER}
+                </p>
+                {todayImagery && <p className="globe-muted globe-pov-explainer">{TODAY_FADE_NOTE}.</p>}
                 <div className="globe-pov-presets" role="group" aria-label="Look">
                   {(['down', 'forward', 'outward'] as const).map((preset) => (
                     <button
@@ -1354,18 +1382,6 @@ export default function SatelliteGlobe({
                     <dd>{Math.round(povInfo.fov)}°</dd>
                   </dl>
                 )}
-                <label className="globe-daynight globe-pov-today">
-                  <input
-                    type="checkbox"
-                    checked={todayImagery}
-                    onChange={(e) => setTodayImagery(e.target.checked)}
-                    aria-describedby="globe-pov-today-note"
-                  />
-                  Today&apos;s imagery
-                </label>
-                <p id="globe-pov-today-note" className="globe-muted globe-pov-note-line">
-                  {TODAY_IMAGERY_NOTE}
-                </p>
                 {povInfo && <p className="globe-muted globe-pov-imagery">{imageryLine(povInfo.imagery)}</p>}
               </div>
             )}

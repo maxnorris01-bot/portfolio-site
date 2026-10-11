@@ -1120,20 +1120,58 @@
   font-size: 0.75rem;
 }
 
-/* The "Today's imagery" switch and its one-line note. */
-.globe-pov-today {
-  margin-top: 0.6rem;
+/* "Base map | Today's imagery": a two-option control near the top of the
+   panel, big enough to hit on a phone. */
+.globe-pov-imagery-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin: 0.55rem 0 0.4rem;
+  padding: 0.2rem;
+  border: 1px solid var(--globe-line);
+  border-radius: 999px;
 }
 
-.globe-pov-note-line {
-  margin: 0.15rem 0 0 !important;
+.globe-pov-imagery-choice button {
+  min-height: 2.75rem;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--globe-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.globe-pov-imagery-choice button[aria-pressed='true'] {
+  background: var(--globe-ink);
+  color: #0b1220;
+}
+
+.globe-pov-date {
+  margin: 0 0 0.25rem !important;
+  color: var(--globe-ink);
+  font-size: 0.85rem;
+}
+
+.globe-pov-date strong {
+  font-size: 1rem;
+}
+
+.globe-pov-explainer {
+  margin: 0 0 0.4rem !important;
   font-size: 0.72rem;
+  line-height: 1.4;
 }
 
 @media (max-width: 640px) {
-  /* Phone: name, the three looks and Back; the read-out stays off the view. */
+  /* Phone: name, the imagery choice and date, the three looks and Back; the
+     read-out and the longer explanations stay off the view. */
   .globe-pov-facts,
-  .globe-pov-imagery {
+  .globe-pov-imagery,
+  .globe-pov-explainer {
     display: none;
   }
 
