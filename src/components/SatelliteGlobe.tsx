@@ -2,7 +2,7 @@
 // conjunction-screening working notes 2026-10-03). Lazy-loaded by
 // SatelliteTool so three.js and satellite.js stay out of the main bundle.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SPEEDS, liveClock, scrubClock, withSpeed, type Clock } from '../globe/clock'
+import { SPEEDS, canPlay, isPaused, liveClock, scrubClock, togglePlay, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
 import { formatKm } from '../globe/format'
@@ -18,7 +18,13 @@ import {
   type ViewMode,
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf, viewpointFor } from '../globe/groups'
-import { TODAY_IMAGERY_DEFAULT, TODAY_IMAGERY_NOTE, imageryCredits, imageryLine } from '../globe/imagery'
+import {
+  IMAGERY_EXPLAINER,
+  TODAY_FADE_NOTE,
+  TODAY_IMAGERY_DEFAULT,
+  imageryCredits,
+  imageryLine,
+} from '../globe/imagery'
 import { geocodePlace } from '../globe/geocode'
 import { PHASE_LABEL, twilightPhase } from '../globe/twilight'
 import { aboveHorizon, moonPhaseName, nextSelection, type SkyBody } from '../globe/skybodies'
@@ -164,6 +170,8 @@ export default function SatelliteGlobe({
   // The satellite view's "Today's imagery" switch: NASA GIBS's daily mosaic
   // over the EOX base. Off by default.
   const [todayImagery, setTodayImagery] = useState(TODAY_IMAGERY_DEFAULT)
+  // The satellite view's orientation: the satellite's heading up (default) or north up.
+  const [povOrientation, setPovOrientation] = useState<'heading' | 'north'>('heading')
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
   const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
   // The Sky view's Sun, Moon and planets, and the selected one (a body
@@ -522,6 +530,7 @@ export default function SatelliteGlobe({
       '=': () => engine.povZoom(0.8),
       '-': () => engine.povZoom(1.25),
       _: () => engine.povZoom(1.25),
+      Escape: () => engine.returnToSatellite(),
     }
     const act = keys[e.key]
     if (act) {
@@ -543,6 +552,10 @@ export default function SatelliteGlobe({
   useEffect(() => {
     engineRef.current?.setTodayImagery(todayImagery)
   }, [todayImagery])
+
+  useEffect(() => {
+    engineRef.current?.setPovOrientation(povOrientation)
+  }, [povOrientation])
 
   // A station view is a globe camera mode; entering the Sky view ends it.
   const [prevViewMode, setPrevViewMode] = useState(viewMode)
@@ -746,6 +759,37 @@ export default function SatelliteGlobe({
   const bounds = current
     ? sliderBounds(time.nowMs || currentStartMs, currentStartMs, historyDates)
     : null
+
+  // Pause / Play: freeze the shared clock at the moment shown, or resume from
+  // it at the selected speed (as a scrubbed time; only Live goes back to now).
+  // Paused at the end of the range there's nothing ahead to play.
+  const paused = isPaused(clock)
+  // The engine pauses at its own "now + a day", a moment before the slider's
+  // maximum: the last minute of the range counts as the end.
+  const endMs = (bounds?.maxMs ?? Infinity) - 60_000
+  const playable = canPlay(clock, endMs)
+  const onPlayPause = () => {
+    // The engine's clock is the one shown (it pauses itself at the end of the range).
+    const engineClock = engineRef.current?.getClock() ?? clock
+    applyClock(togglePlay(engineClock, Date.now(), endMs), false)
+  }
+  // Space toggles it, unless focus is somewhere Space already does something
+  // (a text field, a button, a link, the slider).
+  const playPauseRef = useRef(onPlayPause)
+  useEffect(() => {
+    playPauseRef.current = onPlayPause
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== ' ' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || t.closest('input, textarea, select, button, a, [role="slider"], [role="button"]'))) return
+      e.preventDefault()
+      playPauseRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const loadingKey = datasetKey && loaded?.key !== datasetKey && loadError !== datasetKey
   const snapshotLabel = (key: DatasetKey) => (key === 'current' ? 'latest run' : `${key} snapshot`)
   const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
@@ -817,6 +861,15 @@ export default function SatelliteGlobe({
     if (viewMode === 'pov') setAnnouncement(`Viewing from ${povObject?.name ?? 'the satellite'}`)
     else if (prevAnnouncedView === 'pov') {
       setAnnouncement(stationForPov && viewMode === 'globe' ? `Back to ${stationForPov.fullName}` : 'Back to full view')
+    }
+  }
+  // Detaching from the satellite and returning are announced too.
+  const povHeld = viewMode === 'pov' && !!povInfo?.detached
+  const [prevPovHeld, setPrevPovHeld] = useState(povHeld)
+  if (prevPovHeld !== povHeld) {
+    setPrevPovHeld(povHeld)
+    if (viewMode === 'pov') {
+      setAnnouncement(povHeld ? 'Holding over the ground' : `Riding ${povObject?.name ?? 'the satellite'} again`)
     }
   }
   const offsetLabel = time.simMs ? formatOffset(time.simMs - time.nowMs) : ''
@@ -1268,12 +1321,34 @@ export default function SatelliteGlobe({
                   </button>
                 </div>
                 <p className="globe-inspect-name">{povObject.name}</p>
+                <div className="globe-pov-imagery-choice" role="group" aria-label="Imagery" aria-describedby="globe-pov-explainer">
+                  <button type="button" aria-pressed={!todayImagery} onClick={() => setTodayImagery(false)}>
+                    Base map
+                  </button>
+                  <button type="button" aria-pressed={todayImagery} onClick={() => setTodayImagery(true)}>
+                    Today&apos;s imagery
+                  </button>
+                </div>
+                {todayImagery && (
+                  <p className="globe-pov-date">
+                    {povInfo?.imagery.overlay?.date ? (
+                      <strong>{povInfo.imagery.overlay.date}</strong>
+                    ) : (
+                      <strong>Loading…</strong>
+                    )}{' '}
+                    · follows the time slider
+                  </p>
+                )}
+                <p id="globe-pov-explainer" className="globe-muted globe-pov-explainer">
+                  {IMAGERY_EXPLAINER}
+                </p>
+                {todayImagery && <p className="globe-muted globe-pov-explainer">{TODAY_FADE_NOTE}.</p>}
                 <div className="globe-pov-presets" role="group" aria-label="Look">
                   {(['down', 'forward', 'outward'] as const).map((preset) => (
                     <button
                       key={preset}
                       type="button"
-                      aria-pressed={povInfo?.preset === preset}
+                      aria-pressed={!povInfo?.detached && povInfo?.preset === preset}
                       aria-label={PRESET_LABEL[preset]}
                       onClick={() => engineRef.current?.setPovPreset(preset)}
                     >
@@ -1281,37 +1356,52 @@ export default function SatelliteGlobe({
                     </button>
                   ))}
                 </div>
+                <div className="globe-pov-imagery-choice globe-pov-orientation" role="group" aria-label="Orientation">
+                  <button type="button" aria-pressed={povOrientation === 'heading'} onClick={() => setPovOrientation('heading')}>
+                    Heading up
+                  </button>
+                  <button type="button" aria-pressed={povOrientation === 'north'} onClick={() => setPovOrientation('north')}>
+                    North up
+                  </button>
+                </div>
                 {povInfo && (
                   <dl className="globe-pov-facts">
                     <dt>Altitude</dt>
                     <dd>{fmtKm(Math.round(povInfo.altKm))}</dd>
                     <dt>Speed</dt>
                     <dd>{povInfo.speedKmS.toFixed(2)} km/s</dd>
-                    <dt>Below</dt>
-                    <dd>{formatLatLon({ latDeg: povInfo.latDeg, lonDeg: povInfo.lonDeg, altKm: 0 })}</dd>
-                    <dt>Looking</dt>
-                    <dd>
-                      {PRESET_LABEL[povInfo.preset]}
-                      {povInfo.yaw !== 0 || povInfo.pitch !== 0
-                        ? ` · ${Math.round(povInfo.yaw)}° right, ${Math.round(povInfo.pitch)}° up`
-                        : ''}
-                    </dd>
+                    {povInfo.detached ? (
+                      <>
+                        <dt>Holding over</dt>
+                        <dd>{formatLatLon({ latDeg: povInfo.detached.latDeg, lonDeg: povInfo.detached.lonDeg, altKm: 0 })}</dd>
+                        <dt>Camera height</dt>
+                        <dd>{fmtKm(povInfo.detached.altKm < 10 ? Math.round(povInfo.detached.altKm * 10) / 10 : Math.round(povInfo.detached.altKm))}</dd>
+                        <dt>Looking</dt>
+                        <dd>
+                          Straight down,{' '}
+                          {povInfo.orientation === 'north'
+                            ? 'north up'
+                            : `heading up (${Math.round(povInfo.detached.headingDeg ?? 0)}°)`}
+                        </dd>
+                      </>
+                    ) : (
+                      <>
+                        <dt>Below</dt>
+                        <dd>{formatLatLon({ latDeg: povInfo.latDeg, lonDeg: povInfo.lonDeg, altKm: 0 })}</dd>
+                        <dt>Looking</dt>
+                        <dd>
+                          {PRESET_LABEL[povInfo.preset]}
+                          {povInfo.preset === 'down' ? (povInfo.orientation === 'north' ? ', north up' : ', heading up') : ''}
+                          {povInfo.yaw !== 0 || povInfo.pitch !== 0
+                            ? ` · ${Math.round(povInfo.yaw)}° right, ${Math.round(povInfo.pitch)}° up`
+                            : ''}
+                        </dd>
+                      </>
+                    )}
                     <dt>Field of view</dt>
                     <dd>{Math.round(povInfo.fov)}°</dd>
                   </dl>
                 )}
-                <label className="globe-daynight globe-pov-today">
-                  <input
-                    type="checkbox"
-                    checked={todayImagery}
-                    onChange={(e) => setTodayImagery(e.target.checked)}
-                    aria-describedby="globe-pov-today-note"
-                  />
-                  Today&apos;s imagery
-                </label>
-                <p id="globe-pov-today-note" className="globe-muted globe-pov-note-line">
-                  {TODAY_IMAGERY_NOTE}
-                </p>
                 {povInfo && <p className="globe-muted globe-pov-imagery">{imageryLine(povInfo.imagery)}</p>}
               </div>
             )}
@@ -1465,6 +1555,26 @@ export default function SatelliteGlobe({
         )}
 
         {povNote && <p className="globe-badge globe-pov-note">{povNote}</p>}
+        {viewMode === 'pov' && povInfo && povInfo.northDeg !== null && (
+          <div
+            className="globe-compass"
+            role="img"
+            aria-label={`North is ${Math.round(Math.abs(povInfo.northDeg))}° ${povInfo.northDeg >= 0 ? 'right' : 'left'} of up`}
+            title="North"
+          >
+            <svg viewBox="-20 -20 40 40" width="40" height="40" style={{ transform: `rotate(${povInfo.northDeg}deg)` }} aria-hidden="true">
+              <circle r="18" className="globe-compass-ring" />
+              <path d="M0 -14 L5 2 L0 -1 L-5 2 Z" className="globe-compass-north" />
+              <path d="M0 14 L5 2 L0 5 L-5 2 Z" className="globe-compass-south" />
+              <text y="-5" transform="translate(0 -9)" textAnchor="middle" className="globe-compass-n">N</text>
+            </svg>
+          </div>
+        )}
+        {viewMode === 'pov' && povInfo?.detached && (
+          <button type="button" className="globe-pov-return" onClick={() => engineRef.current?.returnToSatellite()}>
+            ↑ Return to satellite
+          </button>
+        )}
         {debugLines && (
           <pre className="globe-debug" aria-hidden="true">
             {debugLines.join('\n')}
@@ -1474,7 +1584,9 @@ export default function SatelliteGlobe({
           {viewMode === 'sky'
             ? 'Drag to look around · scroll or pinch to zoom · click a point for details'
             : viewMode === 'pov'
-              ? 'Drag or arrow keys to look around · scroll, pinch or +/− to zoom'
+              ? povInfo?.detached
+                ? 'Drag or arrow keys to pan · scroll, pinch or double-click to zoom · Esc returns to the satellite'
+                : 'Drag or arrow keys to look around · scroll, pinch or double-click to zoom in toward a point'
               : 'Drag to rotate · scroll to zoom · right-drag to pan · click a point for details'}
         </p>
       </div>
@@ -1508,6 +1620,17 @@ export default function SatelliteGlobe({
           >
             <span className="globe-live-dot" aria-hidden="true" />
             Live
+          </button>
+          <button
+            type="button"
+            className="globe-playpause"
+            aria-label={paused ? 'Play' : 'Pause'}
+            aria-disabled={!playable || undefined}
+            title={!playable ? 'At the end of the time range' : paused ? 'Play (Space)' : 'Pause (Space)'}
+            onClick={() => playable && onPlayPause()}
+          >
+            <span aria-hidden="true">{paused ? '▶' : '❚❚'}</span>
+            {paused ? 'Play' : 'Pause'}
           </button>
           <div
             className="globe-speed"

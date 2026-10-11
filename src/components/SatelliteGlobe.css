@@ -350,6 +350,34 @@
   font-weight: 600;
 }
 
+/* Pause / Play, between Live and the speeds; styled like Live. */
+.globe-playpause {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 5.6rem;
+  justify-content: center;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.globe-playpause span {
+  font-size: 0.7rem;
+  letter-spacing: -0.05em;
+}
+
+.globe-playpause[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .globe-live {
   display: inline-flex;
   align-items: center;
@@ -1092,20 +1120,58 @@
   font-size: 0.75rem;
 }
 
-/* The "Today's imagery" switch and its one-line note. */
-.globe-pov-today {
-  margin-top: 0.6rem;
+/* "Base map | Today's imagery": a two-option control near the top of the
+   panel, big enough to hit on a phone. */
+.globe-pov-imagery-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin: 0.55rem 0 0.4rem;
+  padding: 0.2rem;
+  border: 1px solid var(--globe-line);
+  border-radius: 999px;
 }
 
-.globe-pov-note-line {
-  margin: 0.15rem 0 0 !important;
+.globe-pov-imagery-choice button {
+  min-height: 2.75rem;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--globe-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.globe-pov-imagery-choice button[aria-pressed='true'] {
+  background: var(--globe-ink);
+  color: #0b1220;
+}
+
+.globe-pov-date {
+  margin: 0 0 0.25rem !important;
+  color: var(--globe-ink);
+  font-size: 0.85rem;
+}
+
+.globe-pov-date strong {
+  font-size: 1rem;
+}
+
+.globe-pov-explainer {
+  margin: 0 0 0.4rem !important;
   font-size: 0.72rem;
+  line-height: 1.4;
 }
 
 @media (max-width: 640px) {
-  /* Phone: name, the three looks and Back; the read-out stays off the view. */
+  /* Phone: name, the imagery choice and date, the three looks and Back; the
+     read-out and the longer explanations stay off the view. */
   .globe-pov-facts,
-  .globe-pov-imagery {
+  .globe-pov-imagery,
+  .globe-pov-explainer {
     display: none;
   }
 
@@ -1134,4 +1200,75 @@
   font: 0.7rem/1.45 var(--font-mono, ui-monospace, monospace);
   white-space: pre-wrap;
   pointer-events: none;
+}
+
+/* Held over the ground: a chip back to riding the satellite, top centre. */
+.globe-pov-return {
+  position: absolute;
+  top: 0.9rem;
+  left: 50%;
+  z-index: 4;
+  min-height: 2.5rem;
+  padding: 0.45rem 1rem;
+  transform: translateX(-50%);
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 999px;
+  background: rgb(10 14 24 / 0.82);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.globe-pov-return:hover,
+.globe-pov-return:focus-visible {
+  background: rgb(30 38 56 / 0.92);
+}
+
+.globe-pov-orientation {
+  margin-top: 0.5rem;
+}
+
+/* Where north is on the map: an arrow turned by the view's orientation. */
+.globe-compass {
+  position: absolute;
+  left: 1rem;
+  bottom: 2.4rem;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
+}
+
+.globe-compass svg {
+  display: block;
+}
+
+.globe-compass-ring {
+  fill: rgb(10 14 24 / 0.7);
+  stroke: rgb(255 255 255 / 0.55);
+  stroke-width: 1.2;
+}
+
+.globe-compass-north {
+  fill: #ff6b5a;
+}
+
+.globe-compass-south {
+  fill: rgb(255 255 255 / 0.75);
+}
+
+.globe-compass-n {
+  fill: #fff;
+  font: 700 7px var(--font-body, system-ui, sans-serif);
+}
+
+@media (max-width: 640px) {
+  /* Phone: the panels sit top and bottom; the compass goes mid-left. */
+  .globe-compass {
+    top: 45%;
+    bottom: auto;
+    left: 0.6rem;
+  }
 }

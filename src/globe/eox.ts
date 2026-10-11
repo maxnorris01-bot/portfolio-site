@@ -34,9 +34,12 @@ export const EOX_GRID: TileGrid = {
 /** Ground size of one image pixel at level z, km (at the equator). */
 export const EOX_LEVEL_KM = (z: number) => (EOX_GRID.spanDeg(z) / EOX_TILE_PX) * 111.32
 
-/** The attribution EOX requires wherever its imagery is shown. */
+/**
+ * The attribution EOX requires wherever its imagery is shown, in EOX's
+ * current wording (its WMTS capabilities and licence summary).
+ */
 export const EOX_ATTRIBUTION =
-  'Sentinel-2 cloudless - https://s2maps.eu by EOX IT Services GmbH ' +
+  'EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH ' +
   '(Contains modified Copernicus Sentinel data 2016)'
 
 /** The tile's URL in the 2016 layer. */

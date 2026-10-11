@@ -235,6 +235,8 @@ export class EarthTiles {
   private covered = false
   private scratch: OffscreenCanvas | undefined
   private readonly renderer: THREE.WebGLRenderer | undefined
+  /** The whole layer's opacity (an overlay fading out when zoomed in close), shared by its tiles. */
+  private readonly layerOpacity = { value: 1 }
   private readonly reducedMotion =
     typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : undefined
 
@@ -271,6 +273,11 @@ export class EarthTiles {
       old.clear()
     }
     this.caps = caps
+  }
+
+  /** Fade the whole layer (overlays only; the base layer stays opaque). */
+  setLayerOpacity(a: number) {
+    this.layerOpacity.value = Math.max(0, Math.min(1, a))
   }
 
   /** The date being shown (dated layers), whether the service answered, and tiles drawn, for the panel. */
@@ -607,6 +614,7 @@ export class EarthTiles {
           opacity: { value: 1 },
           feather: { value: new THREE.Vector4() },
           tone: { value: new THREE.Vector2(this.source.tone[0], this.source.tone[1]) },
+          layerOpacity: this.layerOpacity,
           dayMap: u.dayMap,
           nightMap: u.nightMap,
           tint: u.tint,
