@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useRef, useState } from 'react'
 import type { NearMiss, RiskLevel, SatelliteSummary } from '../../api/satellite/summary'
-import type { ViewMode } from '../globe/engine'
+import { nextView, type MainView, type View } from '../globe/pov'
 import type { DatasetKey, FocusRequest } from '../globe/types'
 import { satelliteTool } from '../data/satelliteTool'
 import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
@@ -183,11 +183,23 @@ export default function SatelliteTool() {
   // the mode and passes it to the globe. Entering the Sky view ends a
   // near-miss replay (a globe camera mode); showing a conjunction returns to
   // the globe.
-  const [viewMode, setViewMode] = useState<ViewMode>('globe')
-  const switchView = (mode: ViewMode) => {
-    if (mode === 'sky' && focus) setFocus(null)
+  // The satellite view (pov) remembers the view it was entered from, for Back.
+  const [view, setView] = useState<{ view: View; from: MainView }>({ view: 'globe', from: 'globe' })
+  const viewMode = view.view
+  // Whether a single satellite is selected (the satellite view needs one).
+  const [canPov, setCanPov] = useState(false)
+  const setViewMode = (mode: View) => setView((v) => nextView(v, { type: 'show', view: mode, canPov }))
+  const switchView = (mode: View) => {
+    if (mode !== 'globe' && focus) setFocus(null)
     setViewMode(mode)
   }
+  const requestView = useCallback(
+    (req: 'pov' | 'back') =>
+      setView((v) =>
+        nextView(v, req === 'back' ? { type: 'back' } : { type: 'show', view: 'pov', canPov: true }),
+      ),
+    [],
+  )
   const globeRef = useRef<HTMLElement>(null)
   const exitFocus = useCallback(() => setFocus(null), [])
 
@@ -290,16 +302,26 @@ export default function SatelliteTool() {
               Every tracked object
             </h2>
             <div className="sat-view-toggle" role="group" aria-label="View">
-              {(['globe', 'sky'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  aria-pressed={viewMode === m}
-                  onClick={() => switchView(m)}
-                >
-                  {m === 'globe' ? 'Globe' : 'Sky'}
-                </button>
-              ))}
+              {(['globe', 'sky', 'pov'] as const).map((m) => {
+                // Satellite stays focusable (aria-disabled) so its hint can be read.
+                const unavailable = m === 'pov' && !canPov && viewMode !== 'pov'
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={viewMode === m}
+                    aria-disabled={unavailable || undefined}
+                    aria-describedby={unavailable ? 'sat-view-pov-hint' : undefined}
+                    title={unavailable ? 'Select a satellite first' : undefined}
+                    onClick={() => !unavailable && switchView(m)}
+                  >
+                    {m === 'globe' ? 'Globe' : m === 'sky' ? 'Sky' : 'Satellite'}
+                  </button>
+                )
+              })}
+              <span id="sat-view-pov-hint" className="visually-hidden">
+                Select a satellite first
+              </span>
             </div>
           </div>
           <Suspense fallback={<div className="sat-globe-fallback">Loading the globe…</div>}>
@@ -309,6 +331,8 @@ export default function SatelliteTool() {
               onDatasetChange={setGlobeDataset}
               conjunctionsFlagged={summary?.conjunctions_flagged}
               viewMode={viewMode}
+              onCanPovChange={setCanPov}
+              onViewRequest={requestView}
             />
           </Suspense>
         </section>

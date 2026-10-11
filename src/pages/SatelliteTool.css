@@ -369,7 +369,12 @@
   font-weight: 600;
 }
 
-.sat-view-toggle button:hover:not([aria-pressed='true']) {
+.sat-view-toggle button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sat-view-toggle button:hover:not([aria-pressed='true']):not([aria-disabled='true']) {
   color: var(--color-navy);
 }
 

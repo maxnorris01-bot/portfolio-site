@@ -37,6 +37,17 @@ import {
   type Rect,
 } from './layout'
 import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
+import { LEVEL_KM, minFovForImagery } from './gibs'
+import {
+  POV_FOV_DEFAULT,
+  POV_FOV_MIN,
+  POV_PITCH_MAX,
+  applyLook,
+  presetView,
+  zoomFov,
+  type PovPreset,
+  type Vec3 as PovVec3,
+} from './pov'
 import { MAX_ORBITS, orbitNeedsRefresh, orbitPeriodMs, orbitTargets, sampleOrbit } from './orbit'
 import { DAY_MS } from './timeline'
 import { EARTH_FRAGMENT_SHADER, EARTH_VERTEX_SHADER } from './daynight'
@@ -117,7 +128,7 @@ const DOME_CARDINAL_ALPHA = 0.42
 const DOME_AZ_FADE_START = 70 // azimuth lines fade out toward the zenith
 const DOME_AZ_FADE_END = 84
 
-export type ViewMode = 'globe' | 'sky'
+export type ViewMode = 'globe' | 'sky' | 'pov'
 
 export interface Observer {
   latDeg: number
@@ -321,6 +332,32 @@ export class GlobeEngine {
   private readonly skyPoints: THREE.Points
   private skyPositions = new Float32Array(0)
   private readonly skyLook = { yaw: 180, pitch: SKY_FOV_DEFAULT / 2 - 4 }
+  // Satellite view (POV): the camera rides the viewpoint satellite in its
+  // LVLH frame (pov.ts), a preset plus a drag offset.
+  private readonly povCamera = new THREE.PerspectiveCamera(POV_FOV_DEFAULT, 1, 1e-3, 50)
+  private povIdx: number | null = null
+  private readonly povLook = { preset: 'down' as PovPreset, yaw: 0, pitch: 0 }
+  private povState: {
+    pos: PovVec3
+    vel: PovVec3
+    altKm: number
+    speedKmS: number
+    latDeg: number
+    lonDeg: number
+  } | null = null
+  private povSun!: THREE.Points
+  // NASA GIBS tiles for the satellite view's Earth (earthTiles.ts), loaded the
+  // first time the view opens; and the narrowest zoom the imagery supports.
+  private earthTiles: import('./earthTiles').EarthTiles | null = null
+  private tilesModule: typeof import('./earthTiles') | null = null
+  private tilesLoading = false
+  private povMinFov = POV_FOV_MIN
+  // Stands in for the Earth's material while the tiles cover the whole view:
+  // only depth (the Earth still hides the Sun behind it), no shading.
+  private readonly earthDepthOnly = new THREE.MeshBasicMaterial({ colorWrite: false })
+  // The whole catalog's dots (hidden in the satellite view).
+  private catalogPoints!: THREE.Points
+  private readonly onPovLost?: () => void
   private skyAbove = 0
   private readonly skyLabels: {
     el: HTMLDivElement
@@ -442,6 +479,8 @@ export class GlobeEngine {
       onTick?: (simMs: number) => void
       onPick?: (index: number | null) => void
       onPickBody?: (key: string) => void
+      /** The viewpoint satellite can no longer be propagated (e.g. it decayed). */
+      onPovLost?: () => void
     } = {},
     /** City lights for the night side; loaded after the day texture, optional. */
     nightTextureUrl?: string,
@@ -450,6 +489,7 @@ export class GlobeEngine {
     this.onTick = callbacks.onTick
     this.onPick = callbacks.onPick
     this.onPickBody = callbacks.onPickBody
+    this.onPovLost = callbacks.onPovLost
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setClearColor(0x05070d)
@@ -520,7 +560,8 @@ export class GlobeEngine {
       transparent: true,
       depthWrite: false,
     })
-    this.scene.add(new THREE.Points(this.geometry, this.pointsMaterial))
+    this.catalogPoints = new THREE.Points(this.geometry, this.pointsMaterial)
+    this.scene.add(this.catalogPoints)
 
     const ringTexture = dotTexture(true)
     this.ringA = makeRing(ringTexture, RING_A, 22 * pr)
@@ -620,6 +661,12 @@ export class GlobeEngine {
     this.skySunMarker.renderOrder = 1
     ;(this.skySunMarker.material as THREE.PointsMaterial).depthTest = true
     this.skyScene.add(skyDome, this.skySunMarker)
+    // The Sun in the satellite view: a disc far out along the true direction,
+    // depth-tested so the Earth hides it when the satellite is in shadow.
+    this.povSun = makeRing(makeSunTexture(), '#fff1c4', 28 * pr)
+    ;(this.povSun.material as THREE.PointsMaterial).depthTest = true
+    this.povSun.renderOrder = 0
+    this.scene.add(this.povSun)
     this.skySunLabel = document.createElement('div')
     this.skySunLabel.className = 'globe-sky-label is-body'
     this.skySunLabel.textContent = 'Sun'
@@ -752,6 +799,7 @@ export class GlobeEngine {
     this.inspectIdx = null
     this.ringInspect.visible = false
     this.neighbor = null
+    this.povIdx = null
     this.applyDim()
   }
 
@@ -921,7 +969,10 @@ export class GlobeEngine {
     const draw = this.drawRgba
     if (draw.length !== base.length) return
     const sel = this.inspectIdx
-    if (this.link?.kind === 'pair') dimExcept(base, draw, [this.link.a, this.link.b], DIM_ALPHA)
+    if (this.viewMode === 'pov') {
+      // No catalog is drawn in the satellite view, so nothing to dim.
+      draw.set(base)
+    } else if (this.link?.kind === 'pair') dimExcept(base, draw, [this.link.a, this.link.b], DIM_ALPHA)
     else if (sel !== null) {
       // The live neighbour (and its line) are globe-only; in the Sky view only
       // the selected object stays bright.
@@ -986,8 +1037,19 @@ export class GlobeEngine {
    */
   setViewMode(mode: ViewMode) {
     if (mode === this.viewMode) return
+    const leavingPov = this.viewMode === 'pov'
     this.viewMode = mode
+    // The satellite view pauses the catalog: coming back, propagate everything
+    // at once and refresh the neighbour, so the dots and the neighbour line
+    // are exactly current.
+    if (leavingPov) {
+      this.fullPending = true
+      this.neighborRefresh.dirty = true
+      // No tile requests outside the satellite view.
+      this.earthTiles?.pause()
+    }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
+    this.povSun.visible = false
     this.skyPointers.clear()
     this.skyGesture = null
     this.linkLabel.hidden = true
@@ -1000,6 +1062,199 @@ export class GlobeEngine {
       for (const m of this.bodyMarkers.values()) m.label.hidden = true
     }
     this.applyDim()
+  }
+
+  /**
+   * Enter (or move) the satellite view at catalog index `index`. A new
+   * viewpoint starts looking down at the Earth with no drag offset.
+   */
+  enterPov(index: number) {
+    if (this.povIdx !== index || this.viewMode !== 'pov') {
+      this.povLook.preset = 'down'
+      this.povLook.yaw = 0
+      this.povLook.pitch = 0
+    }
+    this.povIdx = index
+    this.povState = null
+    if (!this.tilesModule && !this.tilesLoading) {
+      this.tilesLoading = true
+      import('./earthTiles')
+        .then((m) => {
+          if (this.disposed) return
+          this.tilesModule = m
+          this.earthTiles = new m.EarthTiles(
+            this.earth,
+            this.earthUniforms,
+            this.renderer.capabilities.getMaxAnisotropy(),
+            this.tileCaps()!,
+            this.renderer,
+          )
+        })
+        .catch(() => {
+          // No tiles this time: the 2K texture stays.
+          this.tilesLoading = false
+        })
+    }
+    if (this.viewMode === 'pov') this.applyDim()
+    else this.setViewMode('pov')
+  }
+
+  // Phones (a narrow stage) get a lower finest level and a smaller cache.
+  private tileCaps(): import('./earthTiles').TileCaps | null {
+    const m = this.tilesModule
+    if (!m) return null
+    return this.container.clientWidth < 640 ? m.PHONE_CAPS : m.DESKTOP_CAPS
+  }
+
+  /** Pick a look preset; the drag offset resets. */
+  setPovPreset(preset: PovPreset) {
+    this.povLook.preset = preset
+    this.povLook.yaw = 0
+    this.povLook.pitch = 0
+  }
+
+  /** Turn the satellite view (keyboard): degrees right and up. */
+  povNudge(yawDeg: number, pitchDeg: number) {
+    this.povLook.yaw = ((((this.povLook.yaw + yawDeg + 180) % 360) + 360) % 360) - 180
+    this.povLook.pitch = Math.max(-POV_PITCH_MAX, Math.min(POV_PITCH_MAX, this.povLook.pitch + pitchDeg))
+  }
+
+  /** Zoom the satellite view's field of view by a factor (below 1 narrows). */
+  povZoom(factor: number) {
+    this.povCamera.fov = zoomFov(this.povCamera.fov, factor, this.povMinFov)
+    this.povCamera.updateProjectionMatrix()
+  }
+
+  /** The satellite view's viewpoint and look, for the panel; null outside it. */
+  povInfo() {
+    if (this.viewMode !== 'pov' || !this.povState) return null
+    const { altKm, speedKmS, latDeg, lonDeg } = this.povState
+    const imagery = this.earthTiles?.status() ?? { date: null, state: 'starting' as const }
+    return {
+      altKm,
+      speedKmS,
+      latDeg,
+      lonDeg,
+      ...this.povLook,
+      fov: this.povCamera.fov,
+      minFov: this.povMinFov,
+      imagery,
+    }
+  }
+
+  // The satellite view: the viewpoint propagated exactly (never the sliced
+  // positions, which would jitter), the camera on its LVLH frame, and the
+  // globe scene drawn from there without the selection's own markers.
+  private renderPov(date: Date) {
+    const cam = this.povCamera
+    const idx = this.povIdx
+    const rec = idx === null ? null : this.satrecs[idx]
+    const pv = rec ? propagate(rec, date) : null
+    const ok = pv && pv.position && Number.isFinite(pv.position.x) && pv.velocity
+    if (!ok) {
+      if (rec && this.povState !== null) this.onPovLost?.()
+      this.povState = null
+      this.renderer.render(this.scene, cam)
+      return
+    }
+    const p = new Float32Array(3)
+    const v = new Float32Array(3)
+    writeInertial(p, 0, pv.position.x, pv.position.y, pv.position.z)
+    writeInertial(v, 0, pv.velocity.x, pv.velocity.y, pv.velocity.z)
+    const pos: PovVec3 = [p[0], p[1], p[2]]
+    const vel: PovVec3 = [v[0], v[1], v[2]]
+    const geo = eciToGeodetic(pv.position, gstime(date))
+    this.povState = {
+      pos,
+      vel,
+      altKm: geo.height,
+      speedKmS: Math.hypot(pv.velocity.x, pv.velocity.y, pv.velocity.z),
+      latDeg: degreesLat(geo.latitude),
+      lonDeg: degreesLong(geo.longitude),
+    }
+    const view = applyLook(presetView(this.povLook.preset, pos, vel), this.povLook.yaw, this.povLook.pitch)
+    cam.position.set(...pos)
+    cam.up.set(...view.up)
+    cam.lookAt(pos[0] + view.look[0], pos[1] + view.look[1], pos[2] + view.look[2])
+    cam.updateMatrixWorld()
+    // Near plane: a fifth of the altitude (only the Earth and the Sun are
+    // drawn here), between about 60 m and 60 km; far plane past the Earth's
+    // far side and the Sun disc.
+    const near = Math.max(1e-5, Math.min(1e-2, (Math.hypot(...pos) - 1) * 0.2))
+    const far = Math.hypot(...pos) + 25
+    if (Math.abs(near - cam.near) > near * 0.05 || Math.abs(far - cam.far) > 1) {
+      cam.near = near
+      cam.far = far
+      cam.updateProjectionMatrix()
+    }
+    this.updatePovTiles(date, pos)
+    const sun = this.earthUniforms.sunDir.value
+    this.setRing(this.povSun, new THREE.Vector3(pos[0] + sun.x * 20, pos[1] + sun.y * 20, pos[2] + sun.z * 20))
+    this.povSun.visible = true
+    // Only the Earth and the Sun: the catalog's dots, rings, the neighbour line
+    // and orbit lines are hidden for this render (and restored after, so the
+    // globe and Sky views find them as they were).
+    this.linkLabel.hidden = true
+    const hidden = [
+      this.catalogPoints,
+      this.ringA,
+      this.ringB,
+      this.ringInspect,
+      this.ringGroup,
+      this.linkLine,
+      ...this.orbitSlots.map((s2) => s2.line),
+    ].filter((o) => o.visible)
+    for (const o of hidden) o.visible = false
+    const earthMaterial = this.earth.material
+    if (this.earthTiles?.coversView()) this.earth.material = this.earthDepthOnly
+    this.renderer.render(this.scene, cam)
+    this.earth.material = earthMaterial
+    for (const o of hidden) o.visible = true
+  }
+
+  // Feed the tiles the camera in the Earth's own (rotating) axes, and set the
+  // narrowest zoom from the finest imagery level allowed here and the altitude.
+  private updatePovTiles(date: Date, pos: PovVec3) {
+    const tiles = this.earthTiles
+    const cam = this.povCamera
+    const h = Math.max(1, this.container.clientHeight)
+    const caps = tiles ? this.tileCaps() : null
+    if (tiles && caps) {
+      tiles.setCaps(caps)
+      this.earth.updateMatrixWorld()
+      const camLocal = this.earth.worldToLocal(cam.position.clone())
+      const ahead = this.earth.worldToLocal(
+        cam.position.clone().add(new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)),
+      )
+      const dir = ahead.sub(camLocal).normalize()
+      const tanV = Math.tan((cam.fov * Math.PI) / 360)
+      tiles.update(
+        {
+          cam: [camLocal.x, camLocal.y, camLocal.z],
+          dir: [dir.x, dir.y, dir.z],
+          fovDeg: cam.fov,
+          halfDiagDeg: (Math.atan(tanV * Math.hypot(1, cam.aspect)) * 180) / Math.PI,
+          screenPx: h,
+        },
+        date.getTime(),
+        this.povGroundKmPerSec(pos),
+      )
+    }
+    const altKm = (Math.hypot(...pos) - 1) * EARTH_RADIUS_KM
+    const online = tiles !== null && caps !== null && tiles.status().state !== 'offline'
+    this.povMinFov = online && caps ? minFovForImagery(altKm, LEVEL_KM(caps.maxLevel), h) : POV_FOV_MIN
+    if (cam.fov < this.povMinFov) {
+      cam.fov = this.povMinFov
+      cam.updateProjectionMatrix()
+    }
+  }
+
+  // How fast the view sweeps over the ground: the sub-satellite speed (orbital
+  // speed scaled to the surface) times the playback speed; 0 when paused.
+  private povGroundKmPerSec(pos: PovVec3): number {
+    const st = this.povState
+    if (!st || this.clock.kind === 'frozen') return 0
+    return st.speedKmS * (1 / Math.hypot(...pos)) * this.clock.speed
   }
 
   /** Select a sky body (Sun, Moon or planet key) in the Sky view, or null. */
@@ -1295,6 +1550,8 @@ export class GlobeEngine {
         m.dispose()
       }
     })
+    this.earthTiles?.dispose()
+    this.earthDepthOnly.dispose()
     // The Earth's shader material holds its textures in uniforms, not `map`.
     this.earthUniforms.dayMap.value?.dispose()
     this.earthUniforms.nightMap.value.dispose()
@@ -1304,7 +1561,7 @@ export class GlobeEngine {
   }
 
   private handlePointerDown = (e: PointerEvent) => {
-    if (this.viewMode === 'sky') {
+    if (this.viewMode === 'sky' || this.viewMode === 'pov') {
       this.skyPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       this.renderer.domElement.setPointerCapture?.(e.pointerId)
       this.skyPinch = this.pinchDistance()
@@ -1331,13 +1588,17 @@ export class GlobeEngine {
   // Sky: one-finger/mouse drag looks around (the sky follows the pointer),
   // two-finger pinch changes the field of view.
   private handleSkyPointerMove = (e: PointerEvent) => {
-    if (this.viewMode !== 'sky') return
+    if (this.viewMode !== 'sky' && this.viewMode !== 'pov') return
+    const pov = this.viewMode === 'pov'
     const prev = this.skyPointers.get(e.pointerId)
     if (!prev) return
     this.skyPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (this.skyPointers.size >= 2) {
       const d = this.pinchDistance()
-      if (this.skyPinch > 0 && d > 0) this.setSkyFov(this.skyCamera.fov * (this.skyPinch / d))
+      if (this.skyPinch > 0 && d > 0) {
+        if (pov) this.povZoom(this.skyPinch / d)
+        else this.setSkyFov(this.skyCamera.fov * (this.skyPinch / d))
+      }
       this.skyPinch = d
       return
     }
@@ -1346,6 +1607,12 @@ export class GlobeEngine {
     if (g && !g.dragging) {
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) <= CLICK_MAX_MOVE_PX) return
       g.dragging = true
+    }
+    if (pov) {
+      // The view follows the pointer, as in Sky.
+      const deg = this.povCamera.fov / Math.max(1, this.container.clientHeight)
+      this.povNudge(-(e.clientX - prev.x) * deg, (e.clientY - prev.y) * deg)
+      return
     }
     const degPerPx = this.skyCamera.fov / Math.max(1, this.container.clientHeight)
     this.skyLook.yaw = (this.skyLook.yaw - (e.clientX - prev.x) * degPerPx + 360) % 360
@@ -1413,14 +1680,21 @@ export class GlobeEngine {
   // Sky: the wheel (and trackpad pinch, which arrives as ctrl+wheel) zooms
   // the field of view.
   private handleSkyWheel = (e: WheelEvent) => {
-    if (this.viewMode !== 'sky') return
+    if (this.viewMode !== 'sky' && this.viewMode !== 'pov') return
     e.preventDefault()
-    this.setSkyFov(this.skyCamera.fov * Math.exp(e.deltaY * 0.001))
+    if (this.viewMode === 'pov') this.povZoom(Math.exp(e.deltaY * 0.001))
+    else this.setSkyFov(this.skyCamera.fov * Math.exp(e.deltaY * 0.001))
   }
 
   // A click (not a drag-to-rotate) picks the nearest visible point within a
   // fixed screen-space radius.
   private handlePointerUp = (e: PointerEvent) => {
+    if (this.viewMode === 'pov') {
+      // Satellite view: drags and pinches only (picking comes later).
+      this.handleSkyPointerEnd(e)
+      if (this.skyPointers.size === 0) this.skyGesture = null
+      return
+    }
     if (this.viewMode === 'sky') {
       const g = this.skyGesture
       const wasOnly = this.skyPointers.size === 1 && this.skyPointers.has(e.pointerId)
@@ -1517,6 +1791,8 @@ export class GlobeEngine {
     this.camera.updateProjectionMatrix()
     this.skyCamera.aspect = w / h
     this.skyCamera.updateProjectionMatrix()
+    this.povCamera.aspect = w / h
+    this.povCamera.updateProjectionMatrix()
     this.controls.handleResize()
   }
 
@@ -2025,19 +2301,22 @@ export class GlobeEngine {
 
   // Keep the miss label beside the pair on screen, hidden when the pair is
   // behind the Earth or the camera.
-  private placeMissLabel() {
-    if (!this.link || !this.linkLine.visible) return
+  private placeMissLabel(cam: THREE.PerspectiveCamera = this.camera) {
+    if (!this.link || !this.linkLine.visible) {
+      this.linkLabel.hidden = true
+      return
+    }
     const attr = this.linkLine.geometry.getAttribute('position') as THREE.BufferAttribute
     const mid = new THREE.Vector3(
       (attr.getX(0) + attr.getX(1)) / 2,
       (attr.getY(0) + attr.getY(1)) / 2,
       (attr.getZ(0) + attr.getZ(1)) / 2,
     )
-    const toMid = mid.clone().sub(this.camera.position)
-    const ray = new THREE.Ray(this.camera.position, toMid.clone().normalize())
+    const toMid = mid.clone().sub(cam.position)
+    const ray = new THREE.Ray(cam.position, toMid.clone().normalize())
     const hit = ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), 1), new THREE.Vector3())
-    const behindEarth = hit !== null && hit.distanceTo(this.camera.position) < toMid.length()
-    const ndc = mid.clone().project(this.camera)
+    const behindEarth = hit !== null && hit.distanceTo(cam.position) < toMid.length()
+    const ndc = mid.clone().project(cam)
     if (behindEarth || ndc.z > 1) {
       this.linkLabel.hidden = true
       return
@@ -2102,7 +2381,9 @@ export class GlobeEngine {
     this.earth.rotation.y = earthRotationY(gstime(date))
     this.earthUniforms.sunDir.value.set(...sunDirectionScene(date))
 
-    const n = this.satrecs.length
+    // The satellite view draws no catalog: skip its propagation, the neighbour
+    // search and the markers there (setViewMode catches up on the way out).
+    const n = this.viewMode === 'pov' ? 0 : this.satrecs.length
     if (n) {
       if (this.fullPending) {
         this.propagateRange(0, n, date)
@@ -2124,6 +2405,12 @@ export class GlobeEngine {
 
     if (this.viewMode === 'sky') {
       this.renderSky(simMs, date)
+      this.onTick?.(simMs)
+      this.raf = requestAnimationFrame(this.frame)
+      return
+    }
+    if (this.viewMode === 'pov') {
+      this.renderPov(date)
       this.onTick?.(simMs)
       this.raf = requestAnimationFrame(this.frame)
       return
