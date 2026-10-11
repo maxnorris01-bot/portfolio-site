@@ -29,17 +29,34 @@ export interface TileKey {
   col: number
 }
 
-export const tileSpanDeg = (z: number) => 288 / 2 ** z
-export const matrixWidth = (z: number) => Math.ceil(360 / tileSpanDeg(z))
-export const matrixHeight = (z: number) => Math.ceil(180 / tileSpanDeg(z))
+/**
+ * A geographic (EPSG:4326) quadtree tile grid: origin at (-180, 90), rows
+ * going south, columns east, the tile span halving at each level. GIBS's
+ * `250m` set is one (512 px tiles, 288 degrees at level 0); EOX's WGS84 set
+ * (eox.ts) is another (256 px, 180 degrees). The functions below take a
+ * grid and default to GIBS's.
+ */
+export interface TileGrid {
+  /** Image size of one tile, px. */
+  tilePx: number
+  /** Finest level the source serves at its native resolution. */
+  maxLevel: number
+  /** Degrees spanned by one tile at level z. */
+  spanDeg: (z: number) => number
+}
+export const GIBS_GRID: TileGrid = { tilePx: TILE_PX, maxLevel: MAX_LEVEL, spanDeg: (z) => 288 / 2 ** z }
+
+export const tileSpanDeg = (z: number, g: TileGrid = GIBS_GRID) => g.spanDeg(z)
+export const matrixWidth = (z: number, g: TileGrid = GIBS_GRID) => Math.ceil(360 / tileSpanDeg(z, g) - 1e-9)
+export const matrixHeight = (z: number, g: TileGrid = GIBS_GRID) => Math.ceil(180 / tileSpanDeg(z, g) - 1e-9)
 export const tileId = (t: TileKey) => `${t.z}/${t.row}/${t.col}`
 
 /**
  * A tile's extent in degrees: `full` is the whole 512 px image, `drawn` the
  * part inside the globe (clipped at 180 E and 90 S).
  */
-export function tileBounds(t: TileKey) {
-  const span = tileSpanDeg(t.z)
+export function tileBounds(t: TileKey, g: TileGrid = GIBS_GRID) {
+  const span = tileSpanDeg(t.z, g)
   const west = -180 + t.col * span
   const north = 90 - t.row * span
   const full = { west, east: west + span, north, south: north - span }
@@ -48,21 +65,21 @@ export function tileBounds(t: TileKey) {
 }
 
 /** The level-z tile containing (lat, lon); 180 E belongs to the last column, 90 S to the last row. */
-export function tileAt(latDeg: number, lonDeg: number, z: number): TileKey {
-  const span = tileSpanDeg(z)
+export function tileAt(latDeg: number, lonDeg: number, z: number, g: TileGrid = GIBS_GRID): TileKey {
+  const span = tileSpanDeg(z, g)
   const lon = ((((lonDeg + 180) % 360) + 360) % 360) - 180
-  const col = Math.min(matrixWidth(z) - 1, Math.floor((lonDeg === 180 ? 360 : lon + 180) / span))
-  const row = Math.min(matrixHeight(z) - 1, Math.max(0, Math.floor((90 - latDeg) / span)))
+  const col = Math.min(matrixWidth(z, g) - 1, Math.floor((lonDeg === 180 ? 360 : lon + 180) / span))
+  const row = Math.min(matrixHeight(z, g) - 1, Math.max(0, Math.floor((90 - latDeg) / span)))
   return { z, row, col }
 }
 
 /** The (up to four) children of a tile that lie at least partly on the globe. */
-export function children(t: TileKey): TileKey[] {
+export function children(t: TileKey, g: TileGrid = GIBS_GRID): TileKey[] {
   const out: TileKey[] = []
   for (const dr of [0, 1]) {
     for (const dc of [0, 1]) {
       const c = { z: t.z + 1, row: t.row * 2 + dr, col: t.col * 2 + dc }
-      if (c.col < matrixWidth(c.z) && c.row < matrixHeight(c.z)) out.push(c)
+      if (c.col < matrixWidth(c.z, g) && c.row < matrixHeight(c.z, g)) out.push(c)
     }
   }
   return out
@@ -71,11 +88,14 @@ export function children(t: TileKey): TileKey[] {
 export const parent = (t: TileKey): TileKey | null =>
   t.z === 0 ? null : { z: t.z - 1, row: Math.floor(t.row / 2), col: Math.floor(t.col / 2) }
 
-/** The root tiles (level 0). */
-export const roots = (): TileKey[] => [
-  { z: 0, row: 0, col: 0 },
-  { z: 0, row: 0, col: 1 },
-]
+/** The root tiles (level 0): 2x1 in both GIBS's grid and EOX's. */
+export const roots = (g: TileGrid = GIBS_GRID): TileKey[] => {
+  const out: TileKey[] = []
+  for (let row = 0; row < matrixHeight(0, g); row++) {
+    for (let col = 0; col < matrixWidth(0, g); col++) out.push({ z: 0, row, col })
+  }
+  return out
+}
 
 // Earth-fixed unit vectors, in the globe mesh's own axes: longitude 0 on +x,
 // 90 E on -z, north on +y (the same mapping as the 2K texture's sphere).
@@ -96,8 +116,8 @@ const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 const len = (a: Vec3) => Math.hypot(...a)
 
 /** A tile's centre direction and angular radius (half its diagonal), for culling. */
-export function tileCap(t: TileKey): { center: Vec3; radiusDeg: number } {
-  const { west, east, north, south } = tileBounds(t).drawn
+export function tileCap(t: TileKey, g: TileGrid = GIBS_GRID): { center: Vec3; radiusDeg: number } {
+  const { west, east, north, south } = tileBounds(t, g).drawn
   const latC = (north + south) / 2
   const cosMax = south <= 0 && north >= 0 ? 1 : Math.cos(Math.min(Math.abs(north), Math.abs(south)) * DEG)
   const radiusDeg = 0.5 * Math.hypot((east - west) * cosMax, north - south)
@@ -118,8 +138,8 @@ export interface View {
 }
 
 /** Whether any of a tile is on the camera's side of the horizon and inside its view cone. */
-export function tileVisible(t: TileKey, v: View): boolean {
-  const { center, radiusDeg } = tileCap(t)
+export function tileVisible(t: TileKey, v: View, g: TileGrid = GIBS_GRID): boolean {
+  const { center, radiusDeg } = tileCap(t, g)
   if (radiusDeg >= 90) return true
   const r = len(v.cam)
   const horizonDeg = Math.acos(Math.min(1, 1 / r)) / DEG
@@ -134,12 +154,12 @@ export function tileVisible(t: TileKey, v: View): boolean {
 }
 
 /** How many screen pixels one of a tile's image pixels covers, at its nearest point. */
-export function texelScreenPx(t: TileKey, v: View): number {
-  const { center, radiusDeg } = tileCap(t)
+export function texelScreenPx(t: TileKey, v: View, g: TileGrid = GIBS_GRID): number {
+  const { center, radiusDeg } = tileCap(t, g)
   const altitude = len(v.cam) - 1
   const chord = 2 * Math.sin((Math.min(radiusDeg, 90) * DEG) / 2)
   const d = Math.max(altitude * 0.9, len(sub(center, v.cam)) - chord)
-  const texelRad = (tileSpanDeg(t.z) / TILE_PX) * DEG
+  const texelRad = (tileSpanDeg(t.z, g) / g.tilePx) * DEG
   return (texelRad / d) * (v.screenPx / (2 * Math.tan((v.fovDeg * DEG) / 2)))
 }
 
@@ -150,24 +170,31 @@ export function texelScreenPx(t: TileKey, v: View): number {
  */
 export function selectTiles(
   v: View,
-  { maxLevel = MAX_LEVEL, maxTexelPx = 1.25, maxTiles = 80 } = {},
+  {
+    maxLevel,
+    maxTexelPx = 1.25,
+    maxTiles = 80,
+    grid = GIBS_GRID,
+  }: { maxLevel?: number; maxTexelPx?: number; maxTiles?: number; grid?: TileGrid } = {},
 ): TileKey[] {
+  const g = grid
+  const top = maxLevel ?? g.maxLevel
   const out: TileKey[] = []
-  let open = roots().filter((t) => tileVisible(t, v))
+  let open = roots(g).filter((t) => tileVisible(t, v, g))
   while (open.length) {
     const next: TileKey[] = []
     // Refine the tiles that need it most first, within the budget.
     const ranked = open
-      .map((t) => ({ t, px: texelScreenPx(t, v) }))
+      .map((t) => ({ t, px: texelScreenPx(t, v, g) }))
       .sort((a, b) => b.px - a.px)
     for (const { t, px } of ranked) {
-      if (t.z >= maxLevel || px <= maxTexelPx) {
+      if (t.z >= top || px <= maxTexelPx) {
         out.push(t)
         continue
       }
       // A big tile's cap is conservative: if none of its children is
       // visible, nothing of it is on screen.
-      const kids = children(t).filter((c) => tileVisible(c, v))
+      const kids = children(t, g).filter((c) => tileVisible(c, v, g))
       if (!kids.length) continue
       if (out.length + next.length + kids.length + (open.length - 1) <= maxTiles) next.push(...kids)
       else out.push(t)
@@ -194,9 +221,14 @@ export function levelFor(altKm: number, fovDeg: number, screenPx: number, maxTex
  * stay on screen for at least `holdSec`, or it would be outdated before it
  * arrived. Paused or slow, the full `maxLevel`.
  */
-export function maxLevelForMotion(groundKmPerSec: number, maxLevel = MAX_LEVEL, holdSec = 2): number {
+export function maxLevelForMotion(
+  groundKmPerSec: number,
+  maxLevel = MAX_LEVEL,
+  holdSec = 2,
+  g: TileGrid = GIBS_GRID,
+): number {
   const travelKm = groundKmPerSec * holdSec
-  for (let z = maxLevel; z > 0; z--) if (tileSpanDeg(z) * 111.32 >= travelKm) return z
+  for (let z = maxLevel; z > 0; z--) if (tileSpanDeg(z, g) * 111.32 >= travelKm) return z
   return 0
 }
 
@@ -325,9 +357,10 @@ export type TileSource = 'own' | 'standin' | 'none'
 export function featherEdges(
   t: TileKey,
   sourceAt: (latDeg: number, lonDeg: number) => TileSource | undefined,
+  g: TileGrid = GIBS_GRID,
 ): [boolean, boolean, boolean, boolean] {
-  const b = tileBounds(t).drawn
-  const eps = tileSpanDeg(t.z) * 0.01
+  const b = tileBounds(t, g).drawn
+  const eps = tileSpanDeg(t.z, g) * 0.01
   const wrap = (lon: number) => ((((lon + 180) % 360) + 360) % 360) - 180
   const differs = (lat: number, lon: number) => {
     if (lat > 90 || lat < -90) return false
@@ -393,4 +426,52 @@ export function maskNoData(px: Uint8ClampedArray, w: number, h: number, { black 
     }
   }
   return true
+}
+
+/**
+ * The best loaded stand-in for tile `t` while it isn't loaded (or failed):
+ * the same tile from the previous date, else the nearest loaded ancestor
+ * (this date, then the previous one), as a cache id `date|z/row/col`; null
+ * when nothing covering it has loaded (the layer beneath shows).
+ */
+export function pickStandIn(
+  t: TileKey,
+  date: string | null,
+  prevDate: string | null,
+  loaded: (id: string) => boolean,
+): string | null {
+  if (prevDate && loaded(`${prevDate}|${tileId(t)}`)) return `${prevDate}|${tileId(t)}`
+  for (let p = parent(t); p; p = parent(p)) {
+    for (const d of [date, prevDate]) {
+      if (d && loaded(`${d}|${tileId(p)}`)) return `${d}|${tileId(p)}`
+    }
+  }
+  return null
+}
+
+/**
+ * Tiles whose request failed (a 404, or the network): not asked for again
+ * until `retryMs` has passed, so a missing tile costs one request a minute,
+ * not one per frame, while its stand-in shows.
+ */
+export class FailedTiles {
+  private readonly until = new Map<string, number>()
+  private readonly retryMs: number
+  constructor(retryMs: number) {
+    this.retryMs = retryMs
+  }
+  mark(id: string, now: number) {
+    this.until.set(id, now + this.retryMs)
+  }
+  /** Whether `id` is still waiting out its retry delay (and forgets it once it isn't). */
+  blocked(id: string, now: number): boolean {
+    const at = this.until.get(id)
+    if (at === undefined) return false
+    if (now < at) return true
+    this.until.delete(id)
+    return false
+  }
+  clear() {
+    this.until.clear()
+  }
 }

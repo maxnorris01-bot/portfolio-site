@@ -18,6 +18,7 @@ import {
   type ViewMode,
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf, viewpointFor } from '../globe/groups'
+import { TODAY_IMAGERY_DEFAULT, TODAY_IMAGERY_NOTE, imageryCredits, imageryLine } from '../globe/imagery'
 import { geocodePlace } from '../globe/geocode'
 import { PHASE_LABEL, twilightPhase } from '../globe/twilight'
 import { aboveHorizon, moonPhaseName, nextSelection, type SkyBody } from '../globe/skybodies'
@@ -160,6 +161,9 @@ export default function SatelliteGlobe({
   const [skyGrid, setSkyGrid] = useState(true)
   // Day/night shading on the globe; on by default.
   const [dayNight, setDayNight] = useState(true)
+  // The satellite view's "Today's imagery" switch: NASA GIBS's daily mosaic
+  // over the EOX base. Off by default.
+  const [todayImagery, setTodayImagery] = useState(TODAY_IMAGERY_DEFAULT)
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
   const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
   // The Sky view's Sun, Moon and planets, and the selected one (a body
@@ -536,6 +540,10 @@ export default function SatelliteGlobe({
     engineRef.current?.setDayNight(dayNight)
   }, [dayNight])
 
+  useEffect(() => {
+    engineRef.current?.setTodayImagery(todayImagery)
+  }, [todayImagery])
+
   // A station view is a globe camera mode; entering the Sky view ends it.
   const [prevViewMode, setPrevViewMode] = useState(viewMode)
   if (prevViewMode !== viewMode) {
@@ -742,6 +750,7 @@ export default function SatelliteGlobe({
   const snapshotLabel = (key: DatasetKey) => (key === 'current' ? 'latest run' : `${key} snapshot`)
   const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
   const povObject = povTarget !== null && loaded ? loaded.file.objects[povTarget] : null
+  const povCredits = imageryCredits(viewMode, povInfo?.imagery ?? null)
 
   // ?debug=1: a plain-text overlay of everything that decides whether the
   // satellite view can be entered (temporary, for checking a live build).
@@ -1291,15 +1300,19 @@ export default function SatelliteGlobe({
                     <dd>{Math.round(povInfo.fov)}°</dd>
                   </dl>
                 )}
-                {povInfo && (
-                  <p className="globe-muted globe-pov-imagery">
-                    {povInfo.imagery.state === 'offline'
-                      ? 'Imagery unavailable right now: showing the built-in Earth texture.'
-                      : povInfo.imagery.date
-                        ? `Imagery: ${povInfo.imagery.date} (NASA GIBS)`
-                        : 'Imagery: loading…'}
-                  </p>
-                )}
+                <label className="globe-daynight globe-pov-today">
+                  <input
+                    type="checkbox"
+                    checked={todayImagery}
+                    onChange={(e) => setTodayImagery(e.target.checked)}
+                    aria-describedby="globe-pov-today-note"
+                  />
+                  Today&apos;s imagery
+                </label>
+                <p id="globe-pov-today-note" className="globe-muted globe-pov-note-line">
+                  {TODAY_IMAGERY_NOTE}
+                </p>
+                {povInfo && <p className="globe-muted globe-pov-imagery">{imageryLine(povInfo.imagery)}</p>}
               </div>
             )}
             {inspected && viewMode !== 'pov' && (
@@ -1548,9 +1561,8 @@ export default function SatelliteGlobe({
           ? 'Earlier days appear on the slider as daily snapshots accumulate. '
           : ''}
         Earth imagery: NASA Visible Earth (Blue Marble); city lights: NASA Earth Observatory (Black
-        Marble 2016, Suomi NPP VIIRS). Satellite view: we acknowledge the use of imagery provided by
-        services from NASA&apos;s Global Imagery Browse Services (GIBS), part of NASA&apos;s Earth
-        Science Data and Information System (ESDIS).
+        Marble 2016, Suomi NPP VIIRS).
+        {povCredits.length > 0 && ` Satellite view: ${povCredits.join('. ')}.`}
       </p>
       {loaded && (
         <CollisionHistory

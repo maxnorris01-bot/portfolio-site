@@ -37,7 +37,8 @@ import {
   type Rect,
 } from './layout'
 import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
-import { LEVEL_KM, minFovForImagery } from './gibs'
+import { EOX_LEVEL_KM } from './eox'
+import { minFovForImagery } from './gibs'
 import {
   POV_FOV_DEFAULT,
   POV_FOV_MIN,
@@ -346,9 +347,13 @@ export class GlobeEngine {
     lonDeg: number
   } | null = null
   private povSun!: THREE.Points
-  // NASA GIBS tiles for the satellite view's Earth (earthTiles.ts), loaded the
-  // first time the view opens; and the narrowest zoom the imagery supports.
-  private earthTiles: import('./earthTiles').EarthTiles | null = null
+  // The satellite view's Earth imagery (earthTiles.ts), loaded the first time
+  // the view opens: EOX Sentinel-2 cloudless 2016 as the base surface, and
+  // NASA GIBS's daily mosaic over it while "Today's imagery" is on; and the
+  // narrowest zoom the base imagery supports.
+  private baseTiles: import('./earthTiles').EarthTiles | null = null
+  private overlayTiles: import('./earthTiles').EarthTiles | null = null
+  private todayImagery = false
   private tilesModule: typeof import('./earthTiles') | null = null
   private tilesLoading = false
   private povMinFov = POV_FOV_MIN
@@ -1046,7 +1051,8 @@ export class GlobeEngine {
       this.fullPending = true
       this.neighborRefresh.dirty = true
       // No tile requests outside the satellite view.
-      this.earthTiles?.pause()
+      this.baseTiles?.pause()
+      this.overlayTiles?.pause()
     }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
@@ -1082,13 +1088,7 @@ export class GlobeEngine {
         .then((m) => {
           if (this.disposed) return
           this.tilesModule = m
-          this.earthTiles = new m.EarthTiles(
-            this.earth,
-            this.earthUniforms,
-            this.renderer.capabilities.getMaxAnisotropy(),
-            this.tileCaps()!,
-            this.renderer,
-          )
+          this.baseTiles = this.makeTiles(m.EOX_SOURCE)
         })
         .catch(() => {
           // No tiles this time: the 2K texture stays.
@@ -1099,11 +1099,30 @@ export class GlobeEngine {
     else this.setViewMode('pov')
   }
 
+  private makeTiles(source: import('./earthTiles').ImagerySource) {
+    const m = this.tilesModule!
+    return new m.EarthTiles(
+      this.earth,
+      this.earthUniforms,
+      this.renderer.capabilities.getMaxAnisotropy(),
+      source,
+      this.tileCaps(source),
+      this.renderer,
+    )
+  }
+
   // Phones (a narrow stage) get a lower finest level and a smaller cache.
-  private tileCaps(): import('./earthTiles').TileCaps | null {
-    const m = this.tilesModule
-    if (!m) return null
-    return this.container.clientWidth < 640 ? m.PHONE_CAPS : m.DESKTOP_CAPS
+  private tileCaps(source: import('./earthTiles').ImagerySource): import('./earthTiles').TileCaps {
+    return this.container.clientWidth < 640 ? source.phone : source.desktop
+  }
+
+  /**
+   * "Today's imagery": draw NASA GIBS's daily mosaic (following the displayed
+   * date) over the EOX base in the satellite view. Off by default.
+   */
+  setTodayImagery(on: boolean) {
+    this.todayImagery = on
+    if (!on) this.overlayTiles?.pause()
   }
 
   /** Pick a look preset; the drag offset resets. */
@@ -1146,7 +1165,11 @@ export class GlobeEngine {
   povInfo() {
     if (this.viewMode !== 'pov' || !this.povState) return null
     const { altKm, speedKmS, latDeg, lonDeg } = this.povState
-    const imagery = this.earthTiles?.status() ?? { date: null, state: 'starting' as const }
+    const starting = { date: null, state: 'starting' as const, drawn: 0 }
+    const imagery = {
+      base: this.baseTiles?.status() ?? starting,
+      overlay: this.todayImagery ? (this.overlayTiles?.status() ?? starting) : null,
+    }
     return {
       altKm,
       speedKmS,
@@ -1223,7 +1246,7 @@ export class GlobeEngine {
     ].filter((o) => o.visible)
     for (const o of hidden) o.visible = false
     const earthMaterial = this.earth.material
-    if (this.earthTiles?.coversView()) this.earth.material = this.earthDepthOnly
+    if (this.baseTiles?.coversView()) this.earth.material = this.earthDepthOnly
     this.renderer.render(this.scene, cam)
     this.earth.material = earthMaterial
     for (const o of hidden) o.visible = true
@@ -1232,12 +1255,10 @@ export class GlobeEngine {
   // Feed the tiles the camera in the Earth's own (rotating) axes, and set the
   // narrowest zoom from the finest imagery level allowed here and the altitude.
   private updatePovTiles(date: Date, pos: PovVec3) {
-    const tiles = this.earthTiles
+    const base = this.baseTiles
     const cam = this.povCamera
     const h = Math.max(1, this.container.clientHeight)
-    const caps = tiles ? this.tileCaps() : null
-    if (tiles && caps) {
-      tiles.setCaps(caps)
+    if (base) {
       this.earth.updateMatrixWorld()
       const camLocal = this.earth.worldToLocal(cam.position.clone())
       const ahead = this.earth.worldToLocal(
@@ -1245,21 +1266,29 @@ export class GlobeEngine {
       )
       const dir = ahead.sub(camLocal).normalize()
       const tanV = Math.tan((cam.fov * Math.PI) / 360)
-      tiles.update(
-        {
-          cam: [camLocal.x, camLocal.y, camLocal.z],
-          dir: [dir.x, dir.y, dir.z],
-          fovDeg: cam.fov,
-          halfDiagDeg: (Math.atan(tanV * Math.hypot(1, cam.aspect)) * 180) / Math.PI,
-          screenPx: h,
-        },
-        date.getTime(),
-        this.povGroundKmPerSec(pos),
-      )
+      const view = {
+        cam: [camLocal.x, camLocal.y, camLocal.z] as [number, number, number],
+        dir: [dir.x, dir.y, dir.z] as [number, number, number],
+        fovDeg: cam.fov,
+        halfDiagDeg: (Math.atan(tanV * Math.hypot(1, cam.aspect)) * 180) / Math.PI,
+        screenPx: h,
+      }
+      const ground = this.povGroundKmPerSec(pos)
+      base.setCaps(this.tileCaps(base.source))
+      base.update(view, date.getTime(), ground)
+      if (this.todayImagery && this.tilesModule) {
+        this.overlayTiles ??= this.makeTiles(this.tilesModule.GIBS_SOURCE)
+        this.overlayTiles.setCaps(this.tileCaps(this.overlayTiles.source))
+        this.overlayTiles.update(view, date.getTime(), ground)
+      }
     }
+    // The zoom limit follows the base imagery (EOX, ~10 m at its finest level);
+    // the daily overlay just gets softer when zoomed past its own ~244 m.
     const altKm = (Math.hypot(...pos) - 1) * EARTH_RADIUS_KM
-    const online = tiles !== null && caps !== null && tiles.status().state !== 'offline'
-    this.povMinFov = online && caps ? minFovForImagery(altKm, LEVEL_KM(caps.maxLevel), h) : POV_FOV_MIN
+    const online = base !== null && base.status().state !== 'offline'
+    this.povMinFov = online
+      ? minFovForImagery(altKm, EOX_LEVEL_KM(this.tileCaps(base.source).maxLevel), h)
+      : POV_FOV_MIN
     if (cam.fov < this.povMinFov) {
       cam.fov = this.povMinFov
       cam.updateProjectionMatrix()
@@ -1567,7 +1596,8 @@ export class GlobeEngine {
         m.dispose()
       }
     })
-    this.earthTiles?.dispose()
+    this.baseTiles?.dispose()
+    this.overlayTiles?.dispose()
     this.earthDepthOnly.dispose()
     // The Earth's shader material holds its textures in uniforms, not `map`.
     this.earthUniforms.dayMap.value?.dispose()
