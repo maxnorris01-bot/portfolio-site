@@ -9,6 +9,7 @@ import { TILE_FRAGMENT_SHADER, TILE_VERTEX_SHADER } from './daynight'
 import {
   LruCache,
   featherEdges,
+  maskNoData,
   maxLevelForMotion,
   domainsUrl,
   latLonToVec,
@@ -82,7 +83,7 @@ interface Entry {
 interface Ready {
   id: string
   t: TileKey
-  image: ImageBitmap
+  image: ImageBitmap | ImageData
   bytes: number
 }
 
@@ -166,12 +167,13 @@ export class EarthTiles {
   private date: string | null = null
   private prevDate: string | null = null
   /** Requests started and bytes received, for the report. */
-  readonly stats = { requests: 0, bytes: 0, errors: 0, cancelled: 0, drawn: 0, wanted: 0 }
+  readonly stats = { requests: 0, bytes: 0, errors: 0, cancelled: 0, drawn: 0, wanted: 0, masked: 0 }
   private ready: Ready[] = []
   private keep: ReadonlySet<string> = new Set()
   private lastTop = new Set<string>()
   private readonly leaving = new Map<string, number>()
   private covered = false
+  private scratch: OffscreenCanvas | undefined
   private readonly renderer: THREE.WebGLRenderer | undefined
   private readonly reducedMotion =
     typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : undefined
@@ -218,7 +220,7 @@ export class EarthTiles {
   pause() {
     for (const c of this.pending.values()) c.abort()
     this.pending.clear()
-    for (const r of this.ready) r.image.close()
+    for (const r of this.ready) if (r.image instanceof ImageBitmap) r.image.close()
     this.ready = []
     this.lastTop.clear()
     this.leaving.clear()
@@ -470,7 +472,7 @@ export class EarthTiles {
         this.successes++
         this.failures = 0
         this.state = 'ok'
-        this.ready.push({ id, t, image: bitmap, bytes })
+        this.ready.push({ id, t, image: this.withNoDataMask(bitmap), bytes })
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === 'AbortError') return
@@ -480,6 +482,27 @@ export class EarthTiles {
         // Repeated failures with nothing ever loaded: treat GIBS as unreachable.
         if (this.failures >= 6 && this.successes === 0) this.goOffline()
       })
+  }
+
+  // The tile's pixels with GIBS's black no-data fill made transparent, or the
+  // bitmap itself when there's none (most tiles).
+  private withNoDataMask(bitmap: ImageBitmap): ImageBitmap | ImageData {
+    if (typeof OffscreenCanvas === 'undefined') return bitmap
+    const { width: w, height: h } = bitmap
+    this.scratch ??= new OffscreenCanvas(w, h)
+    if (this.scratch.width !== w || this.scratch.height !== h) {
+      this.scratch.width = w
+      this.scratch.height = h
+    }
+    const ctx = this.scratch.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return bitmap
+    ctx.clearRect(0, 0, w, h)
+    ctx.drawImage(bitmap, 0, 0)
+    const img = ctx.getImageData(0, 0, w, h)
+    if (!maskNoData(img.data, w, h)) return bitmap
+    bitmap.close()
+    this.stats.masked++
+    return img
   }
 
   // Turn up to a couple of fetched tiles a frame into textured meshes.

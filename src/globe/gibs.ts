@@ -345,3 +345,52 @@ export function featherEdges(
   ]
 }
 
+/**
+ * GIBS fills areas without data (polar night, a day still being acquired)
+ * with exact black in its JPEGs, and compression rings a pixel or two of
+ * near-black around them. This makes those pixels transparent in place
+ * (RGBA, alpha 0 and colour 0, i.e. premultiplied) so the layer beneath
+ * shows through: pure black (every channel <= `black`), plus dark pixels
+ * (<= `ring`) within `radius` px of it. Genuinely dark ocean, which is never
+ * pure black, stays opaque. Returns whether any pixel was masked.
+ */
+export function maskNoData(px: Uint8ClampedArray, w: number, h: number, { black = 3, ring = 24, radius = 2 } = {}): boolean {
+  const n = w * h
+  const isBlack = new Uint8Array(n)
+  let any = false
+  for (let i = 0; i < n; i++) {
+    const o = i * 4
+    if (px[o] <= black && px[o + 1] <= black && px[o + 2] <= black) {
+      isBlack[i] = 1
+      any = true
+    }
+  }
+  if (!any) return false
+  const clear = (i: number) => {
+    const o = i * 4
+    px[o] = px[o + 1] = px[o + 2] = px[o + 3] = 0
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      if (isBlack[i]) {
+        clear(i)
+        continue
+      }
+      const o = i * 4
+      if (px[o] > ring || px[o + 1] > ring || px[o + 2] > ring) continue
+      search: for (let dy = -radius; dy <= radius; dy++) {
+        const yy = y + dy
+        if (yy < 0 || yy >= h) continue
+        for (let dx = -radius; dx <= radius; dx++) {
+          const xx = x + dx
+          if (xx >= 0 && xx < w && isBlack[yy * w + xx]) {
+            clear(i)
+            break search
+          }
+        }
+      }
+    }
+  }
+  return true
+}

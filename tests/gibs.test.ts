@@ -10,6 +10,7 @@ import {
   featherEdges,
   latLonToVec,
   levelFor,
+  maskNoData,
   matrixHeight,
   matrixWidth,
   minFovForImagery,
@@ -208,4 +209,20 @@ test('edges feather only toward stand-ins or missing tiles, across the antimerid
   assert.deepEqual(featherEdges(east, (_lat, lon) => (lon < -170 ? 'none' : 'own')), [false, true, false, false])
   // The top row has nothing north of it: no feather there even if everything else is missing.
   assert.equal(featherEdges({ z: 3, row: 0, col: 2 }, () => 'none')[2], false)
+})
+
+test('no-data mask: pure black and its compression ring go transparent, dark ocean stays', () => {
+  const w = 8, h = 1
+  // black, black, ring (5), ring (20), dark ocean (12) far away, data...
+  const row = [[0, 0, 0], [2, 1, 3], [5, 5, 6], [20, 18, 22], [90, 90, 90], [10, 12, 30], [12, 10, 14], [200, 180, 160]]
+  const px = new Uint8ClampedArray(row.flatMap((c) => [...c, 255]))
+  assert.equal(maskNoData(px, w, h), true)
+  const alpha = [...px].filter((_, i) => i % 4 === 3)
+  assert.deepEqual(alpha, [0, 0, 0, 0, 255, 255, 255, 255])
+  assert.deepEqual([...px.slice(0, 4)], [0, 0, 0, 0]) // premultiplied: colour cleared too
+  assert.deepEqual([...px.slice(24, 28)], [12, 10, 14, 255]) // dark but real: untouched
+  // A tile with no black at all is left alone (and reported as such).
+  const clean = new Uint8ClampedArray([12, 10, 14, 255, 30, 40, 80, 255])
+  assert.equal(maskNoData(clean, 2, 1), false)
+  assert.deepEqual([...clean], [12, 10, 14, 255, 30, 40, 80, 255])
 })

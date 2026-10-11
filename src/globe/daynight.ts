@@ -70,9 +70,9 @@ void main() {
 `
 
 // The Earth's fragment shader. `tiled`: the satellite view's imagery tiles,
-// which sample their own tile image (`tileMap`, on `vUv`) and fall back to
-// the 2K day texture (on `vUvGlobal`) where the tile has no data (GIBS fills
-// gaps with black); the night lights always come from the global texture. A tile also fades in
+// which sample their own tile image (`tileMap`, on `vUv`, premultiplied, with
+// alpha 0 where GIBS has no data) over the 2K day texture (on `vUvGlobal`);
+// the night lights always come from the global texture. A tile also fades in
 // as a whole (`opacity`) and along the edges flagged in `feather` (west,
 // east, north, south; `vEdge` runs 0..1 across the drawn tile), blending into
 // whatever is drawn beneath it. The 2K and night textures are only read where
@@ -95,9 +95,9 @@ ${
     ? `  vec2 g = vUvGlobal;
   vec2 gdx = dFdx(g);
   vec2 gdy = dFdy(g);
-  vec3 tile = texture2D(tileMap, vUv).rgb;
-  vec3 day = tile;
-  if (dot(tile, vec3(0.333)) < 0.012) day = textureGrad(dayMap, g, gdx, gdy).rgb;
+  vec4 tile = texture2D(tileMap, vUv);
+  vec3 day = tile.rgb;
+  if (tile.a < 0.999) day += textureGrad(dayMap, g, gdx, gdy).rgb * (1.0 - tile.a);
   day *= tint;`
     : `  vec2 g = vUv;
   vec3 day = texture2D(dayMap, g).rgb * tint;`
