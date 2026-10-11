@@ -85,15 +85,32 @@ export function stationViewpoint(
   return best
 }
 
+/** The station a catalog object belongs to (one of its modules), if any. */
+export const stationOf = (name: string): Station | null => STATIONS.find((s) => s.match(name)) ?? null
+
 /**
- * The satellite view's viewpoint for the current selection: the selected
- * satellite (a click, or a conjunction pair's chosen piece), else the selected
- * station's core module, else none (the view can't be entered).
+ * The satellite view's viewpoint for the current selection, however it was
+ * made: a station always rides its core module, whether it was chosen from
+ * the Stations row, by clicking one of its pieces, or as one side of a
+ * conjunction pair. Otherwise the selected satellite rides itself; a pair
+ * with no station in it, or no selection, has no viewpoint.
+ * `pair` holds the replayed pair's catalog indices (null for one not in the
+ * loaded snapshot).
  */
 export function viewpointFor(
-  selection: { satellite: number | null; station: Station | null },
+  selection: {
+    satellite: number | null
+    station: Station | null
+    pair?: readonly [number | null, number | null] | null
+  },
   objects: readonly { name: string; norad_id: number }[] | null,
 ): number | null {
-  if (selection.satellite !== null) return selection.satellite
-  return selection.station && objects ? stationViewpoint(selection.station, objects) : null
+  const core = (i: number | null): number | null => {
+    const st = i !== null && objects ? stationOf(objects[i]?.name ?? '') : null
+    return st && objects ? stationViewpoint(st, objects) : null
+  }
+  if (selection.satellite !== null) return core(selection.satellite) ?? selection.satellite
+  if (selection.station) return objects ? stationViewpoint(selection.station, objects) : null
+  if (selection.pair) return core(selection.pair[0]) ?? core(selection.pair[1])
+  return null
 }
