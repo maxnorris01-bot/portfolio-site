@@ -302,10 +302,28 @@ export function panSurface(
 }
 
 /**
- * The lowest altitude worth descending to: one image pixel of `kmPerPx`
- * (the finest imagery level) may cover at most `overMag` screen pixels.
+ * How far the closest zoom may magnify the imagery: one source pixel (of the
+ * finest tile level in use) covers at most this many CSS pixels at the
+ * centre of a straight-down view. 1.0 is one screen pixel at a device pixel
+ * ratio of 1; past it, 10 m imagery visibly softens. It's counted in CSS
+ * pixels, not device pixels, so a 2x display stops at the same height as a
+ * 1x display of the same size (each source pixel then covers 2x2 device
+ * pixels, the most a 10 m image can show on it); counting device pixels
+ * would stop a 2x screen twice as high and show it less than a 1x screen.
  */
-export function minAltitudeKm(kmPerPx: number, fovDeg: number, screenPx: number, overMag = 2): number {
+export const MAX_SOURCE_PX_PER_CSS_PX = 1.0
+
+/**
+ * The lowest altitude worth descending to: one image pixel of `kmPerPx`
+ * (the finest imagery level) may cover at most `overMag` CSS pixels on a
+ * view `screenPx` CSS pixels tall.
+ */
+export function minAltitudeKm(
+  kmPerPx: number,
+  fovDeg: number,
+  screenPx: number,
+  overMag = MAX_SOURCE_PX_PER_CSS_PX,
+): number {
   return ((kmPerPx / overMag) * screenPx) / (2 * Math.tan((fovDeg * DEG) / 2))
 }
 

@@ -16,6 +16,7 @@ import {
   keepUnder,
   latLonToUnit,
   lerpPose,
+  MAX_SOURCE_PX_PER_CSS_PX,
   minAltitudeKm,
   panSurface,
   rayThrough,
@@ -100,11 +101,19 @@ test('the imagery limit eases: steps slow near it, it is never passed, zooming o
   assert.equal(easeAltitude(800, 4, lim.min, lim.max), 1000)
 })
 
-test('the lowest altitude follows the finest imagery level, field of view and screen', () => {
-  const desktop = minAltitudeKm(0.00955, DESCEND_FOV, 576) // EOX level 13
-  const phone = minAltitudeKm(0.0191, DESCEND_FOV, 576) // EOX level 12
-  assert.ok(desktop > 4.5 && desktop < 5.5, `${desktop}`)
-  assert.ok(Math.abs(phone / desktop - 2) < 1e-9)
+test('the closest zoom stops where one source pixel covers one CSS pixel', () => {
+  assert.equal(MAX_SOURCE_PX_PER_CSS_PX, 1)
+  // EOX level 13 (~9.55 m per pixel) on a 576 px tall desktop view at 30 degrees: ~10.3 km.
+  const desktop = minAltitudeKm(0.00955, DESCEND_FOV, 576)
+  assert.ok(desktop > 10 && desktop < 10.6, `${desktop}`)
+  // At that height one source pixel spans exactly one CSS pixel at the centre.
+  const kmPerCssPx = (2 * desktop * Math.tan((DESCEND_FOV * Math.PI) / 360)) / 576
+  assert.ok(Math.abs(kmPerCssPx - 0.00955) < 1e-12)
+  // A taller view (a larger window) stops higher; phones (level 12, ~19 m) twice as high again.
+  assert.ok(Math.abs(minAltitudeKm(0.00955, DESCEND_FOV, 700) / desktop - 700 / 576) < 1e-9)
+  assert.ok(Math.abs(minAltitudeKm(0.0191, DESCEND_FOV, 576) / desktop - 2) < 1e-9)
+  // The old rule (2 screen pixels per source pixel) stopped at half the height.
+  assert.ok(Math.abs(minAltitudeKm(0.00955, DESCEND_FOV, 576, 2) / desktop - 0.5) < 1e-9)
 })
 
 test('detaching takes over at the centre ground point at the same distance; sky gives none', () => {

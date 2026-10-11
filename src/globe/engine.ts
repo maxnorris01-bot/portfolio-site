@@ -1312,9 +1312,10 @@ export class GlobeEngine {
     }
   }
 
-  // The descent's altitude range: down to where the finest base imagery level
-  // is magnified at most 2x, up to twice the satellite's altitude (or the
-  // starting altitude, if higher).
+  // The descent's altitude range: down to where one pixel of the finest base
+  // imagery level in use covers one CSS pixel (MAX_SOURCE_PX_PER_CSS_PX; the
+  // view's CSS height, not its device-pixel height), up to twice the
+  // satellite's altitude (or the starting altitude, if higher).
   private povAltitudeLimits(s: SurfaceCam | null = this.povDetached) {
     const caps = this.baseTiles ? this.tileCaps(this.baseTiles.source) : null
     const kmPerPx = caps ? EOX_LEVEL_KM(caps.maxLevel) : 20 // the 2K texture: ~20 km per pixel
