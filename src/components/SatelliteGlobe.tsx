@@ -522,6 +522,7 @@ export default function SatelliteGlobe({
       '=': () => engine.povZoom(0.8),
       '-': () => engine.povZoom(1.25),
       _: () => engine.povZoom(1.25),
+      Escape: () => engine.returnToSatellite(),
     }
     const act = keys[e.key]
     if (act) {
@@ -817,6 +818,15 @@ export default function SatelliteGlobe({
     if (viewMode === 'pov') setAnnouncement(`Viewing from ${povObject?.name ?? 'the satellite'}`)
     else if (prevAnnouncedView === 'pov') {
       setAnnouncement(stationForPov && viewMode === 'globe' ? `Back to ${stationForPov.fullName}` : 'Back to full view')
+    }
+  }
+  // Detaching from the satellite and returning are announced too.
+  const povHeld = viewMode === 'pov' && !!povInfo?.detached
+  const [prevPovHeld, setPrevPovHeld] = useState(povHeld)
+  if (prevPovHeld !== povHeld) {
+    setPrevPovHeld(povHeld)
+    if (viewMode === 'pov') {
+      setAnnouncement(povHeld ? 'Holding over the ground' : `Riding ${povObject?.name ?? 'the satellite'} again`)
     }
   }
   const offsetLabel = time.simMs ? formatOffset(time.simMs - time.nowMs) : ''
@@ -1273,7 +1283,7 @@ export default function SatelliteGlobe({
                     <button
                       key={preset}
                       type="button"
-                      aria-pressed={povInfo?.preset === preset}
+                      aria-pressed={!povInfo?.detached && povInfo?.preset === preset}
                       aria-label={PRESET_LABEL[preset]}
                       onClick={() => engineRef.current?.setPovPreset(preset)}
                     >
@@ -1287,15 +1297,28 @@ export default function SatelliteGlobe({
                     <dd>{fmtKm(Math.round(povInfo.altKm))}</dd>
                     <dt>Speed</dt>
                     <dd>{povInfo.speedKmS.toFixed(2)} km/s</dd>
-                    <dt>Below</dt>
-                    <dd>{formatLatLon({ latDeg: povInfo.latDeg, lonDeg: povInfo.lonDeg, altKm: 0 })}</dd>
-                    <dt>Looking</dt>
-                    <dd>
-                      {PRESET_LABEL[povInfo.preset]}
-                      {povInfo.yaw !== 0 || povInfo.pitch !== 0
-                        ? ` · ${Math.round(povInfo.yaw)}° right, ${Math.round(povInfo.pitch)}° up`
-                        : ''}
-                    </dd>
+                    {povInfo.detached ? (
+                      <>
+                        <dt>Holding over</dt>
+                        <dd>{formatLatLon({ latDeg: povInfo.detached.latDeg, lonDeg: povInfo.detached.lonDeg, altKm: 0 })}</dd>
+                        <dt>Camera height</dt>
+                        <dd>{fmtKm(povInfo.detached.altKm < 10 ? Math.round(povInfo.detached.altKm * 10) / 10 : Math.round(povInfo.detached.altKm))}</dd>
+                        <dt>Looking</dt>
+                        <dd>Straight down, north up</dd>
+                      </>
+                    ) : (
+                      <>
+                        <dt>Below</dt>
+                        <dd>{formatLatLon({ latDeg: povInfo.latDeg, lonDeg: povInfo.lonDeg, altKm: 0 })}</dd>
+                        <dt>Looking</dt>
+                        <dd>
+                          {PRESET_LABEL[povInfo.preset]}
+                          {povInfo.yaw !== 0 || povInfo.pitch !== 0
+                            ? ` · ${Math.round(povInfo.yaw)}° right, ${Math.round(povInfo.pitch)}° up`
+                            : ''}
+                        </dd>
+                      </>
+                    )}
                     <dt>Field of view</dt>
                     <dd>{Math.round(povInfo.fov)}°</dd>
                   </dl>
@@ -1465,6 +1488,11 @@ export default function SatelliteGlobe({
         )}
 
         {povNote && <p className="globe-badge globe-pov-note">{povNote}</p>}
+        {viewMode === 'pov' && povInfo?.detached && (
+          <button type="button" className="globe-pov-return" onClick={() => engineRef.current?.returnToSatellite()}>
+            ↑ Return to satellite
+          </button>
+        )}
         {debugLines && (
           <pre className="globe-debug" aria-hidden="true">
             {debugLines.join('\n')}
@@ -1474,7 +1502,9 @@ export default function SatelliteGlobe({
           {viewMode === 'sky'
             ? 'Drag to look around · scroll or pinch to zoom · click a point for details'
             : viewMode === 'pov'
-              ? 'Drag or arrow keys to look around · scroll, pinch or +/− to zoom'
+              ? povInfo?.detached
+                ? 'Drag or arrow keys to pan · scroll, pinch or double-click to zoom · Esc returns to the satellite'
+                : 'Drag or arrow keys to look around · scroll, pinch or double-click to zoom in toward a point'
               : 'Drag to rotate · scroll to zoom · right-drag to pan · click a point for details'}
         </p>
       </div>

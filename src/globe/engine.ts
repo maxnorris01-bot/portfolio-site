@@ -40,12 +40,28 @@ import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } fro
 import { EOX_LEVEL_KM } from './eox'
 import { minFovForImagery } from './gibs'
 import {
+  DESCEND_FOV,
+  DOUBLE_CLICK_ZOOM,
+  detachFrom,
+  easeInOut as easeView,
+  groundAt,
+  keepUnder,
+  lerpPose,
+  minAltitudeKm,
+  panSurface,
+  surfacePose,
+  transitionMs,
+  zoomLockedToward,
+  zoomSurfaceToward,
+  type Pose,
+  type SurfaceCam,
+} from './descend'
+import {
   POV_FOV_DEFAULT,
   POV_FOV_MIN,
   POV_PITCH_MAX,
   applyLook,
   presetView,
-  zoomFov,
   type PovPreset,
   type Vec3 as PovVec3,
 } from './pov'
@@ -144,6 +160,9 @@ const MAX_GROUP = 32
 const PICK_PX_MOUSE = 6
 const PICK_PX_TOUCH = 16
 const CLICK_MAX_MOVE_PX = 5
+// Two taps or clicks this close in time and place are a double tap (zoom in).
+const DOUBLE_TAP_MS = 350
+const DOUBLE_TAP_PX = 30
 /**
  * How far an elevation label's centre keeps from the geostationary row, in
  * CSS px: half the label's height plus a gap, so the row's points stay clear.
@@ -337,6 +356,7 @@ export class GlobeEngine {
   // LVLH frame (pov.ts), a preset plus a drag offset.
   private readonly povCamera = new THREE.PerspectiveCamera(POV_FOV_DEFAULT, 1, 1e-3, 50)
   private povIdx: number | null = null
+  private povIdOf: number | null = null
   private readonly povLook = { preset: 'down' as PovPreset, yaw: 0, pitch: 0 }
   private povState: {
     pos: PovVec3
@@ -357,6 +377,20 @@ export class GlobeEngine {
   private tilesModule: typeof import('./earthTiles') | null = null
   private tilesLoading = false
   private povMinFov = POV_FOV_MIN
+  // Descend zoom (descend.ts): once the user zooms in past DESCEND_FOV or
+  // double-clicks, the camera holds over a ground point (Earth-fixed, so it
+  // turns with the Earth), at `povDetachedFov`. Null while riding the satellite.
+  private povDetached: SurfaceCam | null = null
+  private povDetachedFov = DESCEND_FOV
+  // The field of view the projection matrix was last built with.
+  private povRenderFov = 0
+  // A view change in progress: from the camera's pose (world frame) and field
+  // of view when it started, toward the live target pose.
+  private povAnim: { from: Pose; fromFov: number; start: number; dur: number } | null = null
+  // The last tap or click in the satellite view, for double-tap detection.
+  private povLastTap: { t: number; x: number; y: number } | null = null
+  private readonly reducedMotion =
+    typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
   // Stands in for the Earth's material while the tiles cover the whole view:
   // only depth (the Earth still hides the Sun behind it), no shading.
   private readonly earthDepthOnly = new THREE.MeshBasicMaterial({ colorWrite: false })
@@ -424,6 +458,7 @@ export class GlobeEngine {
   private drawRgba = new Float32Array(0)
   private satrecs: (SatRec | null)[] = []
   private indexById = new Map<number, number>()
+  private idByIndex: number[] = []
   private clock: Clock = liveClock(Date.now())
   private sliceIndex = 0
   // Displayed time at which each render slice was last propagated.
@@ -779,6 +814,7 @@ export class GlobeEngine {
       return rec.error ? null : rec
     })
     this.indexById = new Map(objects.map((o, i) => [o.norad_id, i]))
+    this.idByIndex = objects.map((o) => o.norad_id)
     this.positions = new Float32Array(objects.length * 3)
     const attr = new THREE.BufferAttribute(this.positions, 3).setUsage(THREE.DynamicDrawUsage)
     this.geometry.setAttribute('position', attr)
@@ -1053,6 +1089,9 @@ export class GlobeEngine {
       // No tile requests outside the satellite view.
       this.baseTiles?.pause()
       this.overlayTiles?.pause()
+      // Leaving the satellite view (Back) also leaves a held ground view.
+      this.povDetached = null
+      this.povAnim = null
     }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
@@ -1075,10 +1114,17 @@ export class GlobeEngine {
    * viewpoint starts looking down at the Earth with no drag offset.
    */
   enterPov(index: number) {
-    if (this.povIdx !== index || this.viewMode !== 'pov') {
+    // A new snapshot moves the same satellite to a new index: keep the view
+    // (look, zoom, a held ground view). Only a different satellite resets it.
+    const id = this.idByIndex[index] ?? null
+    const sameObject = id !== null && id === this.povIdOf
+    this.povIdOf = id
+    if (!sameObject || this.viewMode !== 'pov') {
       this.povLook.preset = 'down'
       this.povLook.yaw = 0
       this.povLook.pitch = 0
+      this.povDetached = null
+      this.povAnim = null
     }
     this.povIdx = index
     this.povState = null
@@ -1125,23 +1171,139 @@ export class GlobeEngine {
     if (!on) this.overlayTiles?.pause()
   }
 
-  /** Pick a look preset; the drag offset resets. */
+  /** Pick a look preset (riding the satellite again if detached); the drag offset resets. */
   setPovPreset(preset: PovPreset) {
+    this.startPovAnim()
+    this.povDetached = null
     this.povLook.preset = preset
     this.povLook.yaw = 0
     this.povLook.pitch = 0
   }
 
-  /** Turn the satellite view (keyboard): degrees right and up. */
+  /**
+   * Keyboard look: degrees right and up. Riding the satellite it turns the
+   * view; held over the ground it pans (a 5 degree step moves the view by
+   * about a tenth of its width).
+   */
   povNudge(yawDeg: number, pitchDeg: number) {
+    if (this.povDetached) {
+      const k = 0.15 / 5
+      this.povDetached = panSurface(this.povDetached, [0, 0], [-yawDeg * k, -pitchDeg * k], this.povDetachedFov, this.povCamera.aspect)
+      return
+    }
     this.povLook.yaw = ((((this.povLook.yaw + yawDeg + 180) % 360) + 360) % 360) - 180
     this.povLook.pitch = Math.max(-POV_PITCH_MAX, Math.min(POV_PITCH_MAX, this.povLook.pitch + pitchDeg))
   }
 
-  /** Zoom the satellite view's field of view by a factor (below 1 narrows). */
+  /** Zoom toward the centre of the view (keyboard +/-), animated. */
   povZoom(factor: number) {
-    this.povCamera.fov = zoomFov(this.povCamera.fov, factor, this.povMinFov)
-    this.povCamera.updateProjectionMatrix()
+    this.povZoomAt(factor, 0, 0, true)
+  }
+
+  /**
+   * Zoom by `factor` (below 1 zooms in) toward the screen point (nx, ny) in
+   * -1..1: the ground (or sky) under it stays under it. Riding the satellite
+   * this narrows the field of view down to DESCEND_FOV; zooming in past that
+   * over the ground detaches the camera, which then descends toward the
+   * point, easing to a stop at the finest imagery level.
+   */
+  povZoomAt(factor: number, nx: number, ny: number, animate = false) {
+    const cam = this.povCamera
+    const aspect = cam.aspect
+    if (this.povDetached) {
+      if (animate) this.startPovAnim()
+      this.povDetached = zoomSurfaceToward(this.povDetached, factor, nx, ny, this.povDetachedFov, aspect, this.povAltitudeLimits())
+      return
+    }
+    const st = this.povState
+    if (!st) return
+    const base = presetView(this.povLook.preset, st.pos, st.vel)
+    const look = { yaw: this.povLook.yaw, pitch: this.povLook.pitch, fov: cam.fov }
+    const pose: Pose = { pos: st.pos, ...applyLook(base, look.yaw, look.pitch) }
+    const overGround = groundAt(pose, cam.fov, aspect, nx, ny) !== null
+    if (animate) this.startPovAnim()
+    if (factor < 1 && overGround && cam.fov * factor < DESCEND_FOV) {
+      // Narrow to DESCEND_FOV toward the pointer, then hand over to the
+      // surface camera at the centre of that view (an animated turn to
+      // straight down, north up), and descend by what's left of the step.
+      const fovBefore = cam.fov
+      const r = zoomLockedToward(base, look, DESCEND_FOV / fovBefore, nx, ny, aspect, DESCEND_FOV)
+      this.applyLockedLook(r)
+      const local = this.toEarth({ pos: st.pos, ...applyLook(base, r.yaw, r.pitch) })
+      const under = groundAt(local, DESCEND_FOV, aspect, nx, ny)
+      const centre = detachFrom(local, DESCEND_FOV, aspect)
+      if (!centre || !under) return
+      if (!animate) this.startPovAnim()
+      this.povDetachedFov = DESCEND_FOV
+      // The point under the pointer stays under it through the turn to north-up.
+      const s = keepUnder(centre, under, DESCEND_FOV, aspect, nx, ny)
+      const rest = (fovBefore * factor) / DESCEND_FOV
+      this.povDetached = zoomSurfaceToward(s, rest, nx, ny, DESCEND_FOV, aspect, this.povAltitudeLimits(s))
+      return
+    }
+    const minFov = overGround ? DESCEND_FOV : this.povMinFov
+    this.applyLockedLook(zoomLockedToward(base, look, factor, nx, ny, aspect, minFov))
+  }
+
+  /** Pan the held ground view with a drag from one screen point to another (-1..1). */
+  povPan(from: [number, number], to: [number, number]) {
+    if (!this.povDetached) return
+    this.povDetached = panSurface(this.povDetached, from, to, this.povDetachedFov, this.povCamera.aspect)
+  }
+
+  /** Back to riding the satellite from a held ground view, animated. */
+  returnToSatellite() {
+    if (!this.povDetached) return
+    this.startPovAnim()
+    this.povDetached = null
+  }
+
+  private applyLockedLook(r: { yaw: number; pitch: number; fov: number }) {
+    this.povLook.yaw = r.yaw
+    this.povLook.pitch = Math.max(-POV_PITCH_MAX, Math.min(POV_PITCH_MAX, r.pitch))
+    if (r.fov !== this.povCamera.fov) {
+      this.povCamera.fov = r.fov
+      this.povCamera.updateProjectionMatrix()
+    }
+  }
+
+  // The descent's altitude range: down to where the finest base imagery level
+  // is magnified at most 2x, up to twice the satellite's altitude (or the
+  // starting altitude, if higher).
+  private povAltitudeLimits(s: SurfaceCam | null = this.povDetached) {
+    const caps = this.baseTiles ? this.tileCaps(this.baseTiles.source) : null
+    const kmPerPx = caps ? EOX_LEVEL_KM(caps.maxLevel) : 20 // the 2K texture: ~20 km per pixel
+    const minKm = minAltitudeKm(kmPerPx, this.povDetachedFov, Math.max(1, this.container.clientHeight))
+    const maxKm = Math.max(2 * (this.povState?.altKm ?? 400), s?.altKm ?? 0, minKm * 2)
+    return { minKm, maxKm }
+  }
+
+  // Earth-fixed <-> world (inertial scene) frames: the Earth mesh's rotation.
+  private toEarth(p: Pose): Pose {
+    this.earth.updateMatrixWorld()
+    const inv = new THREE.Matrix4().copy(this.earth.matrixWorld).invert()
+    const pt = (v: PovVec3) => new THREE.Vector3(...v).applyMatrix4(inv).toArray() as PovVec3
+    const dir = (v: PovVec3) => new THREE.Vector3(...v).transformDirection(inv).toArray() as PovVec3
+    return { pos: pt(p.pos), look: dir(p.look), up: dir(p.up) }
+  }
+
+  private toWorld(p: Pose): Pose {
+    this.earth.updateMatrixWorld()
+    const m = this.earth.matrixWorld
+    const pt = (v: PovVec3) => new THREE.Vector3(...v).applyMatrix4(m).toArray() as PovVec3
+    const dir = (v: PovVec3) => new THREE.Vector3(...v).transformDirection(m).toArray() as PovVec3
+    return { pos: pt(p.pos), look: dir(p.look), up: dir(p.up) }
+  }
+
+  // Start a view transition from wherever the camera is now.
+  private startPovAnim() {
+    const cam = this.povCamera
+    const look = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion)
+    const dur = transitionMs(this.reducedMotion?.matches ?? false)
+    this.povAnim = dur > 0 && this.povState
+      ? { from: { pos: cam.position.toArray() as PovVec3, look: look.toArray() as PovVec3, up: up.toArray() as PovVec3 }, fromFov: cam.fov, start: performance.now(), dur }
+      : null
   }
 
   /** For the ?debug=1 overlay: the engine's own view and selection state. */
@@ -1176,9 +1338,11 @@ export class GlobeEngine {
       latDeg,
       lonDeg,
       ...this.povLook,
-      fov: this.povCamera.fov,
+      fov: this.povDetached ? this.povDetachedFov : this.povCamera.fov,
       minFov: this.povMinFov,
       imagery,
+      /** Held over the ground (descended or panned), or null while riding the satellite. */
+      detached: this.povDetached ? { ...this.povDetached, minKm: this.povAltitudeLimits().minKm } : null,
     }
   }
 
@@ -1212,24 +1376,47 @@ export class GlobeEngine {
       latDeg: degreesLat(geo.latitude),
       lonDeg: degreesLong(geo.longitude),
     }
+    // Where the camera should be: riding the satellite, or held over the
+    // ground (Earth-fixed, so it turns with the Earth); part-way there while a
+    // view change animates.
     const view = applyLook(presetView(this.povLook.preset, pos, vel), this.povLook.yaw, this.povLook.pitch)
-    cam.position.set(...pos)
-    cam.up.set(...view.up)
-    cam.lookAt(pos[0] + view.look[0], pos[1] + view.look[1], pos[2] + view.look[2])
+    const target: Pose = this.povDetached ? this.toWorld(surfacePose(this.povDetached)) : { pos, ...view }
+    const targetFov = this.povDetached ? this.povDetachedFov : cam.fov
+    let pose = target
+    let fov = targetFov
+    const anim = this.povAnim
+    if (anim) {
+      const t = (performance.now() - anim.start) / anim.dur
+      if (t >= 1) this.povAnim = null
+      else {
+        const e = easeView(t)
+        pose = lerpPose(anim.from, target, e)
+        fov = Math.exp(Math.log(anim.fromFov) + (Math.log(targetFov) - Math.log(anim.fromFov)) * e)
+      }
+    }
+    const eye = pose.pos
+    cam.position.set(...eye)
+    cam.up.set(...pose.up)
+    cam.lookAt(eye[0] + pose.look[0], eye[1] + pose.look[1], eye[2] + pose.look[2])
     cam.updateMatrixWorld()
     // Near plane: a fifth of the altitude (only the Earth and the Sun are
     // drawn here), between about 60 m and 60 km; far plane past the Earth's
     // far side and the Sun disc.
-    const near = Math.max(1e-5, Math.min(1e-2, (Math.hypot(...pos) - 1) * 0.2))
-    const far = Math.hypot(...pos) + 25
-    if (Math.abs(near - cam.near) > near * 0.05 || Math.abs(far - cam.far) > 1) {
+    const near = Math.max(1e-5, Math.min(1e-2, (Math.hypot(...eye) - 1) * 0.2))
+    const far = Math.hypot(...eye) + 25
+    if (Math.abs(near - cam.near) > near * 0.05 || Math.abs(far - cam.far) > 1 || fov !== this.povRenderFov) {
       cam.near = near
       cam.far = far
+      this.povRenderFov = fov
+      const keep = cam.fov
+      cam.fov = fov
       cam.updateProjectionMatrix()
+      // cam.fov holds the locked zoom; the render may use another for a moment.
+      cam.fov = keep
     }
     this.updatePovTiles(date, pos)
     const sun = this.earthUniforms.sunDir.value
-    this.setRing(this.povSun, new THREE.Vector3(pos[0] + sun.x * 20, pos[1] + sun.y * 20, pos[2] + sun.z * 20))
+    this.setRing(this.povSun, new THREE.Vector3(eye[0] + sun.x * 20, eye[1] + sun.y * 20, eye[2] + sun.z * 20))
     this.povSun.visible = true
     // Only the Earth and the Sun: the catalog's dots, rings, the neighbour line
     // and orbit lines are hidden for this render (and restored after, so the
@@ -1254,6 +1441,8 @@ export class GlobeEngine {
 
   // Feed the tiles the camera in the Earth's own (rotating) axes, and set the
   // narrowest zoom from the finest imagery level allowed here and the altitude.
+  // `pos` is the satellite (for the zoom limit); the tiles follow the camera
+  // as rendered (the satellite, or held over the ground, or mid-transition).
   private updatePovTiles(date: Date, pos: PovVec3) {
     const base = this.baseTiles
     const cam = this.povCamera
@@ -1265,15 +1454,17 @@ export class GlobeEngine {
         cam.position.clone().add(new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)),
       )
       const dir = ahead.sub(camLocal).normalize()
-      const tanV = Math.tan((cam.fov * Math.PI) / 360)
+      const fovNow = this.povRenderFov || cam.fov
+      const tanV = Math.tan((fovNow * Math.PI) / 360)
       const view = {
         cam: [camLocal.x, camLocal.y, camLocal.z] as [number, number, number],
         dir: [dir.x, dir.y, dir.z] as [number, number, number],
-        fovDeg: cam.fov,
+        fovDeg: fovNow,
         halfDiagDeg: (Math.atan(tanV * Math.hypot(1, cam.aspect)) * 180) / Math.PI,
         screenPx: h,
       }
-      const ground = this.povGroundKmPerSec(pos)
+      // Held over the ground the view doesn't move with the satellite: full detail at any speed.
+      const ground = this.povDetached ? 0 : this.povGroundKmPerSec(pos)
       base.setCaps(this.tileCaps(base.source))
       base.update(view, date.getTime(), ground)
       if (this.todayImagery && this.tilesModule) {
@@ -1622,6 +1813,12 @@ export class GlobeEngine {
     this.pointerDown = e.isPrimary && e.button === 0 ? { x: e.clientX, y: e.clientY } : null
   }
 
+  // A client-space point as -1..1 across the canvas (right and up).
+  private povNdc(x: number, y: number): [number, number] {
+    const r = this.renderer.domElement.getBoundingClientRect()
+    return [((x - r.left) / Math.max(1, r.width)) * 2 - 1, 1 - ((y - r.top) / Math.max(1, r.height)) * 2]
+  }
+
   private pinchDistance(): number {
     const [a, b] = [...this.skyPointers.values()]
     return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0
@@ -1643,8 +1840,12 @@ export class GlobeEngine {
     if (this.skyPointers.size >= 2) {
       const d = this.pinchDistance()
       if (this.skyPinch > 0 && d > 0) {
-        if (pov) this.povZoom(this.skyPinch / d)
-        else this.setSkyFov(this.skyCamera.fov * (this.skyPinch / d))
+        if (pov) {
+          // Pinch zooms toward the point between the fingers.
+          const [a, b] = [...this.skyPointers.values()]
+          const [nx, ny] = this.povNdc((a.x + b.x) / 2, (a.y + b.y) / 2)
+          this.povZoomAt(this.skyPinch / d, nx, ny)
+        } else this.setSkyFov(this.skyCamera.fov * (this.skyPinch / d))
       }
       this.skyPinch = d
       return
@@ -1654,6 +1855,11 @@ export class GlobeEngine {
     if (g && !g.dragging) {
       if (Math.hypot(e.clientX - g.x, e.clientY - g.y) <= CLICK_MAX_MOVE_PX) return
       g.dragging = true
+    }
+    if (pov && this.povDetached) {
+      // Held over the ground: the ground follows the pointer.
+      this.povPan(this.povNdc(prev.x, prev.y), this.povNdc(e.clientX, e.clientY))
+      return
     }
     if (pov) {
       // The view follows the pointer, as in Sky.
@@ -1729,17 +1935,32 @@ export class GlobeEngine {
   private handleSkyWheel = (e: WheelEvent) => {
     if (this.viewMode !== 'sky' && this.viewMode !== 'pov') return
     e.preventDefault()
-    if (this.viewMode === 'pov') this.povZoom(Math.exp(e.deltaY * 0.001))
-    else this.setSkyFov(this.skyCamera.fov * Math.exp(e.deltaY * 0.001))
+    if (this.viewMode === 'pov') {
+      const [nx, ny] = this.povNdc(e.clientX, e.clientY)
+      this.povZoomAt(Math.exp(e.deltaY * 0.001), nx, ny)
+    } else this.setSkyFov(this.skyCamera.fov * Math.exp(e.deltaY * 0.001))
   }
 
   // A click (not a drag-to-rotate) picks the nearest visible point within a
   // fixed screen-space radius.
   private handlePointerUp = (e: PointerEvent) => {
     if (this.viewMode === 'pov') {
-      // Satellite view: drags and pinches only (picking comes later).
+      // Satellite view: drags, pinches, and a double click or tap zooms in on
+      // that point (no picking here).
+      const g = this.skyGesture
       this.handleSkyPointerEnd(e)
-      if (this.skyPointers.size === 0) this.skyGesture = null
+      if (this.skyPointers.size === 0) {
+        if (g && !g.dragging && !g.multi) {
+          const now = performance.now()
+          const last = this.povLastTap
+          if (last && now - last.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_PX) {
+            const [nx, ny] = this.povNdc(e.clientX, e.clientY)
+            this.povZoomAt(DOUBLE_CLICK_ZOOM, nx, ny, true)
+            this.povLastTap = null
+          } else this.povLastTap = { t: now, x: e.clientX, y: e.clientY }
+        }
+        this.skyGesture = null
+      }
       return
     }
     if (this.viewMode === 'sky') {
