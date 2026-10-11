@@ -155,3 +155,11 @@ a.card:hover {
 .page {
   padding: clamp(2.5rem, 6vw, 5rem) 0;
 }
+
+/* Which build is live: a quiet line at the very bottom of every page. */
+.site-footer {
+  padding-bottom: 1.5rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}

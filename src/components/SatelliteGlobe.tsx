@@ -743,6 +743,46 @@ export default function SatelliteGlobe({
   const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
   const povObject = povTarget !== null && loaded ? loaded.file.objects[povTarget] : null
 
+  // ?debug=1: a plain-text overlay of everything that decides whether the
+  // satellite view can be entered (temporary, for checking a live build).
+  const [debug] = useState(() => new URLSearchParams(window.location.search).get('debug') === '1')
+  // The engine's side (its selection, and whether the viewpoint propagates
+  // now), read twice a second while the overlay is on.
+  const [debugEngine, setDebugEngine] = useState<{
+    selection: string
+    prop: ReturnType<GlobeEngine['debugObject']> | null
+  } | null>(null)
+  useEffect(() => {
+    if (!debug) return
+    const read = () => {
+      const engine = engineRef.current
+      if (!engine) return
+      setDebugEngine({
+        selection: engine.debugSelection(),
+        prop: povTarget !== null ? engine.debugObject(povTarget) : null,
+      })
+    }
+    read()
+    const t = setInterval(read, 500)
+    return () => clearInterval(t)
+  }, [debug, povTarget])
+  const debugLines = (() => {
+    if (!debug) return null
+    const obj = (i: number | null) =>
+      i === null ? 'none' : `${i} → ${loaded?.file.objects[i] ? `${loaded.file.objects[i].norad_id} ${loaded.file.objects[i].name}` : 'NOT IN LOADED OBJECTS'}`
+    const prop = debugEngine?.prop ?? null
+    return [
+      `build ${__BUILD_COMMIT__} (${__BUILD_ENV__})`,
+      `snapshot ${loaded ? `${loaded.key}, ${loaded.file.objects.length} objects, generated ${loaded.file.generated_at_utc ?? '?'}` : 'not loaded'}${loadError ? ` · load error ${loadError}` : ''}`,
+      `clock ${clock.kind} ×${clock.speed} · displayed ${time.simMs ? new Date(time.simMs).toISOString() : '?'}`,
+      `view ${viewMode} · engine ${debugEngine?.selection ?? 'not ready'}`,
+      `selection: satellite ${obj(inspect)} · station ${station ?? 'none'}${stationForPov ? ` (core ${stationForPov.main})` : ''} · pair ${pairIdx ? `${obj(pairIdx[0])} / ${obj(pairIdx[1])}` : 'none'}`,
+      `viewpoint ${obj(povTarget)} · in loaded objects ${povObject ? 'yes' : 'no'} · satrec ${prop ? (prop.satrec ? 'yes' : 'no') : '-'} · propagates now ${prop ? (prop.propagated ? 'yes' : `no (${prop.error})`) : '-'}`,
+      `toggle: canPov sent ${povTarget !== null} · handler ${onCanPovChange ? 'yes' : 'MISSING'}`,
+      `buttons: station panel ${!!stationDef && viewMode !== 'pov' && povTarget !== null} · object panel ${!!inspected && viewMode !== 'pov'} · pair panel ${!!focus && viewMode !== 'pov' && povTarget !== null && !!povObject} · onViewRequest ${onViewRequest ? 'yes' : 'MISSING'}`,
+    ]
+  })()
+
   // Screen readers hear only changes in kind: a new selection's name,
   // "Deselected", or a newly chosen location. The numbers that change as time
   // plays (azimuth, elevation, range, the above-horizon count) stay out of any
@@ -1412,6 +1452,11 @@ export default function SatelliteGlobe({
         )}
 
         {povNote && <p className="globe-badge globe-pov-note">{povNote}</p>}
+        {debugLines && (
+          <pre className="globe-debug" aria-hidden="true">
+            {debugLines.join('\n')}
+          </pre>
+        )}
         <p className={`globe-hint${viewMode !== 'globe' ? ' is-sky' : ''}`}>
           {viewMode === 'sky'
             ? 'Drag to look around · scroll or pinch to zoom · click a point for details'

@@ -1,0 +1,156 @@
+{
+ "_note": "Station pieces and neighbours copied from the live objects/current.json (generated 2026-10-10T15:52:02.929297Z), to test station viewpoints on production-shaped data.",
+ "generated_at_utc": "2026-10-10T15:52:02.929297Z",
+ "objects": [
+  {
+   "norad_id": 900,
+   "name": "CALSPHERE 1",
+   "international_designator": "1964-063C",
+   "tle_line1": "1 00900U 64063C   26283.22216523  .00000494  00000-0  49317-3 0  9996",
+   "tle_line2": "2 00900  90.2202  74.4323 0024428 305.7879 108.2615 13.76725845 87251",
+   "element_epoch_utc": "2026-10-10T05:19:55.075872Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 902,
+   "name": "CALSPHERE 2",
+   "international_designator": "1964-063E",
+   "tle_line1": "1 00902U 64063E   26283.27114767  .00000049  00000-0  61240-4 0  9996",
+   "tle_line2": "2 00902  90.2311  78.4958 0016777 251.3569 226.1756 13.52907823871824",
+   "element_epoch_utc": "2026-10-10T06:30:27.158688Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 1361,
+   "name": "LCS 1",
+   "international_designator": "1965-034C",
+   "tle_line1": "1 01361U 65034C   26283.28637896  .00000006  00000-0 -34344-3 0  9997",
+   "tle_line2": "2 01361  32.1406 263.7443 0010926 172.0910 187.9761  9.89311011221283",
+   "element_epoch_utc": "2026-10-10T06:52:23.142144Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 25544,
+   "name": "ISS (ZARYA)",
+   "international_designator": "1998-067A",
+   "tle_line1": "1 25544U 98067A   26282.95044904  .00006711  00000-0  13074-3 0  9998",
+   "tle_line2": "2 25544  51.6315  92.1575 0006672 244.0714 115.9587 15.48795780589546",
+   "element_epoch_utc": "2026-10-09T22:48:38.797056Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 25575,
+   "name": "ISS (UNITY)",
+   "international_designator": "1998-069F",
+   "tle_line1": "1 25575U 98069F   26282.95044904  .00006711  00000-0  13074-3 0  9994",
+   "tle_line2": "2 25575  51.6315  92.1575 0006672 244.0714 115.9587 15.48795780586132",
+   "element_epoch_utc": "2026-10-09T22:48:38.797056Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 26400,
+   "name": "ISS (ZVEZDA)",
+   "international_designator": "2000-037A",
+   "tle_line1": "1 26400U 00037A   26282.95044904  .00006711  00000-0  13074-3 0  9990",
+   "tle_line2": "2 26400  51.6315  92.1575 0006672 244.0714 115.9587 15.48795780586253",
+   "element_epoch_utc": "2026-10-09T22:48:38.797056Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 26700,
+   "name": "ISS (DESTINY)",
+   "international_designator": "2001-006B",
+   "tle_line1": "1 26700U 01006B   26282.95044904  .00006711  00000-0  13074-3 0  9990",
+   "tle_line2": "2 26700  51.6315  92.1575 0006672 244.0714 115.9587 15.48795780586290",
+   "element_epoch_utc": "2026-10-09T22:48:38.797056Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 48274,
+   "name": "CSS (TIANHE)",
+   "international_designator": "2021-035A",
+   "tle_line1": "1 48274U 21035A   26283.18867924  .00021388  00000-0  25541-3 0  9994",
+   "tle_line2": "2 48274  41.4702 343.5575 0000800   8.2160 351.8692 15.60516346311121",
+   "element_epoch_utc": "2026-10-10T04:31:41.886336Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 49044,
+   "name": "ISS (NAUKA)",
+   "international_designator": "2021-066A",
+   "tle_line1": "1 49044U 21066A   26282.95044904  .00006711  00000-0  13074-3 0  9994",
+   "tle_line2": "2 49044  51.6315  92.1575 0006672 244.0714 115.9587 15.48795780586375",
+   "element_epoch_utc": "2026-10-09T22:48:38.797056Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 53239,
+   "name": "CSS (WENTIAN)",
+   "international_designator": "2022-085A",
+   "tle_line1": "1 53239U 22085A   26283.18867924  .00021388  00000-0  25541-3 0  9997",
+   "tle_line2": "2 53239  41.4702 343.5575 0000800   8.2160 351.8692 15.60516346288233",
+   "element_epoch_utc": "2026-10-10T04:31:41.886336Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 54216,
+   "name": "CSS (MENGTIAN)",
+   "international_designator": "2022-143A",
+   "tle_line1": "1 54216U 22143A   26283.18867924  .00021388  00000-0  25541-3 0  9998",
+   "tle_line2": "2 54216  41.4702 343.5575 0000800   8.2160 351.8692 15.60516346308029",
+   "element_epoch_utc": "2026-10-10T04:31:41.886336Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 68689,
+   "name": "CYGNUS NG-24",
+   "international_designator": "2026-079A",
+   "tle_line1": "1 68689U 26079A   26282.49878260  .00005873  00000-0  11549-3 0  9991",
+   "tle_line2": "2 68689  51.6313  94.3925 0006790 241.2865 118.7442 15.48788322589535",
+   "element_epoch_utc": "2026-10-09T11:58:14.816640Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 68837,
+   "name": "PROGRESS-MS 34",
+   "international_designator": "2026-093A",
+   "tle_line1": "1 68837U 26093A   26282.95044904  .00006711  00000-0  13074-3 0  9990",
+   "tle_line2": "2 68837  51.6315  92.1575 0006672 244.0714 115.9587 15.48795780587300",
+   "element_epoch_utc": "2026-10-09T22:48:38.797056Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 69049,
+   "name": "TIANZHOU-10",
+   "international_designator": "2026-102A",
+   "tle_line1": "1 69049U 26102A   26283.18867924  .00021388  00000-0  25541-3 0  9997",
+   "tle_line2": "2 69049  41.4702 343.5575 0000800   8.2160 351.8692 15.60516346310910",
+   "element_epoch_utc": "2026-10-10T04:31:41.886336Z",
+   "object_type": "PAY",
+   "active_payload": true
+  },
+  {
+   "norad_id": 69796,
+   "name": "ISS OBJECT YM",
+   "international_designator": "1998-067YM",
+   "tle_line1": "1 69796U 98067YM  26282.86330829  .00062867  00000-0  82592-3 0  9994",
+   "tle_line2": "2 69796  51.6286  89.3353 0009752 255.4377 104.5534 15.57851347 15468",
+   "element_epoch_utc": "2026-10-09T20:43:09.836256Z",
+   "object_type": "PAY",
+   "active_payload": true
+  }
+ ]
+}
