@@ -35,6 +35,12 @@ export default function App() {
         <Route path="/satellite-conjunction-screening" element={<SatelliteTool />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <footer className="site-footer container">
+        <p>
+          Build {__BUILD_COMMIT__}
+          {__BUILD_ENV__ !== 'production' ? ` (${__BUILD_ENV__})` : ''}
+        </p>
+      </footer>
     </>
   )
 }

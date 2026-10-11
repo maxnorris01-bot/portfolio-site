@@ -1125,6 +1125,23 @@ export class GlobeEngine {
     this.povCamera.updateProjectionMatrix()
   }
 
+  /** For the ?debug=1 overlay: the engine's own view and selection state. */
+  debugSelection(): string {
+    return `${this.viewMode}, inspect ${this.inspectIdx}, group ${this.groupIdx?.length ?? 0} pieces, pov ${this.povIdx}`
+  }
+
+  /**
+   * For the ?debug=1 overlay: whether catalog index `index` has elements the
+   * engine could parse and whether they propagate at the displayed time.
+   */
+  debugObject(index: number): { satrec: boolean; propagated: boolean; error: string | null } {
+    const rec = this.satrecs[index] ?? null
+    if (!rec) return { satrec: false, propagated: false, error: 'no satrec (unparsed or dropped)' }
+    const pv = propagate(rec, new Date(this.simTimeMs()))
+    const ok = !!pv && !!pv.position && typeof pv.position !== 'boolean' && Number.isFinite(pv.position.x)
+    return { satrec: true, propagated: ok, error: ok ? null : `SGP4 error ${rec.error}` }
+  }
+
   /** The satellite view's viewpoint and look, for the panel; null outside it. */
   povInfo() {
     if (this.viewMode !== 'pov' || !this.povState) return null
