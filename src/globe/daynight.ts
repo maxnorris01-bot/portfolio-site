@@ -78,11 +78,14 @@ void main() {
 // whatever is drawn beneath it. The 2K and night textures are only read where
 // they contribute (explicit gradients keep their mip selection right inside
 // the branches).
-function earthFragment(tiled: boolean) {
+// `overlay`: a tile layer drawn over another (GIBS over EOX): where the tile
+// has no data it is transparent instead of filled from the 2K texture, so the
+// layer beneath shows through.
+function earthFragment(tiled: boolean, overlay = false) {
   return /* glsl */ `
 uniform sampler2D dayMap;
 uniform sampler2D nightMap;
-${tiled ? 'uniform sampler2D tileMap;\nuniform float opacity;\nuniform vec4 feather;\nvarying vec2 vUvGlobal;\nvarying vec2 vEdge;' : ''}
+${tiled ? 'uniform sampler2D tileMap;\nuniform float opacity;\nuniform vec4 feather;\nuniform vec2 tone;\nvarying vec2 vUvGlobal;\nvarying vec2 vEdge;' : ''}
 uniform vec3 tint;
 uniform vec3 sunDir;
 uniform float enabled;
@@ -96,9 +99,15 @@ ${
   vec2 gdx = dFdx(g);
   vec2 gdy = dFdy(g);
   vec4 tile = texture2D(tileMap, vUv);
-  vec3 day = tile.rgb;
+  // The source's calibration to the 2K texture (k * c^gamma; identity for GIBS).
+  tile.rgb = tone.x * pow(max(tile.rgb, vec3(0.0)), vec3(tone.y));
+${
+  overlay
+    ? `  vec3 day = tile.rgb / max(tile.a, 0.004) * tint;`
+    : `  vec3 day = tile.rgb;
   if (tile.a < 0.999) day += textureGrad(dayMap, g, gdx, gdy).rgb * (1.0 - tile.a);
   day *= tint;`
+}`
     : `  vec2 g = vUv;
   vec3 day = texture2D(dayMap, g).rgb * tint;`
 }
@@ -117,7 +126,7 @@ ${
   a *= mix(1.0, smoothstep(0.0, fw, e.x), feather.x);
   a *= mix(1.0, smoothstep(0.0, fw, 1.0 - e.x), feather.y);
   a *= mix(1.0, smoothstep(0.0, fw, e.y), feather.z);
-  a *= mix(1.0, smoothstep(0.0, fw, 1.0 - e.y), feather.w);`
+  a *= mix(1.0, smoothstep(0.0, fw, 1.0 - e.y), feather.w);${overlay ? '\n  a *= tile.a;' : ''}`
     : `  vec3 lights = texture2D(nightMap, g).rgb;
   float a = 1.0;`
 }
@@ -150,3 +159,5 @@ void main() {
 }
 `
 export const TILE_FRAGMENT_SHADER = earthFragment(true)
+/** An overlay layer's tiles (GIBS over the EOX base): transparent where they have no data. */
+export const TILE_OVERLAY_FRAGMENT_SHADER = earthFragment(true, true)

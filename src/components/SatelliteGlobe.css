@@ -1092,6 +1092,16 @@
   font-size: 0.75rem;
 }
 
+/* The "Today's imagery" switch and its one-line note. */
+.globe-pov-today {
+  margin-top: 0.6rem;
+}
+
+.globe-pov-note-line {
+  margin: 0.15rem 0 0 !important;
+  font-size: 0.72rem;
+}
+
 @media (max-width: 640px) {
   /* Phone: name, the three looks and Back; the read-out stays off the view. */
   .globe-pov-facts,

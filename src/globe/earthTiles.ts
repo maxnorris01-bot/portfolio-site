@@ -1,12 +1,18 @@
-// NASA GIBS imagery tiles on the satellite view's Earth. Loaded with a dynamic
-// import the first time that view opens, and only ever asked for tiles while
-// it's open. Tiles are meshes on the rotating Earth (so they share its GMST
-// rotation), lit by the same day/night shader as the 2K texture, which stays
-// underneath as the fallback wherever a tile is missing or still loading.
+// Imagery tiles on the satellite view's Earth: EOX Sentinel-2 cloudless 2016
+// as the base surface, and optionally NASA GIBS's daily mosaic over it
+// ("Today's imagery"). One EarthTiles per layer, each with its own cache and
+// requests. Loaded with a dynamic import the first time that view opens, and
+// only ever asked for tiles while it's open. Tiles are meshes on the rotating
+// Earth (so they share its GMST rotation), lit by the same day/night shader as
+// the 2K texture, which stays underneath as the first paint and the fallback
+// wherever no tile has loaded.
 
 import * as THREE from 'three'
-import { TILE_FRAGMENT_SHADER, TILE_VERTEX_SHADER } from './daynight'
+import { TILE_FRAGMENT_SHADER, TILE_OVERLAY_FRAGMENT_SHADER, TILE_VERTEX_SHADER } from './daynight.ts'
+import { EOX_GRID, EOX_TONE, eoxTileUrl } from './eox.ts'
 import {
+  FailedTiles,
+  GIBS_GRID,
   LruCache,
   featherEdges,
   maskNoData,
@@ -16,6 +22,7 @@ import {
   parent,
   parseDomain,
   pickImageryDate,
+  pickStandIn,
   selectTiles,
   tileAt,
   tileBounds,
@@ -24,15 +31,16 @@ import {
   tileUrl,
   utcDate,
   type DateRange,
+  type TileGrid,
   type TileKey,
   type TileSource,
   type View,
-} from './gibs'
+} from './gibs.ts'
 
 export interface TileCaps {
   /** Finest level to ask for. */
   maxLevel: number
-  /** Tiles kept in memory (each about 1.4 MB on the GPU with mipmaps). */
+  /** Tiles kept in memory (on the GPU with mipmaps: about 1.4 MB per 512 px tile, 0.35 MB per 256 px). */
   cacheTiles: number
   /** Requests in flight at once. */
   concurrent: number
@@ -42,19 +50,64 @@ export interface TileCaps {
   requestsPerSec: number
 }
 
-export const DESKTOP_CAPS: TileCaps = {
-  maxLevel: 8,
-  cacheTiles: 96,
-  concurrent: 6,
-  maxTiles: 80,
-  requestsPerSec: 12,
+/**
+ * One imagery layer: its tile grid and URLs, whether it follows the slider's
+ * date (GIBS) or is one fixed image (EOX 2016), and how it's drawn.
+ */
+export interface ImagerySource {
+  key: 'eox' | 'gibs'
+  grid: TileGrid
+  /** Dated: the date is picked from GIBS DescribeDomains; undated: one fixed image. */
+  dated: boolean
+  url: (t: TileKey, date: string) => string
+  /** An overlay is drawn over another layer and is transparent where it has no data. */
+  overlay: boolean
+  /** Make GIBS's black no-data fill transparent on load. */
+  maskNoData: boolean
+  /** Draw order: overlays above the base, coarse levels first within a layer. */
+  renderOrderBase: number
+  /**
+   * While time plays, a tile must stay on screen at least this long to be
+   * worth fetching (maxLevelForMotion). EOX's small, fast tiles can turn over
+   * quicker than GIBS's large ones.
+   */
+  holdSec: number
+  /** Brightness calibration to the 2K texture, k * c^gamma in linear light ([1, 1]: none). */
+  tone: readonly [number, number]
+  desktop: TileCaps
+  phone: TileCaps
 }
-export const PHONE_CAPS: TileCaps = {
-  maxLevel: 7,
-  cacheTiles: 32,
-  concurrent: 4,
-  maxTiles: 40,
-  requestsPerSec: 6,
+
+/** The base surface: EOX Sentinel-2 cloudless 2016, levels 0-13 (13 is ~9.6 m per pixel). */
+export const EOX_SOURCE: ImagerySource = {
+  key: 'eox',
+  grid: EOX_GRID,
+  dated: false,
+  url: (t) => eoxTileUrl(t),
+  overlay: false,
+  maskNoData: false,
+  renderOrderBase: 10,
+  // At the ISS's 7.2 km/s ground speed (Live, 1x): level 12 (4.9 km tiles), 13 when paused.
+  holdSec: 0.5,
+  tone: EOX_TONE,
+  // 256 px tiles: about four times as many as GIBS's 512 px ones for the same view.
+  desktop: { maxLevel: 13, cacheTiles: 192, concurrent: 6, maxTiles: 140, requestsPerSec: 20 },
+  phone: { maxLevel: 12, cacheTiles: 64, concurrent: 4, maxTiles: 60, requestsPerSec: 10 },
+}
+
+/** "Today's imagery": NASA GIBS VIIRS NOAA-20, following the slider's date, over the base. */
+export const GIBS_SOURCE: ImagerySource = {
+  key: 'gibs',
+  grid: GIBS_GRID,
+  dated: true,
+  url: (t, date) => tileUrl(t, date),
+  overlay: true,
+  maskNoData: true,
+  renderOrderBase: 100,
+  holdSec: 2,
+  tone: [1, 1],
+  desktop: { maxLevel: 8, cacheTiles: 64, concurrent: 6, maxTiles: 80, requestsPerSec: 12 },
+  phone: { maxLevel: 7, cacheTiles: 24, concurrent: 4, maxTiles: 40, requestsPerSec: 6 },
 }
 
 type Uniform<T> = { value: T }
@@ -101,6 +154,10 @@ const NO_FEATHER: Draw['feather'] = [false, false, false, false]
 
 const DAY_MS = 86_400_000
 const OFFLINE_RETRY_MS = 60_000
+/** A tile that failed (404, network) isn't asked for again for this long; its parent stands in. */
+const FAILED_RETRY_MS = 60_000
+/** The undated layer's one "date", for cache keys. */
+const FIXED_DATE = 'fixed'
 /** A finer tile fades in over what was there before (and out again on a zoom-out). */
 export const FADE_MS = 300
 /** Tiles uploaded to the GPU per frame at most, so a burst of arrivals doesn't stall one frame. */
@@ -111,9 +168,9 @@ const REAPPEAR_MS = 2000
 // A tile's mesh: a lat/lon grid on the unit sphere (in the Earth mesh's own
 // axes), about one vertex per degree so the curve follows the sphere, with the
 // tile image on `uv` and the global equirectangular position on `uvGlobal`.
-function tileGeometry(t: TileKey): THREE.BufferGeometry {
-  const { full, drawn } = tileBounds(t)
-  const span = tileSpanDeg(t.z)
+function tileGeometry(t: TileKey, grid: TileGrid): THREE.BufferGeometry {
+  const { full, drawn } = tileBounds(t, grid)
+  const span = tileSpanDeg(t.z, grid)
   const nx = Math.max(4, Math.min(64, Math.ceil((drawn.east - drawn.west) / 1)))
   const ny = Math.max(4, Math.min(64, Math.ceil((drawn.north - drawn.south) / 1)))
   const pos: number[] = []
@@ -150,11 +207,14 @@ function tileGeometry(t: TileKey): THREE.BufferGeometry {
 
 export class EarthTiles {
   readonly group = new THREE.Group()
+  readonly source: ImagerySource
   private readonly uniforms: SharedUniforms
   private readonly anisotropy: number
   private caps: TileCaps
   private cache: LruCache<Entry>
   private readonly pending = new Map<string, AbortController>()
+  /** Tiles that failed, waiting out their retry delay. */
+  private readonly failed = new FailedTiles(FAILED_RETRY_MS)
   private domain: { from: string; to: string; ranges: DateRange[] } | null = null
   private domainLoading = false
   private domainAt = 0
@@ -182,9 +242,11 @@ export class EarthTiles {
     earth: THREE.Object3D,
     uniforms: SharedUniforms,
     anisotropy: number,
+    source: ImagerySource,
     caps: TileCaps,
     renderer?: THREE.WebGLRenderer,
   ) {
+    this.source = source
     this.uniforms = uniforms
     this.renderer = renderer
     this.anisotropy = anisotropy
@@ -211,9 +273,10 @@ export class EarthTiles {
     this.caps = caps
   }
 
-  /** The date being shown and whether the service answered, for the panel. */
-  status(): { date: string | null; state: ImageryState } {
-    return { date: this.state === 'offline' ? null : this.date, state: this.state }
+  /** The date being shown (dated layers), whether the service answered, and tiles drawn, for the panel. */
+  status(): { date: string | null; state: ImageryState; drawn: number } {
+    const date = this.state === 'offline' || !this.source.dated ? null : this.date
+    return { date, state: this.state, drawn: this.group.visible ? this.stats.drawn : 0 }
   }
 
   /** Stop: cancel every request and hide the tiles (the satellite view closed). */
@@ -279,20 +342,26 @@ export class EarthTiles {
       this.state = 'starting'
       this.domain = null
       this.failures = 0
+      this.failed.clear()
     }
-    const displayDate = utcDate(simMs)
-    this.ensureDomain(displayDate)
-    const picked = this.domain ? pickImageryDate(displayDate, this.domain.ranges) : null
-    if (picked && picked !== this.date) {
-      this.prevDate = this.date
-      this.date = picked
+    if (this.source.dated) {
+      const displayDate = utcDate(simMs)
+      this.ensureDomain(displayDate)
+      const picked = this.domain ? pickImageryDate(displayDate, this.domain.ranges) : null
+      if (picked && picked !== this.date) {
+        this.prevDate = this.date
+        this.date = picked
+      }
+    } else {
+      this.date = FIXED_DATE
     }
     if (!this.date) return this.draw(new Map())
 
     // Moving fast (playback at 10x/50x), finer tiles would be stale before
     // they arrived: cap the level to what stays on screen a couple of seconds.
-    const maxLevel = Math.min(this.caps.maxLevel, maxLevelForMotion(groundKmPerSec, this.caps.maxLevel))
-    const wanted = selectTiles(view, { maxLevel, maxTiles: this.caps.maxTiles })
+    const g = this.source.grid
+    const maxLevel = Math.min(this.caps.maxLevel, maxLevelForMotion(groundKmPerSec, this.caps.maxLevel, this.source.holdSec, g))
+    const wanted = selectTiles(view, { maxLevel, maxTiles: this.caps.maxTiles, grid: g })
     this.stats.wanted = wanted.length
     const now = performance.now()
     const fadeMs = this.reducedMotion?.matches ? 0 : FADE_MS
@@ -320,7 +389,7 @@ export class EarthTiles {
     }
     const sourceAt = (lat: number, lon: number) => {
       for (const z of levels) {
-        const s = source.get(tileId(tileAt(lat, lon, z)))
+        const s = source.get(tileId(tileAt(lat, lon, z, g)))
         if (s) return s
       }
       return undefined
@@ -334,7 +403,7 @@ export class EarthTiles {
       const e = this.cache.peek(id)!
       if (now - e.lastDrawn > REAPPEAR_MS) e.shownAt = coarserThanLast.has(tileId(t)) ? -Infinity : now
       const alpha = fadeMs > 0 ? Math.min(1, (now - e.shownAt) / fadeMs) : 1
-      const feather = featherEdges(t, sourceAt)
+      const feather = featherEdges(t, sourceAt, g)
       if (alpha < 1 || feather.some(Boolean)) {
         const under = this.loadedFallback(t)
         if (under && !draws.has(under)) draws.set(under, { role: 'under', alpha: 1, feather: NO_FEATHER })
@@ -374,7 +443,19 @@ export class EarthTiles {
     this.lastTop = new Set([...draws].filter(([, d]) => d.role !== 'under').map(([id]) => id))
     this.covered = covered && wanted.length > 0
     this.draw(draws)
-    this.request(missing, view, new Set(draws.keys()))
+    // Nothing loaded covers a wanted tile yet: also ask for its ancestor three
+    // levels up (64 times the area). While the view moves (Live playback at
+    // close zoom) fine tiles fall out of view before they arrive and are
+    // cancelled; the ancestor stays wanted long enough to land, so something
+    // sharper than the 2K texture always gets drawn.
+    const backstops = new Map<string, TileKey>()
+    for (const t of missing) {
+      if (t.z < 3 || source.get(tileId(t)) !== 'none') continue
+      const a = { z: t.z - 3, row: t.row >> 3, col: t.col >> 3 }
+      const id = tileId(a)
+      if (!source.has(id) && !this.cache.peek(`${this.date}|${id}`)) backstops.set(id, a)
+    }
+    this.request([...missing, ...backstops.values()], view, new Set(draws.keys()))
   }
 
   /**
@@ -389,14 +470,9 @@ export class EarthTiles {
   // The best loaded stand-in for a tile not loaded yet: the same tile from the
   // previous date, else the nearest loaded ancestor (this date, then previous).
   private loadedFallback(t: TileKey): string | null {
-    if (this.prevDate && this.cache.peek(`${this.prevDate}|${tileId(t)}`)) return `${this.prevDate}|${tileId(t)}`
-    for (let p = parent(t); p; p = parent(p)) {
-      for (const date of [this.date, this.prevDate]) {
-        if (date && this.cache.peek(`${date}|${tileId(p)}`)) return `${date}|${tileId(p)}`
-      }
-    }
-    return null
+    return pickStandIn(t, this.date, this.prevDate, (id) => this.cache.peek(id) !== undefined)
   }
+
 
   private draw(draws: ReadonlyMap<string, Draw>) {
     const now = performance.now()
@@ -408,7 +484,7 @@ export class EarthTiles {
       n++
       e.mesh.visible = true
       // Coarse first; within a level, stand-ins beneath, then the tile, then leavers.
-      e.mesh.renderOrder = 10 + e.t.z * 3 + ROLE_ORDER[d.role]
+      e.mesh.renderOrder = this.source.renderOrderBase + e.t.z * 3 + ROLE_ORDER[d.role]
       const u = (e.mesh.material as THREE.ShaderMaterial).uniforms
       u.opacity.value = d.alpha
       ;(u.feather.value as THREE.Vector4).set(+d.feather[0], +d.feather[1], +d.feather[2], +d.feather[3])
@@ -432,17 +508,21 @@ export class EarthTiles {
     // Coarse levels first, so every area gets something quickly; then nearest
     // the view's centre.
     const centreDist = (t: TileKey) => {
-      const b = tileBounds(t).drawn
+      const b = tileBounds(t, this.source.grid).drawn
       const c = latLonToVec((b.north + b.south) / 2, (b.west + b.east) / 2)
       const to = [c[0] - view.cam[0], c[1] - view.cam[1], c[2] - view.cam[2]]
       return -(to[0] * view.dir[0] + to[1] * view.dir[1] + to[2] * view.dir[2]) / Math.hypot(...to)
     }
     const queued = new Set(this.ready.map((r) => r.id))
+    const now = performance.now()
+    // A tile that failed recently isn't retried yet: its parent keeps standing in.
     const queue = missing
-      .filter((t) => !this.pending.has(`${date}|${tileId(t)}`) && !queued.has(`${date}|${tileId(t)}`))
+      .filter((t) => {
+        const id = `${date}|${tileId(t)}`
+        return !this.pending.has(id) && !queued.has(id) && !this.failed.blocked(id, now)
+      })
       .sort((a, b) => a.z - b.z || centreDist(a) - centreDist(b))
     // Token bucket: a sustained `requestsPerSec`, bursting to `concurrent`.
-    const now = performance.now()
     this.tokens = Math.min(this.caps.concurrent, this.tokens + ((now - this.tokensAt) / 1000) * this.caps.requestsPerSec)
     this.tokensAt = now
     this.keep = keep
@@ -459,7 +539,7 @@ export class EarthTiles {
     this.pending.set(id, ctl)
     this.stats.requests++
     let bytes = 0
-    fetch(tileUrl(t, date), { signal: ctl.signal })
+    fetch(this.source.url(t, date), { signal: ctl.signal })
       .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
       .then((blob) => {
         bytes = blob.size
@@ -472,14 +552,15 @@ export class EarthTiles {
         this.successes++
         this.failures = 0
         this.state = 'ok'
-        this.ready.push({ id, t, image: this.withNoDataMask(bitmap), bytes })
+        this.ready.push({ id, t, image: this.source.maskNoData ? this.withNoDataMask(bitmap) : bitmap, bytes })
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name === 'AbortError') return
         if (this.pending.get(id) === ctl) this.pending.delete(id)
         this.stats.errors++
         this.failures++
-        // Repeated failures with nothing ever loaded: treat GIBS as unreachable.
+        this.failed.mark(id, performance.now())
+        // Repeated failures with nothing ever loaded: treat the service as unreachable.
         if (this.failures >= 6 && this.successes === 0) this.goOffline()
       })
   }
@@ -519,12 +600,13 @@ export class EarthTiles {
     tex.needsUpdate = true
     const u = this.uniforms
     const mesh = new THREE.Mesh(
-      tileGeometry(t),
+      tileGeometry(t, this.source.grid),
       new THREE.ShaderMaterial({
         uniforms: {
           tileMap: { value: tex },
           opacity: { value: 1 },
           feather: { value: new THREE.Vector4() },
+          tone: { value: new THREE.Vector2(this.source.tone[0], this.source.tone[1]) },
           dayMap: u.dayMap,
           nightMap: u.nightMap,
           tint: u.tint,
@@ -533,7 +615,7 @@ export class EarthTiles {
           hasLights: u.hasLights,
         },
         vertexShader: TILE_VERTEX_SHADER,
-        fragmentShader: TILE_FRAGMENT_SHADER,
+        fragmentShader: this.source.overlay ? TILE_OVERLAY_FRAGMENT_SHADER : TILE_FRAGMENT_SHADER,
         // Drawn over the 2K Earth in level order (finer last), without
         // depth testing; back faces are culled, so the far side never shows.
         // All tiles are blended, so they sort together by renderOrder.
