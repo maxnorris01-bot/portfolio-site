@@ -1226,3 +1226,49 @@
 .globe-pov-return:focus-visible {
   background: rgb(30 38 56 / 0.92);
 }
+
+.globe-pov-orientation {
+  margin-top: 0.5rem;
+}
+
+/* Where north is on the map: an arrow turned by the view's orientation. */
+.globe-compass {
+  position: absolute;
+  left: 1rem;
+  bottom: 2.4rem;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
+}
+
+.globe-compass svg {
+  display: block;
+}
+
+.globe-compass-ring {
+  fill: rgb(10 14 24 / 0.7);
+  stroke: rgb(255 255 255 / 0.55);
+  stroke-width: 1.2;
+}
+
+.globe-compass-north {
+  fill: #ff6b5a;
+}
+
+.globe-compass-south {
+  fill: rgb(255 255 255 / 0.75);
+}
+
+.globe-compass-n {
+  fill: #fff;
+  font: 700 7px var(--font-body, system-ui, sans-serif);
+}
+
+@media (max-width: 640px) {
+  /* Phone: the panels sit top and bottom; the compass goes mid-left. */
+  .globe-compass {
+    top: 45%;
+    bottom: auto;
+    left: 0.6rem;
+  }
+}
