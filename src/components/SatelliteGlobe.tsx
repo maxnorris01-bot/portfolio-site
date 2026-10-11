@@ -2,7 +2,7 @@
 // conjunction-screening working notes 2026-10-03). Lazy-loaded by
 // SatelliteTool so three.js and satellite.js stay out of the main bundle.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SPEEDS, liveClock, scrubClock, withSpeed, type Clock } from '../globe/clock'
+import { SPEEDS, canPlay, isPaused, liveClock, scrubClock, togglePlay, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
 import { formatKm } from '../globe/format'
@@ -747,6 +747,37 @@ export default function SatelliteGlobe({
   const bounds = current
     ? sliderBounds(time.nowMs || currentStartMs, currentStartMs, historyDates)
     : null
+
+  // Pause / Play: freeze the shared clock at the moment shown, or resume from
+  // it at the selected speed (as a scrubbed time; only Live goes back to now).
+  // Paused at the end of the range there's nothing ahead to play.
+  const paused = isPaused(clock)
+  // The engine pauses at its own "now + a day", a moment before the slider's
+  // maximum: the last minute of the range counts as the end.
+  const endMs = (bounds?.maxMs ?? Infinity) - 60_000
+  const playable = canPlay(clock, endMs)
+  const onPlayPause = () => {
+    // The engine's clock is the one shown (it pauses itself at the end of the range).
+    const engineClock = engineRef.current?.getClock() ?? clock
+    applyClock(togglePlay(engineClock, Date.now(), endMs), false)
+  }
+  // Space toggles it, unless focus is somewhere Space already does something
+  // (a text field, a button, a link, the slider).
+  const playPauseRef = useRef(onPlayPause)
+  useEffect(() => {
+    playPauseRef.current = onPlayPause
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== ' ' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || t.closest('input, textarea, select, button, a, [role="slider"], [role="button"]'))) return
+      e.preventDefault()
+      playPauseRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const loadingKey = datasetKey && loaded?.key !== datasetKey && loadError !== datasetKey
   const snapshotLabel = (key: DatasetKey) => (key === 'current' ? 'latest run' : `${key} snapshot`)
   const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
@@ -1538,6 +1569,17 @@ export default function SatelliteGlobe({
           >
             <span className="globe-live-dot" aria-hidden="true" />
             Live
+          </button>
+          <button
+            type="button"
+            className="globe-playpause"
+            aria-label={paused ? 'Play' : 'Pause'}
+            aria-disabled={!playable || undefined}
+            title={!playable ? 'At the end of the time range' : paused ? 'Play (Space)' : 'Pause (Space)'}
+            onClick={() => playable && onPlayPause()}
+          >
+            <span aria-hidden="true">{paused ? '▶' : '❚❚'}</span>
+            {paused ? 'Play' : 'Pause'}
           </button>
           <div
             className="globe-speed"

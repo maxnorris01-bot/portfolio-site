@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { SPEEDS, clampToEnd, liveClock, scrubClock, simTimeAt, withSpeed } from '../src/globe/clock.ts'
+import {
+  SPEEDS,
+  canPlay,
+  clampToEnd,
+  isPaused,
+  liveClock,
+  pauseClock,
+  playClock,
+  scrubClock,
+  simTimeAt,
+  togglePlay,
+  withSpeed,
+} from '../src/globe/clock.ts'
 
 const NOW = Date.parse('2026-10-08T12:00:00Z')
 const HOUR = 3_600_000
@@ -88,4 +100,50 @@ test('a scrubbed past time plays through the present without becoming live', () 
   assert.equal(simTimeAt(c, t), NOW + 10 * 60_000)
   assert.ok(simTimeAt(c, t) > t) // now ahead of real time, still a scrub
   assert.equal(clampToEnd(c, t, t + DAY).clock.kind, 'scrub')
+})
+
+test('Pause from Live freezes the exact moment shown; Play resumes from it as a scrubbed time, not Live', () => {
+  const live = liveClock(NOW - 10_000, 10) // live at 10x for 10 s of real time
+  const shown = simTimeAt(live, NOW)
+  const paused = pauseClock(live, NOW)
+  assert.deepEqual(paused, { kind: 'frozen', speed: 10, atMs: shown })
+  assert.ok(isPaused(paused))
+  assert.equal(simTimeAt(paused, NOW + 5 * HOUR), shown) // stays put
+  const played = playClock(paused, NOW + HOUR)
+  assert.equal(played.kind, 'scrub') // only the Live button returns to live
+  assert.equal(simTimeAt(played, NOW + HOUR), shown) // no jump on resume
+  assert.equal(simTimeAt(played, NOW + HOUR + 1000), shown + 10_000) // at the kept speed
+})
+
+test('Pause and Play from a scrubbed time and from a replay keep the time and the speed', () => {
+  const scrub = scrubClock(NOW - 6 * HOUR, 50, NOW - 2000)
+  const at = simTimeAt(scrub, NOW)
+  const paused = pauseClock(scrub, NOW)
+  assert.deepEqual(paused, { kind: 'frozen', speed: 50, atMs: at })
+  const resumed = playClock(paused, NOW + 60_000)
+  assert.equal(simTimeAt(resumed, NOW + 60_000), at)
+  assert.equal(resumed.speed, 50)
+  // Pausing twice, or playing something already playing, changes nothing.
+  assert.equal(pauseClock(paused, NOW + 1), paused)
+  assert.equal(playClock(resumed, NOW + 2), resumed)
+})
+
+test('the toggle alternates, and Play does not fight the end-of-range pause', () => {
+  const end = NOW + DAY
+  let c = liveClock(NOW)
+  c = togglePlay(c, NOW + 1000, end)
+  assert.equal(c.kind, 'frozen')
+  c = togglePlay(c, NOW + 5000, end)
+  assert.equal(c.kind, 'scrub')
+  assert.equal(simTimeAt(c, NOW + 5000), NOW + 1000)
+  // Playback that ran into the end pauses there (clampToEnd); Play then has nothing ahead.
+  const atEnd = clampToEnd(scrubClock(end - 1000, 50, NOW), NOW + 1000, end).clock
+  assert.deepEqual(atEnd, { kind: 'frozen', speed: 50, atMs: end })
+  assert.equal(canPlay(atEnd, end), false)
+  assert.equal(playClock(atEnd, NOW + 2000, end), atEnd) // stays paused, no flip-flop
+  assert.equal(togglePlay(atEnd, NOW + 2000, end), atEnd)
+  // Paused before the end, Play works.
+  assert.equal(canPlay({ kind: 'frozen', speed: 1, atMs: end - 1 }, end), true)
+  // Picking a speed while paused still resumes, as before.
+  assert.equal(withSpeed(pauseClock(liveClock(NOW), NOW), 10, NOW).kind, 'scrub')
 })

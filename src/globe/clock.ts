@@ -48,3 +48,36 @@ export function clampToEnd(clock: Clock, nowMs: number, endMs: number): { clock:
   if (clock.kind === 'frozen' || simMs <= endMs) return { clock, simMs }
   return { clock: { kind: 'frozen', speed: clock.speed, atMs: endMs }, simMs: endMs }
 }
+
+/** Whether playback is paused (the "frozen" clock). */
+export const isPaused = (clock: Clock) => clock.kind === 'frozen'
+
+/**
+ * Pause: freeze at the moment shown, keeping the selected speed for when
+ * playback resumes. Live, scrubbed or replaying, the time doesn't move.
+ */
+export function pauseClock(clock: Clock, nowMs = Date.now()): Clock {
+  if (clock.kind === 'frozen') return clock
+  return { kind: 'frozen', speed: clock.speed, atMs: simTimeAt(clock, nowMs) }
+}
+
+/**
+ * Play: resume at the selected speed from the paused moment. It plays on as
+ * a scrubbed time, never jumping back to Live (only the Live button does
+ * that). Paused at the end of the slider's range (`endMs`) there's nothing
+ * ahead to play, so it stays paused rather than fighting the end-of-range
+ * pause.
+ */
+export function playClock(clock: Clock, nowMs = Date.now(), endMs = Infinity): Clock {
+  if (clock.kind !== 'frozen') return clock
+  if (clock.atMs >= endMs) return clock
+  return scrubClock(clock.atMs, clock.speed, nowMs)
+}
+
+/** Pause if playing, play if paused (the Pause/Play button and Space). */
+export function togglePlay(clock: Clock, nowMs = Date.now(), endMs = Infinity): Clock {
+  return isPaused(clock) ? playClock(clock, nowMs, endMs) : pauseClock(clock, nowMs)
+}
+
+/** Whether Play can do anything: paused before the end of the range, or playing. */
+export const canPlay = (clock: Clock, endMs = Infinity) => clock.kind !== 'frozen' || clock.atMs < endMs
