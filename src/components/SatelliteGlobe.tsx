@@ -17,7 +17,7 @@ import {
   type InspectedSky,
   type ViewMode,
 } from '../globe/engine'
-import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf } from '../globe/groups'
+import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf, viewpointFor } from '../globe/groups'
 import { geocodePlace } from '../globe/geocode'
 import { PHASE_LABEL, twilightPhase } from '../globe/twilight'
 import { aboveHorizon, moonPhaseName, nextSelection, type SkyBody } from '../globe/skybodies'
@@ -427,6 +427,12 @@ export default function SatelliteGlobe({
     })
   }
 
+  // The satellite view's viewpoint: the selected satellite, or with a station
+  // selected (from the Stations list), its core module. Docked pieces share
+  // that orbit and, like everything else, aren't drawn in the satellite view.
+  const stationForPov = station ? (STATIONS.find((s) => s.key === station) ?? null) : null
+  const povTarget = viewpointFor({ satellite: inspect, station: stationForPov }, loaded?.file.objects ?? null)
+
   // The engine follows the chosen view and observer. Declared before the
   // replay/station effects so a replay started from the Sky view finds the
   // engine already back on the globe. Entering the Sky view ends a near-miss
@@ -440,31 +446,32 @@ export default function SatelliteGlobe({
       engine.clearFocusKeepInspect()
     }
     if (viewMode === 'pov') {
-      if (inspect !== null) engine.enterPov(inspect)
+      if (povTarget !== null) engine.enterPov(povTarget)
     } else {
       engine.setViewMode(viewMode)
     }
-    // The satellite view follows the selection's index (it changes when a new
-    // snapshot loads); `inspect` is read here deliberately, not as a trigger.
+    // The satellite view follows the viewpoint's index (it changes when a new
+    // snapshot loads); `povTarget` is read here deliberately, not as a trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode])
 
-  // Offer the satellite view while one object is selected.
+  // Offer the satellite view while one object or a station is selected.
   useEffect(() => {
-    onCanPovChange?.(inspect !== null)
-  }, [inspect, onCanPovChange])
+    onCanPovChange?.(povTarget !== null)
+  }, [povTarget, onCanPovChange])
 
-  // In the satellite view, the viewpoint is the selected object: if the
-  // selection goes (deselected, or missing from a newly loaded snapshot),
-  // return to the view it came from with a note; if its index moves (a new
-  // snapshot with the same object), keep riding it.
+  // In the satellite view, the viewpoint is the selected object (or the
+  // station's core module): if the selection goes (deselected, or missing
+  // from a newly loaded snapshot), return to the view it came from with a
+  // note; if its index moves (a new snapshot with the same object), keep
+  // riding it.
   const povNameRef = useRef<string | null>(null)
   useEffect(() => {
     if (viewMode !== 'pov') return
     const engine = engineRef.current
-    if (inspect !== null) {
-      engine?.enterPov(inspect)
-      povNameRef.current = loaded?.file.objects[inspect]?.name ?? povNameRef.current
+    if (povTarget !== null) {
+      engine?.enterPov(povTarget)
+      povNameRef.current = loaded?.file.objects[povTarget]?.name ?? povNameRef.current
       return
     }
     const name = povNameRef.current ?? 'The viewpoint satellite'
@@ -474,7 +481,7 @@ export default function SatelliteGlobe({
         : `${name} is no longer selected, so the satellite view closed.`,
     )
     onViewRequestRef.current?.('back')
-  }, [inspect, viewMode, loaded, loadError])
+  }, [povTarget, viewMode, loaded, loadError])
 
   // The note clears itself after a few seconds.
   useEffect(() => {
@@ -721,6 +728,7 @@ export default function SatelliteGlobe({
   const loadingKey = datasetKey && loaded?.key !== datasetKey && loadError !== datasetKey
   const snapshotLabel = (key: DatasetKey) => (key === 'current' ? 'latest run' : `${key} snapshot`)
   const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
+  const povObject = povTarget !== null && loaded ? loaded.file.objects[povTarget] : null
 
   // Screen readers hear only changes in kind: a new selection's name,
   // "Deselected", or a newly chosen location. The numbers that change as time
@@ -744,8 +752,10 @@ export default function SatelliteGlobe({
   const [prevAnnouncedView, setPrevAnnouncedView] = useState(viewMode)
   if (prevAnnouncedView !== viewMode) {
     setPrevAnnouncedView(viewMode)
-    if (viewMode === 'pov') setAnnouncement(`Viewing from ${inspected?.name ?? 'the satellite'}`)
-    else if (prevAnnouncedView === 'pov') setAnnouncement('Back to full view')
+    if (viewMode === 'pov') setAnnouncement(`Viewing from ${povObject?.name ?? 'the satellite'}`)
+    else if (prevAnnouncedView === 'pov') {
+      setAnnouncement(stationForPov && viewMode === 'globe' ? `Back to ${stationForPov.fullName}` : 'Back to full view')
+    }
   }
   const offsetLabel = time.simMs ? formatOffset(time.simMs - time.nowMs) : ''
   const PRESET_LABEL = {
@@ -1036,7 +1046,7 @@ export default function SatelliteGlobe({
                 )}
               </>
             )}
-            {stationDef && (
+            {stationDef && viewMode !== 'pov' && (
               <div className="globe-panel" aria-live="polite">
                 <p className="globe-panel-title">
                   <span className="globe-ring-key" style={{ borderColor: RING_GROUP }} />
@@ -1054,9 +1064,16 @@ export default function SatelliteGlobe({
                     Its orbit, one full period
                   </p>
                 )}
-                <button type="button" className="globe-button" onClick={() => setStation(null)}>
-                  ← Back to full view
-                </button>
+                <div className="globe-inspect-actions">
+                  <button type="button" className="globe-button" onClick={() => setStation(null)}>
+                    ← Back to full view
+                  </button>
+                  {povTarget !== null && (
+                    <button type="button" className="globe-button" onClick={() => onViewRequest?.('pov')}>
+                      View from here
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {focus && (
@@ -1164,7 +1181,7 @@ export default function SatelliteGlobe({
                 </div>
               </div>
             )}
-            {viewMode === 'pov' && inspected && (
+            {viewMode === 'pov' && povObject && (
               <div className="globe-panel globe-pov" role="region" aria-label="Satellite view">
                 <div className="globe-panel-head">
                   <p className="globe-panel-title">Satellite view</p>
@@ -1176,7 +1193,7 @@ export default function SatelliteGlobe({
                     ← Back
                   </button>
                 </div>
-                <p className="globe-inspect-name">{inspected.name}</p>
+                <p className="globe-inspect-name">{povObject.name}</p>
                 <div className="globe-pov-presets" role="group" aria-label="Look">
                   {(['down', 'forward', 'outward'] as const).map((preset) => (
                     <button
