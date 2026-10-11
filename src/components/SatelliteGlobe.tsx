@@ -170,6 +170,8 @@ export default function SatelliteGlobe({
   // The satellite view's "Today's imagery" switch: NASA GIBS's daily mosaic
   // over the EOX base. Off by default.
   const [todayImagery, setTodayImagery] = useState(TODAY_IMAGERY_DEFAULT)
+  // The satellite view's orientation: the satellite's heading up (default) or north up.
+  const [povOrientation, setPovOrientation] = useState<'heading' | 'north'>('heading')
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
   const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
   // The Sky view's Sun, Moon and planets, and the selected one (a body
@@ -550,6 +552,10 @@ export default function SatelliteGlobe({
   useEffect(() => {
     engineRef.current?.setTodayImagery(todayImagery)
   }, [todayImagery])
+
+  useEffect(() => {
+    engineRef.current?.setPovOrientation(povOrientation)
+  }, [povOrientation])
 
   // A station view is a globe camera mode; entering the Sky view ends it.
   const [prevViewMode, setPrevViewMode] = useState(viewMode)
@@ -1350,6 +1356,14 @@ export default function SatelliteGlobe({
                     </button>
                   ))}
                 </div>
+                <div className="globe-pov-imagery-choice globe-pov-orientation" role="group" aria-label="Orientation">
+                  <button type="button" aria-pressed={povOrientation === 'heading'} onClick={() => setPovOrientation('heading')}>
+                    Heading up
+                  </button>
+                  <button type="button" aria-pressed={povOrientation === 'north'} onClick={() => setPovOrientation('north')}>
+                    North up
+                  </button>
+                </div>
                 {povInfo && (
                   <dl className="globe-pov-facts">
                     <dt>Altitude</dt>
@@ -1363,7 +1377,12 @@ export default function SatelliteGlobe({
                         <dt>Camera height</dt>
                         <dd>{fmtKm(povInfo.detached.altKm < 10 ? Math.round(povInfo.detached.altKm * 10) / 10 : Math.round(povInfo.detached.altKm))}</dd>
                         <dt>Looking</dt>
-                        <dd>Straight down, north up</dd>
+                        <dd>
+                          Straight down,{' '}
+                          {povInfo.orientation === 'north'
+                            ? 'north up'
+                            : `heading up (${Math.round(povInfo.detached.headingDeg ?? 0)}°)`}
+                        </dd>
                       </>
                     ) : (
                       <>
@@ -1372,6 +1391,7 @@ export default function SatelliteGlobe({
                         <dt>Looking</dt>
                         <dd>
                           {PRESET_LABEL[povInfo.preset]}
+                          {povInfo.preset === 'down' ? (povInfo.orientation === 'north' ? ', north up' : ', heading up') : ''}
                           {povInfo.yaw !== 0 || povInfo.pitch !== 0
                             ? ` · ${Math.round(povInfo.yaw)}° right, ${Math.round(povInfo.pitch)}° up`
                             : ''}
@@ -1535,6 +1555,21 @@ export default function SatelliteGlobe({
         )}
 
         {povNote && <p className="globe-badge globe-pov-note">{povNote}</p>}
+        {viewMode === 'pov' && povInfo && povInfo.northDeg !== null && (
+          <div
+            className="globe-compass"
+            role="img"
+            aria-label={`North is ${Math.round(Math.abs(povInfo.northDeg))}° ${povInfo.northDeg >= 0 ? 'right' : 'left'} of up`}
+            title="North"
+          >
+            <svg viewBox="-20 -20 40 40" width="40" height="40" style={{ transform: `rotate(${povInfo.northDeg}deg)` }} aria-hidden="true">
+              <circle r="18" className="globe-compass-ring" />
+              <path d="M0 -14 L5 2 L0 -1 L-5 2 Z" className="globe-compass-north" />
+              <path d="M0 14 L5 2 L0 5 L-5 2 Z" className="globe-compass-south" />
+              <text y="-5" transform="translate(0 -9)" textAnchor="middle" className="globe-compass-n">N</text>
+            </svg>
+          </div>
+        )}
         {viewMode === 'pov' && povInfo?.detached && (
           <button type="button" className="globe-pov-return" onClick={() => engineRef.current?.returnToSatellite()}>
             ↑ Return to satellite

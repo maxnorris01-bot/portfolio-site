@@ -5,6 +5,12 @@ import {
   TRANSITION_MS,
   detachFrom,
   easeAltitude,
+  groundTrackHeading,
+  northOnScreenDeg,
+  northUpFor,
+  oriented,
+  screenUpHeading,
+  tangentFrame,
   easeInOut,
   groundAt,
   keepUnder,
@@ -149,4 +155,96 @@ test('a transition pose is smooth: endpoints exact, up perpendicular to look, he
   const mid = lerpPose(a, b, 0.5)
   assert.ok(Math.abs(dot(mid.look, mid.up)) < 1e-12)
   assert.ok(Math.abs((Math.hypot(...mid.pos) - 1) * R - 40) < 1e-6) // sqrt(400 * 4)
+})
+
+const angleDeg = (a: Vec3, b: Vec3) => (Math.acos(Math.max(-1, Math.min(1, dot(a, b) / Math.hypot(...a) / Math.hypot(...b)))) * 180) / Math.PI
+
+test('heading up: the held view\'s heading is the ground direction up on screen, round trip at any heading', () => {
+  for (const h of [0, 37, 90, 180, 271.5]) {
+    const p = surfacePose({ ...SF, altKm: 30, headingDeg: h })
+    const got = screenUpHeading(p, 30, ASPECT)!
+    assert.ok(Math.abs(((got - h + 540) % 360) - 180) < 1e-6, `${h} -> ${got}`)
+    // Up on screen is that ground direction: 90 is east.
+    const f = tangentFrame(SF.latDeg, SF.lonDeg)
+    if (h === 90) assert.ok(angleDeg(p.up, f.east) < 1e-4)
+  }
+})
+
+// A satellite at 420 km over (lat, lon), moving along `headingDeg`, in Earth-fixed axes.
+const riding = (lat: number, lon: number, headingDeg: number) => {
+  const f = tangentFrame(lat, lon)
+  const r = 1 + 420 / R
+  const h = (headingDeg * Math.PI) / 180
+  const vel: Vec3 = [0, 1, 2].map((i) => f.north[i] * Math.cos(h) + f.east[i] * Math.sin(h)) as Vec3
+  return { pos: [f.n[0] * r, f.n[1] * r, f.n[2] * r] as Vec3, vel }
+}
+
+test('detaching from the Down view keeps the satellite\'s heading: no swing', () => {
+  const { pos, vel } = riding(37.5, -123, 312) // a descending pass heading north-west
+  assert.ok(Math.abs(groundTrackHeading(pos, vel) - 312) < 1e-6)
+  const view = applyLook(presetView('down', pos, vel), 0, 0)
+  const s = detachFrom({ pos, ...view }, 30, ASPECT)!
+  assert.ok(Math.abs(s.headingDeg! - 312) < 0.01, `${s.headingDeg}`)
+  // The held view's screen-up matches the riding view's (it only moves closer).
+  assert.ok(angleDeg(surfacePose(s).up, view.up) < 0.5)
+  // Looking sideways first (yaw 25), the on-screen up direction carries over too.
+  const side = applyLook(presetView('down', pos, vel), 25, -10)
+  const s2 = detachFrom({ pos, ...side }, 30, ASPECT)!
+  assert.ok(Math.abs(((s2.headingDeg! - screenUpHeading({ pos, ...side }, 30, ASPECT)! + 540) % 360) - 180) < 1e-9)
+})
+
+test('detaching from the Forward view keeps travel up on screen', () => {
+  const { pos, vel } = riding(10, 40, 50)
+  const fwd = applyLook(presetView('forward', pos, vel), 0, -30) // looking ahead and down at the ground
+  const s = detachFrom({ pos, ...fwd }, 30, ASPECT)!
+  // The ground ahead of the satellite is up on screen, as it was looking forward.
+  const ahead = groundTrackHeading(pos, vel)
+  assert.ok(Math.abs(((s.headingDeg! - ahead + 540) % 360) - 180) < 3, `${s.headingDeg} vs ${ahead}`)
+})
+
+test('switching between heading up and north up only turns the view about the vertical', () => {
+  const held = { ...SF, altKm: 12, headingDeg: 312 }
+  const north = surfacePose(oriented(held, 'north'))
+  const heading = surfacePose(oriented(held, 'heading'))
+  assert.ok(Math.hypot(...north.pos.map((v, i) => v - heading.pos[i])) < 1e-12) // same place
+  assert.ok(angleDeg(north.look, heading.look) < 1e-9) // same straight-down look
+  assert.ok(Math.abs(angleDeg(north.up, heading.up) - 48) < 1e-6) // turned by 360 - 312
+  assert.ok(angleDeg(north.up, tangentFrame(SF.latDeg, SF.lonDeg).north) < 1e-9)
+  // Heading up returns to the captured heading.
+  assert.equal(oriented(oriented(held, 'heading'), 'heading').headingDeg, 312)
+})
+
+test('riding the satellite, north up rolls the down view so north is at the top', () => {
+  const { pos, vel } = riding(-20, 100, 120)
+  const view = applyLook(presetView('down', pos, vel), 0, 0)
+  const up = northUpFor({ pos, ...view }, 70, ASPECT)!
+  assert.ok(Math.abs(dot(up, view.look)) < 1e-12)
+  assert.ok(Math.abs(northOnScreenDeg({ pos, look: view.look, up }, 70, ASPECT)!) < 1e-3)
+  // Heading up (the down preset), north is off to the side by the track heading.
+  assert.ok(Math.abs(Math.abs(northOnScreenDeg({ pos, ...view }, 70, ASPECT)!) - 120) < 0.5)
+})
+
+test('the compass: north\'s direction on screen for any heading', () => {
+  for (const h of [0, 45, 90, 200]) {
+    const deg = northOnScreenDeg(surfacePose({ ...SF, altKm: 20, headingDeg: h }), 30, ASPECT)!
+    // Heading h up means north is h degrees anticlockwise, i.e. -h clockwise.
+    assert.ok(Math.abs(((deg + h + 540) % 360) - 180) < 1e-3, `${h}: ${deg}`)
+  }
+  // Sky at the centre: no reading.
+  assert.equal(northOnScreenDeg({ pos: [1.07, 0, 0], look: [1, 0, 0], up: [0, 1, 0] }, 30, ASPECT), null)
+})
+
+test('near the poles north stays defined: the view holds 0.5 degrees off and north points to the pole', () => {
+  for (const lat of [89.4, 89.9, 90, -90]) {
+    const p = surfacePose({ latDeg: lat, lonDeg: 30, altKm: 20, headingDeg: 0 })
+    assert.ok(p.up.every(Number.isFinite) && Math.abs(Math.hypot(...p.up) - 1) < 1e-12)
+    assert.ok(Math.abs(dot(p.up, p.look)) < 1e-12)
+    // Held at most 89.5 from the equator.
+    assert.ok(Math.abs(unitToLatLon(p.pos).latDeg) <= 89.5 + 1e-9)
+    // North (up, at heading 0) leads toward the nearer pole: +y in the north, -y in the south.
+    assert.ok(lat > 0 ? p.up[1] > 0 : p.up[1] > -1)
+  }
+  // The heading round trip still works next to the pole.
+  const near = surfacePose({ latDeg: 89.5, lonDeg: -60, altKm: 15, headingDeg: 133 })
+  assert.ok(Math.abs(screenUpHeading(near, 30, ASPECT)! - 133) < 0.05)
 })

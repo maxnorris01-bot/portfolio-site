@@ -49,11 +49,16 @@ import {
   keepUnder,
   lerpPose,
   minAltitudeKm,
+  northOnScreenDeg,
+  northUpFor,
+  oriented,
   panSurface,
+  rayThrough,
   surfacePose,
   transitionMs,
   zoomLockedToward,
   zoomSurfaceToward,
+  type Orientation,
   type Pose,
   type SurfaceCam,
 } from './descend'
@@ -385,6 +390,8 @@ export class GlobeEngine {
   // turns with the Earth), at `povDetachedFov`. Null while riding the satellite.
   private povDetached: SurfaceCam | null = null
   private povDetachedFov = DESCEND_FOV
+  // Heading up (the satellite's point of view, the default) or north up.
+  private povOrientation: Orientation = 'heading'
   // The field of view the projection matrix was last built with.
   private povRenderFov = 0
   // A view change in progress: from the camera's pose (world frame) and field
@@ -1191,7 +1198,9 @@ export class GlobeEngine {
   povNudge(yawDeg: number, pitchDeg: number) {
     if (this.povDetached) {
       const k = 0.15 / 5
-      this.povDetached = panSurface(this.povDetached, [0, 0], [-yawDeg * k, -pitchDeg * k], this.povDetachedFov, this.povCamera.aspect)
+      this.povDetached = this.onShown(this.povDetached, (s) =>
+        panSurface(s, [0, 0], [-yawDeg * k, -pitchDeg * k], this.povDetachedFov, this.povCamera.aspect),
+      )
       return
     }
     this.povLook.yaw = ((((this.povLook.yaw + yawDeg + 180) % 360) + 360) % 360) - 180
@@ -1215,14 +1224,17 @@ export class GlobeEngine {
     const aspect = cam.aspect
     if (this.povDetached) {
       if (animate) this.startPovAnim()
-      this.povDetached = zoomSurfaceToward(this.povDetached, factor, nx, ny, this.povDetachedFov, aspect, this.povAltitudeLimits())
+      const limits = this.povAltitudeLimits()
+      this.povDetached = this.onShown(this.povDetached, (s) =>
+        zoomSurfaceToward(s, factor, nx, ny, this.povDetachedFov, aspect, limits),
+      )
       return
     }
     const st = this.povState
     if (!st) return
     const base = presetView(this.povLook.preset, st.pos, st.vel)
     const look = { yaw: this.povLook.yaw, pitch: this.povLook.pitch, fov: cam.fov }
-    const pose: Pose = { pos: st.pos, ...applyLook(base, look.yaw, look.pitch) }
+    const pose: Pose = this.ridingPose(st.pos, st.vel)
     const overGround = groundAt(pose, cam.fov, aspect, nx, ny) !== null
     if (animate) this.startPovAnim()
     if (factor < 1 && overGround && cam.fov * factor < DESCEND_FOV) {
@@ -1230,28 +1242,58 @@ export class GlobeEngine {
       // surface camera at the centre of that view (an animated turn to
       // straight down, north up), and descend by what's left of the step.
       const fovBefore = cam.fov
-      const r = zoomLockedToward(base, look, DESCEND_FOV / fovBefore, nx, ny, aspect, DESCEND_FOV)
+      const [ux, uy] = this.unrolledNdc(pose, base, look, nx, ny)
+      const r = zoomLockedToward(base, look, DESCEND_FOV / fovBefore, ux, uy, aspect, DESCEND_FOV)
       this.applyLockedLook(r)
-      const local = this.toEarth({ pos: st.pos, ...applyLook(base, r.yaw, r.pitch) })
+      const local = this.toEarth(this.ridingPose(st.pos, st.vel))
       const under = groundAt(local, DESCEND_FOV, aspect, nx, ny)
       const centre = detachFrom(local, DESCEND_FOV, aspect)
       if (!centre || !under) return
       if (!animate) this.startPovAnim()
       this.povDetachedFov = DESCEND_FOV
-      // The point under the pointer stays under it through the turn to north-up.
-      const s = keepUnder(centre, under, DESCEND_FOV, aspect, nx, ny)
+      // The held view takes the riding view's screen-up as its heading (no
+      // swing), and the point under the pointer stays under it.
+      const s = this.onShown(centre, (c) => keepUnder(c, under, DESCEND_FOV, aspect, nx, ny))
       const rest = (fovBefore * factor) / DESCEND_FOV
-      this.povDetached = zoomSurfaceToward(s, rest, nx, ny, DESCEND_FOV, aspect, this.povAltitudeLimits(s))
+      const limits = this.povAltitudeLimits(s)
+      this.povDetached = this.onShown(s, (c) => zoomSurfaceToward(c, rest, nx, ny, DESCEND_FOV, aspect, limits))
       return
     }
     const minFov = overGround ? DESCEND_FOV : this.povMinFov
-    this.applyLockedLook(zoomLockedToward(base, look, factor, nx, ny, aspect, minFov))
+    const [ux, uy] = this.unrolledNdc(pose, base, look, nx, ny)
+    this.applyLockedLook(zoomLockedToward(base, look, factor, ux, uy, aspect, minFov))
   }
 
   /** Pan the held ground view with a drag from one screen point to another (-1..1). */
   povPan(from: [number, number], to: [number, number]) {
     if (!this.povDetached) return
-    this.povDetached = panSurface(this.povDetached, from, to, this.povDetachedFov, this.povCamera.aspect)
+    this.povDetached = this.onShown(this.povDetached, (s) => panSurface(s, from, to, this.povDetachedFov, this.povCamera.aspect))
+  }
+
+  /**
+   * Heading up (default) or north up. Switching turns the view about the
+   * vertical (animated); heading up goes back to the heading captured when
+   * the camera detached, or riding the satellite to its ground track.
+   */
+  setPovOrientation(o: Orientation) {
+    if (o === this.povOrientation) return
+    this.startPovAnim()
+    this.povOrientation = o
+  }
+
+  // Zoom and pan act on the camera as shown (north up drops the heading),
+  // but the held view keeps its captured heading for switching back.
+  private onShown(s: SurfaceCam, f: (shown: SurfaceCam) => SurfaceCam): SurfaceCam {
+    return { ...f(oriented(s, this.povOrientation)), headingDeg: s.headingDeg }
+  }
+
+  // North's direction on screen at the centre of the view, as rendered.
+  private povNorthOnScreen(): number | null {
+    const cam = this.povCamera
+    const look = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion)
+    const local = this.toEarth({ pos: cam.position.toArray() as PovVec3, look: look.toArray() as PovVec3, up: up.toArray() as PovVec3 })
+    return northOnScreenDeg(local, this.povRenderFov || cam.fov, cam.aspect)
   }
 
   /** Back to riding the satellite from a held ground view, animated. */
@@ -1279,6 +1321,43 @@ export class GlobeEngine {
     const minKm = minAltitudeKm(kmPerPx, this.povDetachedFov, Math.max(1, this.container.clientHeight))
     const maxKm = Math.max(2 * (this.povState?.altKm ?? 400), s?.altKm ?? 0, minKm * 2)
     return { minKm, maxKm }
+  }
+
+  // A screen point in the riding view as shown (possibly rolled to north up),
+  // as the same direction's screen point in the unrolled preset frame the
+  // look offsets are kept in.
+  private unrolledNdc(
+    shown: Pose,
+    base: { look: PovVec3; up: PovVec3 },
+    look: { yaw: number; pitch: number; fov: number },
+    nx: number,
+    ny: number,
+  ): [number, number] {
+    const aspect = this.povCamera.aspect
+    const plain = applyLook(base, look.yaw, look.pitch)
+    const d = rayThrough(shown, look.fov, aspect, nx, ny)
+    const right: PovVec3 = [
+      plain.look[1] * plain.up[2] - plain.look[2] * plain.up[1],
+      plain.look[2] * plain.up[0] - plain.look[0] * plain.up[2],
+      plain.look[0] * plain.up[1] - plain.look[1] * plain.up[0],
+    ]
+    const dl = d[0] * plain.look[0] + d[1] * plain.look[1] + d[2] * plain.look[2]
+    const t = Math.tan((look.fov * Math.PI) / 360)
+    const x = (d[0] * right[0] + d[1] * right[1] + d[2] * right[2]) / dl / (t * aspect)
+    const y = (d[0] * plain.up[0] + d[1] * plain.up[1] + d[2] * plain.up[2]) / dl / t
+    return [x, y]
+  }
+
+  // The view riding the satellite: the preset and drag offset, with north
+  // rolled to the top when north up is chosen and the view looks down at the
+  // ground (Forward and Out keep a level horizon).
+  private ridingPose(pos: PovVec3, vel: PovVec3): Pose {
+    const view = applyLook(presetView(this.povLook.preset, pos, vel), this.povLook.yaw, this.povLook.pitch)
+    const pose: Pose = { pos, ...view }
+    if (this.povOrientation !== 'north' || this.povLook.preset !== 'down') return pose
+    const local = this.toEarth(pose)
+    const up = northUpFor(local, this.povCamera.fov, this.povCamera.aspect)
+    return up ? this.toWorld({ ...local, up }) : pose
   }
 
   // Earth-fixed <-> world (inertial scene) frames: the Earth mesh's rotation.
@@ -1346,6 +1425,9 @@ export class GlobeEngine {
       imagery,
       /** Held over the ground (descended or panned), or null while riding the satellite. */
       detached: this.povDetached ? { ...this.povDetached, minKm: this.povAltitudeLimits().minKm } : null,
+      orientation: this.povOrientation,
+      /** Where north points on screen, degrees clockwise from up (null: the centre is sky). */
+      northDeg: this.povNorthOnScreen(),
     }
   }
 
@@ -1382,8 +1464,9 @@ export class GlobeEngine {
     // Where the camera should be: riding the satellite, or held over the
     // ground (Earth-fixed, so it turns with the Earth); part-way there while a
     // view change animates.
-    const view = applyLook(presetView(this.povLook.preset, pos, vel), this.povLook.yaw, this.povLook.pitch)
-    const target: Pose = this.povDetached ? this.toWorld(surfacePose(this.povDetached)) : { pos, ...view }
+    const target: Pose = this.povDetached
+      ? this.toWorld(surfacePose(oriented(this.povDetached, this.povOrientation)))
+      : this.ridingPose(pos, vel)
     const targetFov = this.povDetached ? this.povDetachedFov : cam.fov
     let pose = target
     let fov = targetFov

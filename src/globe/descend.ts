@@ -4,9 +4,16 @@
 //   field of view toward the pointer, down to DESCEND_FOV;
 // - detached: past that, or on a double-click, the camera leaves the
 //   satellite and holds over a ground point, fixed to the Earth's surface (so
-//   it turns with the Earth and the spot never drifts), looking straight down
-//   with north up. Zooming then changes its altitude toward the pointer, with
-//   a soft stop at the finest imagery level; dragging pans the ground.
+//   it turns with the Earth and the spot never drifts), looking straight
+//   down. Zooming then changes its altitude toward the pointer, with a soft
+//   stop at the finest imagery level; dragging pans the ground.
+//
+// Orientation: "heading up" (the default) keeps the satellite's point of
+// view: on detaching, the direction that was up on screen is carried over as
+// the held view's heading, so nothing swings; "north up" turns north to the
+// top. Near the poles, where north has no direction at the pole itself, the
+// held view stays at least 0.5 degrees (about 55 km) away, and north there is
+// the way toward the pole along the camera's meridian.
 //
 // Vectors are Earth-fixed (the globe mesh's own axes, as in gibs.ts:
 // longitude 0 on +x, 90 E on -z, north on +y), in Earth radii.
@@ -45,7 +52,15 @@ export interface SurfaceCam {
   lonDeg: number
   /** Camera altitude above that point, km. */
   altKm: number
+  /**
+   * The ground direction that is up on screen, degrees clockwise from north
+   * (0 = north up). Missing means north up.
+   */
+  headingDeg?: number
 }
+
+/** Which way is up on screen: the satellite's heading (default) or north. */
+export type Orientation = 'heading' | 'north'
 
 export interface Pose {
   /** Camera position, Earth radii. */
@@ -73,11 +88,107 @@ function northAt(latDeg: number, lonDeg: number): Vec3 {
   return [-Math.sin(la) * Math.cos(lo), Math.cos(la), Math.sin(la) * Math.sin(lo)]
 }
 
-/** The surface camera's pose: above its ground point, looking straight down, north up. */
+/**
+ * The local frame at a ground point: outward normal, north and east (unit,
+ * tangent). Latitude is held within 0.5 degrees of the poles, so north is
+ * always defined: near a pole it points toward it along the meridian.
+ */
+export function tangentFrame(latDeg: number, lonDeg: number): { n: Vec3; north: Vec3; east: Vec3 } {
+  const lat = Math.max(-MAX_LAT, Math.min(MAX_LAT, latDeg))
+  const n = latLonToUnit(lat, lonDeg)
+  const north = northAt(lat, lonDeg)
+  return { n, north, east: cross(north, n) }
+}
+
+/** The ground direction at a heading (degrees clockwise from north). */
+function headingDir(f: { north: Vec3; east: Vec3 }, headingDeg: number): Vec3 {
+  const h = headingDeg * DEG
+  return add(scale(f.north, Math.cos(h)), scale(f.east, Math.sin(h)))
+}
+
+/** A tangent direction's heading, degrees clockwise from north in 0..360. */
+function headingOfDir(f: { north: Vec3; east: Vec3 }, d: Vec3): number {
+  const h = Math.atan2(dot(d, f.east), dot(d, f.north)) / DEG
+  const r = ((h % 360) + 360) % 360
+  return r >= 360 ? 0 : r // -1e-15 would wrap to 360
+}
+
+/**
+ * The surface camera's pose: above its ground point, looking straight down,
+ * with its heading up on screen (north up when it has none).
+ */
 export function surfacePose(s: SurfaceCam): Pose {
-  const lat = Math.max(-MAX_LAT, Math.min(MAX_LAT, s.latDeg))
-  const n = latLonToUnit(lat, s.lonDeg)
-  return { pos: scale(n, 1 + s.altKm / EARTH_RADIUS_KM), look: scale(n, -1), up: northAt(lat, s.lonDeg) }
+  const f = tangentFrame(s.latDeg, s.lonDeg)
+  return { pos: scale(f.n, 1 + s.altKm / EARTH_RADIUS_KM), look: scale(f.n, -1), up: headingDir(f, s.headingDeg ?? 0) }
+}
+
+/** The camera as shown: north up drops the heading; heading up keeps it. */
+export function oriented(s: SurfaceCam, orientation: Orientation): SurfaceCam {
+  return orientation === 'north' ? { ...s, headingDeg: 0 } : s
+}
+
+/**
+ * Which ground direction is up on screen in any view: from the ground point
+ * at the centre of the screen toward the one just above it (or away from the
+ * one just below, near the horizon), as a heading at the centre point.
+ * Null when the centre of the screen is sky.
+ */
+export function screenUpHeading(p: Pose, fovDeg: number, aspect: number): number | null {
+  const g = groundAt(p, fovDeg, aspect, 0, 0)
+  if (!g) return null
+  const { latDeg, lonDeg } = unitToLatLon(g)
+  const f = tangentFrame(latDeg, lonDeg)
+  const above = groundAt(p, fovDeg, aspect, 0, 0.02)
+  const below = above ? null : groundAt(p, fovDeg, aspect, 0, -0.02)
+  const d = above ? sub(above, g) : below ? sub(g, below) : null
+  if (!d) return null
+  const t = sub(d, scale(f.n, dot(d, f.n)))
+  if (len(t) < 1e-15) return null
+  return headingOfDir(f, t)
+}
+
+/**
+ * The satellite's ground-track heading: its velocity's direction along the
+ * ground below it, degrees clockwise from north (Earth-fixed pos and vel).
+ */
+export function groundTrackHeading(pos: Vec3, vel: Vec3): number {
+  const { latDeg, lonDeg } = unitToLatLon(pos)
+  return headingOfDir(tangentFrame(latDeg, lonDeg), vel)
+}
+
+/**
+ * North up for a view looking at the ground (riding the satellite): the
+ * screen-up direction that puts north at the top, perpendicular to `look`.
+ * Null when looking (nearly) along the north direction itself.
+ */
+export function northUpFor(p: Pose, fovDeg: number, aspect: number): Vec3 | null {
+  const g = groundAt(p, fovDeg, aspect, 0, 0)
+  const at = g ?? p.pos
+  const { latDeg, lonDeg } = unitToLatLon(at)
+  const north = tangentFrame(latDeg, lonDeg).north
+  const u = sub(north, scale(p.look, dot(north, p.look)))
+  return len(u) < 1e-6 ? null : unit(u)
+}
+
+/**
+ * Where north points on screen, as an angle clockwise from screen-up
+ * (degrees), at the centre of the view; null when the centre is sky.
+ */
+export function northOnScreenDeg(p: Pose, fovDeg: number, aspect: number): number | null {
+  const g = groundAt(p, fovDeg, aspect, 0, 0)
+  if (!g) return null
+  const { latDeg, lonDeg } = unitToLatLon(g)
+  const north = tangentFrame(latDeg, lonDeg).north
+  const right = cross(p.look, p.up)
+  const ahead = add(g, scale(north, 1e-4))
+  const d = sub(ahead, p.pos)
+  // Screen coordinates of the point a little north of the centre, relative to the centre.
+  const x = dot(d, right) / dot(d, p.look)
+  const y = dot(d, p.up) / dot(d, p.look)
+  const g0 = sub(g, p.pos)
+  const x0 = dot(g0, right) / dot(g0, p.look)
+  const y0 = dot(g0, p.up) / dot(g0, p.look)
+  return Math.atan2(x - x0, y - y0) / DEG
 }
 
 /**
@@ -201,13 +312,20 @@ export function minAltitudeKm(kmPerPx: number, fovDeg: number, screenPx: number,
 /**
  * The surface camera that takes over from a satellite-locked view: over the
  * ground point at the centre of the screen (null if the centre is sky), at
- * the distance from the camera to that point, so the scale carries over.
+ * the distance from the camera to that point, so the scale carries over, and
+ * with the ground direction that was up on screen as its heading, so the
+ * view doesn't swing.
  */
 export function detachFrom(p: Pose, fovDeg: number, aspect: number): SurfaceCam | null {
   const g = groundAt(p, fovDeg, aspect, 0, 0)
   if (!g) return null
   const { latDeg, lonDeg } = unitToLatLon(g)
-  return { latDeg: Math.max(-MAX_LAT, Math.min(MAX_LAT, latDeg)), lonDeg, altKm: len(sub(p.pos, g)) * EARTH_RADIUS_KM }
+  return {
+    latDeg: Math.max(-MAX_LAT, Math.min(MAX_LAT, latDeg)),
+    lonDeg,
+    altKm: len(sub(p.pos, g)) * EARTH_RADIUS_KM,
+    headingDeg: screenUpHeading(p, fovDeg, aspect) ?? 0,
+  }
 }
 
 /** Ease in and out (cubic), for view transitions. */
