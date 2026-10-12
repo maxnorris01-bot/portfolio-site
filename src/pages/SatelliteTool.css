@@ -225,8 +225,13 @@
   margin: 0;
 }
 
-/* Near-miss table */
+/* Near-miss table: scrolls sideways inside its card on narrow screens. It's
+   positioned so the visually hidden labels in its cells (absolutely
+   positioned) are clipped by it too; otherwise they escape the scroll box
+   and widen the whole page. */
 .sat-table-wrap {
+  position: relative;
+  max-width: 100%;
   padding: 0;
   overflow-x: auto;
 }
