@@ -1015,13 +1015,14 @@
   }
 }
 
-@media (max-width: 640px) {
-  /* Sky view: the legend folds to one line, so it doesn't cover the dome. */
-  .globe-legend.is-sky {
+@media (max-width: 640px), (max-height: 500px) {
+  /* Sky view and full screen: the legend folds to one line, so it doesn't
+     cover the map. */
+  .globe-legend.is-foldable {
     right: auto;
   }
 
-  .globe-legend.is-sky .globe-legend-fold {
+  .globe-legend.is-foldable .globe-legend-fold {
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -1034,20 +1035,20 @@
     cursor: pointer;
   }
 
-  .globe-legend.is-sky .globe-legend-fold::before {
+  .globe-legend.is-foldable .globe-legend-fold::before {
     content: '▸';
     transition: transform 0.15s;
   }
 
-  .globe-legend.is-sky .globe-legend-fold[aria-expanded='true']::before {
+  .globe-legend.is-foldable .globe-legend-fold[aria-expanded='true']::before {
     transform: rotate(90deg);
   }
 
-  .globe-legend.is-sky:not(.is-folded) {
+  .globe-legend.is-foldable:not(.is-folded) {
     right: 0.75rem;
   }
 
-  .globe-legend.is-sky:not(.is-folded) .globe-legend-body {
+  .globe-legend.is-foldable:not(.is-folded) .globe-legend-body {
     margin-top: 0.5rem;
   }
 
@@ -1056,8 +1057,8 @@
   }
 }
 
-@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
-  .globe-legend.is-sky .globe-legend-fold::before {
+@media (prefers-reduced-motion: reduce) {
+  .globe-legend.is-foldable .globe-legend-fold::before {
     transition: none;
   }
 }
@@ -1167,13 +1168,6 @@
 }
 
 @media (max-width: 640px) {
-  /* Phone: name, the imagery choice and date, the three looks and Back; the
-     read-out and the longer explanations stay off the view. */
-  .globe-pov-facts,
-  .globe-pov-imagery,
-  .globe-pov-explainer {
-    display: none;
-  }
 
   .globe-pov .globe-inspect-name {
     margin-bottom: 0;
@@ -1270,5 +1264,274 @@
     top: 45%;
     bottom: auto;
     left: 0.6rem;
+  }
+}
+
+/* ---- Full-screen map mode (fullscreen.ts) ---- */
+
+/* While the map is full screen the page behind it doesn't scroll. */
+html.globe-fs-lock,
+html.globe-fs-lock body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.globe.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  /* The dynamic viewport, so mobile browser bars don't cut the map off. */
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: var(--globe-bg);
+  animation: globe-fs-in 0.15s ease-out;
+}
+
+@keyframes globe-fs-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.globe.is-fullscreen .globe-stage {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.globe.is-fullscreen .globe-timebar {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg);
+}
+
+.globe.is-fullscreen .globe-footnote,
+.globe.is-fullscreen .globe-history {
+  display: none;
+}
+
+/* Full screen / Exit: a compact pill on the map (bottom right on desktop). */
+.globe-fs-btn {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: 999px;
+  background: rgb(10 14 24 / 0.82);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.globe-fs-btn:hover,
+.globe-fs-btn:focus-visible {
+  background: rgb(30 38 56 / 0.92);
+}
+
+/* In full screen, Exit sits in the top corner; desktop's side panels move down for it. */
+.globe-fs-exit {
+  top: 0.75rem;
+  bottom: auto;
+}
+
+.globe.is-fullscreen .globe-side {
+  top: 4rem;
+  max-height: calc(100% - 4.75rem);
+}
+
+/* Phone-only pieces: hidden on desktop. */
+.globe-mini,
+.globe-sheet-handle {
+  display: none;
+}
+
+@media (max-width: 640px), (max-height: 500px) {
+  /* Embedded (not full screen): the map stays clean. The filter and info
+     panels wait for full screen; a small box at the bottom names the
+     selection and leads there. */
+  .globe:not(.is-fullscreen) .globe-legend,
+  .globe:not(.is-fullscreen) .globe-side {
+    display: none;
+  }
+
+  .globe-fs-btn {
+    top: 0.6rem;
+    right: 0.6rem;
+    bottom: auto;
+  }
+
+  .globe-pov-return {
+    top: 3.9rem;
+  }
+
+  .globe:not(.is-fullscreen) .globe-mini {
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    left: 0.6rem;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.1rem 0.75rem;
+    padding: 0.55rem 0.6rem 0.55rem 0.8rem;
+    border: 1px solid var(--globe-line);
+    border-radius: var(--radius);
+    background: var(--globe-panel);
+    backdrop-filter: blur(4px);
+  }
+
+  .globe-mini-name {
+    overflow: hidden;
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .globe-mini-text {
+    grid-column: 1;
+    margin: 0;
+    color: var(--globe-ink-muted);
+    font-size: 0.75rem;
+  }
+
+  .globe-mini-btn {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    min-height: 2.75rem;
+    padding: 0.4rem 1rem;
+    border: 0;
+    border-radius: 999px;
+    background: var(--globe-ink);
+    color: #0b1220;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* Full screen: filters fold to a button (top left), Exit top right, and
+     the info panel is a bottom sheet: a peek, or opened up. */
+  .globe.is-fullscreen .globe-legend {
+    top: 0.6rem;
+    left: 0.6rem;
+    max-height: calc(100% - 1.2rem);
+    overflow-y: auto;
+  }
+
+  .globe.is-fullscreen .globe-legend.is-folded {
+    padding: 0 0.75rem;
+  }
+
+  .globe.is-fullscreen .globe-legend-fold {
+    min-height: 2.75rem;
+  }
+
+  .globe.is-fullscreen .globe-fs-exit {
+    top: 0.6rem;
+  }
+
+  .globe.is-fullscreen .globe-side {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    max-height: 9.5rem;
+    overflow: hidden;
+    gap: 0.4rem;
+    padding: 0 0.5rem 0.5rem;
+    border: 1px solid var(--globe-line);
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    background: var(--globe-panel);
+    backdrop-filter: blur(6px);
+    transition: max-height 0.2s ease;
+  }
+
+  .globe.is-fullscreen .globe-side.is-open {
+    max-height: 72%;
+    overflow-y: auto;
+  }
+
+  .globe.is-fullscreen .globe-side .globe-panel {
+    position: static;
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .globe.is-fullscreen .globe-sheet-handle {
+    position: sticky;
+    top: 0;
+    /* Above the panels, which as grid items keep their z-index of 1. */
+    z-index: 3;
+    display: grid;
+    justify-items: center;
+    gap: 0.25rem;
+    min-height: 2.75rem;
+    padding: 0.35rem 0 0.3rem;
+    border: 0;
+    background: var(--globe-bg);
+    color: var(--globe-ink-muted);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .globe-sheet-grip {
+    width: 2.5rem;
+    height: 0.25rem;
+    border-radius: 999px;
+    background: rgb(232 236 244 / 0.45);
+  }
+
+  /* The compass keeps clear of the sheet and the folded filters. */
+  .globe.is-fullscreen .globe-compass {
+    top: 4rem;
+    bottom: auto;
+  }
+}
+
+@media (max-height: 500px) and (min-width: 641px) {
+  /* A phone in landscape: the sheet is a side panel on the right instead. */
+  .globe.is-fullscreen .globe-side {
+    top: 3.9rem;
+    right: 0.6rem;
+    bottom: auto;
+    left: auto;
+    width: min(20rem, 45vw);
+    border-bottom: 1px solid var(--globe-line);
+    border-radius: 14px;
+  }
+
+  .globe.is-fullscreen .globe-side.is-open {
+    max-height: calc(100% - 4.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe.is-fullscreen {
+    animation: none;
+  }
+
+  .globe.is-fullscreen .globe-side {
+    transition: none;
   }
 }

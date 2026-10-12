@@ -31,6 +31,7 @@ import { aboveHorizon, moonPhaseName, nextSelection, type SkyBody } from '../glo
 import { phoneSideDock } from '../globe/layout'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
+import { FULLSCREEN_OFF, fullscreenStep, type FullscreenEffects, type FullscreenEvent } from '../globe/fullscreen'
 import CollisionHistory from './CollisionHistory'
 import './SatelliteGlobe.css'
 
@@ -127,6 +128,81 @@ export default function SatelliteGlobe({
   const containerRef = useRef<HTMLDivElement>(null)
   const legendRef = useRef<HTMLDivElement>(null)
   const sideRef = useRef<HTMLDivElement>(null)
+
+  // Full-screen map mode (fullscreen.ts): a CSS full-viewport mode everywhere,
+  // plus the Fullscreen API where it exists. The browser's back button, Esc
+  // and the browser leaving native full screen by itself all exit it.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const fsButtonRef = useRef<HTMLButtonElement>(null)
+  const [fullscreen, setFullscreen] = useState(FULLSCREEN_OFF)
+  const fsRef = useRef(FULLSCREEN_OFF)
+  const fsScrollRef = useRef(0)
+  // On a phone in full screen the info panel is a bottom sheet: a peek, or opened up.
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const applyFsEffects = useCallback((fx: FullscreenEffects) => {
+    const root = rootRef.current
+    if (fx.lockScroll) {
+      fsScrollRef.current = window.scrollY
+      document.documentElement.classList.add('globe-fs-lock')
+    }
+    if (fx.pushHistory) window.history.pushState({ ...(window.history.state ?? {}), globeFullscreen: true }, '')
+    if (fx.requestNative && root?.requestFullscreen) {
+      root.requestFullscreen({ navigationUI: 'hide' }).catch(() => {
+        // Refused (no user gesture, or not allowed here): the CSS mode stays.
+      })
+    }
+    if (fx.exitNative && document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    if (fx.popHistory && window.history.state?.globeFullscreen) window.history.back()
+    if (fx.unlockScroll) {
+      document.documentElement.classList.remove('globe-fs-lock')
+      const y = fsScrollRef.current
+      const restore = () => window.scrollTo(0, y)
+      requestAnimationFrame(() => {
+        restore()
+        fsButtonRef.current?.focus({ preventScroll: true })
+      })
+      // Leaving native full screen resizes the viewport a moment later, which
+      // can clamp the scroll position: put it back once that has settled.
+      setTimeout(restore, 350)
+    }
+  }, [])
+  const dispatchFs = useCallback(
+    (e: FullscreenEvent) => {
+      const { state, effects } = fullscreenStep(fsRef.current, e)
+      fsRef.current = state
+      setFullscreen(state)
+      applyFsEffects(effects)
+    },
+    [applyFsEffects],
+  )
+  const enterFullscreen = () => {
+    setSheetOpen(false)
+    dispatchFs({ type: 'enter', nativeAvailable: !!document.fullscreenEnabled && !!rootRef.current?.requestFullscreen })
+  }
+  useEffect(() => {
+    const onChange = () => {
+      if (document.fullscreenElement && document.fullscreenElement === rootRef.current) dispatchFs({ type: 'nativeEntered' })
+      else if (!document.fullscreenElement) dispatchFs({ type: 'nativeLeft' })
+    }
+    const onPop = () => dispatchFs({ type: 'back' })
+    const onKey = (e: KeyboardEvent) => {
+      // Esc leaves the CSS-only mode (native full screen handles its own Esc),
+      // unless the satellite view used it (returning to the satellite).
+      if (e.key === 'Escape' && fsRef.current.on && !fsRef.current.native && !e.defaultPrevented) dispatchFs({ type: 'exit' })
+    }
+    document.addEventListener('fullscreenchange', onChange)
+    window.addEventListener('popstate', onPop)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange)
+      window.removeEventListener('popstate', onPop)
+      window.removeEventListener('keydown', onKey)
+      if (fsRef.current.on) {
+        document.documentElement.classList.remove('globe-fs-lock')
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+      }
+    }
+  }, [dispatchFs])
   const engineRef = useRef<GlobeEngine | null>(null)
   const [time, setTime] = useState(() => ({ simMs: 0, nowMs: 0 }))
   const [clock, setClockState] = useState<Clock>(() => liveClock(Date.now()))
@@ -880,8 +956,24 @@ export default function SatelliteGlobe({
   }
   const PRESET_SHORT = { down: 'Down', forward: 'Forward', outward: 'Out' }
 
+  // On a phone outside full screen, a small box stands in for the panels:
+  // what's selected (or what the view needs), and the way to full screen.
+  const miniTitle =
+    viewMode === 'pov' && povObject
+      ? `Satellite view: ${povObject.name}`
+      : focus
+        ? `${focus.aName} and ${focus.bName}`
+        : (inspected?.name ??
+          stationDef?.fullName ??
+          selectedBody?.name ??
+          (viewMode === 'sky' && !observer ? 'Sky view' : null))
+  const miniText =
+    viewMode === 'sky' && !observer && !inspected && !selectedBody
+      ? 'Enter full screen to choose your location and see the sky'
+      : 'Enter full screen to see details and controls'
+
   return (
-    <div className="globe">
+    <div ref={rootRef} className={`globe${fullscreen.on ? ' is-fullscreen' : ''}`}>
       <div
         ref={stageRef}
         className="globe-stage"
@@ -903,10 +995,10 @@ export default function SatelliteGlobe({
           <div
             ref={legendRef}
             className={`globe-panel globe-legend${viewMode === 'sky' ? ' is-sky' : ''}${
-              viewMode === 'sky' && !legendOpen ? ' is-folded' : ''
-            }`}
+              viewMode === 'sky' || fullscreen.on ? ' is-foldable' : ''
+            }${(viewMode === 'sky' || fullscreen.on) && !legendOpen ? ' is-folded' : ''}`}
           >
-            {viewMode === 'sky' && (
+            {(viewMode === 'sky' || fullscreen.on) && (
               <button
                 type="button"
                 className="globe-legend-fold"
@@ -1048,9 +1140,20 @@ export default function SatelliteGlobe({
         {(focus || inspected || stationDef || viewMode !== 'globe' || selectedBody) && (
           <div
             ref={sideRef}
-            className="globe-side"
-            style={sideDock === null ? undefined : { top: sideDock, bottom: 'auto' }}
+            className={`globe-side${sheetOpen ? ' is-open' : ''}`}
+            style={sideDock === null || fullscreen.on ? undefined : { top: sideDock, bottom: 'auto' }}
           >
+            {fullscreen.on && (
+              <button
+                type="button"
+                className="globe-sheet-handle"
+                aria-expanded={sheetOpen}
+                onClick={() => setSheetOpen((o) => !o)}
+              >
+                <span className="globe-sheet-grip" aria-hidden="true" />
+                {sheetOpen ? 'Less' : 'Details and controls'}
+              </button>
+            )}
             {viewMode === 'sky' && (
               <>
                 {observer && !skyPanelOpen ? (
@@ -1568,6 +1671,28 @@ export default function SatelliteGlobe({
               <path d="M0 14 L5 2 L0 5 L-5 2 Z" className="globe-compass-south" />
               <text y="-5" transform="translate(0 -9)" textAnchor="middle" className="globe-compass-n">N</text>
             </svg>
+          </div>
+        )}
+        {fullscreen.on ? (
+          <button
+            type="button"
+            className="globe-fs-btn globe-fs-exit"
+            onClick={() => dispatchFs({ type: 'exit' })}
+          >
+            <span aria-hidden="true">✕</span> Exit full screen
+          </button>
+        ) : (
+          <button ref={fsButtonRef} type="button" className="globe-fs-btn" onClick={enterFullscreen}>
+            <span aria-hidden="true">⤢</span> Full screen
+          </button>
+        )}
+        {!fullscreen.on && miniTitle && (
+          <div className="globe-mini" role="region" aria-label="Selection">
+            <p className="globe-mini-name">{miniTitle}</p>
+            <p className="globe-mini-text">{miniText}</p>
+            <button type="button" className="globe-mini-btn" onClick={enterFullscreen}>
+              Full screen
+            </button>
           </div>
         )}
         {viewMode === 'pov' && povInfo?.detached && (
