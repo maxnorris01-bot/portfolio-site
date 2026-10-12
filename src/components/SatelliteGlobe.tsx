@@ -24,6 +24,7 @@ import {
   TODAY_IMAGERY_DEFAULT,
   imageryCredits,
   imageryLine,
+  skyCredits,
 } from '../globe/imagery'
 import { geocodePlace } from '../globe/geocode'
 import { PHASE_LABEL, twilightPhase } from '../globe/twilight'
@@ -870,7 +871,7 @@ export default function SatelliteGlobe({
   const snapshotLabel = (key: DatasetKey) => (key === 'current' ? 'latest run' : `${key} snapshot`)
   const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
   const povObject = povTarget !== null && loaded ? loaded.file.objects[povTarget] : null
-  const povCredits = imageryCredits(viewMode, povInfo?.imagery ?? null)
+  const povCredits = [...imageryCredits(viewMode, povInfo?.imagery ?? null), ...skyCredits(viewMode, povInfo?.sky ?? null)]
 
   // ?debug=1: a plain-text overlay of everything that decides whether the
   // satellite view can be entered (temporary, for checking a live build).
@@ -949,6 +950,8 @@ export default function SatelliteGlobe({
     }
   }
   const offsetLabel = time.simMs ? formatOffset(time.simMs - time.nowMs) : ''
+  // Whole degrees, finer when zoomed in on the sky (down to 0.05 degrees).
+  const fmtFov = (f: number) => (f >= 10 ? `${Math.round(f)}°` : f >= 1 ? `${f.toFixed(1)}°` : `${f.toFixed(2)}°`)
   const PRESET_LABEL = {
     down: 'Down at Earth',
     forward: 'Forward along the orbit',
@@ -1502,7 +1505,7 @@ export default function SatelliteGlobe({
                       </>
                     )}
                     <dt>Field of view</dt>
-                    <dd>{Math.round(povInfo.fov)}°</dd>
+                    <dd>{fmtFov(povInfo.fov)}</dd>
                   </dl>
                 )}
                 {povInfo && <p className="globe-muted globe-pov-imagery">{imageryLine(povInfo.imagery)}</p>}

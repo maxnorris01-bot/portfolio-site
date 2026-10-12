@@ -83,3 +83,20 @@ export function overlayFadeAltitudesKm(texelKm: number, fovDeg: number, screenPx
   const perKm = kmPerPxAt(1)
   return { fullKm: texelKm / perKm, goneKm: texelKm / 2 / perKm }
 }
+
+/** The star catalogue's credit, as ESA's licence asks ("Credit: ESA"), with its licence. */
+export const STARS_CREDIT =
+  'Stars: the Hipparcos Catalogue (ESA, 1997, The Hipparcos and Tycho Catalogues, ESA SP-1200). ' +
+  'Credit: ESA. Licence: CC BY-NC 3.0 IGO; this site is non-commercial'
+
+/** What the satellite view's sky is showing, for its credits. */
+export interface SkyStatus {
+  /** Stars drawn (0 until the catalogue loads). */
+  stars: number
+}
+
+/** The sky's credits: the star catalogue while its stars are on screen in the satellite view. */
+export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
+  if (viewMode !== 'pov' || !sky) return []
+  return sky.stars > 0 ? [STARS_CREDIT] : []
+}

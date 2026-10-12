@@ -38,6 +38,7 @@ import {
 } from './layout'
 import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
 import { EOX_LEVEL_KM } from './eox'
+import { SPACE_FOV_MIN } from './stars'
 import { LEVEL_KM, minFovForImagery } from './gibs'
 import { overlayFade } from './imagery'
 import {
@@ -166,6 +167,8 @@ const MAX_GROUP = 32
 const PICK_PX_MOUSE = 6
 const PICK_PX_TOUCH = 16
 const CLICK_MAX_MOVE_PX = 5
+/** The star catalogue (scripts/build-hipparcos.mjs; licence in public/data/stars/ATTRIBUTION.md). */
+const STAR_CATALOG_URL = '/data/stars/hipparcos.bin'
 // Two taps or clicks this close in time and place are a double tap (zoom in).
 const DOUBLE_TAP_MS = 350
 const DOUBLE_TAP_PX = 30
@@ -379,6 +382,11 @@ export class GlobeEngine {
   // narrowest zoom the base imagery supports.
   private baseTiles: import('./earthTiles').EarthTiles | null = null
   private overlayTiles: import('./earthTiles').EarthTiles | null = null
+  // The satellite view's sky (space.ts) and its star catalogue, loaded the
+  // first time the view opens; and the files they come from.
+  private space: import('./space').SpaceView | null = null
+  private spaceLoading = false
+  private starCount = 0
   private todayImagery = false
   /** Today's imagery's fade with zoom (1 shown, 0 faded out up close). */
   private overlayFadeNow = 1
@@ -1102,6 +1110,7 @@ export class GlobeEngine {
       // Leaving the satellite view (Back) also leaves a held ground view.
       this.povDetached = null
       this.povAnim = null
+      this.space?.hide()
     }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
@@ -1151,8 +1160,34 @@ export class GlobeEngine {
           this.tilesLoading = false
         })
     }
+    if (!this.space && !this.spaceLoading) this.loadSpace()
     if (this.viewMode === 'pov') this.applyDim()
     else this.setViewMode('pov')
+  }
+
+  // The sky for the satellite view: space.ts, the ephemeris (for the J2000
+  // to date rotation) and the star catalogue, all lazy. Phones keep the
+  // stars down to magnitude 8, desktops all ~118,000.
+  private loadSpace() {
+    this.spaceLoading = true
+    const phone = this.container.clientWidth < 640 || this.container.clientHeight < 500
+    Promise.all([import('./space'), this.bodyEphem ? Promise.resolve(this.bodyEphem) : import('./planets')])
+      .then(async ([m, ephem]) => {
+        if (this.disposed) return
+        this.bodyEphem ??= ephem
+        const space = new m.SpaceView(this.scene)
+        this.space = space
+        const tier = phone ? m.STAR_TIERS.phone : m.STAR_TIERS.desktop
+        const catalog = await m.loadStarCatalog(STAR_CATALOG_URL, tier.maxMag)
+        if (this.disposed) return
+        space.setStars(new m.StarField(catalog, this.renderer.getPixelRatio()))
+        this.starCount = catalog.count
+      })
+      .catch((err: unknown) => {
+        // No stars this time: the satellite view works without them.
+        if (import.meta.env.DEV) console.warn('satellite view sky:', err)
+        this.spaceLoading = false
+      })
   }
 
   private makeTiles(source: import('./earthTiles').ImagerySource) {
@@ -1259,7 +1294,9 @@ export class GlobeEngine {
       this.povDetached = this.onShown(s, (c) => zoomSurfaceToward(c, rest, nx, ny, DESCEND_FOV, aspect, limits))
       return
     }
-    const minFov = overGround ? DESCEND_FOV : this.povMinFov
+    // Over the ground the riding zoom stops at DESCEND_FOV (then descends);
+    // looking out at space it narrows much further, to examine stars and planets.
+    const minFov = overGround ? DESCEND_FOV : SPACE_FOV_MIN
     const [ux, uy] = this.unrolledNdc(pose, base, look, nx, ny)
     this.applyLockedLook(zoomLockedToward(base, look, factor, ux, uy, aspect, minFov))
   }
@@ -1427,6 +1464,8 @@ export class GlobeEngine {
       /** Held over the ground (descended or panned), or null while riding the satellite. */
       detached: this.povDetached ? { ...this.povDetached, minKm: this.povAltitudeLimits().minKm } : null,
       orientation: this.povOrientation,
+      /** What's drawn in the sky (for the footnote's credits). */
+      sky: { stars: this.starCount },
       /** Where north points on screen, degrees clockwise from up (null: the centre is sky). */
       northDeg: this.povNorthOnScreen(),
     }
@@ -1468,6 +1507,13 @@ export class GlobeEngine {
     const target: Pose = this.povDetached
       ? this.toWorld(surfacePose(oriented(this.povDetached, this.povOrientation)))
       : this.ridingPose(pos, vel)
+    // Zoomed in on the sky past DESCEND_FOV and then turned to the Earth: ease
+    // back out to the ground's riding limit (the Earth isn't sharp that close).
+    if (!this.povDetached && cam.fov < DESCEND_FOV && groundAt(target, cam.fov, cam.aspect, 0, 0)) {
+      this.startPovAnim()
+      cam.fov = DESCEND_FOV
+      cam.updateProjectionMatrix()
+    }
     const targetFov = this.povDetached ? this.povDetachedFov : cam.fov
     let pose = target
     let fov = targetFov
@@ -1519,6 +1565,10 @@ export class GlobeEngine {
       ...this.orbitSlots.map((s2) => s2.line),
     ].filter((o) => o.visible)
     for (const o of hidden) o.visible = false
+    if (this.space && this.bodyEphem) {
+      this.space.setDate(date, this.bodyEphem.j2000ToDateMatrix)
+      this.space.update(cam, fov, date)
+    }
     const earthMaterial = this.earth.material
     if (this.baseTiles?.coversView()) this.earth.material = this.earthDepthOnly
     this.renderer.render(this.scene, cam)
@@ -1574,10 +1624,6 @@ export class GlobeEngine {
     this.povMinFov = online
       ? minFovForImagery(altKm, EOX_LEVEL_KM(this.tileCaps(base.source).maxLevel), h)
       : POV_FOV_MIN
-    if (cam.fov < this.povMinFov) {
-      cam.fov = this.povMinFov
-      cam.updateProjectionMatrix()
-    }
   }
 
   // The ground size of one screen pixel at the centre of the view, km (very
@@ -1897,6 +1943,7 @@ export class GlobeEngine {
     })
     this.baseTiles?.dispose()
     this.overlayTiles?.dispose()
+    this.space?.dispose()
     this.earthDepthOnly.dispose()
     // The Earth's shader material holds its textures in uniforms, not `map`.
     this.earthUniforms.dayMap.value?.dispose()

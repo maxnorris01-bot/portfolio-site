@@ -8,8 +8,9 @@
 // one degree. Elevations are geometric (no atmospheric refraction), the same
 // as the satellites drawn on the dome.
 
-import { Body, Equator, Horizon, Illumination, MoonPhase, Observer } from 'astronomy-engine'
+import { Body, Equator, Horizon, Illumination, MoonPhase, Observer, Rotation_EQJ_EQD } from 'astronomy-engine'
 import { KM_PER_AU, SKY_BODIES, type SkyBody } from './skybodies.ts'
+import type { Mat3 } from './stars.ts'
 
 const BODY: Record<string, Body> = {
   sun: Body.Sun,
@@ -43,4 +44,16 @@ export function computeSkyBodies(date: Date, latDeg: number, lonDeg: number): Sk
       waxing: def.key === 'moon' ? MoonPhase(date) < 180 : undefined,
     }
   })
+}
+
+/**
+ * The rotation from J2000 (ICRS) axes to the true equator and equinox of
+ * `date` (precession and nutation), row-major: what the satellite view's
+ * star field needs to line up with the satellites' frame. astronomy-engine
+ * applies its matrix as x' = rot[0][0] x + rot[1][0] y + rot[2][0] z, so its
+ * rows here are its columns.
+ */
+export function j2000ToDateMatrix(date: Date): Mat3 {
+  const r = Rotation_EQJ_EQD(date).rot
+  return [r[0][0], r[1][0], r[2][0], r[0][1], r[1][1], r[2][1], r[0][2], r[1][2], r[2][2]]
 }
