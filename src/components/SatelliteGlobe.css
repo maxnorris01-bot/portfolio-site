@@ -1552,3 +1552,13 @@ html.globe-fs-lock body {
 .globe-space-facts dd {
   margin: 0;
 }
+
+/* A selected Sun, Moon or planet's card goes first in the side column (under
+   the phone sheet's handle), so it isn't hidden below the satellite panel. */
+.globe-side .globe-space-body {
+  order: -1;
+}
+
+.globe-side .globe-sheet-handle {
+  order: -2;
+}
