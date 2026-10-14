@@ -204,7 +204,8 @@ const row = (rows: ReturnType<typeof starCardRows>, label: string) => rows.find(
 test('the card for Sirius: catalogue values plain, estimates labelled', () => {
   const rows = starCardRows(card(SIRIUS, { constellation: { name: 'Canis Major', symbol: 'CMa' } }))
   assert.equal(row(rows, 'Constellation')!.value, 'Canis Major')
-  assert.match(row(rows, 'Position (J2000)')!.value, /^06h 45m 0\d\.\ds, -16° 4\d′ \d\d″$/)
+  assert.match(row(rows, 'Position')!.value, /^06h 45m 0\d\.\ds, -16° 4\d′ \d\d″$/)
+  assert.match(row(rows, 'Position')!.note!, /J2000 coordinates, moved to 2026/)
   assert.match(row(rows, 'Magnitude')!.value, /^-1\.4\d \(visual\)/)
   assert.match(row(rows, 'Distance')!.value, /^8\.6 light-years/)
   assert.equal(row(rows, 'Distance')!.estimate, undefined) // measured, not inferred
@@ -224,7 +225,7 @@ test('the card for Betelgeuse: an uncertain distance is a range, and the luminos
   assert.equal(d.estimate, true)
   assert.match(d.value, /^about \d+ light-years \(between \d+ and \d+\)$/)
   assert.match(row(rows, 'Spectral type')!.value, /M2Ib: red supergiant/)
-  assert.match(row(rows, 'Magnitude')!.value, /varies/) // a coarse variable, per the catalogue
+  assert.match(row(rows, 'Magnitude')!.value, /flagged in the catalogue as varying/) // a coarse variable, per the catalogue
   assert.match(row(rows, 'Luminosity')!.value, /±\d+% at least/)
 })
 

@@ -18,7 +18,7 @@ import {
   type ViewMode,
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf, viewpointFor } from '../globe/groups'
-import { starCardRows } from '../globe/stardetails'
+import { SUGGESTED_STARS, searchStars, starCardRows, type StarMatch } from '../globe/stardetails'
 import {
   IMAGERY_EXPLAINER,
   TODAY_FADE_NOTE,
@@ -250,6 +250,9 @@ export default function SatelliteGlobe({
   const [todayImagery, setTodayImagery] = useState(TODAY_IMAGERY_DEFAULT)
   // The satellite view's orientation: the satellite's heading up (default) or north up.
   const [povOrientation, setPovOrientation] = useState<'heading' | 'north'>('heading')
+  // "Find a star": the query, and the IAU names and catalogue membership once loaded.
+  const [starQuery, setStarQuery] = useState('')
+  const [starTools, setStarTools] = useState<ReturnType<GlobeEngine['starSearch']>>(null)
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
   const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
   // The Sky view's Sun, Moon and planets, and the selected one (a body
@@ -874,6 +877,28 @@ export default function SatelliteGlobe({
   const povObject = povTarget !== null && loaded ? loaded.file.objects[povTarget] : null
   // The Sun, Moon or planet selected in the satellite view's sky.
   const spaceBody = povInfo?.sky.selected ? (povInfo.sky.bodies.find((b) => b.key === povInfo.sky.selected) ?? null) : null
+  // Find a star: matches for the typed text (or the suggested stars before
+  // anything is typed), once the names have been loaded on first focus.
+  const loadStarNames = () => {
+    const engine = engineRef.current
+    if (!engine || starTools) return
+    void engine.ensureStarDetails().then(() => setStarTools(engine.starSearch()))
+  }
+  const starMatches: StarMatch[] = (() => {
+    if (!starTools) return []
+    const { names, has } = starTools
+    if (starQuery.trim()) return searchStars(starQuery, names, has)
+    return SUGGESTED_STARS.flatMap((n) => searchStars(n, names, has, 1))
+  })()
+  const goToStarMatch = (m: StarMatch) => {
+    const engine = engineRef.current
+    if (!engine) return
+    const index = engine.starIndexOfHip(m.hip)
+    if (index < 0) return
+    engine.goToStar(index)
+    setStarQuery('')
+    setAnnouncement(`Showing ${m.name}`)
+  }
   // The star selected in the satellite view's sky, as card rows.
   const spaceStar = viewMode === 'pov' ? (povInfo?.sky.star ?? null) : null
   const povCredits = [...imageryCredits(viewMode, povInfo?.imagery ?? null), ...skyCredits(viewMode, povInfo?.sky ?? null)]
@@ -1471,6 +1496,52 @@ export default function SatelliteGlobe({
                     </button>
                   ))}
                 </div>
+                {povInfo && povInfo.sky.stars > 0 && (
+                  <div className="globe-star-find">
+                    <label className="globe-star-find-label" htmlFor="globe-star-find">
+                      Find a star
+                    </label>
+                    <input
+                      id="globe-star-find"
+                      type="search"
+                      className="globe-star-find-input"
+                      value={starQuery}
+                      placeholder="Sirius, Vega, HIP 91262…"
+                      autoComplete="off"
+                      spellCheck={false}
+                      onFocus={loadStarNames}
+                      onChange={(e) => {
+                        setStarQuery(e.target.value)
+                        loadStarNames()
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && starMatches[0]) {
+                          e.preventDefault()
+                          goToStarMatch(starMatches[0])
+                        }
+                        e.stopPropagation()
+                      }}
+                    />
+                    {!starTools ? null : starMatches.length > 0 ? (
+                      <ul className="globe-star-find-list" aria-label="Matching stars">
+                        {starMatches.map((m) => (
+                          <li key={m.hip}>
+                            <button type="button" onClick={() => goToStarMatch(m)}>
+                              <span>{m.name}</span>
+                              <span className="globe-muted">
+                                {[m.designation, m.constellation].filter(Boolean).join(' ') || `HIP ${m.hip}`}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : starQuery.trim() !== '' ? (
+                      <p className="globe-muted globe-star-find-none">
+                        No star named or numbered that. Try a name such as Vega, or HIP 91262.
+                      </p>
+                    ) : null}
+                  </div>
+                )}
                 <div className="globe-pov-imagery-choice globe-pov-orientation" role="group" aria-label="Orientation">
                   <button type="button" aria-pressed={povOrientation === 'heading'} onClick={() => setPovOrientation('heading')}>
                     Heading up

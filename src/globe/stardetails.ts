@@ -406,11 +406,15 @@ export function colourName(bv: number): string {
   return 'orange-red'
 }
 
+// Hipparcos's coarse flag: a star it saw vary at all. A flag of 1 (under 0.06
+// magnitudes) is within the noise for many stars, so only 2 and 3 are shown,
+// worded as the catalogue's flag and not as a verdict (Sirius is flagged,
+// by its companion's glare, though it isn't a variable star).
 const VARIABILITY = [
   '',
-  'varies slightly (under 0.06 magnitudes)',
-  'varies by 0.06 to 0.6 magnitudes',
-  'varies by more than 0.6 magnitudes',
+  '',
+  'flagged in the catalogue as varying by 0.06 to 0.6 magnitudes',
+  'flagged in the catalogue as varying by more than 0.6 magnitudes',
 ]
 
 /**
@@ -423,9 +427,13 @@ export function starCardRows(s: StarCardInput): CardRow[] {
   const rows: CardRow[] = []
   if (s.constellation) rows.push({ label: 'Constellation', value: s.constellation.name })
   const { ra, dec } = formatRaDec(s.raDeg, s.decDeg)
-  rows.push({ label: 'Position (J2000)', value: `${ra}, ${dec}` })
+  rows.push({
+    label: 'Position',
+    value: `${ra}, ${dec}`,
+    note: 'J2000 coordinates, moved to 2026 by the star\'s proper motion',
+  })
   let mag = `${s.vmag.toFixed(2)} (visual)`
-  if (s.record && s.record.varFlag > 0) mag += `, ${VARIABILITY[s.record.varFlag]}`
+  if (s.record && VARIABILITY[s.record.varFlag]) mag += `, ${VARIABILITY[s.record.varFlag]}`
   rows.push({ label: 'Magnitude', value: mag })
 
   const r = s.record
