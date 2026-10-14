@@ -9,6 +9,8 @@
 // depth-tested against the Earth, so the Earth hides what's behind it.
 
 import * as THREE from 'three'
+import { SKY_BODIES, markerSizePx } from './skybodies.ts'
+import { bodyPixels, type SpaceBodyView } from './spacebodies.ts'
 import { STAR_MAX_PX, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
 
 /** Where the sky is drawn, in scene units from the camera (inside the far plane, beyond the Earth from GEO). */
@@ -141,6 +143,218 @@ export class StarField {
   }
 }
 
+function canvasTexture(size: number, draw: (ctx: CanvasRenderingContext2D, c: number) => void) {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  draw(canvas.getContext('2d')!, size / 2)
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return { canvas, tex }
+}
+
+/** A body's position and size on screen, CSS px from the canvas's top left, for labels and picking. */
+export interface ScreenBody {
+  key: string
+  x: number
+  y: number
+  r: number
+  /** In front of the camera, on screen, and not behind the Earth. */
+  visible: boolean
+}
+
+/**
+ * The Sun, Moon and planets as sprites on the sky sphere, at their true
+ * direction from the satellite. Sized to the true angular size where that's
+ * larger than a readable minimum (the Moon fills the view at a fraction of a
+ * degree), so a planet is a point and zooming in grows the discs.
+ */
+export class SpaceBodies {
+  readonly group = new THREE.Group()
+  private readonly sprites = new Map<string, { sprite: THREE.Sprite; glare?: THREE.Sprite }>()
+  private readonly moon = canvasTexture(256, () => {})
+  private moonK = -1
+  private views: SpaceBodyView[] = []
+  private readonly textures: THREE.Texture[] = []
+
+  constructor() {
+    const disc = canvasTexture(64, (ctx, c) => {
+      ctx.fillStyle = '#05070d' // a dark rim, like the satellite points
+      ctx.beginPath()
+      ctx.arc(c, c, c - 1, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#fff'
+      ctx.beginPath()
+      ctx.arc(c, c, c - 6, 0, Math.PI * 2)
+      ctx.fill()
+    })
+    const sun = canvasTexture(128, (ctx, c) => {
+      const g = ctx.createRadialGradient(c, c, 0, c, c, c)
+      g.addColorStop(0, 'rgba(255,255,255,1)')
+      g.addColorStop(0.2, 'rgba(255,255,255,1)')
+      g.addColorStop(0.22, 'rgba(255,250,235,0.9)')
+      g.addColorStop(0.5, 'rgba(255,240,200,0.18)')
+      g.addColorStop(1, 'rgba(255,240,200,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, c * 2, c * 2)
+    })
+    this.textures.push(disc.tex, sun.tex, this.moon.tex)
+    for (const def of SKY_BODIES) {
+      const map = def.key === 'moon' ? this.moon.tex : def.key === 'sun' ? sun.tex : disc.tex
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map,
+          color: def.color,
+          transparent: true,
+          depthTest: true,
+          depthWrite: false,
+          sizeAttenuation: true,
+        }),
+      )
+      sprite.renderOrder = 5
+      sprite.frustumCulled = false
+      sprite.visible = false
+      this.group.add(sprite)
+      this.sprites.set(def.key, { sprite })
+    }
+    // The Sun's glare: a larger, additive halo behind its disc.
+    const glare = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: sun.tex,
+        color: '#fff1c4',
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthTest: true,
+        depthWrite: false,
+      }),
+    )
+    glare.renderOrder = 4
+    glare.frustumCulled = false
+    glare.visible = false
+    this.group.add(glare)
+    this.sprites.get('sun')!.glare = glare
+  }
+
+  set(views: SpaceBodyView[]) {
+    this.views = views
+  }
+
+  get current(): readonly SpaceBodyView[] {
+    return this.views
+  }
+
+  // The Moon's disc with the lit limb toward +x (the sprite is rotated to
+  // the real limb direction); a faint unlit part so a crescent reads as a disc.
+  private drawMoon(k: number) {
+    const ctx = this.moon.canvas.getContext('2d')!
+    const c = this.moon.canvas.width / 2
+    const r = c - 8
+    ctx.clearRect(0, 0, c * 2, c * 2)
+    ctx.save()
+    ctx.translate(c, c)
+    ctx.fillStyle = '#05070d'
+    ctx.beginPath()
+    ctx.arc(0, 0, r + 6, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#4a505c'
+    ctx.beginPath()
+    ctx.arc(0, 0, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#ffffff'
+    ctx.beginPath()
+    ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false)
+    const rx = Math.max(r * Math.abs(1 - 2 * k), 0.01)
+    if (k < 0.5) ctx.ellipse(0, 0, rx, r, 0, Math.PI / 2, -Math.PI / 2, true)
+    else ctx.ellipse(0, 0, rx, r, 0, Math.PI / 2, (3 * Math.PI) / 2, false)
+    ctx.fill()
+    ctx.restore()
+    this.moon.tex.needsUpdate = true
+  }
+
+  /**
+   * Place and size every sprite for this frame and report where each is on
+   * screen. `cameraPos` is the camera's world position (the group follows
+   * it), `widthPx`/`heightPx` the canvas in CSS px.
+   */
+  layout(camera: THREE.PerspectiveCamera, fovDeg: number, widthPx: number, heightPx: number): ScreenBody[] {
+    const out: ScreenBody[] = []
+    const eye = camera.position
+    const eyeLen = eye.length()
+    const worldPerPx = (2 * SKY_RADIUS * Math.tan((fovDeg * Math.PI) / 360)) / heightPx
+    const v = new THREE.Vector3()
+    for (const view of this.views) {
+      const entry = this.sprites.get(view.key)
+      if (!entry) continue
+      const def = SKY_BODIES.find((d) => d.key === view.key)!
+      const dir = new THREE.Vector3(...view.dir)
+      const px =
+        view.key === 'sun'
+          ? bodyPixels(view.angDiameterDeg, fovDeg, heightPx, 26)
+          : view.key === 'moon'
+            ? bodyPixels(view.angDiameterDeg, fovDeg, heightPx, 24)
+            : markerSizePx('planet', view.mag)
+      entry.sprite.position.copy(dir).multiplyScalar(SKY_RADIUS * 0.97)
+      entry.sprite.scale.setScalar(px * worldPerPx)
+      entry.sprite.visible = true
+      if (entry.glare) {
+        entry.glare.position.copy(entry.sprite.position)
+        // A halo about 6 sun-diameters across, never under 90 px, fading out by the disc's edge as you zoom in.
+        entry.glare.scale.setScalar(Math.max(90, px * 6) * worldPerPx)
+        entry.glare.visible = true
+        ;(entry.glare.material as THREE.SpriteMaterial).opacity = Math.min(1, Math.max(0.35, 90 / Math.max(90, px * 2)))
+      }
+      if (view.key === 'moon' && view.illuminated !== undefined) {
+        if (Math.abs(view.illuminated - this.moonK) > 0.003) {
+          this.moonK = view.illuminated
+          this.drawMoon(view.illuminated)
+        }
+        if (view.limb) {
+          // Turn the +x limb to the Sun's side as it appears on screen.
+          const a = v.copy(dir).multiplyScalar(SKY_RADIUS).add(eye).project(camera)
+          const b = new THREE.Vector3(...view.limb).multiplyScalar(0.02 * SKY_RADIUS)
+          const c = b.add(new THREE.Vector3(...view.dir).multiplyScalar(SKY_RADIUS)).add(eye).project(camera)
+          ;(entry.sprite.material as THREE.SpriteMaterial).rotation = Math.atan2(c.y - a.y, (c.x - a.x) * camera.aspect)
+        }
+      }
+      // Where it is on screen, and whether the Earth hides it from this camera.
+      const p = v.copy(dir).multiplyScalar(SKY_RADIUS).add(eye).project(camera)
+      let hidden = false
+      if (eyeLen > 1) {
+        // The ray from the camera along `dir` meets the unit Earth sphere?
+        const b = eye.x * dir.x + eye.y * dir.y + eye.z * dir.z
+        const c = eyeLen * eyeLen - 1
+        hidden = b * b - c >= 0 && -b - Math.sqrt(b * b - c) > 0
+      }
+      const onScreen = p.z < 1 && Math.abs(p.x) <= 1.1 && Math.abs(p.y) <= 1.1
+      entry.sprite.visible = !hidden
+      if (entry.glare) entry.glare.visible = !hidden
+      out.push({
+        key: view.key,
+        x: ((p.x + 1) / 2) * widthPx,
+        y: ((1 - p.y) / 2) * heightPx,
+        r: px / 2,
+        visible: onScreen && !hidden,
+      })
+      void def
+    }
+    return out
+  }
+
+  hide() {
+    for (const e of this.sprites.values()) {
+      e.sprite.visible = false
+      if (e.glare) e.glare.visible = false
+    }
+  }
+
+  dispose() {
+    for (const e of this.sprites.values()) {
+      ;(e.sprite.material as THREE.Material).dispose()
+      if (e.glare) (e.glare.material as THREE.Material).dispose()
+    }
+    for (const t of this.textures) t.dispose()
+  }
+}
+
 /** Quality by device: phones keep the stars down to magnitude 8 (about 42,000), desktops all of them. */
 export const STAR_TIERS = { phone: { maxMag: 8 }, desktop: { maxMag: Infinity } } as const
 
@@ -148,12 +362,14 @@ export const STAR_TIERS = { phone: { maxMag: 8 }, desktop: { maxMag: Infinity } 
 export class SpaceView {
   readonly group = new THREE.Group()
   private stars: StarField | null = null
+  readonly bodies = new SpaceBodies()
   private readonly backdrops: SkyBackdropLayer[] = []
   private readonly sceneToJ2000 = new THREE.Matrix3()
   private rotationFor = ''
 
   constructor(scene: THREE.Scene) {
     this.group.visible = false
+    this.group.add(this.bodies.group)
     scene.add(this.group)
   }
 
@@ -206,10 +422,12 @@ export class SpaceView {
 
   hide() {
     this.group.visible = false
+    this.bodies.hide()
   }
 
   dispose() {
     this.stars?.dispose()
+    this.bodies.dispose()
     for (const b of this.backdrops) b.dispose()
     this.group.removeFromParent()
   }

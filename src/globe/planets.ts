@@ -8,8 +8,9 @@
 // one degree. Elevations are geometric (no atmospheric refraction), the same
 // as the satellites drawn on the dome.
 
-import { Body, Equator, Horizon, Illumination, MoonPhase, Observer, Rotation_EQJ_EQD } from 'astronomy-engine'
+import { Body, Equator, GeoVector, Horizon, Illumination, MoonPhase, Observer, Rotation_EQJ_EQD } from 'astronomy-engine'
 import { KM_PER_AU, SKY_BODIES, type SkyBody } from './skybodies.ts'
+import type { GeoBody } from './spacebodies.ts'
 import type { Mat3 } from './stars.ts'
 
 const BODY: Record<string, Body> = {
@@ -56,4 +57,22 @@ export function computeSkyBodies(date: Date, latDeg: number, lonDeg: number): Sk
 export function j2000ToDateMatrix(date: Date): Mat3 {
   const r = Rotation_EQJ_EQD(date).rot
   return [r[0][0], r[1][0], r[2][0], r[0][1], r[1][1], r[2][1], r[0][2], r[1][2], r[2][2]]
+}
+
+/**
+ * Every body's geocentric vector (km, J2000 equatorial axes, with light-time
+ * and aberration like the Sky view's positions) and magnitude, for the
+ * satellite view, which subtracts the satellite's own position.
+ */
+export function geocentricBodies(date: Date): GeoBody[] {
+  return SKY_BODIES.map((def) => {
+    const body = BODY[def.key]
+    const v = GeoVector(body, date, true)
+    return {
+      key: def.key,
+      vecKm: [v.x * KM_PER_AU, v.y * KM_PER_AU, v.z * KM_PER_AU] as [number, number, number],
+      mag: Illumination(body, date).mag,
+      waxing: def.key === 'moon' ? MoonPhase(date) < 180 : undefined,
+    }
+  })
 }

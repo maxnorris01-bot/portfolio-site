@@ -95,6 +95,7 @@ export interface SkyStatus {
   stars: number
 }
 
+
 /** The sky's credits: the star catalogue while its stars are on screen in the satellite view. */
 export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
   if (viewMode !== 'pov' || !sky) return []

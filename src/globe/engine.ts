@@ -39,6 +39,7 @@ import {
 import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
 import { EOX_LEVEL_KM } from './eox'
 import { SPACE_FOV_MIN } from './stars'
+import { bodiesFromSatellite, pickBody, sceneKm } from './spacebodies'
 import { LEVEL_KM, minFovForImagery } from './gibs'
 import { overlayFade } from './imagery'
 import {
@@ -387,6 +388,12 @@ export class GlobeEngine {
   private space: import('./space').SpaceView | null = null
   private spaceLoading = false
   private starCount = 0
+  // The Sun, Moon and planets from the satellite: refreshed a few times a
+  // second, laid out each frame; the selected one and each one's screen spot.
+  private spaceBodyAt = 0
+  private spaceSelected: string | null = null
+  private spaceScreen: import('./space').ScreenBody[] = []
+  private readonly spaceLabels = new Map<string, HTMLDivElement>()
   private todayImagery = false
   /** Today's imagery's fade with zoom (1 shown, 0 faded out up close). */
   private overlayFadeNow = 1
@@ -1111,6 +1118,8 @@ export class GlobeEngine {
       this.povDetached = null
       this.povAnim = null
       this.space?.hide()
+      for (const el of this.spaceLabels.values()) el.hidden = true
+      this.spaceSelected = null
     }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
@@ -1465,7 +1474,22 @@ export class GlobeEngine {
       detached: this.povDetached ? { ...this.povDetached, minKm: this.povAltitudeLimits().minKm } : null,
       orientation: this.povOrientation,
       /** What's drawn in the sky (for the footnote's credits). */
-      sky: { stars: this.starCount },
+      sky: {
+        stars: this.starCount,
+        selected: this.spaceSelected,
+        bodies:
+          this.space?.bodies.current.map((v) => ({
+            key: v.key,
+            name: SKY_BODIES.find((d) => d.key === v.key)?.name ?? v.key,
+            kind: SKY_BODIES.find((d) => d.key === v.key)?.kind ?? 'planet',
+            mag: v.mag,
+            distKm: v.distKm,
+            angDiameterDeg: v.angDiameterDeg,
+            illuminated: v.illuminated,
+            waxing: v.waxing,
+            parallaxDeg: v.parallaxDeg,
+          })) ?? [],
+      },
       /** Where north points on screen, degrees clockwise from up (null: the centre is sky). */
       northDeg: this.povNorthOnScreen(),
     }
@@ -1568,6 +1592,7 @@ export class GlobeEngine {
     if (this.space && this.bodyEphem) {
       this.space.setDate(date, this.bodyEphem.j2000ToDateMatrix)
       this.space.update(cam, fov, date)
+      this.updateSpaceBodies(date, pos, cam, fov)
     }
     const earthMaterial = this.earth.material
     if (this.baseTiles?.coversView()) this.earth.material = this.earthDepthOnly
@@ -1638,6 +1663,62 @@ export class GlobeEngine {
     const t = -b - Math.sqrt(disc)
     if (t < 0) return Infinity
     return (t * EARTH_RADIUS_KM * 2 * Math.tan((fovDeg * Math.PI) / 360)) / screenPx
+  }
+
+  // The Sun, Moon and planets from the viewpoint satellite (not the Earth's
+  // centre: the Moon's parallax from low orbit is about a degree).
+  private updateSpaceBodies(date: Date, satPos: PovVec3, cam: THREE.PerspectiveCamera, fov: number) {
+    const space = this.space
+    const ephem = this.bodyEphem
+    if (!space || !ephem) return
+    const now = performance.now()
+    if (now - this.spaceBodyAt > 100 || space.bodies.current.length === 0) {
+      this.spaceBodyAt = now
+      space.bodies.set(
+        bodiesFromSatellite(ephem.geocentricBodies(date), sceneKm(satPos), ephem.j2000ToDateMatrix(date)),
+      )
+    }
+    const w = Math.max(1, this.container.clientWidth)
+    const h = Math.max(1, this.container.clientHeight)
+    this.spaceScreen = space.bodies.layout(cam, fov, w, h)
+    // The riding view's own Sun marker is replaced by the real disc and glare.
+    this.povSun.visible = false
+    const narrow = w < 640
+    for (const sb of this.spaceScreen) {
+      let el = this.spaceLabels.get(sb.key)
+      if (!el) {
+        el = document.createElement('div')
+        el.className = 'globe-sky-label is-body'
+        el.textContent = SKY_BODIES.find((d) => d.key === sb.key)?.name ?? sb.key
+        el.hidden = true
+        this.container.appendChild(el)
+        this.spaceLabels.set(sb.key, el)
+      }
+      const view = space.bodies.current.find((v) => v.key === sb.key)
+      const def = SKY_BODIES.find((d) => d.key === sb.key)
+      const show =
+        sb.visible &&
+        !!view &&
+        !!def &&
+        showsLabel({ kind: def.kind, mag: view.mag, key: sb.key } as Pick<SkyBody, 'kind' | 'mag' | 'key'>, narrow, this.spaceSelected)
+      el.hidden = !show
+      el.classList.toggle('is-selected', sb.key === this.spaceSelected)
+      if (show) {
+        el.style.left = `${sb.x}px`
+        el.style.top = `${sb.y + sb.r + 10}px`
+      }
+    }
+  }
+
+  /** Select a Sun, Moon or planet in the satellite view (null clears it). */
+  setSpaceSelected(key: string | null) {
+    this.spaceSelected = key
+  }
+
+  /** The body under a tap (canvas px), by the Sky view's pick rules; null when none. */
+  private pickSpaceBody(x: number, y: number, touch: boolean): string | null {
+    const bodies = this.spaceScreen.filter((b) => b.visible).map((b) => ({ key: b.key, x: b.x, y: b.y, r: b.r }))
+    return pickBody(x, y, bodies, touch ? PICK_PX_TOUCH : PICK_PX_MOUSE)
   }
 
   // How fast the view sweeps over the ground: the sub-satellite speed (orbital
@@ -2106,6 +2187,10 @@ export class GlobeEngine {
       this.handleSkyPointerEnd(e)
       if (this.skyPointers.size === 0) {
         if (g && !g.dragging && !g.multi) {
+          // A tap on a body selects it (a second quick tap still zooms in).
+          const r = this.renderer.domElement.getBoundingClientRect()
+          const hit = this.pickSpaceBody(e.clientX - r.left, e.clientY - r.top, e.pointerType === 'touch')
+          this.spaceSelected = hit
           const now = performance.now()
           const last = this.povLastTap
           if (last && now - last.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_PX) {

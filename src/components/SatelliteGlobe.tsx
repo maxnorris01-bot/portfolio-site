@@ -871,6 +871,8 @@ export default function SatelliteGlobe({
   const snapshotLabel = (key: DatasetKey) => (key === 'current' ? 'latest run' : `${key} snapshot`)
   const inspected = inspect !== null && loaded ? loaded.file.objects[inspect] : null
   const povObject = povTarget !== null && loaded ? loaded.file.objects[povTarget] : null
+  // The Sun, Moon or planet selected in the satellite view's sky.
+  const spaceBody = povInfo?.sky.selected ? (povInfo.sky.bodies.find((b) => b.key === povInfo.sky.selected) ?? null) : null
   const povCredits = [...imageryCredits(viewMode, povInfo?.imagery ?? null), ...skyCredits(viewMode, povInfo?.sky ?? null)]
 
   // ?debug=1: a plain-text overlay of everything that decides whether the
@@ -962,8 +964,10 @@ export default function SatelliteGlobe({
   // On a phone outside full screen, a small box stands in for the panels:
   // what's selected (or what the view needs), and the way to full screen.
   const miniTitle =
-    viewMode === 'pov' && povObject
-      ? `Satellite view: ${povObject.name}`
+    viewMode === 'pov' && spaceBody
+      ? spaceBody.name
+      : viewMode === 'pov' && povObject
+        ? `Satellite view: ${povObject.name}`
       : focus
         ? `${focus.aName} and ${focus.bName}`
         : (inspected?.name ??
@@ -1509,6 +1513,53 @@ export default function SatelliteGlobe({
                   </dl>
                 )}
                 {povInfo && <p className="globe-muted globe-pov-imagery">{imageryLine(povInfo.imagery)}</p>}
+              </div>
+            )}
+            {viewMode === 'pov' && spaceBody && (
+              <div className="globe-panel globe-space-body" role="region" aria-label={`${spaceBody.name}, selected in the sky`}>
+                <div className="globe-panel-head">
+                  <p className="globe-panel-title">{spaceBody.kind === 'moon' ? 'Moon' : spaceBody.key === 'sun' ? 'Sun' : 'Planet'}</p>
+                  <button
+                    type="button"
+                    className="globe-close"
+                    aria-label="Close"
+                    onClick={() => engineRef.current?.setSpaceSelected(null)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="globe-inspect-name">{spaceBody.name}</p>
+                <dl className="globe-space-facts">
+                  <dt>Magnitude</dt>
+                  <dd>{spaceBody.mag.toFixed(1)}</dd>
+                  <dt>Distance</dt>
+                  <dd>
+                    {spaceBody.distKm > 5e6
+                      ? `${(spaceBody.distKm / 149_597_870.7).toFixed(2)} AU`
+                      : `${fmtKm(Math.round(spaceBody.distKm))}`}
+                  </dd>
+                  {spaceBody.angDiameterDeg > 0 && (
+                    <>
+                      <dt>Apparent size</dt>
+                      <dd>{(spaceBody.angDiameterDeg * 60).toFixed(1)}′</dd>
+                    </>
+                  )}
+                  {spaceBody.illuminated !== undefined && spaceBody.waxing !== undefined && (
+                    <>
+                      <dt>Phase</dt>
+                      <dd>
+                        {moonPhaseName(spaceBody.illuminated, spaceBody.waxing)} ·{' '}
+                        {Math.round(spaceBody.illuminated * 100)}% lit, as seen from here
+                      </dd>
+                    </>
+                  )}
+                </dl>
+                {spaceBody.parallaxDeg !== undefined && (
+                  <p className="globe-muted">
+                    From this satellite the Moon is {spaceBody.parallaxDeg.toFixed(2)}° from where it appears from
+                    the Earth&apos;s centre.
+                  </p>
+                )}
               </div>
             )}
             {inspected && viewMode !== 'pov' && (

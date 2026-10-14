@@ -1535,3 +1535,20 @@ html.globe-fs-lock body {
     transition: none;
   }
 }
+
+/* The Sun, Moon or planet card in the satellite view's sky. */
+.globe-space-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.7rem;
+  margin: 0.3rem 0 0.4rem;
+  font-size: 0.8rem;
+}
+
+.globe-space-facts dt {
+  color: var(--globe-ink-muted);
+}
+
+.globe-space-facts dd {
+  margin: 0;
+}
