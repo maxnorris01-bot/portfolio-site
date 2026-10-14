@@ -120,3 +120,18 @@ export function nextView(
 export function angularDiameterDeg(radius: number, distance: number): number {
   return (2 * Math.asin(Math.min(1, radius / distance))) / DEG
 }
+
+/**
+ * The yaw and pitch (degrees) that turn a preset's view onto a direction:
+ * the inverse of applyLook. Pitch is clamped to POV_PITCH_MAX, so a
+ * direction within 5 degrees of the preset's own up axis is reached only
+ * approximately.
+ */
+export function lookToward(view: { look: Vec3; up: Vec3 }, dir: Vec3): { yaw: number; pitch: number } {
+  const right = cross(view.look, view.up)
+  const t = unit(dir)
+  const R = 1 / DEG
+  const pitch = Math.asin(Math.max(-1, Math.min(1, dot(t, view.up)))) * R
+  const yaw = Math.atan2(dot(t, right), dot(t, view.look)) * R
+  return { yaw, pitch: Math.max(-POV_PITCH_MAX, Math.min(POV_PITCH_MAX, pitch)) }
+}

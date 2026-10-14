@@ -59,3 +59,15 @@ test('a Sun, Moon or planet disc wins over a star under the same tap', () => {
   const dirs = flat([at(0.1)])
   assert.equal(pickStar(dirs, new Float32Array([2]), 1, RAY, 60, 576, 12, 15), 0)
 })
+
+test('picking stays exact at the narrowest field of view (float32 directions, microradian radius)', () => {
+  // 0.01 degrees over 576 px: 1.7e-5 degrees per px, so 12 px is 3.6 microradians.
+  const px = (0.01 / 576) * DEG // radians per px
+  const near = flat([at(5 * (0.01 / 576), 15)]) // 5 px away
+  const far = flat([at(30 * (0.01 / 576), 15)]) // 30 px away
+  const mag = new Float32Array([5])
+  assert.equal(pickStar(near, mag, 1, RAY, 0.01, 576, STAR_PICK_PX.mouse, 15), 0)
+  assert.equal(pickStar(far, mag, 1, RAY, 0.01, 576, STAR_PICK_PX.mouse, 15), -1)
+  assert.equal(pickStar(far, mag, 1, RAY, 0.01, 576, 40, 15), 0)
+  assert.ok(px > 0)
+})

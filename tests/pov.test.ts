@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  lookToward,
   POV_FOV_MAX,
   POV_FOV_MIN,
   angularDiameterDeg,
@@ -89,4 +90,22 @@ test('from a station view: Satellite, then Back returns to the Globe it came fro
 
 test('the Earth from GEO is about 17.4 degrees across', () => {
   assert.ok(Math.abs(angularDiameterDeg(6378.137, 42164.17) - 17.4) < 0.1)
+})
+
+test('lookToward is the inverse of applyLook: turning by the result lands on the direction', () => {
+  const pos: [number, number, number] = [1.07, 0.1, -0.2]
+  const vel: [number, number, number] = [0.1, 0.9, 0.3]
+  for (const preset of ['down', 'forward', 'outward'] as const) {
+    const base = presetView(preset, pos, vel)
+    for (const [yaw, pitch] of [[0, 0], [40, 20], [-120, -50], [170, 75], [-10, 84]]) {
+      const target = applyLook(base, yaw, pitch).look
+      const got = lookToward(base, target)
+      const back = applyLook(base, got.yaw, got.pitch).look
+      const d = Math.acos(Math.min(1, back[0] * target[0] + back[1] * target[1] + back[2] * target[2]))
+      assert.ok(d < 1e-6, `${preset} ${yaw},${pitch}: ${d}`)
+    }
+  }
+  // Within 5 degrees of the preset's up axis it clamps (not reachable exactly).
+  const base = presetView('outward', pos, vel)
+  assert.equal(lookToward(base, base.up).pitch, 85)
 })

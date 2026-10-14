@@ -980,7 +980,7 @@ export default function SatelliteGlobe({
     }
   }
   const offsetLabel = time.simMs ? formatOffset(time.simMs - time.nowMs) : ''
-  // Whole degrees, finer when zoomed in on the sky (down to 0.05 degrees).
+  // Whole degrees, finer when zoomed in on the sky (down to 0.01 degrees).
   const fmtFov = (f: number) => (f >= 10 ? `${Math.round(f)}°` : f >= 1 ? `${f.toFixed(1)}°` : `${f.toFixed(2)}°`)
   const PRESET_LABEL = {
     down: 'Down at Earth',

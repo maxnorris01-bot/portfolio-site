@@ -25,13 +25,13 @@ test('the space view and its star data load lazily, only when the satellite view
   assert.match(engine, /enterPov[\s\S]*loadSpace\(\)/)
 })
 
-test('looking out at space, the riding zoom narrows to 0.05 degrees; over the ground it stops at 30', () => {
+test('looking out at space, the riding zoom narrows to 0.01 degrees; over the ground it stops at 30', () => {
   const pos: Vec3 = [1.07, 0, 0]
   const vel: Vec3 = [0, 0.7, 0.7]
   const out = presetView('outward', pos, vel)
   let look = { yaw: 0, pitch: 0, fov: 70 }
-  for (let i = 0; i < 40; i++) look = zoomLockedToward(out, look, 0.6, 0, 0, 16 / 9, SPACE_FOV_MIN)
-  assert.ok(Math.abs(look.fov - 0.05) < 1e-9, `${look.fov}`)
+  for (let i = 0; i < 60; i++) look = zoomLockedToward(out, look, 0.6, 0, 0, 16 / 9, SPACE_FOV_MIN)
+  assert.ok(Math.abs(look.fov - 0.01) < 1e-9, `${look.fov}`)
   // The ground limit is unchanged.
   const down = presetView('down', pos, vel)
   const g = zoomLockedToward(down, { yaw: 0, pitch: 0, fov: 40 }, 0.1, 0, 0, 16 / 9, DESCEND_FOV)

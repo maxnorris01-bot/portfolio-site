@@ -165,10 +165,10 @@ export function starAppearance(mag: number, fovDeg: number, catalogLimit = 12): 
 
 /**
  * The narrowest field of view when looking out at space (not at the Earth):
- * 0.05 degrees. Hipparcos ends near magnitude 12, so
+ * 0.01 degrees (36 arcseconds across). Hipparcos ends near magnitude 12, so
  * there's rarely a star in a view that narrow; it's for examining one.
  */
-export const SPACE_FOV_MIN = 0.05
+export const SPACE_FOV_MIN = 0.01
 
 /** Where the sky is drawn, in scene units from the camera (inside the far plane, beyond the Earth from GEO). */
 export const SKY_RADIUS = 15
@@ -198,16 +198,21 @@ export function pickStar(
   scale = 1,
 ): number {
   const degPerPx = fovDeg / Math.max(1, screenPx)
-  const maxDeg = radiusPx * degPerPx
-  const cosMax = Math.cos((Math.min(maxDeg, 89) * Math.PI) / 180)
+  const maxRad = (Math.min(radiusPx * degPerPx, 89) * Math.PI) / 180
+  // Chord lengths, not cosines: at a 0.01 degree field the pick radius is a
+  // few microradians, which 1 - cos() can't resolve in float precision.
+  const maxChord2 = (2 * Math.sin(maxRad / 2)) ** 2
   const limit = limitingMagnitude(fovDeg)
   let best = -1
   let bestScore = Infinity
   for (let i = 0; i < count; i++) {
     if (mags[i] > limit) continue
-    const d = (dirs[i * 3] * ray[0] + dirs[i * 3 + 1] * ray[1] + dirs[i * 3 + 2] * ray[2]) / scale
-    if (d < cosMax) continue
-    const px = (Math.acos(Math.min(1, d)) * 180) / Math.PI / degPerPx
+    const dx = dirs[i * 3] / scale - ray[0]
+    const dy = dirs[i * 3 + 1] / scale - ray[1]
+    const dz = dirs[i * 3 + 2] / scale - ray[2]
+    const c2 = dx * dx + dy * dy + dz * dz
+    if (c2 > maxChord2) continue
+    const px = ((2 * Math.asin(Math.min(1, Math.sqrt(c2) / 2)) * 180) / Math.PI) / degPerPx
     const score = px + 1.5 * mags[i]
     if (score < bestScore) {
       bestScore = score

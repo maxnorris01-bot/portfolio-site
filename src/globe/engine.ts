@@ -81,6 +81,7 @@ import {
   POV_FOV_MIN,
   POV_PITCH_MAX,
   applyLook,
+  lookToward,
   presetView,
   type PovPreset,
   type Vec3 as PovVec3,
@@ -419,6 +420,10 @@ export class GlobeEngine {
   // lazily loaded details and IAU names (fetched when a star is first selected
   // or searched for).
   private spaceStar = -1
+  // The Out view is locked to the orbit, so the sky sweeps past at about
+  // 0.065 degrees a second; a found star is tracked (kept centred) so zooming
+  // in on it works. A drag, a preset change or another selection ends it.
+  private starTrack = false
   private spaceStarConstellation: { index: number; name: string; symbol: string } | null = null
   private starDetails: StarDetails | null = null
   private starNames: NameTable | null = null
@@ -1273,6 +1278,7 @@ export class GlobeEngine {
 
   /** Pick a look preset (riding the satellite again if detached); the drag offset resets. */
   setPovPreset(preset: PovPreset) {
+    this.starTrack = false
     this.startPovAnim()
     this.povDetached = null
     this.povLook.preset = preset
@@ -1293,6 +1299,7 @@ export class GlobeEngine {
       )
       return
     }
+    this.starTrack = false
     this.povLook.yaw = ((((this.povLook.yaw + yawDeg + 180) % 360) + 360) % 360) - 180
     this.povLook.pitch = Math.max(-POV_PITCH_MAX, Math.min(POV_PITCH_MAX, this.povLook.pitch + pitchDeg))
   }
@@ -1579,6 +1586,7 @@ export class GlobeEngine {
     // Where the camera should be: riding the satellite, or held over the
     // ground (Earth-fixed, so it turns with the Earth); part-way there while a
     // view change animates.
+    this.trackStar(pos, vel)
     const target: Pose = this.povDetached
       ? this.toWorld(surfacePose(oriented(this.povDetached, this.povOrientation)))
       : this.ridingPose(pos, vel)
@@ -1891,6 +1899,7 @@ export class GlobeEngine {
 
   /** Select a star by catalogue index (-1 clears it); loads its details. */
   selectStar(index: number) {
+    if (index !== this.spaceStar) this.starTrack = false
     this.spaceStar = index
     this.spaceStarConstellation = null
     if (index >= 0) {
@@ -1947,26 +1956,25 @@ export class GlobeEngine {
     if (!space?.stars || !st || index < 0 || index >= space.stars.count) return
     this.setPovPreset('outward')
     const base = presetView('outward', st.pos, st.vel)
-    const t = space.stars.direction(index)
-    const cross = (a: PovVec3, b: PovVec3): PovVec3 => [
-      a[1] * b[2] - a[2] * b[1],
-      a[2] * b[0] - a[0] * b[2],
-      a[0] * b[1] - a[1] * b[0],
-    ]
-    const dot = (a: PovVec3, b: PovVec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-    const right = cross(base.look, base.up)
-    const R = 180 / Math.PI
-    // The inverse of applyLook: a yaw about the preset's up, then a pitch toward it.
-    const pitch = Math.asin(Math.max(-1, Math.min(1, dot(t, base.up)))) * R
-    const yaw = Math.atan2(dot(t, right), dot(t, base.look)) * R
+    const { yaw, pitch } = lookToward(base, space.stars.direction(index))
     this.startPovAnim()
     this.povLook.yaw = yaw
-    this.povLook.pitch = Math.max(-POV_PITCH_MAX, Math.min(POV_PITCH_MAX, pitch))
+    this.povLook.pitch = pitch
     if (this.povCamera.fov > 20) {
       this.povCamera.fov = 20
       this.povCamera.updateProjectionMatrix()
     }
     this.selectStar(index)
+    this.starTrack = true
+  }
+
+  // Keep the tracked star centred as the orbit carries the frame round.
+  private trackStar(pos: PovVec3, vel: PovVec3) {
+    const stars = this.space?.stars
+    if (!this.starTrack || !stars || this.spaceStar < 0 || this.povLook.preset !== 'outward' || this.povDetached) return
+    const { yaw, pitch } = lookToward(presetView('outward', pos, vel), stars.direction(this.spaceStar))
+    this.povLook.yaw = yaw
+    this.povLook.pitch = pitch
   }
 
   // The star under a client point, by pick radius scaled to the field of view.
@@ -2365,7 +2373,8 @@ export class GlobeEngine {
       return
     }
     if (pov) {
-      // The view follows the pointer, as in Sky.
+      // The view follows the pointer, as in Sky (and stops tracking a star).
+      this.starTrack = false
       const deg = this.povCamera.fov / Math.max(1, this.container.clientHeight)
       this.povNudge(-(e.clientX - prev.x) * deg, (e.clientY - prev.y) * deg)
       return
