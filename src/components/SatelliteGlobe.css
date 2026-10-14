@@ -1562,3 +1562,16 @@ html.globe-fs-lock body {
 .globe-side .globe-sheet-handle {
   order: -2;
 }
+
+/* The ring around the selected star; it follows the star as the view moves. */
+.globe-star-ring {
+  position: absolute;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border: 1.5px solid #ff7a5c;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(5 7 13 / 0.7);
+  pointer-events: none;
+}

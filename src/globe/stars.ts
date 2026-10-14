@@ -163,5 +163,56 @@ export function starAppearance(mag: number, fovDeg: number, catalogLimit = 12): 
   return { sizePx, alpha }
 }
 
-/** The narrowest field of view when looking out at space (not at the Earth). */
+/**
+ * The narrowest field of view when looking out at space (not at the Earth):
+ * 0.05 degrees. Hipparcos ends near magnitude 12, so
+ * there's rarely a star in a view that narrow; it's for examining one.
+ */
 export const SPACE_FOV_MIN = 0.05
+
+/** Where the sky is drawn, in scene units from the camera (inside the far plane, beyond the Earth from GEO). */
+export const SKY_RADIUS = 15
+
+/** Pick radius around a click or tap, CSS px (mouse, touch). */
+export const STAR_PICK_PX = { mouse: 12, touch: 20 } as const
+
+/**
+ * The star a click or tap selects: among stars shown at this field of view
+ * (brighter than the limiting magnitude) within `radiusPx` of the pointer's
+ * ray, the one with the lowest score of distance in px plus 1.5 px per
+ * magnitude (so a star a magnitude brighter wins from 1.5 px farther away,
+ * and brighter ones are preferred when several are close). Returns the
+ * catalogue index, or -1.
+ *
+ * `dirs` are unit-direction multiples (3 per star, any common scale) in the
+ * same frame as `ray`; `fovDeg` and `screenPx` give the angle per pixel.
+ */
+export function pickStar(
+  dirs: Float32Array,
+  mags: Float32Array,
+  count: number,
+  ray: Vec3,
+  fovDeg: number,
+  screenPx: number,
+  radiusPx: number,
+  scale = 1,
+): number {
+  const degPerPx = fovDeg / Math.max(1, screenPx)
+  const maxDeg = radiusPx * degPerPx
+  const cosMax = Math.cos((Math.min(maxDeg, 89) * Math.PI) / 180)
+  const limit = limitingMagnitude(fovDeg)
+  let best = -1
+  let bestScore = Infinity
+  for (let i = 0; i < count; i++) {
+    if (mags[i] > limit) continue
+    const d = (dirs[i * 3] * ray[0] + dirs[i * 3 + 1] * ray[1] + dirs[i * 3 + 2] * ray[2]) / scale
+    if (d < cosMax) continue
+    const px = (Math.acos(Math.min(1, d)) * 180) / Math.PI / degPerPx
+    const score = px + 1.5 * mags[i]
+    if (score < bestScore) {
+      bestScore = score
+      best = i
+    }
+  }
+  return best
+}

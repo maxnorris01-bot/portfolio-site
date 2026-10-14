@@ -11,10 +11,9 @@
 import * as THREE from 'three'
 import { SKY_BODIES, markerSizePx } from './skybodies.ts'
 import { bodyPixels, type SpaceBodyView } from './spacebodies.ts'
-import { STAR_MAX_PX, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
+import { SKY_RADIUS, STAR_MAX_PX, pickStar, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
 
-/** Where the sky is drawn, in scene units from the camera (inside the far plane, beyond the Earth from GEO). */
-export const SKY_RADIUS = 15
+export { SKY_RADIUS }
 
 /** What a sky layer is given each frame. */
 export interface SkyContext {
@@ -83,9 +82,16 @@ export class StarField {
   private readonly geometry: THREE.BufferGeometry
   private readonly material: THREE.ShaderMaterial
   private readonly catalogLimit: number
+  private readonly mags: Float32Array
+  readonly count: number
+  /** The catalogue behind the field (positions in J2000, magnitudes, colours). */
+  readonly catalog: StarCatalog
 
   constructor(catalog: StarCatalog, pixelRatio: number) {
     this.unitJ2000 = catalog.dirJ2000
+    this.mags = catalog.mag
+    this.count = catalog.count
+    this.catalog = catalog
     this.catalogLimit = catalog.count ? catalog.mag[catalog.count - 1] : 12
     const colors = new Float32Array(catalog.count * 3)
     for (let i = 0; i < catalog.count; i++) colors.set(starColor(catalog.bv[i]), i * 3)
@@ -128,6 +134,18 @@ export class StarField {
       out[i + 2] = -y * SKY_RADIUS
     }
     pos.needsUpdate = true
+  }
+
+  /** The unit direction of star `i` in scene axes (the same turn the sprites have). */
+  direction(i: number): [number, number, number] {
+    const a = (this.geometry.getAttribute('position') as THREE.BufferAttribute).array as Float32Array
+    return [a[i * 3] / SKY_RADIUS, a[i * 3 + 1] / SKY_RADIUS, a[i * 3 + 2] / SKY_RADIUS]
+  }
+
+  /** The star a click or tap at this ray selects (catalogue index, or -1): see pickStar. */
+  pick(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): number {
+    const a = (this.geometry.getAttribute('position') as THREE.BufferAttribute).array as Float32Array
+    return pickStar(a, this.mags, this.count, ray, fovDeg, screenPx, radiusPx, SKY_RADIUS)
   }
 
   update(fovDeg: number) {
@@ -512,7 +530,7 @@ export const STAR_TIERS = { phone: { maxMag: 8 }, desktop: { maxMag: Infinity } 
 /** The sky around the satellite view: backdrop layers, then the stars, all at infinity. */
 export class SpaceView {
   readonly group = new THREE.Group()
-  private stars: StarField | null = null
+  private starField: StarField | null = null
   readonly bodies = new SpaceBodies()
   readonly glow = new AtmosphereGlow()
   private readonly backdrops: SkyBackdropLayer[] = []
@@ -527,9 +545,9 @@ export class SpaceView {
   }
 
   setStars(field: StarField) {
-    this.stars?.dispose()
-    if (this.stars) this.group.remove(this.stars.points)
-    this.stars = field
+    this.starField?.dispose()
+    if (this.starField) this.group.remove(this.starField.points)
+    this.starField = field
     this.group.add(field.points)
     this.rotationFor = ''
   }
@@ -540,8 +558,13 @@ export class SpaceView {
     this.group.add(layer.object)
   }
 
+  /** The star field once the catalogue has loaded. */
+  get stars(): StarField | null {
+    return this.starField
+  }
+
   get hasStars() {
-    return this.stars !== null
+    return this.starField !== null
   }
 
   get backdropCount() {
@@ -557,7 +580,7 @@ export class SpaceView {
     if (day === this.rotationFor) return
     this.rotationFor = day
     const m = j2000ToDate(date)
-    this.stars?.setRotation(m)
+    this.starField?.setRotation(m)
     // Scene (x, z, -y of date) back to J2000: transpose the rotation, after undoing the axis map.
     const toDate = new THREE.Matrix3().set(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8])
     const sceneToDate = new THREE.Matrix3().set(1, 0, 0, 0, 0, -1, 0, 1, 0)
@@ -568,7 +591,7 @@ export class SpaceView {
   update(camera: THREE.PerspectiveCamera, fovDeg: number, date: Date) {
     this.group.visible = true
     this.group.position.copy(camera.position)
-    this.stars?.update(fovDeg)
+    this.starField?.update(fovDeg)
     const ctx: SkyContext = { camera, fovDeg, sceneToJ2000: this.sceneToJ2000, date }
     for (const b of this.backdrops) b.update(ctx)
   }
@@ -580,7 +603,7 @@ export class SpaceView {
   }
 
   dispose() {
-    this.stars?.dispose()
+    this.starField?.dispose()
     this.bodies.dispose()
     this.glow.mesh.removeFromParent()
     this.glow.dispose()

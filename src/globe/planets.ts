@@ -8,7 +8,17 @@
 // one degree. Elevations are geometric (no atmospheric refraction), the same
 // as the satellites drawn on the dome.
 
-import { Body, Equator, GeoVector, Horizon, Illumination, MoonPhase, Observer, Rotation_EQJ_EQD } from 'astronomy-engine'
+import {
+  Body,
+  Constellation,
+  Equator,
+  GeoVector,
+  Horizon,
+  Illumination,
+  MoonPhase,
+  Observer,
+  Rotation_EQJ_EQD,
+} from 'astronomy-engine'
 import { KM_PER_AU, SKY_BODIES, type SkyBody } from './skybodies.ts'
 import type { GeoBody } from './spacebodies.ts'
 import type { Mat3 } from './stars.ts'
@@ -75,4 +85,14 @@ export function geocentricBodies(date: Date): GeoBody[] {
       waxing: def.key === 'moon' ? MoonPhase(date) < 180 : undefined,
     }
   })
+}
+
+/**
+ * The IAU constellation (name and three-letter symbol) containing a J2000
+ * position, from astronomy-engine's Constellation (the 1930 IAU boundaries,
+ * precessed to 1875): exact, no boundary table of our own to maintain.
+ */
+export function constellationOf(raDeg: number, decDeg: number): { name: string; symbol: string } {
+  const c = Constellation(raDeg / 15, decDeg)
+  return { name: c.name, symbol: c.symbol }
 }
