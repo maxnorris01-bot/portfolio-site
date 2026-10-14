@@ -38,7 +38,9 @@ import {
 } from './layout'
 import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
 import { EOX_LEVEL_KM } from './eox'
-import { LEVEL_KM, minFovForImagery } from './gibs'
+import { SPACE_FOV_MIN } from './stars'
+import { bodiesFromSatellite, pickBody, sceneKm } from './spacebodies'
+import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
 import { overlayFade } from './imagery'
 import {
   DESCEND_FOV,
@@ -166,6 +168,10 @@ const MAX_GROUP = 32
 const PICK_PX_MOUSE = 6
 const PICK_PX_TOUCH = 16
 const CLICK_MAX_MOVE_PX = 5
+/** The star catalogue (scripts/build-hipparcos.mjs; licence in public/data/stars/ATTRIBUTION.md). */
+const STAR_CATALOG_URL = '/data/stars/hipparcos.bin'
+/** The Milky Way band: NASA SVS Deep Star Maps 2020, resized (public/data/sky/ATTRIBUTION.md). */
+const MILKY_WAY_URL = '/data/sky/milkyway-2k.jpg'
 // Two taps or clicks this close in time and place are a double tap (zoom in).
 const DOUBLE_TAP_MS = 350
 const DOUBLE_TAP_PX = 30
@@ -379,6 +385,23 @@ export class GlobeEngine {
   // narrowest zoom the base imagery supports.
   private baseTiles: import('./earthTiles').EarthTiles | null = null
   private overlayTiles: import('./earthTiles').EarthTiles | null = null
+  // Streamed night lights (NASA Black Marble) over the dark side, and whether
+  // the bundled night texture has loaded (its lights switch off once the
+  // streamed ones cover the view, so they don't add up).
+  private nightTiles: import('./earthTiles').EarthTiles | null = null
+  private nightTextureReady = false
+  // The satellite view's sky (space.ts) and its star catalogue, loaded the
+  // first time the view opens; and the files they come from.
+  private space: import('./space').SpaceView | null = null
+  private spaceLoading = false
+  private starCount = 0
+  private milkyWay = false
+  // The Sun, Moon and planets from the satellite: refreshed a few times a
+  // second, laid out each frame; the selected one and each one's screen spot.
+  private spaceBodyAt = 0
+  private spaceSelected: string | null = null
+  private spaceScreen: import('./space').ScreenBody[] = []
+  private readonly spaceLabels = new Map<string, HTMLDivElement>()
   private todayImagery = false
   /** Today's imagery's fade with zoom (1 shown, 0 faded out up close). */
   private overlayFadeNow = 1
@@ -580,6 +603,7 @@ export class GlobeEngine {
         this.earthUniforms.nightMap.value.dispose()
         this.earthUniforms.nightMap.value = night
         this.earthUniforms.hasLights.value = 1
+        this.nightTextureReady = true
       })
     }
     const texture = loader.load(textureUrl, loadNight, undefined, loadNight)
@@ -1099,9 +1123,15 @@ export class GlobeEngine {
       // No tile requests outside the satellite view.
       this.baseTiles?.pause()
       this.overlayTiles?.pause()
+      this.nightTiles?.pause()
+      // Back to the bundled night texture's lights alone.
+      this.earthUniforms.hasLights.value = this.nightTextureReady ? 1 : 0
       // Leaving the satellite view (Back) also leaves a held ground view.
       this.povDetached = null
       this.povAnim = null
+      this.space?.hide()
+      for (const el of this.spaceLabels.values()) el.hidden = true
+      this.spaceSelected = null
     }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
@@ -1151,8 +1181,40 @@ export class GlobeEngine {
           this.tilesLoading = false
         })
     }
+    if (!this.space && !this.spaceLoading) this.loadSpace()
     if (this.viewMode === 'pov') this.applyDim()
     else this.setViewMode('pov')
+  }
+
+  // The sky for the satellite view: space.ts, the ephemeris (for the J2000
+  // to date rotation) and the star catalogue, all lazy. Phones keep the
+  // stars down to magnitude 8, desktops all ~118,000.
+  private loadSpace() {
+    this.spaceLoading = true
+    const phone = this.container.clientWidth < 640 || this.container.clientHeight < 500
+    Promise.all([import('./space'), this.bodyEphem ? Promise.resolve(this.bodyEphem) : import('./planets')])
+      .then(async ([m, ephem]) => {
+        if (this.disposed) return
+        this.bodyEphem ??= ephem
+        const space = new m.SpaceView(this.scene)
+        this.space = space
+        const tier = phone ? m.STAR_TIERS.phone : m.STAR_TIERS.desktop
+        const catalog = await m.loadStarCatalog(STAR_CATALOG_URL, tier.maxMag)
+        if (this.disposed) return
+        space.setStars(new m.StarField(catalog, this.renderer.getPixelRatio()))
+        this.starCount = catalog.count
+        // The Milky Way band behind the stars (a small JPEG), when it loads.
+        new THREE.TextureLoader().load(MILKY_WAY_URL, (tex) => {
+          if (this.disposed || this.space !== space) return tex.dispose()
+          space.addBackdrop(new m.MilkyWay(tex))
+          this.milkyWay = true
+        })
+      })
+      .catch((err: unknown) => {
+        // No stars this time: the satellite view works without them.
+        if (import.meta.env.DEV) console.warn('satellite view sky:', err)
+        this.spaceLoading = false
+      })
   }
 
   private makeTiles(source: import('./earthTiles').ImagerySource) {
@@ -1259,7 +1321,9 @@ export class GlobeEngine {
       this.povDetached = this.onShown(s, (c) => zoomSurfaceToward(c, rest, nx, ny, DESCEND_FOV, aspect, limits))
       return
     }
-    const minFov = overGround ? DESCEND_FOV : this.povMinFov
+    // Over the ground the riding zoom stops at DESCEND_FOV (then descends);
+    // looking out at space it narrows much further, to examine stars and planets.
+    const minFov = overGround ? DESCEND_FOV : SPACE_FOV_MIN
     const [ux, uy] = this.unrolledNdc(pose, base, look, nx, ny)
     this.applyLockedLook(zoomLockedToward(base, look, factor, ux, uy, aspect, minFov))
   }
@@ -1412,6 +1476,7 @@ export class GlobeEngine {
     const { altKm, speedKmS, latDeg, lonDeg } = this.povState
     const starting = { date: null, state: 'starting' as const, drawn: 0 }
     const imagery = {
+      night: this.nightTiles ? this.nightTiles.status() : null,
       base: this.baseTiles?.status() ?? starting,
       overlay: this.todayImagery ? { ...(this.overlayTiles?.status() ?? starting), fade: this.overlayFadeNow } : null,
     }
@@ -1427,6 +1492,24 @@ export class GlobeEngine {
       /** Held over the ground (descended or panned), or null while riding the satellite. */
       detached: this.povDetached ? { ...this.povDetached, minKm: this.povAltitudeLimits().minKm } : null,
       orientation: this.povOrientation,
+      /** What's drawn in the sky (for the footnote's credits). */
+      sky: {
+        stars: this.starCount,
+        milkyWay: this.milkyWay,
+        selected: this.spaceSelected,
+        bodies:
+          this.space?.bodies.current.map((v) => ({
+            key: v.key,
+            name: SKY_BODIES.find((d) => d.key === v.key)?.name ?? v.key,
+            kind: SKY_BODIES.find((d) => d.key === v.key)?.kind ?? 'planet',
+            mag: v.mag,
+            distKm: v.distKm,
+            angDiameterDeg: v.angDiameterDeg,
+            illuminated: v.illuminated,
+            waxing: v.waxing,
+            parallaxDeg: v.parallaxDeg,
+          })) ?? [],
+      },
       /** Where north points on screen, degrees clockwise from up (null: the centre is sky). */
       northDeg: this.povNorthOnScreen(),
     }
@@ -1468,6 +1551,13 @@ export class GlobeEngine {
     const target: Pose = this.povDetached
       ? this.toWorld(surfacePose(oriented(this.povDetached, this.povOrientation)))
       : this.ridingPose(pos, vel)
+    // Zoomed in on the sky past DESCEND_FOV and then turned to the Earth: ease
+    // back out to the ground's riding limit (the Earth isn't sharp that close).
+    if (!this.povDetached && cam.fov < DESCEND_FOV && groundAt(target, cam.fov, cam.aspect, 0, 0)) {
+      this.startPovAnim()
+      cam.fov = DESCEND_FOV
+      cam.updateProjectionMatrix()
+    }
     const targetFov = this.povDetached ? this.povDetachedFov : cam.fov
     let pose = target
     let fov = targetFov
@@ -1519,6 +1609,12 @@ export class GlobeEngine {
       ...this.orbitSlots.map((s2) => s2.line),
     ].filter((o) => o.visible)
     for (const o of hidden) o.visible = false
+    if (this.space && this.bodyEphem) {
+      this.space.setDate(date, this.bodyEphem.j2000ToDateMatrix)
+      this.space.update(cam, fov, date)
+      this.updateSpaceBodies(date, pos, cam, fov)
+      this.space.glow.update(cam.position, this.earthUniforms.sunDir.value)
+    }
     const earthMaterial = this.earth.material
     if (this.baseTiles?.coversView()) this.earth.material = this.earthDepthOnly
     this.renderer.render(this.scene, cam)
@@ -1554,6 +1650,7 @@ export class GlobeEngine {
       const ground = this.povDetached ? 0 : this.povGroundKmPerSec(pos)
       base.setCaps(this.tileCaps(base.source))
       base.update(view, date.getTime(), ground)
+      this.updateNightTiles(view, date, ground)
       if (this.todayImagery && this.tilesModule) {
         this.overlayTiles ??= this.makeTiles(this.tilesModule.GIBS_SOURCE)
         const caps = this.tileCaps(this.overlayTiles.source)
@@ -1574,10 +1671,6 @@ export class GlobeEngine {
     this.povMinFov = online
       ? minFovForImagery(altKm, EOX_LEVEL_KM(this.tileCaps(base.source).maxLevel), h)
       : POV_FOV_MIN
-    if (cam.fov < this.povMinFov) {
-      cam.fov = this.povMinFov
-      cam.updateProjectionMatrix()
-    }
   }
 
   // The ground size of one screen pixel at the centre of the view, km (very
@@ -1592,6 +1685,88 @@ export class GlobeEngine {
     const t = -b - Math.sqrt(disc)
     if (t < 0) return Infinity
     return (t * EARTH_RADIUS_KM * 2 * Math.tan((fovDeg * Math.PI) / 360)) / screenPx
+  }
+
+  // Night lights streamed over the dark side: tiles fully in daylight aren't
+  // fetched, and once they cover the view the bundled texture's lights are
+  // switched off (so they don't add up). Needs day/night shading on.
+  private updateNightTiles(view: import('./gibs').View, date: Date, ground: number) {
+    const u = this.earthUniforms
+    const tiles = this.tilesModule
+    // Only once a screen pixel is finer than the bundled texture's: wider
+    // than that, the 2K lights are as sharp as the screen shows.
+    const kmPerPx = this.groundKmPerPxAtCentre(view.fovDeg, view.screenPx)
+    if (!tiles || u.enabled.value <= 0 || !nightStreamWorthIt(kmPerPx)) {
+      this.nightTiles?.pause()
+      u.hasLights.value = this.nightTextureReady ? 1 : 0
+      return
+    }
+    this.nightTiles ??= this.makeTiles(tiles.NIGHT_SOURCE)
+    this.nightTiles.setCaps(this.tileCaps(this.nightTiles.source))
+    // The Sun's direction in the Earth's own axes, to tell dark tiles from day ones.
+    this.earth.updateMatrixWorld()
+    const sunLocal = u.sunDir.value.clone().transformDirection(new THREE.Matrix4().copy(this.earth.matrixWorld).invert())
+    // Fully lit (the whole tile above +4 degrees; the shading's full day is +3) has no lights to show.
+    const sun: [number, number, number] = [sunLocal.x, sunLocal.y, sunLocal.z]
+    const keep = (t: import('./gibs').TileKey) => !tileFullyLit(t, sun)
+    this.nightTiles.update(view, date.getTime(), ground, keep)
+    u.hasLights.value = this.nightTextureReady && !this.nightTiles.coversView() ? 1 : 0
+  }
+
+  // The Sun, Moon and planets from the viewpoint satellite (not the Earth's
+  // centre: the Moon's parallax from low orbit is about a degree).
+  private updateSpaceBodies(date: Date, satPos: PovVec3, cam: THREE.PerspectiveCamera, fov: number) {
+    const space = this.space
+    const ephem = this.bodyEphem
+    if (!space || !ephem) return
+    const now = performance.now()
+    if (now - this.spaceBodyAt > 100 || space.bodies.current.length === 0) {
+      this.spaceBodyAt = now
+      space.bodies.set(
+        bodiesFromSatellite(ephem.geocentricBodies(date), sceneKm(satPos), ephem.j2000ToDateMatrix(date)),
+      )
+    }
+    const w = Math.max(1, this.container.clientWidth)
+    const h = Math.max(1, this.container.clientHeight)
+    this.spaceScreen = space.bodies.layout(cam, fov, w, h)
+    // The riding view's own Sun marker is replaced by the real disc and glare.
+    this.povSun.visible = false
+    const narrow = w < 640
+    for (const sb of this.spaceScreen) {
+      let el = this.spaceLabels.get(sb.key)
+      if (!el) {
+        el = document.createElement('div')
+        el.className = 'globe-sky-label is-body'
+        el.textContent = SKY_BODIES.find((d) => d.key === sb.key)?.name ?? sb.key
+        el.hidden = true
+        this.container.appendChild(el)
+        this.spaceLabels.set(sb.key, el)
+      }
+      const view = space.bodies.current.find((v) => v.key === sb.key)
+      const def = SKY_BODIES.find((d) => d.key === sb.key)
+      const show =
+        sb.visible &&
+        !!view &&
+        !!def &&
+        showsLabel({ kind: def.kind, mag: view.mag, key: sb.key } as Pick<SkyBody, 'kind' | 'mag' | 'key'>, narrow, this.spaceSelected)
+      el.hidden = !show
+      el.classList.toggle('is-selected', sb.key === this.spaceSelected)
+      if (show) {
+        el.style.left = `${sb.x}px`
+        el.style.top = `${sb.y + sb.r + 10}px`
+      }
+    }
+  }
+
+  /** Select a Sun, Moon or planet in the satellite view (null clears it). */
+  setSpaceSelected(key: string | null) {
+    this.spaceSelected = key
+  }
+
+  /** The body under a tap (canvas px), by the Sky view's pick rules; null when none. */
+  private pickSpaceBody(x: number, y: number, touch: boolean): string | null {
+    const bodies = this.spaceScreen.filter((b) => b.visible).map((b) => ({ key: b.key, x: b.x, y: b.y, r: b.r }))
+    return pickBody(x, y, bodies, touch ? PICK_PX_TOUCH : PICK_PX_MOUSE)
   }
 
   // How fast the view sweeps over the ground: the sub-satellite speed (orbital
@@ -1897,6 +2072,8 @@ export class GlobeEngine {
     })
     this.baseTiles?.dispose()
     this.overlayTiles?.dispose()
+    this.nightTiles?.dispose()
+    this.space?.dispose()
     this.earthDepthOnly.dispose()
     // The Earth's shader material holds its textures in uniforms, not `map`.
     this.earthUniforms.dayMap.value?.dispose()
@@ -2059,6 +2236,10 @@ export class GlobeEngine {
       this.handleSkyPointerEnd(e)
       if (this.skyPointers.size === 0) {
         if (g && !g.dragging && !g.multi) {
+          // A tap on a body selects it (a second quick tap still zooms in).
+          const r = this.renderer.domElement.getBoundingClientRect()
+          const hit = this.pickSpaceBody(e.clientX - r.left, e.clientY - r.top, e.pointerType === 'touch')
+          this.spaceSelected = hit
           const now = performance.now()
           const last = this.povLastTap
           if (last && now - last.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_PX) {

@@ -475,3 +475,26 @@ export class FailedTiles {
     this.until.clear()
   }
 }
+
+/**
+ * Whether every point of a tile is in full daylight (the whole tile more
+ * than `aboveDeg` above the horizon as seen from the Sun), so a layer of
+ * night lights has nothing to show on it. `sunLocal` is the Sun's unit
+ * direction in the Earth's own axes (the tile grid's).
+ */
+export function tileFullyLit(t: TileKey, sunLocal: Vec3, aboveDeg = 4, g: TileGrid = GIBS_GRID): boolean {
+  const { center, radiusDeg } = tileCap(t, g)
+  const d = Math.max(-1, Math.min(1, dot(center, sunLocal)))
+  const elevDeg = Math.asin(d) / DEG
+  return elevDeg - radiusDeg >= aboveDeg
+}
+
+/**
+ * The bundled 2K night texture is ~19.6 km per pixel at the equator, so the
+ * streamed night lights (Black Marble tiles, ~300 kB each) only add
+ * something once a screen pixel is finer than about half that, near
+ * `NIGHT_STREAM_KM_PER_PX`; wider than that the 2K lights are as sharp as the
+ * screen can show and nothing is fetched.
+ */
+export const NIGHT_STREAM_KM_PER_PX = 9
+export const nightStreamWorthIt = (groundKmPerPx: number) => groundKmPerPx <= NIGHT_STREAM_KM_PER_PX

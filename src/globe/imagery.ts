@@ -17,6 +17,8 @@ export interface LayerStatus {
 }
 
 export interface ImageryStatus {
+  /** NASA Black Marble night lights, streamed over the dark side (null until started). */
+  night?: LayerStatus | null
   /** EOX Sentinel-2 cloudless 2016, the base surface. */
   base: LayerStatus
   /** NASA GIBS's daily mosaic, or null while "Today's imagery" is off. */
@@ -58,7 +60,11 @@ export function imageryCredits(viewMode: string, imagery: ImageryStatus | null):
   if (viewMode !== 'pov' || !imagery) return []
   const out: string[] = []
   if (imagery.base.drawn > 0) out.push(sentence(EOX_ATTRIBUTION))
-  if (imagery.overlay && (imagery.overlay.fade ?? 1) > 0) out.push(sentence(GIBS_ACKNOWLEDGMENT))
+  // Both of NASA's layers come from GIBS: its acknowledgment shows while
+  // either is visible (the daily overlay, or the streamed night lights).
+  const overlayShown = !!imagery.overlay && (imagery.overlay.fade ?? 1) > 0
+  const nightShown = !!imagery.night && imagery.night.drawn > 0
+  if (overlayShown || nightShown) out.push(sentence(GIBS_ACKNOWLEDGMENT))
   return out
 }
 
@@ -82,4 +88,30 @@ export function overlayFadeAltitudesKm(texelKm: number, fovDeg: number, screenPx
   const kmPerPxAt = (altKm: number) => (2 * altKm * Math.tan((fovDeg * Math.PI) / 360)) / screenPx
   const perKm = kmPerPxAt(1)
   return { fullKm: texelKm / perKm, goneKm: texelKm / 2 / perKm }
+}
+
+/** The star catalogue's credit, as ESA's licence asks ("Credit: ESA"), with its licence. */
+export const STARS_CREDIT =
+  'Stars: the Hipparcos Catalogue (ESA, 1997, The Hipparcos and Tycho Catalogues, ESA SP-1200). ' +
+  'Credit: ESA. Licence: CC BY-NC 3.0 IGO; this site is non-commercial'
+
+/** What the satellite view's sky is showing, for its credits. */
+export interface SkyStatus {
+  /** Stars drawn (0 until the catalogue loads). */
+  stars: number
+  /** The Milky Way band is shown. */
+  milkyWay?: boolean
+}
+
+/** NASA SVS's requested credit for the Deep Star Maps (public domain; the credit is requested, not required). */
+export const MILKY_WAY_CREDIT =
+  'Milky Way: NASA/Goddard Space Flight Center Scientific Visualization Studio, Deep Star Maps 2020; Gaia DR2: ESA/Gaia/DPAC'
+
+/** The sky's credits: the star catalogue while its stars are on screen in the satellite view. */
+export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
+  if (viewMode !== 'pov' || !sky) return []
+  const out: string[] = []
+  if (sky.stars > 0) out.push(STARS_CREDIT)
+  if (sky.milkyWay) out.push(MILKY_WAY_CREDIT)
+  return out
 }
