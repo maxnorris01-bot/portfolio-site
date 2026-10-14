@@ -81,7 +81,11 @@ void main() {
 // `overlay`: a tile layer drawn over another (GIBS over EOX): where the tile
 // has no data it is transparent instead of filled from the 2K texture, so the
 // layer beneath shows through.
-function earthFragment(tiled: boolean, overlay = false) {
+// `night`: the streamed night-lights layer (NASA Black Marble tiles), drawn
+// additively over the base surface: only the city lights, with the same
+// twilight weighting as the bundled texture's, so it fades in across the
+// terminator exactly as the 2K lights do.
+function earthFragment(tiled: boolean, overlay = false, night = false) {
   return /* glsl */ `
 uniform sampler2D dayMap;
 uniform sampler2D nightMap;
@@ -120,7 +124,7 @@ ${
 ${
   tiled
     ? `  vec3 lights = vec3(0.0);
-  if (lightsW > 0.0) lights = textureGrad(nightMap, g, gdx, gdy).rgb;
+  ${night ? 'lights = tile.rgb;' : 'if (lightsW > 0.0) lights = textureGrad(nightMap, g, gdx, gdy).rgb;'}
   vec2 e = vEdge;
   float fw = ${f(TILE_FEATHER)};
   float a = opacity;
@@ -132,7 +136,16 @@ ${
   float a = 1.0;`
 }
   lights *= smoothstep(${f(DAY_NIGHT.lightsFrom)}, ${f(DAY_NIGHT.lightsTo)}, dot(lights, vec3(0.2126, 0.7152, 0.0722)));
-  gl_FragColor = vec4(day * dayW + lights * lightsW, a);
+${
+  night
+    ? `  // The 500 m product is contrast-stretched: dense city cores are flat white
+  // blobs, which magnified become sheets of white. A soft knee brings them
+  // down and a sodium-lamp tint makes them read as light, not paper; faint
+  // lights pass nearly unchanged.
+  lights = lights / (1.0 + 1.2 * lights) * vec3(1.18, 0.93, 0.62);
+  gl_FragColor = vec4(lights * lightsW, a);`
+    : `  gl_FragColor = vec4(day * dayW + lights * lightsW, a);`
+}
   #include <colorspace_fragment>
 }
 `
@@ -162,3 +175,5 @@ void main() {
 export const TILE_FRAGMENT_SHADER = earthFragment(true)
 /** An overlay layer's tiles (GIBS over the EOX base): transparent where they have no data. */
 export const TILE_OVERLAY_FRAGMENT_SHADER = earthFragment(true, true)
+/** The streamed night-lights layer: only the lights, additively, with the twilight weighting. */
+export const TILE_NIGHT_FRAGMENT_SHADER = earthFragment(true, false, true)

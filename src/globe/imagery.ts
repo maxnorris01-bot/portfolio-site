@@ -17,6 +17,8 @@ export interface LayerStatus {
 }
 
 export interface ImageryStatus {
+  /** NASA Black Marble night lights, streamed over the dark side (null until started). */
+  night?: LayerStatus | null
   /** EOX Sentinel-2 cloudless 2016, the base surface. */
   base: LayerStatus
   /** NASA GIBS's daily mosaic, or null while "Today's imagery" is off. */
@@ -58,7 +60,11 @@ export function imageryCredits(viewMode: string, imagery: ImageryStatus | null):
   if (viewMode !== 'pov' || !imagery) return []
   const out: string[] = []
   if (imagery.base.drawn > 0) out.push(sentence(EOX_ATTRIBUTION))
-  if (imagery.overlay && (imagery.overlay.fade ?? 1) > 0) out.push(sentence(GIBS_ACKNOWLEDGMENT))
+  // Both of NASA's layers come from GIBS: its acknowledgment shows while
+  // either is visible (the daily overlay, or the streamed night lights).
+  const overlayShown = !!imagery.overlay && (imagery.overlay.fade ?? 1) > 0
+  const nightShown = !!imagery.night && imagery.night.drawn > 0
+  if (overlayShown || nightShown) out.push(sentence(GIBS_ACKNOWLEDGMENT))
   return out
 }
 

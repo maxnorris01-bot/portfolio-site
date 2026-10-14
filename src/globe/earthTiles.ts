@@ -8,7 +8,12 @@
 // wherever no tile has loaded.
 
 import * as THREE from 'three'
-import { TILE_FRAGMENT_SHADER, TILE_OVERLAY_FRAGMENT_SHADER, TILE_VERTEX_SHADER } from './daynight.ts'
+import {
+  TILE_FRAGMENT_SHADER,
+  TILE_NIGHT_FRAGMENT_SHADER,
+  TILE_OVERLAY_FRAGMENT_SHADER,
+  TILE_VERTEX_SHADER,
+} from './daynight.ts'
 import { EOX_GRID, EOX_TONE, eoxTileUrl } from './eox.ts'
 import {
   FailedTiles,
@@ -55,7 +60,13 @@ export interface TileCaps {
  * date (GIBS) or is one fixed image (EOX 2016), and how it's drawn.
  */
 export interface ImagerySource {
-  key: 'eox' | 'gibs'
+  key: 'eox' | 'gibs' | 'night'
+  /** Drawn additively (night lights): no fades, feathers or stand-ins beneath tiles. */
+  additive?: boolean
+  /** Screen pixels one image pixel may cover before a tile is refined (default 1.25; coarser fetches less). */
+  texelPx?: number
+  /** The layer's own shader, when it isn't the base or overlay one. */
+  shader?: 'night'
   grid: TileGrid
   /** Dated: the date is picked from GIBS DescribeDomains; undated: one fixed image. */
   dated: boolean
@@ -93,6 +104,36 @@ export const EOX_SOURCE: ImagerySource = {
   // 256 px tiles: about four times as many as GIBS's 512 px ones for the same view.
   desktop: { maxLevel: 13, cacheTiles: 192, concurrent: 6, maxTiles: 140, requestsPerSec: 20 },
   phone: { maxLevel: 12, cacheTiles: 64, concurrent: 4, maxTiles: 60, requestsPerSec: 10 },
+}
+
+/**
+ * Night lights: NASA GIBS's VIIRS Black Marble 2016 annual composite (the
+ * same product as the bundled 2K night texture), a fixed product (not daily),
+ * `500m` matrix set, levels 0-7 (~490 m per pixel at 7), PNG. Streamed
+ * additively over the base, only where it's dark; tiles fully in daylight
+ * aren't fetched.
+ */
+export const NIGHT_LAYER = 'VIIRS_Black_Marble'
+export const NIGHT_TIME = '2016-01-01'
+export const NIGHT_SOURCE: ImagerySource = {
+  key: 'night',
+  additive: true,
+  // City lights are soft blobs and the layer is heavy (~300 kB a tile): let a
+  // tile cover 2.5 screen pixels per image pixel before refining.
+  texelPx: 2.5,
+  shader: 'night',
+  grid: { ...GIBS_GRID, maxLevel: 7 },
+  dated: false,
+  url: (t) =>
+    `https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/${NIGHT_LAYER}/default/${NIGHT_TIME}/500m/${t.z}/${t.row}/${t.col}.png`,
+  overlay: false,
+  maskNoData: false,
+  renderOrderBase: 70,
+  holdSec: 2,
+  tone: [1, 1],
+  // About 300 kB a PNG: kept small.
+  desktop: { maxLevel: 7, cacheTiles: 36, concurrent: 4, maxTiles: 12, requestsPerSec: 5 },
+  phone: { maxLevel: 6, cacheTiles: 12, concurrent: 3, maxTiles: 6, requestsPerSec: 3 },
 }
 
 /** "Today's imagery": NASA GIBS VIIRS NOAA-20, following the slider's date, over the base. */
@@ -341,7 +382,7 @@ export class EarthTiles {
    * an older date's copy, then to a loaded ancestor, so there are no holes),
    * and requests what's missing.
    */
-  update(view: View, simMs: number, groundKmPerSec = 0) {
+  update(view: View, simMs: number, groundKmPerSec = 0, keep?: (t: TileKey) => boolean) {
     this.group.visible = true
     this.upload()
     if (this.state === 'offline') {
@@ -368,10 +409,18 @@ export class EarthTiles {
     // they arrived: cap the level to what stays on screen a couple of seconds.
     const g = this.source.grid
     const maxLevel = Math.min(this.caps.maxLevel, maxLevelForMotion(groundKmPerSec, this.caps.maxLevel, this.source.holdSec, g))
-    const wanted = selectTiles(view, { maxLevel, maxTiles: this.caps.maxTiles, grid: g })
+    let wanted = selectTiles(view, {
+      maxLevel,
+      maxTiles: this.caps.maxTiles,
+      grid: g,
+      maxTexelPx: this.source.texelPx,
+    })
+    // A layer that only matters in places (night lights, on the dark side)
+    // doesn't fetch or draw the rest.
+    if (keep) wanted = wanted.filter(keep)
     this.stats.wanted = wanted.length
     const now = performance.now()
-    const fadeMs = this.reducedMotion?.matches ? 0 : FADE_MS
+    const fadeMs = this.reducedMotion?.matches || this.source.additive ? 0 : FADE_MS
     const draws = new Map<string, Draw>()
     const missing: TileKey[] = []
     const source = new Map<string, TileSource>()
@@ -410,7 +459,7 @@ export class EarthTiles {
       const e = this.cache.peek(id)!
       if (now - e.lastDrawn > REAPPEAR_MS) e.shownAt = coarserThanLast.has(tileId(t)) ? -Infinity : now
       const alpha = fadeMs > 0 ? Math.min(1, (now - e.shownAt) / fadeMs) : 1
-      const feather = featherEdges(t, sourceAt, g)
+      const feather = this.source.additive ? NO_FEATHER : featherEdges(t, sourceAt, g)
       if (alpha < 1 || feather.some(Boolean)) {
         const under = this.loadedFallback(t)
         if (under && !draws.has(under)) draws.set(under, { role: 'under', alpha: 1, feather: NO_FEATHER })
@@ -620,14 +669,21 @@ export class EarthTiles {
           tint: u.tint,
           sunDir: u.sunDir,
           enabled: u.enabled,
-          hasLights: u.hasLights,
+          // The night layer is the lights: it isn't switched off by the shared
+          // flag that turns the bundled texture's lights off once it covers.
+          hasLights: this.source.shader === 'night' ? { value: 1 } : u.hasLights,
         },
         vertexShader: TILE_VERTEX_SHADER,
-        fragmentShader: this.source.overlay ? TILE_OVERLAY_FRAGMENT_SHADER : TILE_FRAGMENT_SHADER,
+        fragmentShader: this.source.shader === 'night'
+          ? TILE_NIGHT_FRAGMENT_SHADER
+          : this.source.overlay
+            ? TILE_OVERLAY_FRAGMENT_SHADER
+            : TILE_FRAGMENT_SHADER,
         // Drawn over the 2K Earth in level order (finer last), without
         // depth testing; back faces are culled, so the far side never shows.
         // All tiles are blended, so they sort together by renderOrder.
         transparent: true,
+        blending: this.source.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
         depthTest: false,
         depthWrite: false,
       }),

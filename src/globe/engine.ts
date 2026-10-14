@@ -40,7 +40,7 @@ import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } fro
 import { EOX_LEVEL_KM } from './eox'
 import { SPACE_FOV_MIN } from './stars'
 import { bodiesFromSatellite, pickBody, sceneKm } from './spacebodies'
-import { LEVEL_KM, minFovForImagery } from './gibs'
+import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
 import { overlayFade } from './imagery'
 import {
   DESCEND_FOV,
@@ -385,6 +385,11 @@ export class GlobeEngine {
   // narrowest zoom the base imagery supports.
   private baseTiles: import('./earthTiles').EarthTiles | null = null
   private overlayTiles: import('./earthTiles').EarthTiles | null = null
+  // Streamed night lights (NASA Black Marble) over the dark side, and whether
+  // the bundled night texture has loaded (its lights switch off once the
+  // streamed ones cover the view, so they don't add up).
+  private nightTiles: import('./earthTiles').EarthTiles | null = null
+  private nightTextureReady = false
   // The satellite view's sky (space.ts) and its star catalogue, loaded the
   // first time the view opens; and the files they come from.
   private space: import('./space').SpaceView | null = null
@@ -598,6 +603,7 @@ export class GlobeEngine {
         this.earthUniforms.nightMap.value.dispose()
         this.earthUniforms.nightMap.value = night
         this.earthUniforms.hasLights.value = 1
+        this.nightTextureReady = true
       })
     }
     const texture = loader.load(textureUrl, loadNight, undefined, loadNight)
@@ -1117,6 +1123,9 @@ export class GlobeEngine {
       // No tile requests outside the satellite view.
       this.baseTiles?.pause()
       this.overlayTiles?.pause()
+      this.nightTiles?.pause()
+      // Back to the bundled night texture's lights alone.
+      this.earthUniforms.hasLights.value = this.nightTextureReady ? 1 : 0
       // Leaving the satellite view (Back) also leaves a held ground view.
       this.povDetached = null
       this.povAnim = null
@@ -1467,6 +1476,7 @@ export class GlobeEngine {
     const { altKm, speedKmS, latDeg, lonDeg } = this.povState
     const starting = { date: null, state: 'starting' as const, drawn: 0 }
     const imagery = {
+      night: this.nightTiles ? this.nightTiles.status() : null,
       base: this.baseTiles?.status() ?? starting,
       overlay: this.todayImagery ? { ...(this.overlayTiles?.status() ?? starting), fade: this.overlayFadeNow } : null,
     }
@@ -1640,6 +1650,7 @@ export class GlobeEngine {
       const ground = this.povDetached ? 0 : this.povGroundKmPerSec(pos)
       base.setCaps(this.tileCaps(base.source))
       base.update(view, date.getTime(), ground)
+      this.updateNightTiles(view, date, ground)
       if (this.todayImagery && this.tilesModule) {
         this.overlayTiles ??= this.makeTiles(this.tilesModule.GIBS_SOURCE)
         const caps = this.tileCaps(this.overlayTiles.source)
@@ -1674,6 +1685,32 @@ export class GlobeEngine {
     const t = -b - Math.sqrt(disc)
     if (t < 0) return Infinity
     return (t * EARTH_RADIUS_KM * 2 * Math.tan((fovDeg * Math.PI) / 360)) / screenPx
+  }
+
+  // Night lights streamed over the dark side: tiles fully in daylight aren't
+  // fetched, and once they cover the view the bundled texture's lights are
+  // switched off (so they don't add up). Needs day/night shading on.
+  private updateNightTiles(view: import('./gibs').View, date: Date, ground: number) {
+    const u = this.earthUniforms
+    const tiles = this.tilesModule
+    // Only once a screen pixel is finer than the bundled texture's: wider
+    // than that, the 2K lights are as sharp as the screen shows.
+    const kmPerPx = this.groundKmPerPxAtCentre(view.fovDeg, view.screenPx)
+    if (!tiles || u.enabled.value <= 0 || !nightStreamWorthIt(kmPerPx)) {
+      this.nightTiles?.pause()
+      u.hasLights.value = this.nightTextureReady ? 1 : 0
+      return
+    }
+    this.nightTiles ??= this.makeTiles(tiles.NIGHT_SOURCE)
+    this.nightTiles.setCaps(this.tileCaps(this.nightTiles.source))
+    // The Sun's direction in the Earth's own axes, to tell dark tiles from day ones.
+    this.earth.updateMatrixWorld()
+    const sunLocal = u.sunDir.value.clone().transformDirection(new THREE.Matrix4().copy(this.earth.matrixWorld).invert())
+    // Fully lit (the whole tile above +4 degrees; the shading's full day is +3) has no lights to show.
+    const sun: [number, number, number] = [sunLocal.x, sunLocal.y, sunLocal.z]
+    const keep = (t: import('./gibs').TileKey) => !tileFullyLit(t, sun)
+    this.nightTiles.update(view, date.getTime(), ground, keep)
+    u.hasLights.value = this.nightTextureReady && !this.nightTiles.coversView() ? 1 : 0
   }
 
   // The Sun, Moon and planets from the viewpoint satellite (not the Earth's
@@ -2035,6 +2072,7 @@ export class GlobeEngine {
     })
     this.baseTiles?.dispose()
     this.overlayTiles?.dispose()
+    this.nightTiles?.dispose()
     this.space?.dispose()
     this.earthDepthOnly.dispose()
     // The Earth's shader material holds its textures in uniforms, not `map`.
