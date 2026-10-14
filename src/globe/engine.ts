@@ -170,6 +170,8 @@ const PICK_PX_TOUCH = 16
 const CLICK_MAX_MOVE_PX = 5
 /** The star catalogue (scripts/build-hipparcos.mjs; licence in public/data/stars/ATTRIBUTION.md). */
 const STAR_CATALOG_URL = '/data/stars/hipparcos.bin'
+/** The Milky Way band: NASA SVS Deep Star Maps 2020, resized (public/data/sky/ATTRIBUTION.md). */
+const MILKY_WAY_URL = '/data/sky/milkyway-2k.jpg'
 // Two taps or clicks this close in time and place are a double tap (zoom in).
 const DOUBLE_TAP_MS = 350
 const DOUBLE_TAP_PX = 30
@@ -388,6 +390,7 @@ export class GlobeEngine {
   private space: import('./space').SpaceView | null = null
   private spaceLoading = false
   private starCount = 0
+  private milkyWay = false
   // The Sun, Moon and planets from the satellite: refreshed a few times a
   // second, laid out each frame; the selected one and each one's screen spot.
   private spaceBodyAt = 0
@@ -1191,6 +1194,12 @@ export class GlobeEngine {
         if (this.disposed) return
         space.setStars(new m.StarField(catalog, this.renderer.getPixelRatio()))
         this.starCount = catalog.count
+        // The Milky Way band behind the stars (a small JPEG), when it loads.
+        new THREE.TextureLoader().load(MILKY_WAY_URL, (tex) => {
+          if (this.disposed || this.space !== space) return tex.dispose()
+          space.addBackdrop(new m.MilkyWay(tex))
+          this.milkyWay = true
+        })
       })
       .catch((err: unknown) => {
         // No stars this time: the satellite view works without them.
@@ -1476,6 +1485,7 @@ export class GlobeEngine {
       /** What's drawn in the sky (for the footnote's credits). */
       sky: {
         stars: this.starCount,
+        milkyWay: this.milkyWay,
         selected: this.spaceSelected,
         bodies:
           this.space?.bodies.current.map((v) => ({
@@ -1593,6 +1603,7 @@ export class GlobeEngine {
       this.space.setDate(date, this.bodyEphem.j2000ToDateMatrix)
       this.space.update(cam, fov, date)
       this.updateSpaceBodies(date, pos, cam, fov)
+      this.space.glow.update(cam.position, this.earthUniforms.sunDir.value)
     }
     const earthMaterial = this.earth.material
     if (this.baseTiles?.coversView()) this.earth.material = this.earthDepthOnly

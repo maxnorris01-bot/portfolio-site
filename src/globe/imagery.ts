@@ -93,11 +93,19 @@ export const STARS_CREDIT =
 export interface SkyStatus {
   /** Stars drawn (0 until the catalogue loads). */
   stars: number
+  /** The Milky Way band is shown. */
+  milkyWay?: boolean
 }
 
+/** NASA SVS's requested credit for the Deep Star Maps (public domain; the credit is requested, not required). */
+export const MILKY_WAY_CREDIT =
+  'Milky Way: NASA/Goddard Space Flight Center Scientific Visualization Studio, Deep Star Maps 2020; Gaia DR2: ESA/Gaia/DPAC'
 
 /** The sky's credits: the star catalogue while its stars are on screen in the satellite view. */
 export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
   if (viewMode !== 'pov' || !sky) return []
-  return sky.stars > 0 ? [STARS_CREDIT] : []
+  const out: string[] = []
+  if (sky.stars > 0) out.push(STARS_CREDIT)
+  if (sky.milkyWay) out.push(MILKY_WAY_CREDIT)
+  return out
 }

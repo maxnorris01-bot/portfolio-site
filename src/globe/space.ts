@@ -355,6 +355,157 @@ export class SpaceBodies {
   }
 }
 
+// ---- Milky Way: a soft band behind the stars, from the NASA SVS Deep Star
+// Maps 2020 map (celestial coordinates, RA increasing to the left). ----
+
+const MILKY_VERTEX = /* glsl */ `
+varying vec3 vDir;
+void main() {
+  vDir = position;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`
+
+const MILKY_FRAGMENT = /* glsl */ `
+uniform sampler2D map;
+uniform mat3 sceneToJ2000;
+uniform float gain;
+varying vec3 vDir;
+void main() {
+  vec3 d = normalize(sceneToJ2000 * normalize(vDir));
+  float ra = atan(d.y, d.x);
+  float u = fract(0.5 - ra / 6.28318530718);
+  float v = 0.5 + asin(clamp(d.z, -1.0, 1.0)) / 3.14159265359;
+  // The map's pixels are display-referred: a lift and a slight dim keep it a
+  // soft band behind the stars (and never brighter than a bright star).
+  vec3 c = texture2D(map, vec2(u, v)).rgb * gain;
+  gl_FragColor = vec4(c, 1.0);
+  #include <colorspace_fragment>
+}
+`
+
+/** The Milky Way band as a sky backdrop layer (a sphere under the stars, sampling a J2000 map). */
+export class MilkyWay implements SkyBackdropLayer {
+  readonly object: THREE.Mesh
+  private readonly material: THREE.ShaderMaterial
+  private readonly geometry: THREE.SphereGeometry
+
+  constructor(map: THREE.Texture, gain = 1.7) {
+    map.colorSpace = THREE.SRGBColorSpace
+    map.wrapS = THREE.RepeatWrapping
+    map.anisotropy = 1
+    this.geometry = new THREE.SphereGeometry(SKY_RADIUS * 1.05, 48, 24)
+    this.material = new THREE.ShaderMaterial({
+      uniforms: { map: { value: map }, sceneToJ2000: { value: new THREE.Matrix3() }, gain: { value: gain } },
+      vertexShader: MILKY_VERTEX,
+      fragmentShader: MILKY_FRAGMENT,
+      side: THREE.BackSide,
+      depthWrite: false,
+      depthTest: true,
+    })
+    this.object = new THREE.Mesh(this.geometry, this.material)
+    this.object.renderOrder = -2
+    this.object.frustumCulled = false
+  }
+
+  update(ctx: SkyContext) {
+    this.material.uniforms.sceneToJ2000.value.copy(ctx.sceneToJ2000)
+  }
+
+  dispose() {
+    this.geometry.dispose()
+    ;(this.material.uniforms.map.value as THREE.Texture).dispose()
+    this.material.dispose()
+  }
+}
+
+// ---- Atmosphere glow: a thin blue ring along the Earth's limb. ----
+
+const GLOW_RADIUS = 1.03 // about 190 km: the glow is gone well inside it
+
+const GLOW_VERTEX = /* glsl */ `
+varying vec3 vWorld;
+void main() {
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vWorld = w.xyz;
+  gl_Position = projectionMatrix * viewMatrix * w;
+}
+`
+
+const GLOW_FRAGMENT = /* glsl */ `
+uniform vec3 camPos;
+uniform vec3 sunDir;
+uniform float strength;
+varying vec3 vWorld;
+void main() {
+  vec3 o = camPos;
+  vec3 d = normalize(vWorld - o);
+  // The ray's closest approach to the Earth's centre: its impact parameter
+  // (in Earth radii) and the point of the limb it grazes.
+  float t = -dot(o, d);
+  vec3 p = o + d * t;
+  float b = length(p);
+  // A thin exponential layer of air above the surface: strongest right at the limb.
+  float h = max(b - 1.0, 0.0);
+  float air = exp(-h / 0.0065);
+  // Lit by the Sun where the limb faces it; thin and faint on the night side.
+  float lit = dot(p / max(b, 1e-4), sunDir);
+  float day = mix(0.07, 1.0, smoothstep(-0.2, 0.35, lit));
+  // A touch warmer toward the terminator.
+  vec3 blue = vec3(0.30, 0.58, 1.0);
+  vec3 warm = vec3(1.0, 0.62, 0.38);
+  vec3 col = mix(blue, warm, 0.35 * (1.0 - smoothstep(-0.05, 0.3, abs(lit))) * step(-0.3, lit));
+  float a = air * day * strength * 0.9;
+  gl_FragColor = vec4(col * a, a);
+}
+`
+
+/** A cheap limb glow: a back-face shell, shaded by the ray's grazing height above the surface and the sun angle. */
+export class AtmosphereGlow {
+  readonly mesh: THREE.Mesh
+  private readonly material: THREE.ShaderMaterial
+
+  constructor() {
+    this.material = new THREE.ShaderMaterial({
+      uniforms: {
+        camPos: { value: new THREE.Vector3() },
+        sunDir: { value: new THREE.Vector3(1, 0, 0) },
+        strength: { value: 1 },
+      },
+      vertexShader: GLOW_VERTEX,
+      fragmentShader: GLOW_FRAGMENT,
+      side: THREE.BackSide,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthTest: true,
+    })
+    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(GLOW_RADIUS, 96, 48), this.material)
+    this.mesh.renderOrder = 3
+    this.mesh.frustumCulled = false
+    this.mesh.visible = false
+  }
+
+  /** `camera` and `sunDir` in the scene's frame (the Earth at the origin, radii). */
+  update(camera: THREE.Vector3, sunDir: THREE.Vector3) {
+    const r = camera.length()
+    // Inside the shell (a held view near the ground) there's no limb to glow.
+    this.material.uniforms.strength.value = Math.min(1, Math.max(0, (r - GLOW_RADIUS) / 0.03))
+    this.material.uniforms.camPos.value.copy(camera)
+    this.material.uniforms.sunDir.value.copy(sunDir)
+    this.mesh.visible = this.material.uniforms.strength.value > 0
+  }
+
+  hide() {
+    this.mesh.visible = false
+  }
+
+  dispose() {
+    this.mesh.geometry.dispose()
+    this.material.dispose()
+  }
+}
+
 /** Quality by device: phones keep the stars down to magnitude 8 (about 42,000), desktops all of them. */
 export const STAR_TIERS = { phone: { maxMag: 8 }, desktop: { maxMag: Infinity } } as const
 
@@ -363,6 +514,7 @@ export class SpaceView {
   readonly group = new THREE.Group()
   private stars: StarField | null = null
   readonly bodies = new SpaceBodies()
+  readonly glow = new AtmosphereGlow()
   private readonly backdrops: SkyBackdropLayer[] = []
   private readonly sceneToJ2000 = new THREE.Matrix3()
   private rotationFor = ''
@@ -371,6 +523,7 @@ export class SpaceView {
     this.group.visible = false
     this.group.add(this.bodies.group)
     scene.add(this.group)
+    scene.add(this.glow.mesh)
   }
 
   setStars(field: StarField) {
@@ -423,11 +576,14 @@ export class SpaceView {
   hide() {
     this.group.visible = false
     this.bodies.hide()
+    this.glow.hide()
   }
 
   dispose() {
     this.stars?.dispose()
     this.bodies.dispose()
+    this.glow.mesh.removeFromParent()
+    this.glow.dispose()
     for (const b of this.backdrops) b.dispose()
     this.group.removeFromParent()
   }
