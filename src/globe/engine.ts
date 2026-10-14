@@ -1525,6 +1525,7 @@ export class GlobeEngine {
         stars: this.starCount,
         milkyWay: this.milkyWay,
         names: this.starNames !== null,
+        starSelected: this.spaceStar >= 0,
         star: this.starInfo(),
         selected: this.spaceSelected,
         bodies:

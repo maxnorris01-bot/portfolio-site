@@ -1559,6 +1559,33 @@ html.globe-fs-lock body {
   order: -1;
 }
 
+.globe-star-desig {
+  color: var(--globe-ink-muted);
+  font-weight: 400;
+}
+
+.globe-star-id {
+  margin: -0.35rem 0 0.3rem !important;
+  font-size: 0.72rem;
+}
+
+.globe-star-est {
+  color: var(--globe-ink-muted);
+  font-size: 0.72rem;
+}
+
+.globe-star-note {
+  display: block;
+  color: var(--globe-ink-muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.globe-star-source {
+  margin: 0.2rem 0 0 !important;
+  font-size: 0.68rem;
+}
+
 .globe-side .globe-sheet-handle {
   order: -2;
 }

@@ -180,3 +180,74 @@ test('coordinates in hours/minutes/seconds and degrees', () => {
   assert.deepEqual(formatRaDec(359.9999, 89.9999), { ra: '00h 00m 00.0s', dec: '+90° 00′ 00″' })
   assert.deepEqual(formatRaDec(10.0, -0.0001), { ra: '00h 40m 00.0s', dec: '+00° 00′ 00″' })
 })
+
+import { colourName, starCardRows, type StarCardInput } from '../src/globe/stardetails.ts'
+
+const card = (hip: number, over: Partial<StarCardInput> = {}): StarCardInput => {
+  const s = star(hip)
+  const d = (i: number) => ({ x: catalog.dirJ2000[i * 3], y: catalog.dirJ2000[i * 3 + 1], z: catalog.dirJ2000[i * 3 + 2] })
+  const v = d(s.i)
+  return {
+    vmag: s.vmag,
+    bv: s.bv,
+    raDeg: ((Math.atan2(v.y, v.x) * 180) / Math.PI + 360) % 360,
+    decDeg: (Math.asin(v.z) * 180) / Math.PI,
+    constellation: null,
+    record: s.rec,
+    loading: false,
+    failed: false,
+    ...over,
+  }
+}
+const row = (rows: ReturnType<typeof starCardRows>, label: string) => rows.find((r) => r.label === label)
+
+test('the card for Sirius: catalogue values plain, estimates labelled', () => {
+  const rows = starCardRows(card(SIRIUS, { constellation: { name: 'Canis Major', symbol: 'CMa' } }))
+  assert.equal(row(rows, 'Constellation')!.value, 'Canis Major')
+  assert.match(row(rows, 'Position (J2000)')!.value, /^06h 45m 0\d\.\ds, -16° 4\d′ \d\d″$/)
+  assert.match(row(rows, 'Magnitude')!.value, /^-1\.4\d \(visual\)/)
+  assert.match(row(rows, 'Distance')!.value, /^8\.6 light-years/)
+  assert.equal(row(rows, 'Distance')!.estimate, undefined) // measured, not inferred
+  assert.match(row(rows, 'Spectral type')!.value, /^A0/)
+  assert.match(row(rows, 'Colour')!.value, /^B-V \+0\.01, blue-white$/)
+  const t = row(rows, 'Temperature')!
+  assert.equal(t.estimate, true)
+  assert.match(t.note!, /Ballesteros 2012/)
+  const l = row(rows, 'Luminosity')!
+  assert.equal(l.estimate, true)
+  assert.match(l.value, /^about 2\d × the Sun/)
+})
+
+test('the card for Betelgeuse: an uncertain distance is a range, and the luminosity says how rough it is', () => {
+  const rows = starCardRows(card(BETELGEUSE))
+  const d = row(rows, 'Distance')!
+  assert.equal(d.estimate, true)
+  assert.match(d.value, /^about \d+ light-years \(between \d+ and \d+\)$/)
+  assert.match(row(rows, 'Spectral type')!.value, /M2Ib: red supergiant/)
+  assert.match(row(rows, 'Magnitude')!.value, /varies/) // a coarse variable, per the catalogue
+  assert.match(row(rows, 'Luminosity')!.value, /±\d+% at least/)
+})
+
+test('the card for Barnard\'s Star and a star with no parallax; and while details load', () => {
+  const b = starCardRows(card(BARNARD))
+  assert.match(row(b, 'Spectral type')!.value, /sdM4: red subdwarf/)
+  assert.match(row(b, 'Distance')!.value, /^5\.9 light-years/)
+  // No parallax: say so, and don't invent a luminosity.
+  const none = starCardRows(card(SIRIUS, { record: { hip: 1, plxMas: null, eplxMas: null, spectral: '', varFlag: 0, varType: '' } }))
+  assert.equal(row(none, 'Distance')!.value, 'no usable parallax measurement')
+  assert.equal(row(none, 'Luminosity'), undefined)
+  assert.equal(row(none, 'Spectral type'), undefined)
+  // A parallax that's too poor: no luminosity either, with the reason.
+  const poor = starCardRows(card(SIRIUS, { record: { hip: 1, plxMas: 3, eplxMas: 2.5, spectral: 'K0III', varFlag: 0, varType: '' } }))
+  assert.match(row(poor, 'Distance')!.value, /^uncertain: at least/)
+  assert.match(row(poor, 'Luminosity')!.value, /not estimated/)
+  // Details still loading: only catalogue values, and a loading distance.
+  const loading = starCardRows(card(SIRIUS, { record: null, loading: true }))
+  assert.equal(row(loading, 'Distance')!.value, 'loading…')
+  assert.ok(row(loading, 'Temperature'))
+  // Loading failed: no distance row at all, and the rest stands.
+  const failed = starCardRows(card(SIRIUS, { record: null, failed: true }))
+  assert.equal(row(failed, 'Distance'), undefined)
+  assert.equal(colourName(1.5), 'orange-red')
+  assert.equal(colourName(-0.3), 'blue')
+})

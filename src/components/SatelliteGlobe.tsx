@@ -1,7 +1,7 @@
 // The 3D globe (Phases 1, 1b and 1c of the visualization plan, satellite-
 // conjunction-screening working notes 2026-10-03). Lazy-loaded by
 // SatelliteTool so three.js and satellite.js stay out of the main bundle.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SPEEDS, canPlay, isPaused, liveClock, scrubClock, togglePlay, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
@@ -18,6 +18,7 @@ import {
   type ViewMode,
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf, viewpointFor } from '../globe/groups'
+import { starCardRows } from '../globe/stardetails'
 import {
   IMAGERY_EXPLAINER,
   TODAY_FADE_NOTE,
@@ -873,6 +874,8 @@ export default function SatelliteGlobe({
   const povObject = povTarget !== null && loaded ? loaded.file.objects[povTarget] : null
   // The Sun, Moon or planet selected in the satellite view's sky.
   const spaceBody = povInfo?.sky.selected ? (povInfo.sky.bodies.find((b) => b.key === povInfo.sky.selected) ?? null) : null
+  // The star selected in the satellite view's sky, as card rows.
+  const spaceStar = viewMode === 'pov' ? (povInfo?.sky.star ?? null) : null
   const povCredits = [...imageryCredits(viewMode, povInfo?.imagery ?? null), ...skyCredits(viewMode, povInfo?.sky ?? null)]
 
   // ?debug=1: a plain-text overlay of everything that decides whether the
@@ -964,7 +967,9 @@ export default function SatelliteGlobe({
   // On a phone outside full screen, a small box stands in for the panels:
   // what's selected (or what the view needs), and the way to full screen.
   const miniTitle =
-    viewMode === 'pov' && spaceBody
+    viewMode === 'pov' && spaceStar && !spaceBody
+      ? spaceStar.name
+      : viewMode === 'pov' && spaceBody
       ? spaceBody.name
       : viewMode === 'pov' && povObject
         ? `Satellite view: ${povObject.name}`
@@ -1513,6 +1518,46 @@ export default function SatelliteGlobe({
                   </dl>
                 )}
                 {povInfo && <p className="globe-muted globe-pov-imagery">{imageryLine(povInfo.imagery)}</p>}
+              </div>
+            )}
+            {viewMode === 'pov' && spaceStar && !spaceBody && (
+              <div className="globe-panel globe-space-body" role="region" aria-label={`${spaceStar.name}, selected in the sky`}>
+                <div className="globe-panel-head">
+                  <p className="globe-panel-title">Star</p>
+                  <button
+                    type="button"
+                    className="globe-close"
+                    aria-label="Close"
+                    onClick={() => engineRef.current?.selectStar(-1)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="globe-inspect-name">
+                  {spaceStar.name}
+                  {spaceStar.iau && spaceStar.designation ? (
+                    <span className="globe-star-desig"> · {spaceStar.designation}</span>
+                  ) : null}
+                </p>
+                {spaceStar.record && spaceStar.iau && (
+                  <p className="globe-muted globe-star-id">HIP {spaceStar.record.hip}</p>
+                )}
+                <dl className="globe-space-facts">
+                  {starCardRows(spaceStar).map((r) => (
+                    <Fragment key={r.label}>
+                      <dt>{r.label}</dt>
+                      <dd>
+                        {r.value}
+                        {r.estimate && <span className="globe-star-est"> (estimate)</span>}
+                        {r.note && <span className="globe-star-note">{r.note}</span>}
+                      </dd>
+                    </Fragment>
+                  ))}
+                </dl>
+                <p className="globe-muted globe-star-source">
+                  Hipparcos Catalogue (ESA, 1997). Estimates inherit the catalogue&apos;s errors and ignore
+                  interstellar dust.
+                </p>
               </div>
             )}
             {viewMode === 'pov' && spaceBody && (

@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { DESCEND_FOV, zoomLockedToward } from '../src/globe/descend.ts'
 import { presetView, type Vec3 } from '../src/globe/pov.ts'
 import { SPACE_FOV_MIN } from '../src/globe/stars.ts'
-import { STARS_CREDIT, skyCredits } from '../src/globe/imagery.ts'
+import { IAU_NAMES_CREDIT, STARS_CREDIT, skyCredits } from '../src/globe/imagery.ts'
 
 const src = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')
 
@@ -45,4 +45,12 @@ test('the star credit shows while stars are on screen in the satellite view', ()
   assert.deepEqual(skyCredits('pov', { stars: 118217 }), [STARS_CREDIT])
   assert.deepEqual(skyCredits('pov', { stars: 0 }), [])
   assert.deepEqual(skyCredits('globe', { stars: 118217 }), [])
+})
+
+test('the IAU names credit shows only while a star with a name is on screen', () => {
+  assert.match(IAU_NAMES_CREDIT, /IAU Catalog of Star Names/)
+  assert.ok(!skyCredits('pov', { stars: 1000 }).includes(IAU_NAMES_CREDIT))
+  assert.ok(!skyCredits('pov', { stars: 1000, names: true }).includes(IAU_NAMES_CREDIT)) // loaded, none selected
+  assert.ok(skyCredits('pov', { stars: 1000, names: true, starSelected: true }).includes(IAU_NAMES_CREDIT))
+  assert.deepEqual(skyCredits('globe', { stars: 1000, names: true, starSelected: true }), [])
 })

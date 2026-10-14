@@ -362,3 +362,124 @@ export function formatRaDec(raDeg: number, decDeg: number): { ra: string; dec: s
     dec: `${decDeg < 0 && arc > 0 ? '-' : '+'}${two(dd)}° ${two(dm)}′ ${two(ds)}″`,
   }
 }
+
+// ---- the card ----
+
+/** What the card needs about the selected star (the engine's starInfo()). */
+export interface StarCardInput {
+  vmag: number
+  bv: number
+  raDeg: number
+  decDeg: number
+  constellation: { name: string; symbol: string } | null
+  record: StarRecord | null
+  loading: boolean
+  failed: boolean
+}
+
+export interface CardRow {
+  label: string
+  value: string
+  /** The value is inferred, not catalogued: shown with its method. */
+  estimate?: boolean
+  note?: string
+}
+
+const nf = (n: number, digits = 0) => n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits })
+
+/** Round to two significant figures (for values only known that well). */
+const sig2 = (n: number) => {
+  if (n === 0) return 0
+  const p = 10 ** (Math.floor(Math.log10(Math.abs(n))) - 1)
+  return Math.round(n / p) * p
+}
+
+const lyText = (ly: number) => (ly < 20 ? nf(ly, 1) : ly < 1000 ? nf(Math.round(ly)) : nf(Math.round(ly / 10) * 10))
+
+/** A colour in words from B-V (what the star would look like, roughly). */
+export function colourName(bv: number): string {
+  if (bv < -0.15) return 'blue'
+  if (bv < 0.15) return 'blue-white'
+  if (bv < 0.45) return 'white'
+  if (bv < 0.8) return 'yellow-white'
+  if (bv < 1.15) return 'orange'
+  return 'orange-red'
+}
+
+const VARIABILITY = [
+  '',
+  'varies slightly (under 0.06 magnitudes)',
+  'varies by 0.06 to 0.6 magnitudes',
+  'varies by more than 0.6 magnitudes',
+]
+
+/**
+ * The card's rows for a star, in order. Only what is supportable is shown;
+ * anything inferred carries `estimate: true`. Details not yet loaded (the
+ * parallax, spectral type) show as "loading" and are absent if loading
+ * failed.
+ */
+export function starCardRows(s: StarCardInput): CardRow[] {
+  const rows: CardRow[] = []
+  if (s.constellation) rows.push({ label: 'Constellation', value: s.constellation.name })
+  const { ra, dec } = formatRaDec(s.raDeg, s.decDeg)
+  rows.push({ label: 'Position (J2000)', value: `${ra}, ${dec}` })
+  let mag = `${s.vmag.toFixed(2)} (visual)`
+  if (s.record && s.record.varFlag > 0) mag += `, ${VARIABILITY[s.record.varFlag]}`
+  rows.push({ label: 'Magnitude', value: mag })
+
+  const r = s.record
+  if (!r) {
+    if (s.loading) rows.push({ label: 'Distance', value: 'loading…' })
+  } else {
+    const d = distanceFromParallax(r.plxMas, r.eplxMas)
+    if (d.kind === 'measured') {
+      const pm = d.plusMinusLy! < 0.05 ? '' : ` ± ${lyText(d.plusMinusLy!)}`
+      rows.push({ label: 'Distance', value: `${lyText(d.ly!)}${pm} light-years`, note: 'from its parallax' })
+    } else if (d.kind === 'range') {
+      rows.push({
+        label: 'Distance',
+        value: `about ${lyText(sig2(d.ly!))} light-years (between ${lyText(d.minLy!)} and ${lyText(d.maxLy!)})`,
+        estimate: true,
+        note: 'its parallax is only measured to within 10-30%',
+      })
+    } else if (d.kind === 'lower') {
+      rows.push({
+        label: 'Distance',
+        value: `uncertain: at least ${lyText(sig2(d.minLy!))} light-years`,
+        estimate: true,
+        note: 'its parallax is too small to measure well',
+      })
+    } else {
+      rows.push({ label: 'Distance', value: 'no usable parallax measurement' })
+    }
+    const sp = spectralGloss(r.spectral)
+    if (sp) rows.push({ label: 'Spectral type', value: `${sp.type}: ${sp.gloss}` })
+  }
+
+  rows.push({ label: 'Colour', value: `B-V ${s.bv >= 0 ? '+' : ''}${s.bv.toFixed(2)}, ${colourName(s.bv)}` })
+  const teff = temperatureFromBV(s.bv)
+  if (teff !== null) {
+    rows.push({
+      label: 'Temperature',
+      value: `about ${nf(Math.round(teff / 50) * 50)} K`,
+      estimate: true,
+      note: 'estimated from B-V (Ballesteros 2012, a blackbody fit; ignores dust reddening)',
+    })
+  }
+  if (r) {
+    const lum = luminosityEstimate(s.vmag, s.bv, r.plxMas, r.eplxMas)
+    if (lum) {
+      const times = lum.lsun < 0.01 ? nf(sig2(lum.lsun), 4) : lum.lsun < 10 ? nf(sig2(lum.lsun), 2) : nf(sig2(lum.lsun))
+      rows.push({
+        label: 'Luminosity',
+        value: `about ${times} × the Sun (±${Math.round(lum.fractionalError * 100)}% at least)`,
+        estimate: true,
+        note: 'from absolute magnitude and a bolometric correction; ignores extinction and treats a double star as one',
+      })
+    } else if (r.plxMas !== null) {
+      rows.push({ label: 'Luminosity', value: 'not estimated: its distance is too uncertain' })
+    }
+  }
+  return rows
+}
