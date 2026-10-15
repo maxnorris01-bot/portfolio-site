@@ -91,5 +91,14 @@ test('zooming in shows fainter stars, larger and brighter, and softens them at v
   // ...but under 0.2 degrees it dims and stops growing into a blob.
   assert.ok(starAppearance(4, 0.05).alpha < starAppearance(4, 0.3).alpha)
   assert.ok(starAppearance(-1.4, 0.05).sizePx <= 9)
-  assert.equal(SPACE_FOV_MIN, 0.05)
+  assert.equal(SPACE_FOV_MIN, 0.01)
+  // At the new floor the points are soft but never blobs, and the sky is sparse:
+  // a star of magnitude 12 is shown, a 14.5 isn't (the catalogue ends near 14).
+  const faint = starAppearance(12, SPACE_FOV_MIN, 14.08)
+  assert.ok(faint.alpha > 0 && faint.sizePx <= 9)
+  assert.equal(starAppearance(14.5, SPACE_FOV_MIN, 14.08).alpha, 0)
+  assert.ok(starAppearance(-1.4, SPACE_FOV_MIN).alpha < starAppearance(-1.4, 0.2).alpha)
+  // The riding zoom is logarithmic over the new range: each step is the same ratio.
+  const steps = Math.log(120 / SPACE_FOV_MIN) / Math.log(1.25)
+  assert.ok(steps > 40 && steps < 45, `${steps} keyboard steps from 120 to 0.01 degrees`)
 })

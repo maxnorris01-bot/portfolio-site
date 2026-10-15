@@ -40,6 +40,18 @@ import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } fro
 import { EOX_LEVEL_KM } from './eox'
 import { SPACE_FOV_MIN } from './stars'
 import { bodiesFromSatellite, pickBody, sceneKm } from './spacebodies'
+import { SKY_RADIUS as SKY_RADIUS_UNITS, STAR_PICK_PX } from './stars'
+import {
+  hipIndex,
+  nameTable,
+  readStarDetails,
+  recordAt,
+  starName,
+  type IauName,
+  type NameTable,
+  type StarDetails,
+  type StarRecord,
+} from './stardetails'
 import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
 import { overlayFade } from './imagery'
 import {
@@ -69,6 +81,7 @@ import {
   POV_FOV_MIN,
   POV_PITCH_MAX,
   applyLook,
+  lookToward,
   presetView,
   type PovPreset,
   type Vec3 as PovVec3,
@@ -170,6 +183,9 @@ const PICK_PX_TOUCH = 16
 const CLICK_MAX_MOVE_PX = 5
 /** The star catalogue (scripts/build-hipparcos.mjs; licence in public/data/stars/ATTRIBUTION.md). */
 const STAR_CATALOG_URL = '/data/stars/hipparcos.bin'
+/** HIP numbers, parallax, spectral types (lazy, on the first star selection) and IAU names. */
+const STAR_DETAILS_URL = '/data/stars/hipparcos-details.bin'
+const STAR_NAMES_URL = '/data/stars/iau-names.json'
 /** The Milky Way band: NASA SVS Deep Star Maps 2020, resized (public/data/sky/ATTRIBUTION.md). */
 const MILKY_WAY_URL = '/data/sky/milkyway-2k.jpg'
 // Two taps or clicks this close in time and place are a double tap (zoom in).
@@ -400,6 +416,22 @@ export class GlobeEngine {
   // second, laid out each frame; the selected one and each one's screen spot.
   private spaceBodyAt = 0
   private spaceSelected: string | null = null
+  // The selected star (catalogue index, or -1), its constellation, and the
+  // lazily loaded details and IAU names (fetched when a star is first selected
+  // or searched for).
+  private spaceStar = -1
+  // The Out view is locked to the orbit, so the sky sweeps past at about
+  // 0.065 degrees a second; a found star is tracked (kept centred) so zooming
+  // in on it works. A drag, a preset change or another selection ends it.
+  private starTrack = false
+  private spaceStarConstellation: { index: number; name: string; symbol: string } | null = null
+  private starDetails: StarDetails | null = null
+  private starNames: NameTable | null = null
+  private starHipIndex: Map<number, number> | null = null
+  private starDetailsLoading: Promise<void> | null = null
+  private starDetailsError = false
+  private spaceStarRing: HTMLDivElement | null = null
+  private spaceStarLabel: HTMLDivElement | null = null
   private spaceScreen: import('./space').ScreenBody[] = []
   private readonly spaceLabels = new Map<string, HTMLDivElement>()
   private todayImagery = false
@@ -1132,6 +1164,7 @@ export class GlobeEngine {
       this.space?.hide()
       for (const el of this.spaceLabels.values()) el.hidden = true
       this.spaceSelected = null
+      this.spaceStar = -1
     }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
@@ -1245,6 +1278,7 @@ export class GlobeEngine {
 
   /** Pick a look preset (riding the satellite again if detached); the drag offset resets. */
   setPovPreset(preset: PovPreset) {
+    this.starTrack = false
     this.startPovAnim()
     this.povDetached = null
     this.povLook.preset = preset
@@ -1265,6 +1299,7 @@ export class GlobeEngine {
       )
       return
     }
+    this.starTrack = false
     this.povLook.yaw = ((((this.povLook.yaw + yawDeg + 180) % 360) + 360) % 360) - 180
     this.povLook.pitch = Math.max(-POV_PITCH_MAX, Math.min(POV_PITCH_MAX, this.povLook.pitch + pitchDeg))
   }
@@ -1496,6 +1531,9 @@ export class GlobeEngine {
       sky: {
         stars: this.starCount,
         milkyWay: this.milkyWay,
+        names: this.starNames !== null,
+        starSelected: this.spaceStar >= 0,
+        star: this.starInfo(),
         selected: this.spaceSelected,
         bodies:
           this.space?.bodies.current.map((v) => ({
@@ -1548,6 +1586,7 @@ export class GlobeEngine {
     // Where the camera should be: riding the satellite, or held over the
     // ground (Earth-fixed, so it turns with the Earth); part-way there while a
     // view change animates.
+    this.trackStar(pos, vel)
     const target: Pose = this.povDetached
       ? this.toWorld(surfacePose(oriented(this.povDetached, this.povOrientation)))
       : this.ridingPose(pos, vel)
@@ -1729,6 +1768,7 @@ export class GlobeEngine {
     const w = Math.max(1, this.container.clientWidth)
     const h = Math.max(1, this.container.clientHeight)
     this.spaceScreen = space.bodies.layout(cam, fov, w, h)
+    this.updateStarMarker(cam, w, h)
     // The riding view's own Sun marker is replaced by the real disc and glare.
     this.povSun.visible = false
     const narrow = w < 640
@@ -1758,9 +1798,195 @@ export class GlobeEngine {
     }
   }
 
+  // The selection ring and name beside the selected star, following it as the
+  // view moves; hidden when it's off screen, behind the Earth or closer to
+  // the screen's edge than the labels can fit.
+  private updateStarMarker(cam: THREE.PerspectiveCamera, widthPx: number, heightPx: number) {
+    const stars = this.space?.stars
+    let ring = this.spaceStarRing
+    let label = this.spaceStarLabel
+    if (!ring) {
+      ring = document.createElement('div')
+      ring.className = 'globe-star-ring'
+      ring.hidden = true
+      this.container.appendChild(ring)
+      this.spaceStarRing = ring
+      label = document.createElement('div')
+      label.className = 'globe-sky-label is-body is-selected'
+      label.hidden = true
+      this.container.appendChild(label)
+      this.spaceStarLabel = label
+    }
+    if (!stars || this.spaceStar < 0 || this.spaceStar >= stars.count || this.viewMode !== 'pov') {
+      ring.hidden = true
+      if (label) label.hidden = true
+      return
+    }
+    const d = stars.direction(this.spaceStar)
+    const eye = cam.position
+    const p = new THREE.Vector3(d[0], d[1], d[2]).multiplyScalar(SKY_RADIUS_UNITS).add(eye).project(cam)
+    const b = eye.x * d[0] + eye.y * d[1] + eye.z * d[2]
+    const c = eye.lengthSq() - 1
+    const hidden = eye.length() > 1 && b * b - c >= 0 && -b - Math.sqrt(b * b - c) > 0
+    const on = p.z < 1 && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1 && !hidden
+    ring.hidden = !on
+    if (label) label.hidden = !on
+    if (!on || !label) return
+    const x = ((p.x + 1) / 2) * widthPx
+    const y = ((1 - p.y) / 2) * heightPx
+    ring.style.left = `${x}px`
+    ring.style.top = `${y}px`
+    label.style.left = `${x}px`
+    label.style.top = `${y + 22}px`
+    const hip = this.starDetails ? this.starDetails.hip[this.spaceStar] : null
+    label.textContent = hip === null ? 'Star' : starName(hip, this.starNames)
+  }
+
   /** Select a Sun, Moon or planet in the satellite view (null clears it). */
   setSpaceSelected(key: string | null) {
     this.spaceSelected = key
+    if (key) this.selectStar(-1)
+  }
+
+  // The selected star for the card: the catalogue's own values (position,
+  // magnitude, colour) at once, the details and name once they've loaded.
+  private starInfo(): {
+    index: number
+    vmag: number
+    bv: number
+    raDeg: number
+    decDeg: number
+    constellation: { name: string; symbol: string } | null
+    record: StarRecord | null
+    name: string
+    iau: boolean
+    designation: string
+    loading: boolean
+    failed: boolean
+  } | null {
+    const stars = this.space?.stars
+    const i = this.spaceStar
+    if (!stars || i < 0 || i >= stars.count) return null
+    const cat = stars.catalog
+    const x = cat.dirJ2000[i * 3]
+    const y = cat.dirJ2000[i * 3 + 1]
+    const z = cat.dirJ2000[i * 3 + 2]
+    const raDeg = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+    const decDeg = (Math.asin(Math.max(-1, Math.min(1, z))) * 180) / Math.PI
+    if (!this.spaceStarConstellation || this.spaceStarConstellation.index !== i) {
+      const c = this.bodyEphem?.constellationOf(raDeg, decDeg)
+      this.spaceStarConstellation = c ? { index: i, ...c } : null
+    }
+    const record = this.starDetails ? recordAt(this.starDetails, i) : null
+    const named = record ? this.starNames?.byHip.get(record.hip) : undefined
+    return {
+      index: i,
+      vmag: cat.mag[i],
+      bv: cat.bv[i],
+      raDeg,
+      decDeg,
+      constellation: this.spaceStarConstellation
+        ? { name: this.spaceStarConstellation.name, symbol: this.spaceStarConstellation.symbol }
+        : null,
+      record,
+      name: record ? starName(record.hip, this.starNames) : 'Star',
+      iau: !!named,
+      designation: named ? [named[2], named[3]].filter(Boolean).join(' ') : '',
+      loading: !record && !this.starDetailsError,
+      failed: this.starDetailsError,
+    }
+  }
+
+  /** Select a star by catalogue index (-1 clears it); loads its details. */
+  selectStar(index: number) {
+    if (index !== this.spaceStar) this.starTrack = false
+    this.spaceStar = index
+    this.spaceStarConstellation = null
+    if (index >= 0) {
+      this.spaceSelected = null
+      void this.ensureStarDetails()
+    }
+  }
+
+  /** Fetch the star details and IAU names once (the first selection or search). */
+  ensureStarDetails(): Promise<void> {
+    if (this.starDetails) return Promise.resolve()
+    if (this.starDetailsLoading) return this.starDetailsLoading
+    const count = this.space?.stars?.count ?? Infinity
+    this.starDetailsLoading = Promise.all([
+      fetch(STAR_DETAILS_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status))))),
+      fetch(STAR_NAMES_URL).then((r) => (r.ok ? (r.json() as Promise<IauName[]>) : Promise.reject(new Error(String(r.status))))),
+    ])
+      .then(([buf, names]) => {
+        if (this.disposed) return
+        // The same stars as the star file (phones read a prefix of it).
+        this.starDetails = readStarDetails(buf, count)
+        this.starHipIndex = hipIndex(this.starDetails)
+        this.starNames = nameTable(names)
+      })
+      .catch(() => {
+        // The card still shows the catalogue's position, magnitude and colour.
+        this.starDetailsError = true
+      })
+      .finally(() => {
+        this.starDetailsLoading = null
+      })
+    return this.starDetailsLoading
+  }
+
+  /** Catalogue index of a Hipparcos number (after details have loaded), or -1. */
+  starIndexOfHip(hip: number): number {
+    return this.starHipIndex?.get(hip) ?? -1
+  }
+
+  /** The IAU names and whether a HIP number is in the loaded catalogue, for search. */
+  starSearch(): { names: NameTable; has: (hip: number) => boolean } | null {
+    const idx = this.starHipIndex
+    return this.starNames && idx ? { names: this.starNames, has: (h) => idx.has(h) } : null
+  }
+
+  /**
+   * Turn the view to a star and select it: the Out view, with the star
+   * centred (animated; instant under reduced motion). Field of view and
+   * zoom are kept, narrowed to at most 20 degrees so the star isn't lost.
+   */
+  goToStar(index: number) {
+    const space = this.space
+    const st = this.povState
+    if (!space?.stars || !st || index < 0 || index >= space.stars.count) return
+    this.setPovPreset('outward')
+    const base = presetView('outward', st.pos, st.vel)
+    const { yaw, pitch } = lookToward(base, space.stars.direction(index))
+    this.startPovAnim()
+    this.povLook.yaw = yaw
+    this.povLook.pitch = pitch
+    if (this.povCamera.fov > 20) {
+      this.povCamera.fov = 20
+      this.povCamera.updateProjectionMatrix()
+    }
+    this.selectStar(index)
+    this.starTrack = true
+  }
+
+  // Keep the tracked star centred as the orbit carries the frame round.
+  private trackStar(pos: PovVec3, vel: PovVec3) {
+    const stars = this.space?.stars
+    if (!this.starTrack || !stars || this.spaceStar < 0 || this.povLook.preset !== 'outward' || this.povDetached) return
+    const { yaw, pitch } = lookToward(presetView('outward', pos, vel), stars.direction(this.spaceStar))
+    this.povLook.yaw = yaw
+    this.povLook.pitch = pitch
+  }
+
+  // The star under a client point, by pick radius scaled to the field of view.
+  private pickSpaceStar(clientX: number, clientY: number, touch: boolean): number {
+    const stars = this.space?.stars
+    if (!stars) return -1
+    const cam = this.povCamera
+    const [nx, ny] = this.povNdc(clientX, clientY)
+    const p = new THREE.Vector3(nx, ny, 0.5).unproject(cam).sub(cam.position).normalize()
+    const h = Math.max(1, this.container.clientHeight)
+    const fov = this.povRenderFov || cam.fov
+    return stars.pick([p.x, p.y, p.z], fov, h, touch ? STAR_PICK_PX.touch : STAR_PICK_PX.mouse)
   }
 
   /** The body under a tap (canvas px), by the Sky view's pick rules; null when none. */
@@ -2147,7 +2373,8 @@ export class GlobeEngine {
       return
     }
     if (pov) {
-      // The view follows the pointer, as in Sky.
+      // The view follows the pointer, as in Sky (and stops tracking a star).
+      this.starTrack = false
       const deg = this.povCamera.fov / Math.max(1, this.container.clientHeight)
       this.povNudge(-(e.clientX - prev.x) * deg, (e.clientY - prev.y) * deg)
       return
@@ -2236,13 +2463,26 @@ export class GlobeEngine {
       this.handleSkyPointerEnd(e)
       if (this.skyPointers.size === 0) {
         if (g && !g.dragging && !g.multi) {
-          // A tap on a body selects it (a second quick tap still zooms in).
-          const r = this.renderer.domElement.getBoundingClientRect()
-          const hit = this.pickSpaceBody(e.clientX - r.left, e.clientY - r.top, e.pointerType === 'touch')
-          this.spaceSelected = hit
+          // A tap selects what's under it: a Sun, Moon or planet disc first,
+          // then the nearest star (brighter ones preferred); a second quick
+          // tap zooms in without changing the selection.
           const now = performance.now()
           const last = this.povLastTap
-          if (last && now - last.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_PX) {
+          const isDouble =
+            !!last && now - last.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < DOUBLE_TAP_PX
+          if (!isDouble) {
+            const r = this.renderer.domElement.getBoundingClientRect()
+            const touch = e.pointerType === 'touch'
+            const body = this.pickSpaceBody(e.clientX - r.left, e.clientY - r.top, touch)
+            if (body) {
+              this.spaceSelected = body
+              this.selectStar(-1)
+            } else {
+              this.spaceSelected = null
+              this.selectStar(this.pickSpaceStar(e.clientX, e.clientY, touch))
+            }
+          }
+          if (isDouble) {
             const [nx, ny] = this.povNdc(e.clientX, e.clientY)
             this.povZoomAt(DOUBLE_CLICK_ZOOM, nx, ny, true)
             this.povLastTap = null

@@ -1559,6 +1559,111 @@ html.globe-fs-lock body {
   order: -1;
 }
 
+.globe-star-desig {
+  color: var(--globe-ink-muted);
+  font-weight: 400;
+}
+
+.globe-star-id {
+  margin: -0.35rem 0 0.3rem !important;
+  font-size: 0.72rem;
+}
+
+.globe-star-est {
+  color: var(--globe-ink-muted);
+  font-size: 0.72rem;
+}
+
+.globe-star-note {
+  display: block;
+  color: var(--globe-ink-muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.globe-star-source {
+  margin: 0.2rem 0 0 !important;
+  font-size: 0.68rem;
+}
+
 .globe-side .globe-sheet-handle {
   order: -2;
+}
+
+/* The ring around the selected star; it follows the star as the view moves. */
+.globe-star-ring {
+  position: absolute;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border: 1.5px solid #ff7a5c;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(5 7 13 / 0.7);
+  pointer-events: none;
+}
+
+/* Find a star: a search field and a short list of matches (44 px targets). */
+.globe-star-find {
+  margin: 0.6rem 0 0.4rem;
+}
+
+.globe-star-find-label {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--globe-ink-muted);
+  font-size: 0.75rem;
+}
+
+.globe-star-find-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--globe-line);
+  border-radius: 999px;
+  background: rgb(5 7 13 / 0.6);
+  color: var(--globe-ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.globe-star-find-input::placeholder {
+  color: var(--globe-ink-muted);
+}
+
+.globe-star-find-list {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.globe-star-find-list button {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  align-items: center;
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--globe-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--globe-ink);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.globe-star-find-list button:hover,
+.globe-star-find-list button:focus-visible {
+  background: rgb(232 236 244 / 0.12);
+}
+
+.globe-star-find-none {
+  margin: 0.4rem 0 0 !important;
+  font-size: 0.75rem;
 }

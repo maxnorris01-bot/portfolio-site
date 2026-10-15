@@ -1,7 +1,7 @@
 // The 3D globe (Phases 1, 1b and 1c of the visualization plan, satellite-
 // conjunction-screening working notes 2026-10-03). Lazy-loaded by
 // SatelliteTool so three.js and satellite.js stay out of the main bundle.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SPEEDS, canPlay, isPaused, liveClock, scrubClock, togglePlay, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
@@ -18,6 +18,7 @@ import {
   type ViewMode,
 } from '../globe/engine'
 import { NAME_GROUPS, OTHER_GROUP, OTHER_LABEL, STATIONS, groupOf, viewpointFor } from '../globe/groups'
+import { SUGGESTED_STARS, searchStars, starCardRows, type StarMatch } from '../globe/stardetails'
 import {
   IMAGERY_EXPLAINER,
   TODAY_FADE_NOTE,
@@ -249,6 +250,9 @@ export default function SatelliteGlobe({
   const [todayImagery, setTodayImagery] = useState(TODAY_IMAGERY_DEFAULT)
   // The satellite view's orientation: the satellite's heading up (default) or north up.
   const [povOrientation, setPovOrientation] = useState<'heading' | 'north'>('heading')
+  // "Find a star": the query, and the IAU names and catalogue membership once loaded.
+  const [starQuery, setStarQuery] = useState('')
+  const [starTools, setStarTools] = useState<ReturnType<GlobeEngine['starSearch']>>(null)
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
   const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
   // The Sky view's Sun, Moon and planets, and the selected one (a body
@@ -873,6 +877,30 @@ export default function SatelliteGlobe({
   const povObject = povTarget !== null && loaded ? loaded.file.objects[povTarget] : null
   // The Sun, Moon or planet selected in the satellite view's sky.
   const spaceBody = povInfo?.sky.selected ? (povInfo.sky.bodies.find((b) => b.key === povInfo.sky.selected) ?? null) : null
+  // Find a star: matches for the typed text (or the suggested stars before
+  // anything is typed), once the names have been loaded on first focus.
+  const loadStarNames = () => {
+    const engine = engineRef.current
+    if (!engine || starTools) return
+    void engine.ensureStarDetails().then(() => setStarTools(engine.starSearch()))
+  }
+  const starMatches: StarMatch[] = (() => {
+    if (!starTools) return []
+    const { names, has } = starTools
+    if (starQuery.trim()) return searchStars(starQuery, names, has)
+    return SUGGESTED_STARS.flatMap((n) => searchStars(n, names, has, 1))
+  })()
+  const goToStarMatch = (m: StarMatch) => {
+    const engine = engineRef.current
+    if (!engine) return
+    const index = engine.starIndexOfHip(m.hip)
+    if (index < 0) return
+    engine.goToStar(index)
+    setStarQuery('')
+    setAnnouncement(`Showing ${m.name}`)
+  }
+  // The star selected in the satellite view's sky, as card rows.
+  const spaceStar = viewMode === 'pov' ? (povInfo?.sky.star ?? null) : null
   const povCredits = [...imageryCredits(viewMode, povInfo?.imagery ?? null), ...skyCredits(viewMode, povInfo?.sky ?? null)]
 
   // ?debug=1: a plain-text overlay of everything that decides whether the
@@ -952,7 +980,7 @@ export default function SatelliteGlobe({
     }
   }
   const offsetLabel = time.simMs ? formatOffset(time.simMs - time.nowMs) : ''
-  // Whole degrees, finer when zoomed in on the sky (down to 0.05 degrees).
+  // Whole degrees, finer when zoomed in on the sky (down to 0.01 degrees).
   const fmtFov = (f: number) => (f >= 10 ? `${Math.round(f)}°` : f >= 1 ? `${f.toFixed(1)}°` : `${f.toFixed(2)}°`)
   const PRESET_LABEL = {
     down: 'Down at Earth',
@@ -964,7 +992,9 @@ export default function SatelliteGlobe({
   // On a phone outside full screen, a small box stands in for the panels:
   // what's selected (or what the view needs), and the way to full screen.
   const miniTitle =
-    viewMode === 'pov' && spaceBody
+    viewMode === 'pov' && spaceStar && !spaceBody
+      ? spaceStar.name
+      : viewMode === 'pov' && spaceBody
       ? spaceBody.name
       : viewMode === 'pov' && povObject
         ? `Satellite view: ${povObject.name}`
@@ -1466,6 +1496,52 @@ export default function SatelliteGlobe({
                     </button>
                   ))}
                 </div>
+                {povInfo && povInfo.sky.stars > 0 && (
+                  <div className="globe-star-find">
+                    <label className="globe-star-find-label" htmlFor="globe-star-find">
+                      Find a star
+                    </label>
+                    <input
+                      id="globe-star-find"
+                      type="search"
+                      className="globe-star-find-input"
+                      value={starQuery}
+                      placeholder="Sirius, Vega, HIP 91262…"
+                      autoComplete="off"
+                      spellCheck={false}
+                      onFocus={loadStarNames}
+                      onChange={(e) => {
+                        setStarQuery(e.target.value)
+                        loadStarNames()
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && starMatches[0]) {
+                          e.preventDefault()
+                          goToStarMatch(starMatches[0])
+                        }
+                        e.stopPropagation()
+                      }}
+                    />
+                    {!starTools ? null : starMatches.length > 0 ? (
+                      <ul className="globe-star-find-list" aria-label="Matching stars">
+                        {starMatches.map((m) => (
+                          <li key={m.hip}>
+                            <button type="button" onClick={() => goToStarMatch(m)}>
+                              <span>{m.name}</span>
+                              <span className="globe-muted">
+                                {[m.designation, m.constellation].filter(Boolean).join(' ') || `HIP ${m.hip}`}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : starQuery.trim() !== '' ? (
+                      <p className="globe-muted globe-star-find-none">
+                        No star named or numbered that. Try a name such as Vega, or HIP 91262.
+                      </p>
+                    ) : null}
+                  </div>
+                )}
                 <div className="globe-pov-imagery-choice globe-pov-orientation" role="group" aria-label="Orientation">
                   <button type="button" aria-pressed={povOrientation === 'heading'} onClick={() => setPovOrientation('heading')}>
                     Heading up
@@ -1513,6 +1589,46 @@ export default function SatelliteGlobe({
                   </dl>
                 )}
                 {povInfo && <p className="globe-muted globe-pov-imagery">{imageryLine(povInfo.imagery)}</p>}
+              </div>
+            )}
+            {viewMode === 'pov' && spaceStar && !spaceBody && (
+              <div className="globe-panel globe-space-body" role="region" aria-label={`${spaceStar.name}, selected in the sky`}>
+                <div className="globe-panel-head">
+                  <p className="globe-panel-title">Star</p>
+                  <button
+                    type="button"
+                    className="globe-close"
+                    aria-label="Close"
+                    onClick={() => engineRef.current?.selectStar(-1)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="globe-inspect-name">
+                  {spaceStar.name}
+                  {spaceStar.iau && spaceStar.designation ? (
+                    <span className="globe-star-desig"> · {spaceStar.designation}</span>
+                  ) : null}
+                </p>
+                {spaceStar.record && spaceStar.iau && (
+                  <p className="globe-muted globe-star-id">HIP {spaceStar.record.hip}</p>
+                )}
+                <dl className="globe-space-facts">
+                  {starCardRows(spaceStar).map((r) => (
+                    <Fragment key={r.label}>
+                      <dt>{r.label}</dt>
+                      <dd>
+                        {r.value}
+                        {r.estimate && <span className="globe-star-est"> (estimate)</span>}
+                        {r.note && <span className="globe-star-note">{r.note}</span>}
+                      </dd>
+                    </Fragment>
+                  ))}
+                </dl>
+                <p className="globe-muted globe-star-source">
+                  Hipparcos Catalogue (ESA, 1997). Estimates inherit the catalogue&apos;s errors and ignore
+                  interstellar dust.
+                </p>
               </div>
             )}
             {viewMode === 'pov' && spaceBody && (
