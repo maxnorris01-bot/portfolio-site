@@ -4,7 +4,13 @@ import { test } from 'node:test'
 import { DESCEND_FOV, zoomLockedToward } from '../src/globe/descend.ts'
 import { presetView, type Vec3 } from '../src/globe/pov.ts'
 import { SPACE_FOV_MIN } from '../src/globe/stars.ts'
-import { IAU_NAMES_CREDIT, STARS_CREDIT, skyCredits } from '../src/globe/imagery.ts'
+import {
+  CONSTELLATION_BOUNDARIES_CREDIT,
+  CONSTELLATION_FIGURES_CREDIT,
+  IAU_NAMES_CREDIT,
+  STARS_CREDIT,
+  skyCredits,
+} from '../src/globe/imagery.ts'
 
 const src = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')
 
@@ -53,4 +59,24 @@ test('the IAU names credit shows only while a star with a name is on screen', ()
   assert.ok(!skyCredits('pov', { stars: 1000, names: true }).includes(IAU_NAMES_CREDIT)) // loaded, none selected
   assert.ok(skyCredits('pov', { stars: 1000, names: true, starSelected: true }).includes(IAU_NAMES_CREDIT))
   assert.deepEqual(skyCredits('globe', { stars: 1000, names: true, starSelected: true }), [])
+})
+
+test('constellation credits appear only while figures or boundaries are on screen', () => {
+  assert.ok(!skyCredits('pov', { stars: 1000 }).includes(CONSTELLATION_FIGURES_CREDIT))
+  const lines = skyCredits('pov', { stars: 1000, constellations: { lines: true, boundaries: false } })
+  assert.ok(lines.includes(CONSTELLATION_FIGURES_CREDIT) && !lines.includes(CONSTELLATION_BOUNDARIES_CREDIT))
+  const both = skyCredits('pov', { stars: 1000, constellations: { lines: true, boundaries: true } })
+  assert.ok(both.includes(CONSTELLATION_BOUNDARIES_CREDIT))
+  assert.match(CONSTELLATION_FIGURES_CREDIT, /d3-celestial.*Frohn.*BSD/)
+  assert.deepEqual(skyCredits('globe', { stars: 1, constellations: { lines: true, boundaries: true } }), [])
+})
+
+test('the constellation code and files load only when used (type imports aside)', () => {
+  const engine = src('globe/engine.ts')
+  assert.match(engine, /import\('\.\/constellations'\)/)
+  assert.match(engine, /import\('\.\/constellationlayer'\)/)
+  assert.doesNotMatch(engine, /^import (?!type)[^\n]*from '\.\/constellations(layer)?'/m)
+  // The files are fetched inside ensureConstellations / ensureBounds, not at start-up.
+  assert.match(engine, /ensureConstellations\(\): Promise<void> \{[\s\S]*?CONSTELLATIONS_URL/)
+  assert.doesNotMatch(src('globe/space.ts'), /constellationlayer/)
 })

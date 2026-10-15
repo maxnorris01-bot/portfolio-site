@@ -52,6 +52,8 @@ import {
   type StarDetails,
   type StarRecord,
 } from './stardetails'
+import type { ConstellationToggle, Rect as LabelRect, ResolvedFigure } from './constellations'
+import type { ConstellationLayer } from './constellationlayer'
 import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
 import { overlayFade } from './imagery'
 import {
@@ -186,6 +188,8 @@ const STAR_CATALOG_URL = '/data/stars/hipparcos.bin'
 /** HIP numbers, parallax, spectral types (lazy, on the first star selection) and IAU names. */
 const STAR_DETAILS_URL = '/data/stars/hipparcos-details.bin'
 const STAR_NAMES_URL = '/data/stars/iau-names.json'
+const CONSTELLATIONS_URL = '/data/stars/constellations.json'
+const CONSTELLATION_BOUNDS_URL = '/data/stars/constellation-bounds.json'
 /** The Milky Way band: NASA SVS Deep Star Maps 2020, resized (public/data/sky/ATTRIBUTION.md). */
 const MILKY_WAY_URL = '/data/sky/milkyway-2k.jpg'
 // Two taps or clicks this close in time and place are a double tap (zoom in).
@@ -423,7 +427,7 @@ export class GlobeEngine {
   // The Out view is locked to the orbit, so the sky sweeps past at about
   // 0.065 degrees a second; a found star is tracked (kept centred) so zooming
   // in on it works. A drag, a preset change or another selection ends it.
-  private starTrack = false
+  private track: { kind: 'star' } | { kind: 'figure'; index: number } | null = null
   private spaceStarConstellation: { index: number; name: string; symbol: string } | null = null
   private starDetails: StarDetails | null = null
   private starNames: NameTable | null = null
@@ -433,6 +437,27 @@ export class GlobeEngine {
   private spaceStarRing: HTMLDivElement | null = null
   private spaceStarLabel: HTMLDivElement | null = null
   private spaceScreen: import('./space').ScreenBody[] = []
+  // Constellations: the figure and boundary files load the first time the
+  // switch is turned on, a star is selected or a figure is asked for. The
+  // layer draws the lines; labels are DOM, like the bodies'. The selected
+  // star's own figure is highlighted while its card shows, even with the
+  // switch off.
+  private constToggle: ConstellationToggle = { on: false, names: false, boundaries: false }
+  private constMod: typeof import('./constellations') | null = null
+  private constLayer: ConstellationLayer | null = null
+  private constLoading: Promise<void> | null = null
+  private constBoundsLoading = false
+  private constError = false
+  private constFigures: ResolvedFigure[] = []
+  private constByAbbr = new Map<string, number>()
+  private spaceConstellation = -1
+  private constLabels: HTMLDivElement[] = []
+  private constLabelSize: ({ w: number; h: number } | null)[] = []
+  private constLabelRects: (LabelRect & { index: number })[] = []
+  /** Per figure: its stars bright enough to take a tap from the name beside them. */
+  private constBright: number[][] = []
+  private spaceObstacles: LabelRect[] = []
+  private constFrameAt = 0
   private readonly spaceLabels = new Map<string, HTMLDivElement>()
   private todayImagery = false
   /** Today's imagery's fade with zoom (1 shown, 0 faded out up close). */
@@ -1163,8 +1188,12 @@ export class GlobeEngine {
       this.povAnim = null
       this.space?.hide()
       for (const el of this.spaceLabels.values()) el.hidden = true
+      for (const el of this.constLabels) el.hidden = true
+      this.constLabelRects = []
       this.spaceSelected = null
       this.spaceStar = -1
+      this.spaceConstellation = -1
+      this.track = null
     }
     this.controls.enabled = mode === 'globe' && this.camAnim === null
     this.povSun.visible = false
@@ -1278,7 +1307,7 @@ export class GlobeEngine {
 
   /** Pick a look preset (riding the satellite again if detached); the drag offset resets. */
   setPovPreset(preset: PovPreset) {
-    this.starTrack = false
+    this.track = null
     this.startPovAnim()
     this.povDetached = null
     this.povLook.preset = preset
@@ -1299,7 +1328,7 @@ export class GlobeEngine {
       )
       return
     }
-    this.starTrack = false
+    this.track = null
     this.povLook.yaw = ((((this.povLook.yaw + yawDeg + 180) % 360) + 360) % 360) - 180
     this.povLook.pitch = Math.max(-POV_PITCH_MAX, Math.min(POV_PITCH_MAX, this.povLook.pitch + pitchDeg))
   }
@@ -1534,6 +1563,17 @@ export class GlobeEngine {
         names: this.starNames !== null,
         starSelected: this.spaceStar >= 0,
         star: this.starInfo(),
+        constellations: {
+          /** Figures drawn or fading (for the credit). */
+          lines: !!this.constLayer && this.constLayer.opacity.lines + this.constLayer.opacity.highlight > 0.01,
+          boundaries: !!this.constLayer && this.constLayer.opacity.boundaries > 0.01,
+          on: this.constToggle.on,
+          loading: this.constLoading !== null,
+          failed: this.constError,
+          /** The figure highlighted for the selected star (IAU abbreviation), or null. */
+          highlighted: this.constFigures[this.activeFigure()]?.abbr ?? null,
+          selected: this.constellationInfo(),
+        },
         selected: this.spaceSelected,
         bodies:
           this.space?.bodies.current.map((v) => ({
@@ -1768,6 +1808,7 @@ export class GlobeEngine {
     const w = Math.max(1, this.container.clientWidth)
     const h = Math.max(1, this.container.clientHeight)
     this.spaceScreen = space.bodies.layout(cam, fov, w, h)
+    this.spaceObstacles = []
     this.updateStarMarker(cam, w, h)
     // The riding view's own Sun marker is replaced by the real disc and glare.
     this.povSun.visible = false
@@ -1794,8 +1835,11 @@ export class GlobeEngine {
       if (show) {
         el.style.left = `${sb.x}px`
         el.style.top = `${sb.y + sb.r + 10}px`
+        this.spaceObstacles.push({ x: sb.x, y: sb.y + sb.r + 10, w: 8 + 7 * (el.textContent?.length ?? 6), h: 18 })
       }
+      if (sb.visible) this.spaceObstacles.push({ x: sb.x - sb.r, y: sb.y - sb.r, w: sb.r * 2, h: sb.r * 2 })
     }
+    this.updateConstellations(cam, fov, w, h)
   }
 
   // The selection ring and name beside the selected star, following it as the
@@ -1840,6 +1884,10 @@ export class GlobeEngine {
     label.style.top = `${y + 22}px`
     const hip = this.starDetails ? this.starDetails.hip[this.spaceStar] : null
     label.textContent = hip === null ? 'Star' : starName(hip, this.starNames)
+    this.spaceObstacles.push(
+      { x: x - 13, y: y - 13, w: 26, h: 26 },
+      { x, y: y + 22, w: 8 + 7.5 * (label.textContent?.length ?? 4), h: 20 },
+    )
   }
 
   /** Select a Sun, Moon or planet in the satellite view (null clears it). */
@@ -1897,14 +1945,277 @@ export class GlobeEngine {
     }
   }
 
+  // ---- Constellations ----
+
+  /** The panel's switch and its two sub-options. */
+  setConstellations(t: ConstellationToggle) {
+    this.constToggle = t
+    if (t.on) {
+      void this.ensureConstellations().then(() => {
+        if (this.constToggle.on && this.constToggle.boundaries) void this.ensureBounds()
+      })
+    }
+  }
+
+  /**
+   * Fetch the figure file and tie it to the stars: the HIP numbers of the
+   * leading stars of the details file (a ranged request for a few tens of kB
+   * when the full details aren't loaded), then the figure layer. Once.
+   */
+  ensureConstellations(): Promise<void> {
+    if (this.constLayer) return Promise.resolve()
+    if (this.constLoading) return this.constLoading
+    this.constLoading = (async () => {
+      // The stars may still be on their way (the switch can be flipped at once).
+      for (let waited = 0; !this.disposed && !this.space?.stars && waited < 300; waited++) {
+        await new Promise((r) => setTimeout(r, 200))
+      }
+      const space = this.space
+      if (this.disposed || !space?.stars) throw new Error('no stars')
+      const [m, layerMod, json] = await Promise.all([
+        import('./constellations'),
+        import('./constellationlayer'),
+        fetch(CONSTELLATIONS_URL).then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))),
+      ])
+      const file = m.readFigureFile(json)
+      let hips: ArrayLike<number>
+      if (this.starDetails) hips = this.starDetails.hip
+      else {
+        const res = await fetch(STAR_DETAILS_URL, { headers: { Range: `bytes=0-${32 + 3 * file.stars - 1}` } })
+        if (!res.ok) throw new Error(`details: HTTP ${res.status}`)
+        hips = m.readHipPrefix(await res.arrayBuffer(), file.stars)
+      }
+      if (this.disposed || this.space !== space) return
+      const limit = Math.min(hips.length, space.stars.count)
+      const byHip = new Map<number, number>()
+      for (let i = 0; i < limit; i++) byHip.set(hips[i], i)
+      const figures = m.resolveFigures(file, byHip)
+      const layer = new layerMod.ConstellationLayer(figures, space.stars.catalog.dirJ2000, this.renderer.getPixelRatio())
+      space.addRotating(layer)
+      this.constMod = m
+      this.constFigures = figures
+      this.constByAbbr = new Map(figures.map((f) => [f.abbr, f.index]))
+      this.constLayer = layer
+    })()
+      .catch((err: unknown) => {
+        // The sky works without figures; the toggle just shows nothing.
+        this.constError = true
+        if (import.meta.env.DEV) console.warn('constellations:', err)
+      })
+      .finally(() => {
+        this.constLoading = null
+      })
+    return this.constLoading
+  }
+
+  // The boundary file, fetched the first time Boundaries is turned on.
+  private async ensureBounds() {
+    const layer = this.constLayer
+    const m = this.constMod
+    if (!layer || !m || layer.hasBounds || this.constBoundsLoading) return
+    this.constBoundsLoading = true
+    try {
+      const res = await fetch(CONSTELLATION_BOUNDS_URL)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const file = m.readBoundsFile(await res.json())
+      if (!this.disposed && this.constLayer === layer) layer.setBounds(file)
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('constellation boundaries:', err)
+    } finally {
+      this.constBoundsLoading = false
+    }
+  }
+
+  /** The figure to emphasise: the selected star's constellation, else the one a label tap selected; -1 for none. */
+  private activeFigure(): number {
+    if (this.spaceStar >= 0) {
+      const c = this.spaceStarConstellation
+      if (c && c.index === this.spaceStar) return this.constByAbbr.get(c.symbol) ?? -1
+      return -1
+    }
+    return this.spaceConstellation
+  }
+
+  // Each frame: ease the lines, then place the names the rules allow.
+  private updateConstellations(cam: THREE.PerspectiveCamera, fov: number, w: number, h: number) {
+    const layer = this.constLayer
+    const m = this.constMod
+    if (!layer || !m) return
+    const now = performance.now()
+    const dt = this.constFrameAt ? Math.min(0.25, (now - this.constFrameAt) / 1000) : 0.016
+    this.constFrameAt = now
+    const active = this.activeFigure()
+    layer.update({
+      toggle: this.constToggle,
+      active,
+      highlight: active >= 0,
+      fovDeg: fov,
+      widthPx: w,
+      heightPx: h,
+      dtSec: dt,
+      reducedMotion: this.reducedMotion?.matches ?? false,
+    })
+    const names = layer.opacity.names
+    if (names < 0.01) {
+      for (const el of this.constLabels) el.hidden = true
+      this.constLabelRects = []
+      return
+    }
+    if (!this.constLabels.length) {
+      this.constLabels = layer.views.map((v) => {
+        const el = document.createElement('div')
+        el.className = 'globe-sky-label is-constellation'
+        el.textContent = v.name
+        el.hidden = true
+        this.container.appendChild(el)
+        return el
+      })
+      this.constLabelSize = layer.views.map(() => null)
+      const cat = this.space?.stars?.catalog
+      this.constBright = this.constFigures.map((f) => f.stars.filter((i) => (cat?.mag[i] ?? 99) <= m.LABEL_YIELD_MAG))
+    }
+    const stars = this.space?.stars
+    const eye = cam.position
+    const eyeLen2 = eye.lengthSq()
+    const p = new THREE.Vector3()
+    const candidates: import('./constellations').LabelCandidate[] = []
+    for (const v of layer.views) {
+      if (!m.labelAllowedAtFov(v.extentDeg, fov)) continue
+      const d = v.centre
+      p.set(d[0], d[1], d[2]).multiplyScalar(SKY_RADIUS_UNITS).add(eye).project(cam)
+      if (p.z >= 1 || Math.abs(p.x) > 1.05 || Math.abs(p.y) > 1.05) continue
+      const b = eye.x * d[0] + eye.y * d[1] + eye.z * d[2]
+      if (eyeLen2 > 1 && b * b - (eyeLen2 - 1) >= 0 && -b - Math.sqrt(b * b - (eyeLen2 - 1)) > 0) continue
+      const x = ((p.x + 1) / 2) * w
+      const y = ((1 - p.y) / 2) * h
+      let size = this.constLabelSize[v.index]
+      if (!size) {
+        const el = this.constLabels[v.index]
+        el.hidden = false
+        size = { w: el.offsetWidth || 8 + 7 * v.name.length, h: el.offsetHeight || 18 }
+        this.constLabelSize[v.index] = size
+      }
+      // The figure's middle is often right on a bright star (Orion's belt),
+      // which would take the name's taps: slide the name clear of those.
+      const bright: { x: number; y: number }[] = []
+      if (stars) {
+        for (const si of this.constBright[v.index] ?? []) {
+          const sd = stars.direction(si)
+          p.set(sd[0], sd[1], sd[2]).multiplyScalar(SKY_RADIUS_UNITS).add(eye).project(cam)
+          if (p.z < 1) bright.push({ x: ((p.x + 1) / 2) * w, y: ((1 - p.y) / 2) * h })
+        }
+      }
+      const clear = (cx: number, cy: number) =>
+        bright.every((b) => Math.abs(b.x - cx) > size.w / 2 + 8 || Math.abs(b.y - cy) > size.h / 2 + 8)
+      const dx = size.w * 0.55
+      const dy = size.h + 6
+      const options: [number, number][] = [[0, 0], [0, dy], [0, -dy], [dx + 20, 0], [-dx - 20, 0], [0, 2 * dy], [0, -2 * dy]]
+      const [ox, oy] = options.find(([ax, ay]) => clear(x + ax, y + ay)) ?? [0, 0]
+      candidates.push({
+        key: String(v.index),
+        x: x + ox - size.w / 2,
+        y: y + oy - size.h / 2,
+        w: size.w,
+        h: size.h,
+        priority: m.labelPriority(v.areaSqDeg, v.index === active),
+      })
+    }
+    const kept = m.placeLabels(candidates, this.spaceObstacles, w, h)
+    this.constLabelRects = []
+    for (const el of this.constLabels) el.hidden = true
+    for (const c of candidates) {
+      if (!kept.has(c.key)) continue
+      const index = Number(c.key)
+      const el = this.constLabels[index]
+      el.hidden = false
+      el.style.left = `${c.x + c.w / 2}px`
+      el.style.top = `${c.y + c.h / 2}px`
+      el.style.opacity = String(names)
+      el.classList.toggle('is-selected', index === this.spaceConstellation)
+      this.constLabelRects.push({ index, x: c.x, y: c.y, w: c.w, h: c.h })
+    }
+  }
+
+  /** Select a constellation (a name label's tap), or -1 to clear. Shows its small card. */
+  selectConstellation(index: number) {
+    this.spaceConstellation = index
+    if (index >= 0) {
+      this.spaceSelected = null
+      this.selectStar(-1)
+      this.spaceConstellation = index
+      void this.ensureStarNames()
+    }
+  }
+
+  // The IAU names alone (a few kB), for naming a figure's brightest star.
+  private ensureStarNames() {
+    if (this.starNames) return
+    void fetch(STAR_NAMES_URL)
+      .then((r) => (r.ok ? (r.json() as Promise<IauName[]>) : Promise.reject(new Error(String(r.status)))))
+      .then((names) => {
+        if (!this.disposed && !this.starNames) this.starNames = nameTable(names)
+      })
+      .catch(() => {})
+  }
+
+  /** The index of a constellation by IAU abbreviation, or -1 (before the figures load). */
+  constellationIndex(abbr: string): number {
+    return this.constByAbbr.get(abbr) ?? -1
+  }
+
+  /**
+   * Turn the view to a constellation: the Out view with its figure fitted to
+   * the screen (animated; instant under reduced motion), and kept centred
+   * while the orbit carries the frame round, until a drag or another look.
+   */
+  goToConstellation(index: number) {
+    const layer = this.constLayer
+    const m = this.constMod
+    const st = this.povState
+    const v = layer?.views[index]
+    if (!layer || !m || !st || !v) return
+    this.setPovPreset('outward')
+    const { yaw, pitch } = lookToward(presetView('outward', st.pos, st.vel), v.centre)
+    this.startPovAnim()
+    this.povLook.yaw = yaw
+    this.povLook.pitch = pitch
+    this.povCamera.fov = Math.max(SPACE_FOV_MIN, m.fitFov(v.extentDeg, this.povCamera.aspect))
+    this.povCamera.updateProjectionMatrix()
+    this.track = { kind: 'figure', index }
+  }
+
+  // The small card of the tapped constellation, for the panel.
+  private constellationInfo() {
+    const i = this.spaceConstellation
+    const f = this.constFigures[i]
+    const m = this.constMod
+    if (i < 0 || !f || !m) return null
+    const brightest = starName(f.brightestHip, this.starNames)
+    return {
+      index: i,
+      abbr: f.abbr,
+      name: f.name,
+      rows: m.constellationCardRows({
+        name: f.name,
+        abbr: f.abbr,
+        areaSqDeg: f.areaSqDeg,
+        brightestName: brightest,
+        stars: f.stars.length,
+      }),
+    }
+  }
+
   /** Select a star by catalogue index (-1 clears it); loads its details. */
   selectStar(index: number) {
-    if (index !== this.spaceStar) this.starTrack = false
+    if (index !== this.spaceStar) this.track = null
     this.spaceStar = index
     this.spaceStarConstellation = null
     if (index >= 0) {
       this.spaceSelected = null
-      void this.ensureStarDetails()
+      this.spaceConstellation = -1
+      // The star's figure is highlighted while its card shows, so the
+      // figure file (and the leading HIP numbers it needs) loads here too.
+      void this.ensureStarDetails().finally(() => void this.ensureConstellations())
     }
   }
 
@@ -1965,14 +2276,22 @@ export class GlobeEngine {
       this.povCamera.updateProjectionMatrix()
     }
     this.selectStar(index)
-    this.starTrack = true
+    this.track = { kind: 'star' }
   }
 
   // Keep the tracked star centred as the orbit carries the frame round.
   private trackStar(pos: PovVec3, vel: PovVec3) {
     const stars = this.space?.stars
-    if (!this.starTrack || !stars || this.spaceStar < 0 || this.povLook.preset !== 'outward' || this.povDetached) return
-    const { yaw, pitch } = lookToward(presetView('outward', pos, vel), stars.direction(this.spaceStar))
+    const t = this.track
+    if (!t || this.povLook.preset !== 'outward' || this.povDetached) return
+    const dir: PovVec3 | null =
+      t.kind === 'star'
+        ? stars && this.spaceStar >= 0
+          ? stars.direction(this.spaceStar)
+          : null
+        : (this.constLayer?.views[t.index]?.centre ?? null)
+    if (!dir) return
+    const { yaw, pitch } = lookToward(presetView('outward', pos, vel), dir)
     this.povLook.yaw = yaw
     this.povLook.pitch = pitch
   }
@@ -2374,7 +2693,7 @@ export class GlobeEngine {
     }
     if (pov) {
       // The view follows the pointer, as in Sky (and stops tracking a star).
-      this.starTrack = false
+      this.track = null
       const deg = this.povCamera.fov / Math.max(1, this.container.clientHeight)
       this.povNudge(-(e.clientX - prev.x) * deg, (e.clientY - prev.y) * deg)
       return
@@ -2474,12 +2793,31 @@ export class GlobeEngine {
             const r = this.renderer.domElement.getBoundingClientRect()
             const touch = e.pointerType === 'touch'
             const body = this.pickSpaceBody(e.clientX - r.left, e.clientY - r.top, touch)
-            if (body) {
-              this.spaceSelected = body
+            const star = body ? -1 : this.pickSpaceStar(e.clientX, e.clientY, touch)
+            // A bright star beats a figure's name label, a faint one does not;
+            // figure lines are not targets (see resolveTap).
+            const label =
+              body || !this.constMod
+                ? -1
+                : this.constMod.pickLabel(e.clientX - r.left, e.clientY - r.top, this.constLabelRects, touch ? 14 : 6)
+            const starMag = star >= 0 ? (this.space?.stars?.catalog.mag[star] ?? 0) : 0
+            const hit = this.constMod
+              ? this.constMod.resolveTap(body, star, label, starMag)
+              : body
+                ? ({ kind: 'body', key: body } as const)
+                : star >= 0
+                  ? ({ kind: 'star', index: star } as const)
+                  : ({ kind: 'none' } as const)
+            if (hit.kind === 'body') {
+              this.spaceSelected = hit.key
               this.selectStar(-1)
+              this.spaceConstellation = -1
+            } else if (hit.kind === 'constellation') {
+              this.selectConstellation(hit.index)
             } else {
               this.spaceSelected = null
-              this.selectStar(this.pickSpaceStar(e.clientX, e.clientY, touch))
+              this.spaceConstellation = -1
+              this.selectStar(hit.kind === 'star' ? hit.index : -1)
             }
           }
           if (isDouble) {
