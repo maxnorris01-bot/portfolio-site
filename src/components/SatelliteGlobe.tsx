@@ -33,6 +33,7 @@ import { aboveHorizon, moonPhaseName, nextSelection, type SkyBody } from '../glo
 import { phoneSideDock } from '../globe/layout'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
+import type { ConstellationToggle } from '../globe/constellations'
 import { FULLSCREEN_OFF, fullscreenStep, type FullscreenEffects, type FullscreenEvent } from '../globe/fullscreen'
 import CollisionHistory from './CollisionHistory'
 import './SatelliteGlobe.css'
@@ -252,6 +253,8 @@ export default function SatelliteGlobe({
   const [povOrientation, setPovOrientation] = useState<'heading' | 'north'>('heading')
   // "Find a star": the query, and the IAU names and catalogue membership once loaded.
   const [starQuery, setStarQuery] = useState('')
+  // Constellations: the switch (off by default) and its Names and Boundaries options.
+  const [constellations, setConstellations] = useState<ConstellationToggle>({ on: false, names: false, boundaries: false })
   const [starTools, setStarTools] = useState<ReturnType<GlobeEngine['starSearch']>>(null)
   const [inspectSky, setInspectSky] = useState<InspectedSky | null>(null)
   const [orbitPeriodMs, setOrbitPeriodMs] = useState<number | null>(null)
@@ -631,6 +634,10 @@ export default function SatelliteGlobe({
   }, [dayNight])
 
   useEffect(() => {
+    engineRef.current?.setConstellations(constellations)
+  }, [constellations])
+
+  useEffect(() => {
     engineRef.current?.setTodayImagery(todayImagery)
   }, [todayImagery])
 
@@ -901,6 +908,21 @@ export default function SatelliteGlobe({
   }
   // The star selected in the satellite view's sky, as card rows.
   const spaceStar = viewMode === 'pov' ? (povInfo?.sky.star ?? null) : null
+  // A constellation picked by tapping its name (null otherwise).
+  const spaceConstellation = viewMode === 'pov' ? (povInfo?.sky.constellations.selected ?? null) : null
+  // The star card's constellation name: show its figure and turn the view to it.
+  const showConstellation = (symbol: string, name: string) => {
+    const engine = engineRef.current
+    if (!engine) return
+    setConstellations((c) => ({ ...c, on: true }))
+    void engine.ensureConstellations().then(() => {
+      const index = engine.constellationIndex(symbol)
+      if (index >= 0) {
+        engine.goToConstellation(index)
+        setAnnouncement(`Showing ${name}`)
+      }
+    })
+  }
   const povCredits = [...imageryCredits(viewMode, povInfo?.imagery ?? null), ...skyCredits(viewMode, povInfo?.sky ?? null)]
 
   // ?debug=1: a plain-text overlay of everything that decides whether the
@@ -994,6 +1016,8 @@ export default function SatelliteGlobe({
   const miniTitle =
     viewMode === 'pov' && spaceStar && !spaceBody
       ? spaceStar.name
+      : viewMode === 'pov' && spaceConstellation
+        ? spaceConstellation.name
       : viewMode === 'pov' && spaceBody
       ? spaceBody.name
       : viewMode === 'pov' && povObject
@@ -1542,6 +1566,46 @@ export default function SatelliteGlobe({
                     ) : null}
                   </div>
                 )}
+                {povInfo && povInfo.sky.stars > 0 && (
+                  <fieldset className="globe-const" aria-describedby="globe-const-note">
+                    <legend className="globe-const-legend">Constellations</legend>
+                    <label className="globe-const-row">
+                      <input
+                        type="checkbox"
+                        checked={constellations.on}
+                        onChange={(e) => setConstellations((c) => ({ ...c, on: e.target.checked }))}
+                      />
+                      <span>Show constellations</span>
+                    </label>
+                    <div className="globe-const-sub">
+                      <label className="globe-const-row">
+                        <input
+                          type="checkbox"
+                          checked={constellations.names}
+                          disabled={!constellations.on}
+                          onChange={(e) => setConstellations((c) => ({ ...c, names: e.target.checked }))}
+                        />
+                        <span>Names</span>
+                      </label>
+                      <label className="globe-const-row">
+                        <input
+                          type="checkbox"
+                          checked={constellations.boundaries}
+                          disabled={!constellations.on}
+                          onChange={(e) => setConstellations((c) => ({ ...c, boundaries: e.target.checked }))}
+                        />
+                        <span>Boundaries</span>
+                      </label>
+                    </div>
+                    <p id="globe-const-note" className="globe-muted globe-const-note">
+                      {povInfo.sky.constellations.failed
+                        ? 'The constellation figures could not be loaded.'
+                        : constellations.on && povInfo.sky.constellations.loading
+                          ? 'Loading the figures…'
+                          : 'Figures are traditional, not defined by the IAU; boundaries are the IAU’s.'}
+                    </p>
+                  </fieldset>
+                )}
                 <div className="globe-pov-imagery-choice globe-pov-orientation" role="group" aria-label="Orientation">
                   <button type="button" aria-pressed={povOrientation === 'heading'} onClick={() => setPovOrientation('heading')}>
                     Heading up
@@ -1618,7 +1682,18 @@ export default function SatelliteGlobe({
                     <Fragment key={r.label}>
                       <dt>{r.label}</dt>
                       <dd>
-                        {r.value}
+                        {r.label === 'Constellation' && spaceStar.constellation && !povInfo?.sky.constellations.failed ? (
+                          <button
+                            type="button"
+                            className="globe-const-link"
+                            aria-label={`${r.value}: show its figure and turn the view to it`}
+                            onClick={() => showConstellation(spaceStar.constellation!.symbol, r.value)}
+                          >
+                            {r.value}
+                          </button>
+                        ) : (
+                          r.value
+                        )}
                         {r.estimate && <span className="globe-star-est"> (estimate)</span>}
                         {r.note && <span className="globe-star-note">{r.note}</span>}
                       </dd>
@@ -1628,6 +1703,44 @@ export default function SatelliteGlobe({
                 <p className="globe-muted globe-star-source">
                   Hipparcos Catalogue (ESA, 1997). Estimates inherit the catalogue&apos;s errors and ignore
                   interstellar dust.
+                </p>
+              </div>
+            )}
+            {viewMode === 'pov' && spaceConstellation && !spaceStar && !spaceBody && (
+              <div
+                className="globe-panel globe-space-body"
+                role="region"
+                aria-label={`${spaceConstellation.name}, selected constellation`}
+              >
+                <div className="globe-panel-head">
+                  <p className="globe-panel-title">Constellation</p>
+                  <button
+                    type="button"
+                    className="globe-close"
+                    aria-label="Close"
+                    onClick={() => engineRef.current?.selectConstellation(-1)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="globe-inspect-name">{spaceConstellation.name}</p>
+                <dl className="globe-space-facts">
+                  {spaceConstellation.rows.map((r) => (
+                    <Fragment key={r.label}>
+                      <dt>{r.label}</dt>
+                      <dd>{r.value}</dd>
+                    </Fragment>
+                  ))}
+                </dl>
+                <button
+                  type="button"
+                  className="globe-button"
+                  onClick={() => engineRef.current?.goToConstellation(spaceConstellation.index)}
+                >
+                  Centre it in the view
+                </button>
+                <p className="globe-muted globe-star-source">
+                  Figure: d3-celestial (BSD-3-Clause), traditional, not IAU-defined. Boundary and area: IAU (Delporte, 1930).
                 </p>
               </div>
             )}

@@ -1667,3 +1667,89 @@ html.globe-fs-lock body {
   margin: 0.4rem 0 0 !important;
   font-size: 0.75rem;
 }
+
+/* Constellations: the switch with its Names and Boundaries options (44 px
+   targets), and the figures' name labels on the sky. */
+.globe-const {
+  margin: 0.6rem 0 0.4rem;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.globe-const-legend {
+  padding: 0;
+  margin-bottom: 0.1rem;
+  color: var(--globe-ink-muted);
+  font-size: 0.78rem;
+}
+
+.globe-const-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.globe-const-row input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  flex: none;
+}
+
+.globe-const-row:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.globe-const-sub {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.4rem;
+  padding-left: 1.7rem;
+}
+
+.globe-const-note {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+}
+
+/* The constellation's name in the star card: a link-like button that shows
+   its figure and turns the view to it. */
+.globe-const-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--globe-accent, #7fa4d6);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .globe-const-link {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 0.25rem;
+  }
+}
+
+.globe-sky-label.is-constellation {
+  transform: translate(-50%, -50%);
+  color: #9fb8dc;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 0 5px var(--globe-bg), 0 0 2px var(--globe-bg);
+}
+
+.globe-sky-label.is-constellation.is-selected {
+  color: #dbe8ff;
+  font-weight: 700;
+}
