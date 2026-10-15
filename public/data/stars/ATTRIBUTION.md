@@ -54,3 +54,34 @@ products are released under Creative Commons Attribution). 40 of the file's name
 host stars without a Hipparcos number) are left out. The IAU has named further stars since
 that file's date; those aren't included until a newer machine-readable file is published.
 The footnote credits "IAU Catalog of Star Names (WGSN)" while names are on screen.
+
+## constellations.json and constellation-bounds.json: constellations
+
+Built by `scripts/build-constellations.mjs`. Both files load only when the Constellations
+toggle (or a star's constellation button) is first used.
+
+**Figures (`constellations.json`, 10 kB, 4.4 kB gzipped).** The stick figures are
+`data/constellations.lines.json` from **d3-celestial** by Olaf Frohn,
+https://github.com/ofrohn/d3-celestial, commit `7e720a3de062059d4c5400a379146a601d9010e0`
+(2022-07-05), retrieved 2026-10-14. Its licence is the 3-clause BSD licence, "Copyright (c)
+2015, Olaf Frohn", which permits use and redistribution with the notice retained (a copy is
+in `LICENSE-d3-celestial.txt` beside this file) and without using the author's name to
+endorse the site. The library's data readme lists its constellation lines as "IAU
+Constellation page ... name positions and some line modifications by me"; it does not say
+which earlier figure set the lines started from, and the figures themselves are
+conventional, not defined by the IAU. The file stores each figure as lists of Hipparcos
+numbers: the converter matched each line vertex to the nearest star of `hipparcos.bin`
+(all 893 vertices matched; median 0.000 degrees, largest 0.025). The credit shown on
+screen while figures are drawn: "Constellation figures: d3-celestial (O. Frohn, BSD-3-Clause)".
+
+Alternatives that were evaluated and not used: the Stellarium "western" sky culture
+(HIP-numbered lines; its description says "Text and data: CC BY-SA" with no version, in a
+repository that carries an AGPL-3.0 licence file, so the data file would have to be
+share-alike and the terms are not clear); GPL data was not used.
+
+**Boundaries (`constellation-bounds.json`, 43 kB, 18 kB gzipped).** Not from a third
+party's file: rebuilt from the Delporte table that `astronomy-engine`'s `Constellation()`
+searches (MIT licence, the same table the star card uses), as polylines on the sky in
+J2000, so the drawn boundary always agrees with the card. The IAU boundaries (Delporte,
+1930) are a scientific standard. Areas in `constellations.json` are computed exactly from
+the same table and match the IAU's published areas (checked for ten constellations).
