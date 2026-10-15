@@ -2799,7 +2799,7 @@ export class GlobeEngine {
             const label =
               body || !this.constMod
                 ? -1
-                : this.constMod.pickLabel(e.clientX - r.left, e.clientY - r.top, this.constLabelRects)
+                : this.constMod.pickLabel(e.clientX - r.left, e.clientY - r.top, this.constLabelRects, touch ? 14 : 6)
             const starMag = star >= 0 ? (this.space?.stars?.catalog.mag[star] ?? 0) : 0
             const hit = this.constMod
               ? this.constMod.resolveTap(body, star, label, starMag)
