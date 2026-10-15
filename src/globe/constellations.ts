@@ -265,15 +265,21 @@ export type TapTarget =
   | { kind: 'constellation'; index: number }
   | { kind: 'none' }
 
+/** A star at least this bright still takes a tap that also lands on a constellation's name. */
+export const LABEL_YIELD_MAG = 4.5
+
 /**
  * What a tap selects: a Sun, Moon or planet disc first, then a star, then a
  * constellation's name label. Figure lines are never a target, so a line
- * passing over a star can't take its tap.
+ * passing over a star can't take its tap. The one softening is for names:
+ * with tens of thousands of stars on screen some faint one is always within
+ * a finger of any label, so a tap inside a label picks the constellation
+ * unless the star under it is brighter than LABEL_YIELD_MAG.
  */
-export function resolveTap(body: string | null, star: number, label: number): TapTarget {
+export function resolveTap(body: string | null, star: number, label: number, starMag = 0): TapTarget {
   if (body) return { kind: 'body', key: body }
+  if (label >= 0 && (star < 0 || starMag > LABEL_YIELD_MAG)) return { kind: 'constellation', index: label }
   if (star >= 0) return { kind: 'star', index: star }
-  if (label >= 0) return { kind: 'constellation', index: label }
   return { kind: 'none' }
 }
 

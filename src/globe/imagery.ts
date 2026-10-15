@@ -105,7 +105,15 @@ export interface SkyStatus {
   names?: boolean
   /** A star is selected, so its IAU name or card is on screen. */
   starSelected?: boolean
+  /** Constellation figures, and the IAU boundaries, are on screen. */
+  constellations?: { lines: boolean; boundaries: boolean }
 }
+
+/** The constellation figures' source (BSD-3-Clause: the notice is kept in the data folder), shown while they are drawn. */
+export const CONSTELLATION_FIGURES_CREDIT = 'Constellation figures: d3-celestial (Olaf Frohn, BSD-3-Clause)'
+
+/** The boundaries: the IAU's, from Delporte's 1930 table. */
+export const CONSTELLATION_BOUNDARIES_CREDIT = 'Constellation boundaries: IAU (Delporte, 1930)'
 
 /** The IAU's catalogue of star names (public domain / CC Attribution), shown while a name is on screen. */
 export const IAU_NAMES_CREDIT = 'Star names: IAU Catalog of Star Names (IAU Working Group on Star Names)'
@@ -121,5 +129,7 @@ export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
   if (sky.stars > 0) out.push(STARS_CREDIT)
   if (sky.milkyWay) out.push(MILKY_WAY_CREDIT)
   if (sky.names && sky.starSelected) out.push(IAU_NAMES_CREDIT)
+  if (sky.constellations?.lines) out.push(CONSTELLATION_FIGURES_CREDIT)
+  if (sky.constellations?.boundaries) out.push(CONSTELLATION_BOUNDARIES_CREDIT)
   return out
 }

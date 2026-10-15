@@ -6,6 +6,7 @@ import { readStarCatalog } from '../src/globe/stars.ts'
 import { hipIndex, readStarDetails } from '../src/globe/stardetails.ts'
 import {
   CONSTELLATIONS_OFF,
+  LABEL_YIELD_MAG,
   constellationCardRows,
   easeOpacity,
   figureCentre,
@@ -248,9 +249,20 @@ test('label placement: larger first, none off the screen, none over a star or bo
 
 test('a tap picks a body, then a star, then a constellation label; lines are never targets', () => {
   assert.deepEqual(resolveTap('moon', 5, 3), { kind: 'body', key: 'moon' })
-  assert.deepEqual(resolveTap(null, 5, 3), { kind: 'star', index: 5 })
+  assert.deepEqual(resolveTap(null, 5, -1), { kind: 'star', index: 5 })
   assert.deepEqual(resolveTap(null, -1, 3), { kind: 'constellation', index: 3 })
   assert.deepEqual(resolveTap(null, -1, -1), { kind: 'none' })
+  // A star near a figure line is just a star: no line is ever a target.
+  assert.deepEqual(resolveTap(null, 7, -1, 6.5), { kind: 'star', index: 7 })
+})
+
+test('a faint star under a name does not take the name\'s tap; a bright one does', () => {
+  assert.deepEqual(resolveTap(null, 5, 3, 8.2), { kind: 'constellation', index: 3 })
+  assert.deepEqual(resolveTap(null, 5, 3, LABEL_YIELD_MAG + 0.1), { kind: 'constellation', index: 3 })
+  assert.deepEqual(resolveTap(null, 5, 3, 0.4), { kind: 'star', index: 5 })
+  assert.deepEqual(resolveTap(null, 5, 3, LABEL_YIELD_MAG), { kind: 'star', index: 5 })
+  // A body still beats a name.
+  assert.deepEqual(resolveTap('venus', 5, 3, 9), { kind: 'body', key: 'venus' })
 })
 
 test('the label under a tap is the smallest box holding it', () => {

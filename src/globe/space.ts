@@ -527,10 +527,19 @@ export class AtmosphereGlow {
 /** Quality by device: phones keep the stars down to magnitude 8 (about 42,000), desktops all of them. */
 export const STAR_TIERS = { phone: { maxMag: 8 }, desktop: { maxMag: Infinity } } as const
 
+/** A layer fixed in the inertial frame like the stars: turned with them when the day changes. */
+export interface SkyRotatingLayer {
+  readonly group: THREE.Object3D
+  setRotation(m: Mat3): void
+  dispose(): void
+}
+
 /** The sky around the satellite view: backdrop layers, then the stars, all at infinity. */
 export class SpaceView {
   readonly group = new THREE.Group()
   private starField: StarField | null = null
+  private readonly rotating: SkyRotatingLayer[] = []
+  private lastRotation: Mat3 | null = null
   readonly bodies = new SpaceBodies()
   readonly glow = new AtmosphereGlow()
   private readonly backdrops: SkyBackdropLayer[] = []
@@ -558,6 +567,13 @@ export class SpaceView {
     this.group.add(layer.object)
   }
 
+  /** Add a layer drawn over the stars that turns with them (constellation figures and boundaries). */
+  addRotating(layer: SkyRotatingLayer) {
+    this.rotating.push(layer)
+    this.group.add(layer.group)
+    if (this.lastRotation) layer.setRotation(this.lastRotation)
+  }
+
   /** The star field once the catalogue has loaded. */
   get stars(): StarField | null {
     return this.starField
@@ -580,7 +596,9 @@ export class SpaceView {
     if (day === this.rotationFor) return
     this.rotationFor = day
     const m = j2000ToDate(date)
+    this.lastRotation = m
     this.starField?.setRotation(m)
+    for (const l of this.rotating) l.setRotation(m)
     // Scene (x, z, -y of date) back to J2000: transpose the rotation, after undoing the axis map.
     const toDate = new THREE.Matrix3().set(m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8])
     const sceneToDate = new THREE.Matrix3().set(1, 0, 0, 0, 0, -1, 0, 1, 0)
@@ -608,6 +626,7 @@ export class SpaceView {
     this.glow.mesh.removeFromParent()
     this.glow.dispose()
     for (const b of this.backdrops) b.dispose()
+    for (const l of this.rotating) l.dispose()
     this.group.removeFromParent()
   }
 }
