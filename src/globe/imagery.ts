@@ -112,8 +112,6 @@ export const SIMBAD_CREDIT = 'This research has made use of the SIMBAD database,
 export interface SkyStatus {
   /** Stars drawn (0 until the catalogue loads). */
   stars: number
-  /** The Milky Way band is shown. */
-  milkyWay?: boolean
   /** The IAU star names have been loaded (a star was selected or searched for). */
   names?: boolean
   /** A star is selected, so its IAU name or card is on screen. */
@@ -136,16 +134,11 @@ export const CONSTELLATION_BOUNDARIES_CREDIT = 'Constellation boundaries: IAU (D
 /** The IAU's catalogue of star names (public domain / CC Attribution), shown while a name is on screen. */
 export const IAU_NAMES_CREDIT = 'Star names: IAU Catalog of Star Names (IAU Working Group on Star Names)'
 
-/** NASA SVS's requested credit for the Deep Star Maps (public domain; the credit is requested, not required). */
-export const MILKY_WAY_CREDIT =
-  'Milky Way: NASA/Goddard Space Flight Center Scientific Visualization Studio, Deep Star Maps 2020; Gaia DR2: ESA/Gaia/DPAC'
-
 /** The sky's credits: the star catalogue while its stars are on screen in the satellite view. */
 export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
   if (viewMode !== 'pov' || !sky) return []
   const out: string[] = []
   if (sky.stars > 0) out.push(STARS_CREDIT)
-  if (sky.milkyWay) out.push(MILKY_WAY_CREDIT)
   if ((sky.gaia?.drawn ?? 0) > 0 || sky.glow) out.push(GAIA_CREDIT)
   if (sky.names && sky.starSelected) out.push(IAU_NAMES_CREDIT)
   if (sky.simbad) out.push(SIMBAD_CREDIT)

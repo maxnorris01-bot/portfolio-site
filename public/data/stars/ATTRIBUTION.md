@@ -85,3 +85,33 @@ searches (MIT licence, the same table the star card uses), as polylines on the s
 J2000, so the drawn boundary always agrees with the card. The IAU boundaries (Delporte,
 1930) are a scientific standard. Areas in `constellations.json` are computed exactly from
 the same table and match the IAU's published areas (checked for ten constellations).
+
+## Streamed Gaia stars and the Milky Way glow (not in this folder)
+
+The satellite view also streams Gaia DR3 stars brighter than G = 13 (7,251,917 stars, the
+ones the Hipparcos file doesn't already draw) and draws a Milky Way glow built from Gaia. The
+data is not in this repository: it is built by `scripts/star_data/` in
+`satellite-conjunction-screening` and served from the public bucket under `stars/v1/`
+(`manifest.json`, `tiles/`, `details/`, `glow-o7.jpg`, `glow.json`; format in that repo's
+`docs/star-data-format.md`). The app reads the base URL from `src/globe/stardataurl.ts`
+(`VITE_STAR_DATA_URL` in a build, `?stars=` on the dev server). If it can't be loaded the sky
+shows the Hipparcos stars only, and says so in the panel.
+
+- **Credit shown on screen** while streamed stars or the glow are visible: "Credit: ESA,
+  Gaia DPAC", Gaia DR3 (Gaia Collaboration, 2022), licence CC BY-NC 3.0 IGO
+  (https://creativecommons.org/licenses/by-nc/3.0/igo/), with the note that the data were
+  adapted (selected, moved to epoch 2026.0, packed). The full text is in the manifest's
+  `attribution`. This site is strictly non-commercial; commercial use would need ESA's
+  authorisation (data.licences@esa.int), as for Hipparcos.
+- **G and V.** Gaia magnitudes are converted to the Johnson V the sky is drawn in with the Gaia
+  EDR3 documentation's relation G - V = -0.02704 + 0.01424 c - 0.2156 c^2 + 0.01426 c^3, c =
+  BP-RP (Riello et al. 2021, A&A 649, A3; documentation section 5.5.1, Table 5.7), and, past
+  its range (c above 2.4), a line through medians measured on 117,026 stars that are in both
+  catalogues. The B-V used for the colour ramp is the medians of the same stars in 19 BP-RP
+  bins (`src/globe/gaiacolour.ts`).
+- **SIMBAD.** A selected Gaia star's name, type and spectral type come from SIMBAD (CDS) with one
+  request per selection; the footnote carries CDS's acknowledgement while a result is shown:
+  "This research has made use of the SIMBAD database, CDS, Strasbourg Astronomical
+  Observatory, France" (Wenger et al. 2000).
+- **The NASA SVS Milky Way picture** (`milkyway-2k.jpg`, public domain, "Deep Star Maps 2020")
+  that this glow replaces has been removed from the site, with its footnote credit.

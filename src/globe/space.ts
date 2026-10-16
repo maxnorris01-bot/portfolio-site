@@ -26,7 +26,7 @@ export interface SkyContext {
 }
 
 /**
- * A layer drawn behind the stars (the Milky Way band now; streamed deep-sky
+ * A layer drawn behind the stars (the Gaia glow now; streamed deep-sky
  * survey tiles later): an object on the sky sphere, centred on the camera
  * with the stars, drawn before them.
  */
@@ -393,70 +393,6 @@ export class SpaceBodies {
   }
 }
 
-// ---- Milky Way: a soft band behind the stars, from the NASA SVS Deep Star
-// Maps 2020 map (celestial coordinates, RA increasing to the left). ----
-
-const MILKY_VERTEX = /* glsl */ `
-varying vec3 vDir;
-void main() {
-  vDir = position;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`
-
-const MILKY_FRAGMENT = /* glsl */ `
-uniform sampler2D map;
-uniform mat3 sceneToJ2000;
-uniform float gain;
-varying vec3 vDir;
-void main() {
-  vec3 d = normalize(sceneToJ2000 * normalize(vDir));
-  float ra = atan(d.y, d.x);
-  float u = fract(0.5 - ra / 6.28318530718);
-  float v = 0.5 + asin(clamp(d.z, -1.0, 1.0)) / 3.14159265359;
-  // The map's pixels are display-referred: a lift and a slight dim keep it a
-  // soft band behind the stars (and never brighter than a bright star).
-  vec3 c = texture2D(map, vec2(u, v)).rgb * gain;
-  gl_FragColor = vec4(c, 1.0);
-  #include <colorspace_fragment>
-}
-`
-
-/** The Milky Way band as a sky backdrop layer (a sphere under the stars, sampling a J2000 map). */
-export class MilkyWay implements SkyBackdropLayer {
-  readonly object: THREE.Mesh
-  private readonly material: THREE.ShaderMaterial
-  private readonly geometry: THREE.SphereGeometry
-
-  constructor(map: THREE.Texture, gain = 1.7) {
-    map.colorSpace = THREE.SRGBColorSpace
-    map.wrapS = THREE.RepeatWrapping
-    map.anisotropy = 1
-    this.geometry = new THREE.SphereGeometry(SKY_RADIUS * 1.05, 48, 24)
-    this.material = new THREE.ShaderMaterial({
-      uniforms: { map: { value: map }, sceneToJ2000: { value: new THREE.Matrix3() }, gain: { value: gain } },
-      vertexShader: MILKY_VERTEX,
-      fragmentShader: MILKY_FRAGMENT,
-      side: THREE.BackSide,
-      depthWrite: false,
-      depthTest: true,
-    })
-    this.object = new THREE.Mesh(this.geometry, this.material)
-    this.object.renderOrder = -2
-    this.object.frustumCulled = false
-  }
-
-  update(ctx: SkyContext) {
-    this.material.uniforms.sceneToJ2000.value.copy(ctx.sceneToJ2000)
-  }
-
-  dispose() {
-    this.geometry.dispose()
-    ;(this.material.uniforms.map.value as THREE.Texture).dispose()
-    this.material.dispose()
-  }
-}
-
 // ---- Atmosphere glow: a thin blue ring along the Earth's limb. ----
 
 const GLOW_RADIUS = 1.03 // about 190 km: the glow is gone well inside it
@@ -589,7 +525,7 @@ export class SpaceView {
     this.rotationFor = ''
   }
 
-  /** Add a layer behind the stars (the Milky Way; later, deep-sky tiles). */
+  /** Add a layer behind the stars (the Gaia glow; later, deep-sky tiles). */
   addBackdrop(layer: SkyBackdropLayer) {
     this.backdrops.push(layer)
     this.group.add(layer.object)

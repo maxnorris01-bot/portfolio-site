@@ -197,8 +197,6 @@ const CONSTELLATIONS_URL = '/data/stars/constellations.json'
 /** The faintest V-equivalent magnitude the streamed Gaia stars (G < 13) reach. */
 const GAIA_LIMIT = 14
 const CONSTELLATION_BOUNDS_URL = '/data/stars/constellation-bounds.json'
-/** The Milky Way band: NASA SVS Deep Star Maps 2020, resized (public/data/sky/ATTRIBUTION.md). */
-const MILKY_WAY_URL = '/data/sky/milkyway-2k.jpg'
 // Two taps or clicks this close in time and place are a double tap (zoom in).
 const DOUBLE_TAP_MS = 350
 const DOUBLE_TAP_PX = 30
@@ -455,7 +453,7 @@ export class GlobeEngine {
   private simbadState: SimbadState = { kind: 'idle' }
   private cardMod: typeof import('./gaiacard') | null = null
   private starCount = 0
-  private milkyWay = false
+  private glowShown = false
   // The Sun, Moon and planets from the satellite: refreshed a few times a
   // second, laid out each frame; the selected one and each one's screen spot.
   private spaceBodyAt = 0
@@ -1307,12 +1305,6 @@ export class GlobeEngine {
         space.setStars(new m.StarField(catalog, this.renderer.getPixelRatio()))
         this.starCount = catalog.count
         void this.startGaia(space, tier)
-        // The Milky Way band behind the stars (a small JPEG), when it loads.
-        new THREE.TextureLoader().load(MILKY_WAY_URL, (tex) => {
-          if (this.disposed || this.space !== space) return tex.dispose()
-          space.addBackdrop(new m.MilkyWay(tex))
-          this.milkyWay = true
-        })
       })
       .catch((err: unknown) => {
         // No stars this time: the satellite view works without them.
@@ -1601,7 +1593,7 @@ export class GlobeEngine {
       /** What's drawn in the sky (for the footnote's credits). */
       sky: {
         stars: this.starCount,
-        milkyWay: this.milkyWay,
+        glow: this.glowShown,
         gaia: this.gaiaInfo(),
         gaiaStar: this.gaiaStarInfo(),
         simbad: !!this.gaiaSel && this.simbadState.kind === 'found',
@@ -2050,9 +2042,43 @@ export class GlobeEngine {
         },
       })
       this.gaiaState = 'ready'
+      void this.loadGlow(space, base)
     } catch (err) {
       this.gaiaState = 'unavailable'
       if (import.meta.env.DEV) console.warn('streamed stars:', err)
+    }
+  }
+
+  // The Milky Way's glow from the Gaia atlas (a 40 kB JPEG): decoded, turned into a
+  // longitude-latitude texture in slices (so no frame is held up), and added as the
+  // sky's backdrop. If it can't load the sky is simply the stars on black.
+  private async loadGlow(space: import('./space').SpaceView, base: string) {
+    try {
+      const [glow, layer] = await Promise.all([import('./glow'), import('./glowlayer')])
+      const res = await fetch(`${base}/glow-o7.jpg`)
+      if (!res.ok) throw new Error(`glow: HTTP ${res.status}`)
+      const bitmap = await createImageBitmap(await res.blob(), { colorSpaceConversion: 'none' })
+      if (bitmap.width !== glow.GLOW_ATLAS_WIDTH || bitmap.height !== glow.GLOW_ATLAS_HEIGHT) throw new Error('glow: unexpected size')
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      if (!ctx) throw new Error('glow: no 2d canvas')
+      ctx.drawImage(bitmap, 0, 0)
+      bitmap.close()
+      const atlas = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+      const w = 1024
+      const h = 512
+      const out = new Uint8Array(w * h * 4)
+      for (let y = 0; y < h; y += 32) {
+        glow.fillGlowRows(atlas, out, w, h, y, Math.min(h, y + 32))
+        await new Promise((r) => setTimeout(r, 0))
+        if (this.disposed || this.space !== space) return
+      }
+      space.addBackdrop(new layer.GlowLayer(out, w, h))
+      this.glowShown = true
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('glow atlas:', err)
     }
   }
 

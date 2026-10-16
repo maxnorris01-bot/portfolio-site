@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { test } from 'node:test'
 import { DESCEND_FOV, zoomLockedToward } from '../src/globe/descend.ts'
 import { presetView, type Vec3 } from '../src/globe/pov.ts'
@@ -127,4 +127,17 @@ test('the panel reads out the stars: loading, unavailable (Hipparcos only, said 
   assert.match(on, /118,217 Hipparcos \+ 412,880 Gaia/)
   assert.match(on, /14 tiles/)
   assert.match(on, /2 loading/)
+})
+
+test('the NASA Milky Way picture is gone: no file, no loader, no credit; the Gaia glow is the backdrop through the same hook', () => {
+  assert.equal(existsSync(new URL('../public/data/sky/milkyway-2k.jpg', import.meta.url)), false)
+  assert.equal(existsSync(new URL('../public/data/sky', import.meta.url)), false)
+  for (const f of ['globe/engine.ts', 'globe/space.ts', 'globe/imagery.ts']) {
+    assert.doesNotMatch(src(f), /milkyway|MilkyWay|MILKY_WAY|Deep Star Maps/i, f)
+  }
+  const engine = src('globe/engine.ts')
+  assert.match(engine, /import\('\.\/glowlayer'\)/)
+  assert.doesNotMatch(engine, /^import (?!type)[^\n]*from '\.\/glow(layer)?'/m)
+  assert.match(engine, /space\.addBackdrop\(new layer\.GlowLayer/)
+  assert.match(src('globe/glowlayer.ts'), /implements SkyBackdropLayer/)
 })
