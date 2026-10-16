@@ -75,13 +75,31 @@ void main() {
 }
 `
 
+/** The point-sprite material every star layer shares (Hipparcos and the streamed Gaia stars), so they size and fade identically. */
+export function createStarMaterial(pixelRatio: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      limitMag: { value: 6.5 },
+      grow: { value: 1 },
+      narrow: { value: 1 },
+      pixelRatio: { value: pixelRatio },
+    },
+    vertexShader: STAR_VERTEX,
+    fragmentShader: STAR_FRAGMENT,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: true,
+  })
+}
+
 /** The star field: one point per catalogue star, sized and faded by the field of view. */
 export class StarField {
   readonly points: THREE.Points
   private readonly unitJ2000: Float32Array
   private readonly geometry: THREE.BufferGeometry
   private readonly material: THREE.ShaderMaterial
-  private readonly catalogLimit: number
+  private catalogLimit: number
   private readonly mags: Float32Array
   readonly count: number
   /** The catalogue behind the field (positions in J2000, magnitudes, colours). */
@@ -99,20 +117,7 @@ export class StarField {
     this.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(catalog.count * 3), 3))
     this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     this.geometry.setAttribute('mag', new THREE.BufferAttribute(catalog.mag, 1))
-    this.material = new THREE.ShaderMaterial({
-      uniforms: {
-        limitMag: { value: 6.5 },
-        grow: { value: 1 },
-        narrow: { value: 1 },
-        pixelRatio: { value: pixelRatio },
-      },
-      vertexShader: STAR_VERTEX,
-      fragmentShader: STAR_FRAGMENT,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      depthTest: true,
-    })
+    this.material = createStarMaterial(pixelRatio)
     this.points = new THREE.Points(this.geometry, this.material)
     this.points.frustumCulled = false
     this.points.renderOrder = -1
@@ -146,6 +151,16 @@ export class StarField {
   pick(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): number {
     const a = (this.geometry.getAttribute('position') as THREE.BufferAttribute).array as Float32Array
     return pickStar(a, this.mags, this.count, ray, fovDeg, screenPx, radiusPx, SKY_RADIUS)
+  }
+
+  /** The shared material (the streamed stars use the same one). */
+  get starMaterial(): THREE.ShaderMaterial {
+    return this.material
+  }
+
+  /** The faintest magnitude the limiting-magnitude rule may reach (it ends at the catalogue's own, until more stars stream in). */
+  setCatalogLimit(mag: number) {
+    this.catalogLimit = Math.max(this.catalogLimit, mag)
   }
 
   update(fovDeg: number) {
@@ -524,8 +539,16 @@ export class AtmosphereGlow {
   }
 }
 
-/** Quality by device: phones keep the stars down to magnitude 8 (about 42,000), desktops all of them. */
-export const STAR_TIERS = { phone: { maxMag: 8 }, desktop: { maxMag: Infinity } } as const
+/**
+ * Quality by device. Both keep every Hipparcos star: the Gaia tiles leave out
+ * the Hipparcos stars they match, so a Hipparcos star not loaded would be a
+ * hole in the sky. The streamed Gaia stars differ: stars drawn per view
+ * (the budget), decoded stars kept in the cache, and requests in flight.
+ */
+export const STAR_TIERS = {
+  phone: { maxMag: Infinity, gaiaBudget: 300_000, gaiaCache: 900_000, concurrency: 3 },
+  desktop: { maxMag: Infinity, gaiaBudget: 1_500_000, gaiaCache: 3_000_000, concurrency: 6 },
+} as const
 
 /** A layer fixed in the inertial frame like the stars: turned with them when the day changes. */
 export interface SkyRotatingLayer {
@@ -572,6 +595,12 @@ export class SpaceView {
     this.rotating.push(layer)
     this.group.add(layer.group)
     if (this.lastRotation) layer.setRotation(this.lastRotation)
+  }
+
+  /** A scene-axes direction as a J2000 unit vector (the inverse of how the stars are turned). */
+  sceneToJ2000Dir(v: readonly [number, number, number]): [number, number, number] {
+    const e = new THREE.Vector3(v[0], v[1], v[2]).applyMatrix3(this.sceneToJ2000)
+    return [e.x, e.y, e.z]
   }
 
   /** The star field once the catalogue has loaded. */

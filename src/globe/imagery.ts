@@ -95,6 +95,16 @@ export const STARS_CREDIT =
   'Stars: the Hipparcos Catalogue (ESA, 1997, The Hipparcos and Tycho Catalogues, ESA SP-1200). ' +
   'Credit: ESA. Licence: CC BY-NC 3.0 IGO; this site is non-commercial'
 
+/**
+ * The Gaia data's credit, as ESA's archive terms specify ("ESA, Gaia DPAC"),
+ * with its licence, a note that it was adapted, and the site's non-commercial
+ * use. Shown while streamed stars or the glow built from them are on screen.
+ */
+export const GAIA_CREDIT =
+  'Stars: Gaia DR3 (Gaia Collaboration, 2022). Credit: ESA, Gaia DPAC. ' +
+  'Licence: CC BY-NC 3.0 IGO (creativecommons.org/licenses/by-nc/3.0/igo), adapted (stars selected, moved to 2026, packed); ' +
+  'this site is non-commercial'
+
 /** What the satellite view's sky is showing, for its credits. */
 export interface SkyStatus {
   /** Stars drawn (0 until the catalogue loads). */
@@ -105,6 +115,9 @@ export interface SkyStatus {
   names?: boolean
   /** A star is selected, so its IAU name or card is on screen. */
   starSelected?: boolean
+  /** Streamed Gaia stars are drawn (a count), or the glow built from Gaia is shown. */
+  gaia?: { drawn: number }
+  glow?: boolean
   /** Constellation figures, and the IAU boundaries, are on screen. */
   constellations?: { lines: boolean; boundaries: boolean }
 }
@@ -128,6 +141,7 @@ export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
   const out: string[] = []
   if (sky.stars > 0) out.push(STARS_CREDIT)
   if (sky.milkyWay) out.push(MILKY_WAY_CREDIT)
+  if ((sky.gaia?.drawn ?? 0) > 0 || sky.glow) out.push(GAIA_CREDIT)
   if (sky.names && sky.starSelected) out.push(IAU_NAMES_CREDIT)
   if (sky.constellations?.lines) out.push(CONSTELLATION_FIGURES_CREDIT)
   if (sky.constellations?.boundaries) out.push(CONSTELLATION_BOUNDARIES_CREDIT)

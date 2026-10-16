@@ -10,9 +10,17 @@
 // is the brightest star of every tile (gMin) and counts per magnitude, so a
 // view that only shows bright stars fetches no tile that has none that
 // bright, and the budget below is enforced on what is drawn.
+//
+// And a tile is only fetched when it would add something: at least
+// `minTileStars` of its stars (estimated from the manifest's counts) are
+// brighter than the limit. Most tiles hold one or two Gaia stars brighter
+// than the naked-eye limit that Hipparcos doesn't (companions and the odd
+// miss), and 280 tiles with G < 6.5 somewhere would be 18 MB for a thousand
+// stars at a wide field; at about 15 degrees and narrower, tiles qualify as
+// they gain stars.
 
 import { angleBetween, type TileGeometry } from './healpix.ts'
-import { countBelow, tileHasStarsAbove, type Manifest, type TileEntry } from './gaiatiles.ts'
+import { countBelow, type Manifest, type TileEntry } from './gaiatiles.ts'
 import type { Vec3 } from './pov.ts'
 
 const DEG = Math.PI / 180
@@ -71,6 +79,8 @@ export interface StreamerOptions<T> {
   concurrency: number
   /** Extra degrees around the view that are fetched after what's in it (default a fifth of the view radius plus two). */
   marginDeg?: (radiusDeg: number) => number
+  /** A tile is fetched only when at least this many of its stars are brighter than the limit (default 10). */
+  minTileStars?: number
   /** How long a failed tile is left alone, ms. */
   retryAfterMs?: number
   /** Consecutive failures with no success that mark the data unavailable. */
@@ -120,6 +130,11 @@ export class TileStreamer<T> {
     return this.o.now ? this.o.now() : Date.now()
   }
 
+  /** Change the per-view star budget (the frame guard does this when frames run slow). */
+  setBudget(stars: number) {
+    this.o.budgetStars = stars
+  }
+
   /** Re-plan for a view: abort tiles that left it, fetch the ones it needs (nearest first), evict over budget. */
   update(view: StreamView): void {
     if (this.disposed || this.unavailable) return
@@ -139,7 +154,8 @@ export class TileStreamer<T> {
     const inViewEntries = candidates.filter((c) => c.dist - c.reach <= view.radiusDeg).map((c) => manifest.tiles.get(c.ipix)!)
     this.effectiveLimit = limitForBudget(inViewEntries, manifest.magBins, view.limitMag, this.o.budgetStars)
     const limit = this.effectiveLimit
-    const has = (ipix: number) => tileHasStarsAbove(manifest.tiles.get(ipix)!, limit)
+    const minStars = this.o.minTileStars ?? 10
+    const has = (ipix: number) => countBelow(manifest.tiles.get(ipix)!, manifest.magBins, limit) >= minStars
     candidates.sort((a, b) => a.dist - b.dist)
     this.inView = candidates.filter((c) => c.dist - c.reach <= view.radiusDeg && has(c.ipix)).map((c) => c.ipix)
     // Wanted: in view first, then the margin ring.

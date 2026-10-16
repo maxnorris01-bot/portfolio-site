@@ -34,6 +34,7 @@ import { phoneSideDock } from '../globe/layout'
 import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
 import type { ConstellationToggle } from '../globe/constellations'
+import { starsReadout } from '../globe/starsreadout'
 import { FULLSCREEN_OFF, fullscreenStep, type FullscreenEffects, type FullscreenEvent } from '../globe/fullscreen'
 import CollisionHistory from './CollisionHistory'
 import './SatelliteGlobe.css'
@@ -1565,6 +1566,11 @@ export default function SatelliteGlobe({
                       </p>
                     ) : null}
                   </div>
+                )}
+                {povInfo && povInfo.sky.stars > 0 && (
+                  <p className="globe-muted globe-stars-readout" role="status" aria-live="off">
+                    {starsReadout(povInfo.sky.stars, povInfo.sky.gaia)}
+                  </p>
                 )}
                 {povInfo && povInfo.sky.stars > 0 && (
                   <fieldset className="globe-const" aria-describedby="globe-const-note">

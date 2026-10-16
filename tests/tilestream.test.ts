@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { readManifest, type TileEntry } from '../src/globe/gaiatiles.ts'
+import { countBelow, readManifest, type TileEntry } from '../src/globe/gaiatiles.ts'
 import { angleBetween, tileGeometry } from '../src/globe/healpix.ts'
 import { FrameGuard, TileStreamer, limitForBudget, viewRadiusDeg, type StreamView } from '../src/globe/tilestream.ts'
 
@@ -57,14 +57,26 @@ test('the tiles for a view are the ones whose area reaches it, nearest the centr
   assert.ok(other.s.inView.some((i) => !s.inView.includes(i)))
 })
 
-test('a view that shows only bright stars asks for no tile that has none that bright', () => {
+test('a view that shows only bright stars asks for no tile that has too few that bright to matter', () => {
   const { s, calls } = harness()
   s.update({ ...ORION, limitMag: 4 })
-  for (const i of s.inView) assert.ok(manifest.tiles.get(i)!.gMin < 4)
-  for (const c of calls) assert.ok(c.entry.gMin < 4)
+  assert.equal(s.inView.length, 0) // no tile has ten stars brighter than 4
+  assert.equal(calls.length, 0)
+  // The naked-eye limit (a field of 60 degrees): the stray bright Gaia star here and there is not worth a tile.
+  const wide = harness()
+  wide.s.update({ centre: ORION.centre, radiusDeg: 50, limitMag: 6.5 })
+  assert.equal(wide.calls.length, 0)
+  // Tiles qualify as the limit deepens, each with at least the minimum stars brighter than it.
+  const mid = harness()
+  mid.s.update({ ...ORION, limitMag: 9 })
+  for (const i of mid.s.inView) assert.ok(countBelow(manifest.tiles.get(i)!, manifest.magBins, 9) >= 10, `tile ${i}`)
   const faint = harness()
   faint.s.update({ ...ORION, limitMag: 13 })
-  assert.ok(faint.s.inView.length > s.inView.length)
+  assert.ok(faint.s.inView.length >= mid.s.inView.length && mid.s.inView.length > 0)
+  // A lower threshold lets more tiles in.
+  const keen = harness({ minTileStars: 1 })
+  keen.s.update({ ...ORION, limitMag: 7 })
+  assert.ok(keen.s.inView.length > 0)
 })
 
 test('requests are capped, and the nearest tile goes first', () => {

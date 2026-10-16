@@ -1753,3 +1753,9 @@ html.globe-fs-lock body {
   color: #dbe8ff;
   font-weight: 700;
 }
+
+/* The stars line in the satellite view's panel (Hipparcos, and how many streamed Gaia stars are drawn). */
+.globe-stars-readout {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 0.75rem;
+}

@@ -54,6 +54,10 @@ import {
 } from './stardetails'
 import type { ConstellationToggle, Rect as LabelRect, ResolvedFigure } from './constellations'
 import type { ConstellationLayer } from './constellationlayer'
+import type { DecodedTile, Manifest } from './gaiatiles'
+import type { GaiaStars } from './gaiastars'
+import type { FrameGuard, TileStreamer } from './tilestream'
+import { starDataUrl } from './stardataurl'
 import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
 import { overlayFade } from './imagery'
 import {
@@ -189,6 +193,8 @@ const STAR_CATALOG_URL = '/data/stars/hipparcos.bin'
 const STAR_DETAILS_URL = '/data/stars/hipparcos-details.bin'
 const STAR_NAMES_URL = '/data/stars/iau-names.json'
 const CONSTELLATIONS_URL = '/data/stars/constellations.json'
+/** The faintest V-equivalent magnitude the streamed Gaia stars (G < 13) reach. */
+const GAIA_LIMIT = 14
 const CONSTELLATION_BOUNDS_URL = '/data/stars/constellation-bounds.json'
 /** The Milky Way band: NASA SVS Deep Star Maps 2020, resized (public/data/sky/ATTRIBUTION.md). */
 const MILKY_WAY_URL = '/data/sky/milkyway-2k.jpg'
@@ -414,6 +420,19 @@ export class GlobeEngine {
   // first time the view opens; and the files they come from.
   private space: import('./space').SpaceView | null = null
   private spaceLoading = false
+  // The streamed Gaia stars: the manifest, the streamer and the layer, loaded
+  // after the Hipparcos stars; 'unavailable' falls back to Hipparcos alone.
+  private gaiaState: 'off' | 'loading' | 'ready' | 'unavailable' = 'off'
+  private gaiaManifest: Manifest | null = null
+  private gaiaStars: GaiaStars | null = null
+  private gaiaStreamer: TileStreamer<DecodedTile> | null = null
+  private gaiaGuard: FrameGuard | null = null
+  private gaiaBudget = 0
+  private gaiaBase = ''
+  private gaiaDrawn = 0
+  private gaiaPlanAt = 0
+  private gaiaPlanView: { dir: [number, number, number]; fov: number } | null = null
+  private gaiaFrameAt = 0
   private starCount = 0
   private milkyWay = false
   // The Sun, Moon and planets from the satellite: refreshed a few times a
@@ -1265,6 +1284,7 @@ export class GlobeEngine {
         if (this.disposed) return
         space.setStars(new m.StarField(catalog, this.renderer.getPixelRatio()))
         this.starCount = catalog.count
+        void this.startGaia(space, tier)
         // The Milky Way band behind the stars (a small JPEG), when it loads.
         new THREE.TextureLoader().load(MILKY_WAY_URL, (tex) => {
           if (this.disposed || this.space !== space) return tex.dispose()
@@ -1560,6 +1580,7 @@ export class GlobeEngine {
       sky: {
         stars: this.starCount,
         milkyWay: this.milkyWay,
+        gaia: this.gaiaInfo(),
         names: this.starNames !== null,
         starSelected: this.spaceStar >= 0,
         star: this.starInfo(),
@@ -1691,6 +1712,7 @@ export class GlobeEngine {
     if (this.space && this.bodyEphem) {
       this.space.setDate(date, this.bodyEphem.j2000ToDateMatrix)
       this.space.update(cam, fov, date)
+      this.updateGaia(cam, fov)
       this.updateSpaceBodies(date, pos, cam, fov)
       this.space.glow.update(cam.position, this.earthUniforms.sunDir.value)
     }
@@ -1942,6 +1964,128 @@ export class GlobeEngine {
       designation: named ? [named[2], named[3]].filter(Boolean).join(' ') : '',
       loading: !record && !this.starDetailsError,
       failed: this.starDetailsError,
+    }
+  }
+
+  // ---- Streamed Gaia stars ----
+
+  // Fetch the manifest and set up streaming. Any failure (offline, the data
+  // not uploaded, a bad file) leaves the Hipparcos stars alone and says so.
+  private async startGaia(space: import('./space').SpaceView, tier: (typeof import('./space'))['STAR_TIERS'][keyof (typeof import('./space'))['STAR_TIERS']]) {
+    if (this.gaiaState !== 'off' || !space.stars) return
+    this.gaiaState = 'loading'
+    const base = starDataUrl({ env: import.meta.env.VITE_STAR_DATA_URL as string | undefined, search: window.location.search, dev: import.meta.env.DEV })
+    this.gaiaBase = base
+    try {
+      const [tiles, gaia, stream, healpix] = await Promise.all([
+        import('./gaiatiles'),
+        import('./gaiastars'),
+        import('./tilestream'),
+        import('./healpix'),
+      ])
+      const res = await fetch(`${base}/manifest.json`)
+      if (!res.ok) throw new Error(`manifest: HTTP ${res.status}`)
+      const manifest = tiles.readManifest(await res.json())
+      if (this.disposed || this.space !== space || !space.stars) return
+      const layer = new gaia.GaiaStars(space.stars.starMaterial)
+      space.addRotating(layer)
+      space.stars.setCatalogLimit(GAIA_LIMIT)
+      this.gaiaManifest = manifest
+      this.gaiaStars = layer
+      this.gaiaBudget = tier.gaiaBudget
+      this.gaiaGuard = new stream.FrameGuard()
+      this.gaiaStreamer = new stream.TileStreamer<DecodedTile>({
+        manifest,
+        geometry: healpix.tileGeometry(manifest.order),
+        load: async (entry, signal) => {
+          const r = await fetch(`${base}/${entry.file}`, { signal })
+          if (!r.ok) throw new Error(`tile ${entry.ipix}: HTTP ${r.status}`)
+          return tiles.decodeTile(await tiles.maybeGunzip(await r.arrayBuffer()))
+        },
+        starsOf: (t) => t.count,
+        budgetStars: tier.gaiaBudget,
+        cacheStars: tier.gaiaCache,
+        concurrency: tier.concurrency,
+        onLoaded: (ipix, tile) => layer.add(ipix, tile),
+        onEvicted: (ipix) => layer.remove(ipix),
+        onUnavailable: () => {
+          this.gaiaState = 'unavailable'
+        },
+      })
+      this.gaiaState = 'ready'
+    } catch (err) {
+      this.gaiaState = 'unavailable'
+      if (import.meta.env.DEV) console.warn('streamed stars:', err)
+    }
+  }
+
+  // Each frame in the satellite view: plan the tiles for the view (a few
+  // times a second, or when the view moves), keep the frame rate up by
+  // scaling the budget, and draw the stars brighter than the limit.
+  private updateGaia(cam: THREE.PerspectiveCamera, fov: number) {
+    const stars = this.gaiaStars
+    const streamer = this.gaiaStreamer
+    const space = this.space
+    if (!stars || !streamer || !space || this.gaiaState !== 'ready') return
+    const now = performance.now()
+    if (this.gaiaFrameAt) {
+      const scale = this.gaiaGuard?.observe(now - this.gaiaFrameAt, now) ?? 1
+      const budget = Math.round(this.gaiaBudgetNominal() * scale)
+      if (budget !== this.gaiaBudget) {
+        this.gaiaBudget = budget
+        streamer.setBudget(budget)
+      }
+    }
+    this.gaiaFrameAt = now
+    const look = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
+    const dir = space.sceneToJ2000Dir([look.x, look.y, look.z])
+    const prev = this.gaiaPlanView
+    const radius = this.gaiaViewRadius(fov, cam.aspect)
+    const moved = prev ? Math.acos(Math.min(1, dir[0] * prev.dir[0] + dir[1] * prev.dir[1] + dir[2] * prev.dir[2])) * (180 / Math.PI) : 99
+    const zoomed = prev ? Math.abs(Math.log(fov / prev.fov)) > 0.03 : true
+    if (now - this.gaiaPlanAt > 400 || (now - this.gaiaPlanAt > 100 && (moved > radius * 0.08 || zoomed))) {
+      this.gaiaPlanAt = now
+      this.gaiaPlanView = { dir, fov }
+      streamer.update({ centre: dir, radiusDeg: radius, limitMag: this.gaiaLimitMag(fov) })
+    }
+    const limit = Math.min(this.gaiaLimitMag(fov), streamer.effectiveLimit)
+    this.gaiaDrawn = stars.setLimit(limit, new Set(streamer.inView))
+  }
+
+  private gaiaBudgetNominal() {
+    const phone = this.container.clientWidth < 640 || this.container.clientHeight < 500
+    return phone ? 300_000 : 1_500_000
+  }
+
+  private gaiaViewRadius(fov: number, aspect: number) {
+    const v = Math.tan((fov * Math.PI) / 360)
+    return Math.min(180, (Math.atan(Math.hypot(v, v * Math.max(0.1, aspect))) * 180) / Math.PI)
+  }
+
+  private gaiaLimitMag(fov: number) {
+    // The rule the Hipparcos stars use, extended to the tiles' depth.
+    return Math.min(GAIA_LIMIT, Math.max(5, 6.5 + 2.5 * Math.log10(60 / Math.max(fov, 1e-3))))
+  }
+
+  /** The streamed stars' state for the panel readout and the footnote credit. */
+  private gaiaInfo() {
+    const st = this.gaiaStreamer?.stats
+    return {
+      state: this.gaiaState,
+      /** Gaia stars drawn in the view now. */
+      drawn: this.gaiaDrawn,
+      tilesLoaded: this.gaiaStars?.tileCount ?? 0,
+      tilesInView: this.gaiaStreamer?.inView.length ?? 0,
+      heldStars: this.gaiaStars?.heldStars ?? 0,
+      inFlight: st?.inFlight ?? 0,
+      requests: st?.requests ?? 0,
+      aborted: st?.aborted ?? 0,
+      failed: st?.failed ?? 0,
+      evicted: st?.evicted ?? 0,
+      budget: this.gaiaBudget,
+      limit: this.gaiaStreamer?.effectiveLimit ?? 0,
+      credit: this.gaiaManifest?.attribution.credit ?? null,
+      source: this.gaiaBase,
     }
   }
 
