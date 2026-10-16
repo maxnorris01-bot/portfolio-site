@@ -423,6 +423,37 @@ const VARIABILITY = [
  * parallax, spectral type) show as "loading" and are absent if loading
  * failed.
  */
+/**
+ * The card's distance row from a parallax and its error, with the same
+ * honesty everywhere: a distance with its error only for a parallax measured
+ * to 10%, a range to 30%, "uncertain" beyond, and a plain statement when
+ * there is no usable parallax.
+ */
+export function distanceRow(plxMas: number | null, eplxMas: number | null): CardRow {
+  const d = distanceFromParallax(plxMas, eplxMas)
+  if (d.kind === 'measured') {
+    const pm = d.plusMinusLy! < 0.05 ? '' : ` ± ${lyText(d.plusMinusLy!)}`
+    return { label: 'Distance', value: `${lyText(d.ly!)}${pm} light-years`, note: 'from its parallax' }
+  }
+  if (d.kind === 'range') {
+    return {
+      label: 'Distance',
+      value: `about ${lyText(sig2(d.ly!))} light-years (between ${lyText(d.minLy!)} and ${lyText(d.maxLy!)})`,
+      estimate: true,
+      note: 'its parallax is only measured to within 10-30%',
+    }
+  }
+  if (d.kind === 'lower') {
+    return {
+      label: 'Distance',
+      value: `uncertain: at least ${lyText(sig2(d.minLy!))} light-years`,
+      estimate: true,
+      note: 'its parallax is too small to measure well',
+    }
+  }
+  return { label: 'Distance', value: 'no usable parallax measurement' }
+}
+
 export function starCardRows(s: StarCardInput): CardRow[] {
   const rows: CardRow[] = []
   if (s.constellation) rows.push({ label: 'Constellation', value: s.constellation.name })
@@ -440,27 +471,7 @@ export function starCardRows(s: StarCardInput): CardRow[] {
   if (!r) {
     if (s.loading) rows.push({ label: 'Distance', value: 'loading…' })
   } else {
-    const d = distanceFromParallax(r.plxMas, r.eplxMas)
-    if (d.kind === 'measured') {
-      const pm = d.plusMinusLy! < 0.05 ? '' : ` ± ${lyText(d.plusMinusLy!)}`
-      rows.push({ label: 'Distance', value: `${lyText(d.ly!)}${pm} light-years`, note: 'from its parallax' })
-    } else if (d.kind === 'range') {
-      rows.push({
-        label: 'Distance',
-        value: `about ${lyText(sig2(d.ly!))} light-years (between ${lyText(d.minLy!)} and ${lyText(d.maxLy!)})`,
-        estimate: true,
-        note: 'its parallax is only measured to within 10-30%',
-      })
-    } else if (d.kind === 'lower') {
-      rows.push({
-        label: 'Distance',
-        value: `uncertain: at least ${lyText(sig2(d.minLy!))} light-years`,
-        estimate: true,
-        note: 'its parallax is too small to measure well',
-      })
-    } else {
-      rows.push({ label: 'Distance', value: 'no usable parallax measurement' })
-    }
+    rows.push(distanceRow(r.plxMas, r.eplxMas))
     const sp = spectralGloss(r.spectral)
     if (sp) rows.push({ label: 'Spectral type', value: `${sp.type}: ${sp.gloss}` })
   }

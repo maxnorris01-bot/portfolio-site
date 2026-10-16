@@ -909,6 +909,8 @@ export default function SatelliteGlobe({
   }
   // The star selected in the satellite view's sky, as card rows.
   const spaceStar = viewMode === 'pov' ? (povInfo?.sky.star ?? null) : null
+  // The selected streamed Gaia star: its card rows and what the lookups have found.
+  const gaiaStar = viewMode === 'pov' ? (povInfo?.sky.gaiaStar ?? null) : null
   // A constellation picked by tapping its name (null otherwise).
   const spaceConstellation = viewMode === 'pov' ? (povInfo?.sky.constellations.selected ?? null) : null
   // The star card's constellation name: show its figure and turn the view to it.
@@ -1017,6 +1019,8 @@ export default function SatelliteGlobe({
   const miniTitle =
     viewMode === 'pov' && spaceStar && !spaceBody
       ? spaceStar.name
+      : viewMode === 'pov' && gaiaStar && !spaceBody
+        ? gaiaStar.name
       : viewMode === 'pov' && spaceConstellation
         ? spaceConstellation.name
       : viewMode === 'pov' && spaceBody
@@ -1712,7 +1716,49 @@ export default function SatelliteGlobe({
                 </p>
               </div>
             )}
-            {viewMode === 'pov' && spaceConstellation && !spaceStar && !spaceBody && (
+            {viewMode === 'pov' && gaiaStar && !spaceStar && !spaceBody && (
+              <div className="globe-panel globe-space-body" role="region" aria-label={`${gaiaStar.name}, selected in the sky`}>
+                <div className="globe-panel-head">
+                  <p className="globe-panel-title">Star (Gaia)</p>
+                  <button
+                    type="button"
+                    className="globe-close"
+                    aria-label="Close"
+                    onClick={() => engineRef.current?.selectStar(-1)}
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="globe-inspect-name">{gaiaStar.name}</p>
+                <dl className="globe-space-facts">
+                  {gaiaStar.rows.map((r) => (
+                    <Fragment key={r.label}>
+                      <dt>{r.label}</dt>
+                      <dd>
+                        {r.label === 'Constellation' && gaiaStar.constellation && !povInfo?.sky.constellations.failed ? (
+                          <button
+                            type="button"
+                            className="globe-const-link"
+                            aria-label={`${r.value}: show its figure and turn the view to it`}
+                            onClick={() => showConstellation(gaiaStar.constellation!.symbol, r.value)}
+                          >
+                            {r.value}
+                          </button>
+                        ) : (
+                          r.value
+                        )}
+                        {r.estimate && <span className="globe-star-est"> (estimate)</span>}
+                        {r.note && <span className="globe-star-note">{r.note}</span>}
+                      </dd>
+                    </Fragment>
+                  ))}
+                </dl>
+                <p className="globe-muted globe-star-source">
+                  Gaia DR3 (Credit: ESA, Gaia DPAC; CC BY-NC 3.0 IGO). The name, type and spectral type come from SIMBAD (CDS) when it has the star.
+                </p>
+              </div>
+            )}
+            {viewMode === 'pov' && spaceConstellation && !spaceStar && !gaiaStar && !spaceBody && (
               <div
                 className="globe-panel globe-space-body"
                 role="region"

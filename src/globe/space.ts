@@ -11,7 +11,7 @@
 import * as THREE from 'three'
 import { SKY_BODIES, markerSizePx } from './skybodies.ts'
 import { bodyPixels, type SpaceBodyView } from './spacebodies.ts'
-import { SKY_RADIUS, STAR_MAX_PX, pickStar, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
+import { SKY_RADIUS, STAR_MAX_PX, j2000ToScene, pickStarScored, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
 
 export { SKY_RADIUS }
 
@@ -147,10 +147,15 @@ export class StarField {
     return [a[i * 3] / SKY_RADIUS, a[i * 3 + 1] / SKY_RADIUS, a[i * 3 + 2] / SKY_RADIUS]
   }
 
-  /** The star a click or tap at this ray selects (catalogue index, or -1): see pickStar. */
-  pick(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): number {
+  /** The star a click or tap at this ray selects (catalogue index, or -1) and its score: see pickStarScored. */
+  pickScored(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): { index: number; score: number } {
     const a = (this.geometry.getAttribute('position') as THREE.BufferAttribute).array as Float32Array
-    return pickStar(a, this.mags, this.count, ray, fovDeg, screenPx, radiusPx, SKY_RADIUS)
+    return pickStarScored(a, this.mags, this.count, ray, fovDeg, screenPx, radiusPx, SKY_RADIUS)
+  }
+
+  /** The star a click or tap at this ray selects (catalogue index, or -1). */
+  pick(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): number {
+    return this.pickScored(ray, fovDeg, screenPx, radiusPx).index
   }
 
   /** The shared material (the streamed stars use the same one). */
@@ -595,6 +600,11 @@ export class SpaceView {
     this.rotating.push(layer)
     this.group.add(layer.group)
     if (this.lastRotation) layer.setRotation(this.lastRotation)
+  }
+
+  /** A J2000 unit vector in scene axes, as the sky is turned now (null before the first date is set). */
+  j2000ToSceneDir(v: readonly [number, number, number]): [number, number, number] | null {
+    return this.lastRotation ? j2000ToScene([v[0], v[1], v[2]], this.lastRotation) : null
   }
 
   /** A scene-axes direction as a J2000 unit vector (the inverse of how the stars are turned). */

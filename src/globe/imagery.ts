@@ -105,6 +105,9 @@ export const GAIA_CREDIT =
   'Licence: CC BY-NC 3.0 IGO (creativecommons.org/licenses/by-nc/3.0/igo), adapted (stars selected, moved to 2026, packed); ' +
   'this site is non-commercial'
 
+/** The acknowledgement CDS asks for, shown while a SIMBAD result is on screen. */
+export const SIMBAD_CREDIT = 'This research has made use of the SIMBAD database, CDS, Strasbourg Astronomical Observatory, France (Wenger et al. 2000)'
+
 /** What the satellite view's sky is showing, for its credits. */
 export interface SkyStatus {
   /** Stars drawn (0 until the catalogue loads). */
@@ -118,6 +121,8 @@ export interface SkyStatus {
   /** Streamed Gaia stars are drawn (a count), or the glow built from Gaia is shown. */
   gaia?: { drawn: number }
   glow?: boolean
+  /** A SIMBAD result (a name, type or spectral type) is on screen. */
+  simbad?: boolean
   /** Constellation figures, and the IAU boundaries, are on screen. */
   constellations?: { lines: boolean; boundaries: boolean }
 }
@@ -143,6 +148,7 @@ export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
   if (sky.milkyWay) out.push(MILKY_WAY_CREDIT)
   if ((sky.gaia?.drawn ?? 0) > 0 || sky.glow) out.push(GAIA_CREDIT)
   if (sky.names && sky.starSelected) out.push(IAU_NAMES_CREDIT)
+  if (sky.simbad) out.push(SIMBAD_CREDIT)
   if (sky.constellations?.lines) out.push(CONSTELLATION_FIGURES_CREDIT)
   if (sky.constellations?.boundaries) out.push(CONSTELLATION_BOUNDARIES_CREDIT)
   return out
