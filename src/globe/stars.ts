@@ -187,7 +187,7 @@ export const STAR_PICK_PX = { mouse: 12, touch: 20 } as const
  * `dirs` are unit-direction multiples (3 per star, any common scale) in the
  * same frame as `ray`; `fovDeg` and `screenPx` give the angle per pixel.
  */
-export function pickStar(
+export function pickStarScored(
   dirs: Float32Array,
   mags: Float32Array,
   count: number,
@@ -196,13 +196,14 @@ export function pickStar(
   screenPx: number,
   radiusPx: number,
   scale = 1,
-): number {
+  catalogLimit = 12,
+): { index: number; score: number } {
   const degPerPx = fovDeg / Math.max(1, screenPx)
   const maxRad = (Math.min(radiusPx * degPerPx, 89) * Math.PI) / 180
   // Chord lengths, not cosines: at a 0.01 degree field the pick radius is a
   // few microradians, which 1 - cos() can't resolve in float precision.
   const maxChord2 = (2 * Math.sin(maxRad / 2)) ** 2
-  const limit = limitingMagnitude(fovDeg)
+  const limit = limitingMagnitude(fovDeg, catalogLimit)
   let best = -1
   let bestScore = Infinity
   for (let i = 0; i < count; i++) {
@@ -219,5 +220,20 @@ export function pickStar(
       best = i
     }
   }
-  return best
+  return { index: best, score: bestScore }
+}
+
+/** pickStar's choice alone: the catalogue index, or -1. */
+export function pickStar(
+  dirs: Float32Array,
+  mags: Float32Array,
+  count: number,
+  ray: Vec3,
+  fovDeg: number,
+  screenPx: number,
+  radiusPx: number,
+  scale = 1,
+  catalogLimit = 12,
+): number {
+  return pickStarScored(dirs, mags, count, ray, fovDeg, screenPx, radiusPx, scale, catalogLimit).index
 }

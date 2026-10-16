@@ -95,16 +95,32 @@ export const STARS_CREDIT =
   'Stars: the Hipparcos Catalogue (ESA, 1997, The Hipparcos and Tycho Catalogues, ESA SP-1200). ' +
   'Credit: ESA. Licence: CC BY-NC 3.0 IGO; this site is non-commercial'
 
+/**
+ * The Gaia data's credit, as ESA's archive terms specify ("ESA, Gaia DPAC"),
+ * with its licence, a note that it was adapted, and the site's non-commercial
+ * use. Shown while streamed stars or the glow built from them are on screen.
+ */
+export const GAIA_CREDIT =
+  'Stars: Gaia DR3 (Gaia Collaboration, 2022). Credit: ESA, Gaia DPAC. ' +
+  'Licence: CC BY-NC 3.0 IGO (creativecommons.org/licenses/by-nc/3.0/igo), adapted (stars selected, moved to 2026, packed); ' +
+  'this site is non-commercial'
+
+/** The acknowledgement CDS asks for, shown while a SIMBAD result is on screen. */
+export const SIMBAD_CREDIT = 'This research has made use of the SIMBAD database, CDS, Strasbourg Astronomical Observatory, France (Wenger et al. 2000)'
+
 /** What the satellite view's sky is showing, for its credits. */
 export interface SkyStatus {
   /** Stars drawn (0 until the catalogue loads). */
   stars: number
-  /** The Milky Way band is shown. */
-  milkyWay?: boolean
   /** The IAU star names have been loaded (a star was selected or searched for). */
   names?: boolean
   /** A star is selected, so its IAU name or card is on screen. */
   starSelected?: boolean
+  /** Streamed Gaia stars are drawn (a count), or the glow built from Gaia is shown. */
+  gaia?: { drawn: number }
+  glow?: boolean
+  /** A SIMBAD result (a name, type or spectral type) is on screen. */
+  simbad?: boolean
   /** Constellation figures, and the IAU boundaries, are on screen. */
   constellations?: { lines: boolean; boundaries: boolean }
 }
@@ -118,17 +134,14 @@ export const CONSTELLATION_BOUNDARIES_CREDIT = 'Constellation boundaries: IAU (D
 /** The IAU's catalogue of star names (public domain / CC Attribution), shown while a name is on screen. */
 export const IAU_NAMES_CREDIT = 'Star names: IAU Catalog of Star Names (IAU Working Group on Star Names)'
 
-/** NASA SVS's requested credit for the Deep Star Maps (public domain; the credit is requested, not required). */
-export const MILKY_WAY_CREDIT =
-  'Milky Way: NASA/Goddard Space Flight Center Scientific Visualization Studio, Deep Star Maps 2020; Gaia DR2: ESA/Gaia/DPAC'
-
 /** The sky's credits: the star catalogue while its stars are on screen in the satellite view. */
 export function skyCredits(viewMode: string, sky: SkyStatus | null): string[] {
   if (viewMode !== 'pov' || !sky) return []
   const out: string[] = []
   if (sky.stars > 0) out.push(STARS_CREDIT)
-  if (sky.milkyWay) out.push(MILKY_WAY_CREDIT)
+  if ((sky.gaia?.drawn ?? 0) > 0 || sky.glow) out.push(GAIA_CREDIT)
   if (sky.names && sky.starSelected) out.push(IAU_NAMES_CREDIT)
+  if (sky.simbad) out.push(SIMBAD_CREDIT)
   if (sky.constellations?.lines) out.push(CONSTELLATION_FIGURES_CREDIT)
   if (sky.constellations?.boundaries) out.push(CONSTELLATION_BOUNDARIES_CREDIT)
   return out

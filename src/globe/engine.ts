@@ -54,6 +54,11 @@ import {
 } from './stardetails'
 import type { ConstellationToggle, Rect as LabelRect, ResolvedFigure } from './constellations'
 import type { ConstellationLayer } from './constellationlayer'
+import type { DecodedTile, GaiaDetail, GaiaDetails, Manifest } from './gaiatiles'
+import type { SimbadClient, SimbadState } from './simbad'
+import type { GaiaStars } from './gaiastars'
+import type { FrameGuard, TileStreamer } from './tilestream'
+import { starDataUrl } from './stardataurl'
 import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
 import { overlayFade } from './imagery'
 import {
@@ -189,9 +194,9 @@ const STAR_CATALOG_URL = '/data/stars/hipparcos.bin'
 const STAR_DETAILS_URL = '/data/stars/hipparcos-details.bin'
 const STAR_NAMES_URL = '/data/stars/iau-names.json'
 const CONSTELLATIONS_URL = '/data/stars/constellations.json'
+/** The faintest V-equivalent magnitude the streamed Gaia stars (G < 13) reach. */
+const GAIA_LIMIT = 14
 const CONSTELLATION_BOUNDS_URL = '/data/stars/constellation-bounds.json'
-/** The Milky Way band: NASA SVS Deep Star Maps 2020, resized (public/data/sky/ATTRIBUTION.md). */
-const MILKY_WAY_URL = '/data/sky/milkyway-2k.jpg'
 // Two taps or clicks this close in time and place are a double tap (zoom in).
 const DOUBLE_TAP_MS = 350
 const DOUBLE_TAP_PX = 30
@@ -414,8 +419,41 @@ export class GlobeEngine {
   // first time the view opens; and the files they come from.
   private space: import('./space').SpaceView | null = null
   private spaceLoading = false
+  // The streamed Gaia stars: the manifest, the streamer and the layer, loaded
+  // after the Hipparcos stars; 'unavailable' falls back to Hipparcos alone.
+  private gaiaState: 'off' | 'loading' | 'ready' | 'unavailable' = 'off'
+  private gaiaManifest: Manifest | null = null
+  private gaiaStars: GaiaStars | null = null
+  private gaiaStreamer: TileStreamer<DecodedTile> | null = null
+  private gaiaGuard: FrameGuard | null = null
+  private gaiaBudget = 0
+  private gaiaBase = ''
+  private gaiaDrawn = 0
+  private gaiaPlanAt = 0
+  private gaiaPlanView: { dir: [number, number, number]; fov: number } | null = null
+  private gaiaFrameAt = 0
+  // A selected Gaia star (its tile and place in it, and what the tile gives
+  // for the card at once), its details (loaded on demand) and the SIMBAD
+  // lookup for its name; selecting anything else clears them.
+  private gaiaSel: {
+    ipix: number
+    i: number
+    g: number
+    cq: number
+    mag: number
+    dirJ2000: [number, number, number]
+    raDeg: number
+    decDeg: number
+    constellation: { name: string; symbol: string } | null
+  } | null = null
+  private gaiaDetail: GaiaDetail | null = null
+  private gaiaDetailState: 'idle' | 'loading' | 'ready' | 'failed' = 'idle'
+  private readonly gaiaDetailCache = new Map<number, Promise<GaiaDetails>>()
+  private simbadClient: SimbadClient | null = null
+  private simbadState: SimbadState = { kind: 'idle' }
+  private cardMod: typeof import('./gaiacard') | null = null
   private starCount = 0
-  private milkyWay = false
+  private glowShown = false
   // The Sun, Moon and planets from the satellite: refreshed a few times a
   // second, laid out each frame; the selected one and each one's screen spot.
   private spaceBodyAt = 0
@@ -1192,6 +1230,7 @@ export class GlobeEngine {
       this.constLabelRects = []
       this.spaceSelected = null
       this.spaceStar = -1
+      this.clearGaiaSelection()
       this.spaceConstellation = -1
       this.track = null
     }
@@ -1265,12 +1304,7 @@ export class GlobeEngine {
         if (this.disposed) return
         space.setStars(new m.StarField(catalog, this.renderer.getPixelRatio()))
         this.starCount = catalog.count
-        // The Milky Way band behind the stars (a small JPEG), when it loads.
-        new THREE.TextureLoader().load(MILKY_WAY_URL, (tex) => {
-          if (this.disposed || this.space !== space) return tex.dispose()
-          space.addBackdrop(new m.MilkyWay(tex))
-          this.milkyWay = true
-        })
+        void this.startGaia(space, tier)
       })
       .catch((err: unknown) => {
         // No stars this time: the satellite view works without them.
@@ -1559,7 +1593,10 @@ export class GlobeEngine {
       /** What's drawn in the sky (for the footnote's credits). */
       sky: {
         stars: this.starCount,
-        milkyWay: this.milkyWay,
+        glow: this.glowShown,
+        gaia: this.gaiaInfo(),
+        gaiaStar: this.gaiaStarInfo(),
+        simbad: !!this.gaiaSel && this.simbadState.kind === 'found',
         names: this.starNames !== null,
         starSelected: this.spaceStar >= 0,
         star: this.starInfo(),
@@ -1691,6 +1728,7 @@ export class GlobeEngine {
     if (this.space && this.bodyEphem) {
       this.space.setDate(date, this.bodyEphem.j2000ToDateMatrix)
       this.space.update(cam, fov, date)
+      this.updateGaia(cam, fov)
       this.updateSpaceBodies(date, pos, cam, fov)
       this.space.glow.update(cam.position, this.earthUniforms.sunDir.value)
     }
@@ -1861,12 +1899,15 @@ export class GlobeEngine {
       this.container.appendChild(label)
       this.spaceStarLabel = label
     }
-    if (!stars || this.spaceStar < 0 || this.spaceStar >= stars.count || this.viewMode !== 'pov') {
+    const gaia = this.gaiaSel
+    const gaiaDir = gaia ? this.space?.j2000ToSceneDir(gaia.dirJ2000) ?? null : null
+    const hipSelected = !!stars && this.spaceStar >= 0 && this.spaceStar < stars.count
+    if ((!hipSelected && !gaiaDir) || this.viewMode !== 'pov') {
       ring.hidden = true
       if (label) label.hidden = true
       return
     }
-    const d = stars.direction(this.spaceStar)
+    const d = gaiaDir ?? stars!.direction(this.spaceStar)
     const eye = cam.position
     const p = new THREE.Vector3(d[0], d[1], d[2]).multiplyScalar(SKY_RADIUS_UNITS).add(eye).project(cam)
     const b = eye.x * d[0] + eye.y * d[1] + eye.z * d[2]
@@ -1882,8 +1923,12 @@ export class GlobeEngine {
     ring.style.top = `${y}px`
     label.style.left = `${x}px`
     label.style.top = `${y + 22}px`
-    const hip = this.starDetails ? this.starDetails.hip[this.spaceStar] : null
-    label.textContent = hip === null ? 'Star' : starName(hip, this.starNames)
+    if (gaia) {
+      label.textContent = this.cardMod ? this.cardMod.gaiaStarLabel(this.gaiaDetail, this.simbadState) : 'Gaia star'
+    } else {
+      const hip = this.starDetails ? this.starDetails.hip[this.spaceStar] : null
+      label.textContent = hip === null ? 'Star' : starName(hip, this.starNames)
+    }
     this.spaceObstacles.push(
       { x: x - 13, y: y - 13, w: 26, h: 26 },
       { x, y: y + 22, w: 8 + 7.5 * (label.textContent?.length ?? 4), h: 20 },
@@ -1943,6 +1988,285 @@ export class GlobeEngine {
       loading: !record && !this.starDetailsError,
       failed: this.starDetailsError,
     }
+  }
+
+  // ---- Streamed Gaia stars ----
+
+  // Fetch the manifest and set up streaming. Any failure (offline, the data
+  // not uploaded, a bad file) leaves the Hipparcos stars alone and says so.
+  private async startGaia(space: import('./space').SpaceView, tier: (typeof import('./space'))['STAR_TIERS'][keyof (typeof import('./space'))['STAR_TIERS']]) {
+    if (this.gaiaState !== 'off' || !space.stars) return
+    this.gaiaState = 'loading'
+    const base = starDataUrl({ env: import.meta.env.VITE_STAR_DATA_URL as string | undefined, search: window.location.search, dev: import.meta.env.DEV })
+    this.gaiaBase = base
+    try {
+      const [tiles, gaia, stream, healpix, card, simbad] = await Promise.all([
+        import('./gaiatiles'),
+        import('./gaiastars'),
+        import('./tilestream'),
+        import('./healpix'),
+        import('./gaiacard'),
+        import('./simbad'),
+      ])
+      const res = await fetch(`${base}/manifest.json`)
+      if (!res.ok) throw new Error(`manifest: HTTP ${res.status}`)
+      const manifest = tiles.readManifest(await res.json())
+      if (this.disposed || this.space !== space || !space.stars) return
+      const layer = new gaia.GaiaStars(space.stars.starMaterial)
+      space.addRotating(layer)
+      space.stars.setCatalogLimit(GAIA_LIMIT)
+      this.gaiaManifest = manifest
+      this.cardMod = card
+      this.simbadClient = new simbad.SimbadClient((id, state) => {
+        if (this.gaiaDetail?.sourceId === id) this.simbadState = state
+      })
+      this.gaiaStars = layer
+      this.gaiaBudget = tier.gaiaBudget
+      this.gaiaGuard = new stream.FrameGuard()
+      this.gaiaStreamer = new stream.TileStreamer<DecodedTile>({
+        manifest,
+        geometry: healpix.tileGeometry(manifest.order),
+        load: async (entry, signal) => {
+          const r = await fetch(`${base}/${entry.file}`, { signal })
+          if (!r.ok) throw new Error(`tile ${entry.ipix}: HTTP ${r.status}`)
+          return tiles.decodeTile(await tiles.maybeGunzip(await r.arrayBuffer()))
+        },
+        starsOf: (t) => t.count,
+        budgetStars: tier.gaiaBudget,
+        cacheStars: tier.gaiaCache,
+        concurrency: tier.concurrency,
+        onLoaded: (ipix, tile) => layer.add(ipix, tile),
+        onEvicted: (ipix) => layer.remove(ipix),
+        onUnavailable: () => {
+          this.gaiaState = 'unavailable'
+        },
+      })
+      this.gaiaState = 'ready'
+      void this.loadGlow(space, base)
+    } catch (err) {
+      this.gaiaState = 'unavailable'
+      if (import.meta.env.DEV) console.warn('streamed stars:', err)
+    }
+  }
+
+  // The Milky Way's glow from the Gaia atlas (a 40 kB JPEG): decoded, turned into a
+  // longitude-latitude texture in slices (so no frame is held up), and added as the
+  // sky's backdrop. If it can't load the sky is simply the stars on black.
+  private async loadGlow(space: import('./space').SpaceView, base: string) {
+    try {
+      const [glow, layer] = await Promise.all([import('./glow'), import('./glowlayer')])
+      const res = await fetch(`${base}/glow-o7.jpg`)
+      if (!res.ok) throw new Error(`glow: HTTP ${res.status}`)
+      const bitmap = await createImageBitmap(await res.blob(), { colorSpaceConversion: 'none' })
+      if (bitmap.width !== glow.GLOW_ATLAS_WIDTH || bitmap.height !== glow.GLOW_ATLAS_HEIGHT) throw new Error('glow: unexpected size')
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      if (!ctx) throw new Error('glow: no 2d canvas')
+      ctx.drawImage(bitmap, 0, 0)
+      bitmap.close()
+      const atlas = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+      const w = 1024
+      const h = 512
+      const out = new Uint8Array(w * h * 4)
+      for (let y = 0; y < h; y += 32) {
+        glow.fillGlowRows(atlas, out, w, h, y, Math.min(h, y + 32))
+        await new Promise((r) => setTimeout(r, 0))
+        if (this.disposed || this.space !== space) return
+      }
+      space.addBackdrop(new layer.GlowLayer(out, w, h))
+      this.glowShown = true
+    } catch (err) {
+      if (import.meta.env.DEV) console.warn('glow atlas:', err)
+    }
+  }
+
+  // Each frame in the satellite view: plan the tiles for the view (a few
+  // times a second, or when the view moves), keep the frame rate up by
+  // scaling the budget, and draw the stars brighter than the limit.
+  private updateGaia(cam: THREE.PerspectiveCamera, fov: number) {
+    const stars = this.gaiaStars
+    const streamer = this.gaiaStreamer
+    const space = this.space
+    if (!stars || !streamer || !space || this.gaiaState !== 'ready') return
+    const now = performance.now()
+    if (this.gaiaFrameAt) {
+      const scale = this.gaiaGuard?.observe(now - this.gaiaFrameAt, now) ?? 1
+      const budget = Math.round(this.gaiaBudgetNominal() * scale)
+      if (budget !== this.gaiaBudget) {
+        this.gaiaBudget = budget
+        streamer.setBudget(budget)
+      }
+    }
+    this.gaiaFrameAt = now
+    const look = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
+    const dir = space.sceneToJ2000Dir([look.x, look.y, look.z])
+    const prev = this.gaiaPlanView
+    const radius = this.gaiaViewRadius(fov, cam.aspect)
+    const moved = prev ? Math.acos(Math.min(1, dir[0] * prev.dir[0] + dir[1] * prev.dir[1] + dir[2] * prev.dir[2])) * (180 / Math.PI) : 99
+    const zoomed = prev ? Math.abs(Math.log(fov / prev.fov)) > 0.03 : true
+    if (now - this.gaiaPlanAt > 400 || (now - this.gaiaPlanAt > 100 && (moved > radius * 0.08 || zoomed))) {
+      this.gaiaPlanAt = now
+      this.gaiaPlanView = { dir, fov }
+      streamer.update({ centre: dir, radiusDeg: radius, limitMag: this.gaiaLimitMag(fov) })
+    }
+    const limit = Math.min(this.gaiaLimitMag(fov), streamer.effectiveLimit)
+    this.gaiaDrawn = stars.setLimit(limit, new Set(streamer.inView))
+  }
+
+  private gaiaBudgetNominal() {
+    const phone = this.container.clientWidth < 640 || this.container.clientHeight < 500
+    return phone ? 300_000 : 1_500_000
+  }
+
+  private gaiaViewRadius(fov: number, aspect: number) {
+    const v = Math.tan((fov * Math.PI) / 360)
+    return Math.min(180, (Math.atan(Math.hypot(v, v * Math.max(0.1, aspect))) * 180) / Math.PI)
+  }
+
+  private gaiaLimitMag(fov: number) {
+    // The rule the Hipparcos stars use, extended to the tiles' depth.
+    return Math.min(GAIA_LIMIT, Math.max(5, 6.5 + 2.5 * Math.log10(60 / Math.max(fov, 1e-3))))
+  }
+
+  /** The streamed stars' state for the panel readout and the footnote credit. */
+  private gaiaInfo() {
+    const st = this.gaiaStreamer?.stats
+    return {
+      state: this.gaiaState,
+      /** Gaia stars drawn in the view now. */
+      drawn: this.gaiaDrawn,
+      tilesLoaded: this.gaiaStars?.tileCount ?? 0,
+      tilesInView: this.gaiaStreamer?.inView.length ?? 0,
+      heldStars: this.gaiaStars?.heldStars ?? 0,
+      inFlight: st?.inFlight ?? 0,
+      requests: st?.requests ?? 0,
+      aborted: st?.aborted ?? 0,
+      failed: st?.failed ?? 0,
+      evicted: st?.evicted ?? 0,
+      budget: this.gaiaBudget,
+      limit: this.gaiaStreamer?.effectiveLimit ?? 0,
+      credit: this.gaiaManifest?.attribution.credit ?? null,
+      source: this.gaiaBase,
+    }
+  }
+
+  // ---- A selected Gaia star ----
+
+  private clearGaiaSelection() {
+    this.gaiaSel = null
+    this.gaiaDetail = null
+    this.gaiaDetailState = 'idle'
+    this.simbadState = { kind: 'idle' }
+    this.simbadClient?.cancel()
+  }
+
+  /** Select a streamed Gaia star: its card shows the tile's values at once; details and SIMBAD follow. */
+  selectGaiaStar(ipix: number, i: number) {
+    const tile = this.gaiaStars?.tile(ipix)
+    if (!tile || i < 0 || i >= tile.count) return
+    this.selectStar(-1)
+    this.spaceSelected = null
+    this.spaceConstellation = -1
+    const d: [number, number, number] = [tile.dir[i * 3], tile.dir[i * 3 + 1], tile.dir[i * 3 + 2]]
+    const raDeg = ((Math.atan2(d[1], d[0]) * 180) / Math.PI + 360) % 360
+    const decDeg = (Math.asin(Math.max(-1, Math.min(1, d[2]))) * 180) / Math.PI
+    this.gaiaSel = {
+      ipix,
+      i,
+      g: (tile.gq[i] / 11) - 1,
+      cq: tile.cq[i],
+      mag: tile.mag[i],
+      dirJ2000: d,
+      raDeg,
+      decDeg,
+      constellation: this.bodyEphem?.constellationOf(raDeg, decDeg) ?? null,
+    }
+    this.gaiaDetailState = 'loading'
+    const sel = this.gaiaSel
+    void this.loadGaiaDetails(ipix)
+      .then((details) => {
+        if (this.gaiaSel !== sel) return
+        this.gaiaDetail = details.at(i)
+        this.gaiaDetailState = 'ready'
+        // The star's source ID is known: one SIMBAD lookup (debounced, cached).
+        this.simbadClient?.lookup(this.gaiaDetail.sourceId)
+      })
+      .catch(() => {
+        if (this.gaiaSel === sel) this.gaiaDetailState = 'failed'
+      })
+    // Its constellation's figure is highlighted while the card shows, as for a Hipparcos star.
+    void this.ensureConstellations()
+  }
+
+  // A tile's details file (source IDs, parallax), fetched when one of its stars is selected and kept for a few tiles.
+  private loadGaiaDetails(ipix: number): Promise<GaiaDetails> {
+    const cached = this.gaiaDetailCache.get(ipix)
+    if (cached) return cached
+    const entry = this.gaiaManifest?.tiles.get(ipix)
+    if (!entry) return Promise.reject(new Error('no such tile'))
+    const p = import('./gaiatiles').then(async (m) => {
+      const res = await fetch(`${this.gaiaBase}/${entry.detailsFile}`)
+      if (!res.ok) throw new Error(`details ${ipix}: HTTP ${res.status}`)
+      const details = m.readGaiaDetails(await m.maybeGunzip(await res.arrayBuffer()))
+      if (details.count !== entry.count) throw new Error('details do not match their tile')
+      return details
+    })
+    p.catch(() => this.gaiaDetailCache.delete(ipix))
+    this.gaiaDetailCache.set(ipix, p)
+    while (this.gaiaDetailCache.size > 6) this.gaiaDetailCache.delete(this.gaiaDetailCache.keys().next().value as number)
+    return p
+  }
+
+  // The selected Gaia star for the card.
+  private gaiaStarInfo() {
+    const sel = this.gaiaSel
+    const card = this.cardMod
+    if (!sel || !card) return null
+    const bprp = sel.cq === 0 ? null : sel.cq / 25 - 1
+    const input = {
+      g: sel.g,
+      bprp,
+      raDeg: sel.raDeg,
+      decDeg: sel.decDeg,
+      constellation: sel.constellation,
+      detail: this.gaiaDetail,
+      detailLoading: this.gaiaDetailState === 'loading',
+      detailFailed: this.gaiaDetailState === 'failed',
+      simbad: this.simbadState,
+    }
+    return {
+      name: card.gaiaStarName(this.gaiaDetail, this.simbadState),
+      rows: card.gaiaCardRows(input),
+      constellation: sel.constellation,
+      sourceId: this.gaiaDetail?.sourceId ?? null,
+      simbadFound: this.simbadState.kind === 'found',
+    }
+  }
+
+  // The star (Hipparcos or streamed Gaia) a client point selects: both layers use the same radius and the same
+  // score (pixels plus 1.5 per magnitude), so the better candidate wins whichever layer it is in.
+  private pickAnyStar(clientX: number, clientY: number, touch: boolean):
+    | { kind: 'hip'; index: number; mag: number }
+    | { kind: 'gaia'; ipix: number; i: number; mag: number }
+    | null {
+    const stars = this.space?.stars
+    if (!stars) return null
+    const cam = this.povCamera
+    const [nx, ny] = this.povNdc(clientX, clientY)
+    const p = new THREE.Vector3(nx, ny, 0.5).unproject(cam).sub(cam.position).normalize()
+    const h = Math.max(1, this.container.clientHeight)
+    const fov = this.povRenderFov || cam.fov
+    const radius = touch ? STAR_PICK_PX.touch : STAR_PICK_PX.mouse
+    const ray: [number, number, number] = [p.x, p.y, p.z]
+    const hip = stars.pickScored(ray, fov, h, radius)
+    const gaia = this.gaiaStars?.pick(ray, fov, h, radius) ?? null
+    if (gaia && (hip.index < 0 || gaia.score < hip.score)) {
+      const mag = this.gaiaStars?.tile(gaia.ipix)?.mag[gaia.i] ?? 99
+      return { kind: 'gaia', ipix: gaia.ipix, i: gaia.i, mag }
+    }
+    return hip.index >= 0 ? { kind: 'hip', index: hip.index, mag: stars.catalog.mag[hip.index] } : null
   }
 
   // ---- Constellations ----
@@ -2028,6 +2352,7 @@ export class GlobeEngine {
 
   /** The figure to emphasise: the selected star's constellation, else the one a label tap selected; -1 for none. */
   private activeFigure(): number {
+    if (this.gaiaSel) return this.constByAbbr.get(this.gaiaSel.constellation?.symbol ?? '') ?? -1
     if (this.spaceStar >= 0) {
       const c = this.spaceStarConstellation
       if (c && c.index === this.spaceStar) return this.constByAbbr.get(c.symbol) ?? -1
@@ -2208,6 +2533,7 @@ export class GlobeEngine {
   /** Select a star by catalogue index (-1 clears it); loads its details. */
   selectStar(index: number) {
     if (index !== this.spaceStar) this.track = null
+    this.clearGaiaSelection()
     this.spaceStar = index
     this.spaceStarConstellation = null
     if (index >= 0) {
@@ -2294,18 +2620,6 @@ export class GlobeEngine {
     const { yaw, pitch } = lookToward(presetView('outward', pos, vel), dir)
     this.povLook.yaw = yaw
     this.povLook.pitch = pitch
-  }
-
-  // The star under a client point, by pick radius scaled to the field of view.
-  private pickSpaceStar(clientX: number, clientY: number, touch: boolean): number {
-    const stars = this.space?.stars
-    if (!stars) return -1
-    const cam = this.povCamera
-    const [nx, ny] = this.povNdc(clientX, clientY)
-    const p = new THREE.Vector3(nx, ny, 0.5).unproject(cam).sub(cam.position).normalize()
-    const h = Math.max(1, this.container.clientHeight)
-    const fov = this.povRenderFov || cam.fov
-    return stars.pick([p.x, p.y, p.z], fov, h, touch ? STAR_PICK_PX.touch : STAR_PICK_PX.mouse)
   }
 
   /** The body under a tap (canvas px), by the Sky view's pick rules; null when none. */
@@ -2793,14 +3107,15 @@ export class GlobeEngine {
             const r = this.renderer.domElement.getBoundingClientRect()
             const touch = e.pointerType === 'touch'
             const body = this.pickSpaceBody(e.clientX - r.left, e.clientY - r.top, touch)
-            const star = body ? -1 : this.pickSpaceStar(e.clientX, e.clientY, touch)
+            const picked = body ? null : this.pickAnyStar(e.clientX, e.clientY, touch)
+            const star = picked ? 0 : -1
             // A bright star beats a figure's name label, a faint one does not;
             // figure lines are not targets (see resolveTap).
             const label =
               body || !this.constMod
                 ? -1
                 : this.constMod.pickLabel(e.clientX - r.left, e.clientY - r.top, this.constLabelRects, touch ? 14 : 6)
-            const starMag = star >= 0 ? (this.space?.stars?.catalog.mag[star] ?? 0) : 0
+            const starMag = picked ? picked.mag : 0
             const hit = this.constMod
               ? this.constMod.resolveTap(body, star, label, starMag)
               : body
@@ -2814,10 +3129,12 @@ export class GlobeEngine {
               this.spaceConstellation = -1
             } else if (hit.kind === 'constellation') {
               this.selectConstellation(hit.index)
+            } else if (hit.kind === 'star' && picked?.kind === 'gaia') {
+              this.selectGaiaStar(picked.ipix, picked.i)
             } else {
               this.spaceSelected = null
               this.spaceConstellation = -1
-              this.selectStar(hit.kind === 'star' ? hit.index : -1)
+              this.selectStar(hit.kind === 'star' && picked?.kind === 'hip' ? picked.index : -1)
             }
           }
           if (isDouble) {

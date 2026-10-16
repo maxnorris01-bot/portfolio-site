@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { test } from 'node:test'
 import { DESCEND_FOV, zoomLockedToward } from '../src/globe/descend.ts'
 import { presetView, type Vec3 } from '../src/globe/pov.ts'
 import { SPACE_FOV_MIN } from '../src/globe/stars.ts'
+import { STAR_TIERS } from '../src/globe/space.ts'
+import { starsReadout } from '../src/globe/starsreadout.ts'
 import {
   CONSTELLATION_BOUNDARIES_CREDIT,
   CONSTELLATION_FIGURES_CREDIT,
+  GAIA_CREDIT,
   IAU_NAMES_CREDIT,
   STARS_CREDIT,
   skyCredits,
@@ -79,4 +82,62 @@ test('the constellation code and files load only when used (type imports aside)'
   // The files are fetched inside ensureConstellations / ensureBounds, not at start-up.
   assert.match(engine, /ensureConstellations\(\): Promise<void> \{[\s\S]*?CONSTELLATIONS_URL/)
   assert.doesNotMatch(src('globe/space.ts'), /constellationlayer/)
+})
+
+test('the Gaia code and files load only after the Hipparcos stars (type imports aside), from the one data URL', () => {
+  const engine = src('globe/engine.ts')
+  for (const m of ['gaiatiles', 'gaiastars', 'tilestream', 'healpix']) {
+    assert.match(engine, new RegExp(`import\\('\\./${m}'\\)`), m)
+    assert.doesNotMatch(engine, new RegExp(`^import (?!type)[^\\n]*from '\\./${m}'`, 'm'), m)
+  }
+  // The star data's URL comes from starDataUrl (one place), never written out in the engine.
+  assert.match(engine, /starDataUrl\(/)
+  assert.doesNotMatch(engine, /tigris/)
+  assert.doesNotMatch(src('globe/space.ts'), /gaiastars|tilestream/)
+})
+
+test('the quality tiers: every Hipparcos star on both (the tiles drop the ones they match), budgets 1.5M and 0.3M', () => {
+  assert.equal(STAR_TIERS.desktop.maxMag, Infinity)
+  assert.equal(STAR_TIERS.phone.maxMag, Infinity)
+  assert.equal(STAR_TIERS.desktop.gaiaBudget, 1_500_000)
+  assert.equal(STAR_TIERS.phone.gaiaBudget, 300_000)
+  assert.ok(STAR_TIERS.phone.gaiaCache < STAR_TIERS.desktop.gaiaCache)
+  assert.ok(STAR_TIERS.phone.concurrency < STAR_TIERS.desktop.concurrency)
+})
+
+test('the Gaia credit appears while streamed stars are drawn, with ESA, Gaia DPAC and the licence', () => {
+  assert.ok(!skyCredits('pov', { stars: 1000, gaia: { drawn: 0 } }).includes(GAIA_CREDIT))
+  assert.ok(skyCredits('pov', { stars: 1000, gaia: { drawn: 5 } }).includes(GAIA_CREDIT))
+  assert.ok(skyCredits('pov', { stars: 1000, glow: true }).includes(GAIA_CREDIT))
+  assert.match(GAIA_CREDIT, /Credit: ESA, Gaia DPAC/)
+  assert.match(GAIA_CREDIT, /CC BY-NC 3\.0 IGO/)
+  assert.match(GAIA_CREDIT, /non-commercial/)
+  assert.deepEqual(skyCredits('globe', { stars: 1000, gaia: { drawn: 5 } }), [])
+})
+
+test('the panel reads out the stars: loading, unavailable (Hipparcos only, said plainly), and streaming', () => {
+  const g = (o: object) => ({ state: 'ready', drawn: 0, tilesLoaded: 0, tilesInView: 0, inFlight: 0, budget: 1_500_000, ...o })
+  assert.match(starsReadout(118217, undefined), /Loading the Gaia star index/)
+  assert.match(starsReadout(118217, g({ state: 'loading' })), /Loading/)
+  const off = starsReadout(118217, g({ state: 'unavailable' }))
+  assert.match(off, /aren't available/)
+  assert.match(off, /118,217 Hipparcos stars only/)
+  assert.match(starsReadout(118217, g({})), /zoom/)
+  const on = starsReadout(118217, g({ drawn: 412880, tilesLoaded: 14, tilesInView: 9, inFlight: 2 }))
+  assert.match(on, /118,217 Hipparcos \+ 412,880 Gaia/)
+  assert.match(on, /14 tiles/)
+  assert.match(on, /2 loading/)
+})
+
+test('the NASA Milky Way picture is gone: no file, no loader, no credit; the Gaia glow is the backdrop through the same hook', () => {
+  assert.equal(existsSync(new URL('../public/data/sky/milkyway-2k.jpg', import.meta.url)), false)
+  assert.equal(existsSync(new URL('../public/data/sky', import.meta.url)), false)
+  for (const f of ['globe/engine.ts', 'globe/space.ts', 'globe/imagery.ts']) {
+    assert.doesNotMatch(src(f), /milkyway|MilkyWay|MILKY_WAY|Deep Star Maps/i, f)
+  }
+  const engine = src('globe/engine.ts')
+  assert.match(engine, /import\('\.\/glowlayer'\)/)
+  assert.doesNotMatch(engine, /^import (?!type)[^\n]*from '\.\/glow(layer)?'/m)
+  assert.match(engine, /space\.addBackdrop\(new layer\.GlowLayer/)
+  assert.match(src('globe/glowlayer.ts'), /implements SkyBackdropLayer/)
 })

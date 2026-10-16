@@ -11,7 +11,7 @@
 import * as THREE from 'three'
 import { SKY_BODIES, markerSizePx } from './skybodies.ts'
 import { bodyPixels, type SpaceBodyView } from './spacebodies.ts'
-import { SKY_RADIUS, STAR_MAX_PX, pickStar, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
+import { SKY_RADIUS, STAR_MAX_PX, j2000ToScene, pickStarScored, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
 
 export { SKY_RADIUS }
 
@@ -26,7 +26,7 @@ export interface SkyContext {
 }
 
 /**
- * A layer drawn behind the stars (the Milky Way band now; streamed deep-sky
+ * A layer drawn behind the stars (the Gaia glow now; streamed deep-sky
  * survey tiles later): an object on the sky sphere, centred on the camera
  * with the stars, drawn before them.
  */
@@ -75,13 +75,31 @@ void main() {
 }
 `
 
+/** The point-sprite material every star layer shares (Hipparcos and the streamed Gaia stars), so they size and fade identically. */
+export function createStarMaterial(pixelRatio: number): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      limitMag: { value: 6.5 },
+      grow: { value: 1 },
+      narrow: { value: 1 },
+      pixelRatio: { value: pixelRatio },
+    },
+    vertexShader: STAR_VERTEX,
+    fragmentShader: STAR_FRAGMENT,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    depthTest: true,
+  })
+}
+
 /** The star field: one point per catalogue star, sized and faded by the field of view. */
 export class StarField {
   readonly points: THREE.Points
   private readonly unitJ2000: Float32Array
   private readonly geometry: THREE.BufferGeometry
   private readonly material: THREE.ShaderMaterial
-  private readonly catalogLimit: number
+  private catalogLimit: number
   private readonly mags: Float32Array
   readonly count: number
   /** The catalogue behind the field (positions in J2000, magnitudes, colours). */
@@ -99,20 +117,7 @@ export class StarField {
     this.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(catalog.count * 3), 3))
     this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     this.geometry.setAttribute('mag', new THREE.BufferAttribute(catalog.mag, 1))
-    this.material = new THREE.ShaderMaterial({
-      uniforms: {
-        limitMag: { value: 6.5 },
-        grow: { value: 1 },
-        narrow: { value: 1 },
-        pixelRatio: { value: pixelRatio },
-      },
-      vertexShader: STAR_VERTEX,
-      fragmentShader: STAR_FRAGMENT,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      depthTest: true,
-    })
+    this.material = createStarMaterial(pixelRatio)
     this.points = new THREE.Points(this.geometry, this.material)
     this.points.frustumCulled = false
     this.points.renderOrder = -1
@@ -142,10 +147,25 @@ export class StarField {
     return [a[i * 3] / SKY_RADIUS, a[i * 3 + 1] / SKY_RADIUS, a[i * 3 + 2] / SKY_RADIUS]
   }
 
-  /** The star a click or tap at this ray selects (catalogue index, or -1): see pickStar. */
-  pick(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): number {
+  /** The star a click or tap at this ray selects (catalogue index, or -1) and its score: see pickStarScored. */
+  pickScored(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): { index: number; score: number } {
     const a = (this.geometry.getAttribute('position') as THREE.BufferAttribute).array as Float32Array
-    return pickStar(a, this.mags, this.count, ray, fovDeg, screenPx, radiusPx, SKY_RADIUS)
+    return pickStarScored(a, this.mags, this.count, ray, fovDeg, screenPx, radiusPx, SKY_RADIUS)
+  }
+
+  /** The star a click or tap at this ray selects (catalogue index, or -1). */
+  pick(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): number {
+    return this.pickScored(ray, fovDeg, screenPx, radiusPx).index
+  }
+
+  /** The shared material (the streamed stars use the same one). */
+  get starMaterial(): THREE.ShaderMaterial {
+    return this.material
+  }
+
+  /** The faintest magnitude the limiting-magnitude rule may reach (it ends at the catalogue's own, until more stars stream in). */
+  setCatalogLimit(mag: number) {
+    this.catalogLimit = Math.max(this.catalogLimit, mag)
   }
 
   update(fovDeg: number) {
@@ -373,70 +393,6 @@ export class SpaceBodies {
   }
 }
 
-// ---- Milky Way: a soft band behind the stars, from the NASA SVS Deep Star
-// Maps 2020 map (celestial coordinates, RA increasing to the left). ----
-
-const MILKY_VERTEX = /* glsl */ `
-varying vec3 vDir;
-void main() {
-  vDir = position;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`
-
-const MILKY_FRAGMENT = /* glsl */ `
-uniform sampler2D map;
-uniform mat3 sceneToJ2000;
-uniform float gain;
-varying vec3 vDir;
-void main() {
-  vec3 d = normalize(sceneToJ2000 * normalize(vDir));
-  float ra = atan(d.y, d.x);
-  float u = fract(0.5 - ra / 6.28318530718);
-  float v = 0.5 + asin(clamp(d.z, -1.0, 1.0)) / 3.14159265359;
-  // The map's pixels are display-referred: a lift and a slight dim keep it a
-  // soft band behind the stars (and never brighter than a bright star).
-  vec3 c = texture2D(map, vec2(u, v)).rgb * gain;
-  gl_FragColor = vec4(c, 1.0);
-  #include <colorspace_fragment>
-}
-`
-
-/** The Milky Way band as a sky backdrop layer (a sphere under the stars, sampling a J2000 map). */
-export class MilkyWay implements SkyBackdropLayer {
-  readonly object: THREE.Mesh
-  private readonly material: THREE.ShaderMaterial
-  private readonly geometry: THREE.SphereGeometry
-
-  constructor(map: THREE.Texture, gain = 1.7) {
-    map.colorSpace = THREE.SRGBColorSpace
-    map.wrapS = THREE.RepeatWrapping
-    map.anisotropy = 1
-    this.geometry = new THREE.SphereGeometry(SKY_RADIUS * 1.05, 48, 24)
-    this.material = new THREE.ShaderMaterial({
-      uniforms: { map: { value: map }, sceneToJ2000: { value: new THREE.Matrix3() }, gain: { value: gain } },
-      vertexShader: MILKY_VERTEX,
-      fragmentShader: MILKY_FRAGMENT,
-      side: THREE.BackSide,
-      depthWrite: false,
-      depthTest: true,
-    })
-    this.object = new THREE.Mesh(this.geometry, this.material)
-    this.object.renderOrder = -2
-    this.object.frustumCulled = false
-  }
-
-  update(ctx: SkyContext) {
-    this.material.uniforms.sceneToJ2000.value.copy(ctx.sceneToJ2000)
-  }
-
-  dispose() {
-    this.geometry.dispose()
-    ;(this.material.uniforms.map.value as THREE.Texture).dispose()
-    this.material.dispose()
-  }
-}
-
 // ---- Atmosphere glow: a thin blue ring along the Earth's limb. ----
 
 const GLOW_RADIUS = 1.03 // about 190 km: the glow is gone well inside it
@@ -524,8 +480,16 @@ export class AtmosphereGlow {
   }
 }
 
-/** Quality by device: phones keep the stars down to magnitude 8 (about 42,000), desktops all of them. */
-export const STAR_TIERS = { phone: { maxMag: 8 }, desktop: { maxMag: Infinity } } as const
+/**
+ * Quality by device. Both keep every Hipparcos star: the Gaia tiles leave out
+ * the Hipparcos stars they match, so a Hipparcos star not loaded would be a
+ * hole in the sky. The streamed Gaia stars differ: stars drawn per view
+ * (the budget), decoded stars kept in the cache, and requests in flight.
+ */
+export const STAR_TIERS = {
+  phone: { maxMag: Infinity, gaiaBudget: 300_000, gaiaCache: 900_000, concurrency: 3 },
+  desktop: { maxMag: Infinity, gaiaBudget: 1_500_000, gaiaCache: 3_000_000, concurrency: 6 },
+} as const
 
 /** A layer fixed in the inertial frame like the stars: turned with them when the day changes. */
 export interface SkyRotatingLayer {
@@ -561,7 +525,7 @@ export class SpaceView {
     this.rotationFor = ''
   }
 
-  /** Add a layer behind the stars (the Milky Way; later, deep-sky tiles). */
+  /** Add a layer behind the stars (the Gaia glow; later, deep-sky tiles). */
   addBackdrop(layer: SkyBackdropLayer) {
     this.backdrops.push(layer)
     this.group.add(layer.object)
@@ -572,6 +536,17 @@ export class SpaceView {
     this.rotating.push(layer)
     this.group.add(layer.group)
     if (this.lastRotation) layer.setRotation(this.lastRotation)
+  }
+
+  /** A J2000 unit vector in scene axes, as the sky is turned now (null before the first date is set). */
+  j2000ToSceneDir(v: readonly [number, number, number]): [number, number, number] | null {
+    return this.lastRotation ? j2000ToScene([v[0], v[1], v[2]], this.lastRotation) : null
+  }
+
+  /** A scene-axes direction as a J2000 unit vector (the inverse of how the stars are turned). */
+  sceneToJ2000Dir(v: readonly [number, number, number]): [number, number, number] {
+    const e = new THREE.Vector3(v[0], v[1], v[2]).applyMatrix3(this.sceneToJ2000)
+    return [e.x, e.y, e.z]
   }
 
   /** The star field once the catalogue has loaded. */

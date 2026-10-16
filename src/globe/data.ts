@@ -1,4 +1,4 @@
-import type { DatasetKey, ObjectsFile } from './types'
+import type { DatasetKey, ObjectsFile } from './types.ts'
 
 // The public bucket (ADR 0009). Its CORS rule allows GET from the site's
 // Vercel origin and localhost, and every objects file is served with
