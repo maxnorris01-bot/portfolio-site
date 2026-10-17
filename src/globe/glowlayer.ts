@@ -80,7 +80,7 @@ export class GlowLayer implements SkyBackdropLayer {
 
   update(ctx: SkyContext) {
     this.material.uniforms.sceneToJ2000.value.copy(ctx.sceneToJ2000)
-    this.material.uniforms.gain.value = this.base * glowGain(ctx.fovDeg)
+    this.material.uniforms.gain.value = this.base * glowGain(ctx.fovDeg) * ctx.dim
   }
 
   dispose() {

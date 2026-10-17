@@ -59,6 +59,7 @@ import type { SimbadClient, SimbadState } from './simbad'
 import type { GaiaStars } from './gaiastars'
 import type { FrameGuard, TileStreamer } from './tilestream'
 import { starDataUrl } from './stardataurl'
+import { SKY_DIM_DEFAULT, stepSkyDim, type SkyDimState, type SkyDimTargets } from './skydim'
 import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
 import { overlayFade } from './imagery'
 import {
@@ -432,6 +433,16 @@ export class GlobeEngine {
   private gaiaPlanAt = 0
   private gaiaPlanView: { dir: [number, number, number]; fov: number } | null = null
   private gaiaFrameAt = 0
+  /**
+   * How much the satellite view dims the sky when it looks at the Earth (the
+   * glow and the stars, never the Sun, Moon, planets, constellations or the
+   * selection), as multipliers with the Earth filling the view, sunlit or on
+   * the night side. A plain object so it can be retuned from the console:
+   * __globe.skyDim.glowSunlit = 0.3 (see skydim.ts).
+   */
+  skyDim: SkyDimTargets = { ...SKY_DIM_DEFAULT }
+  private skyDimState: SkyDimState | null = null
+  private skyDimAt = 0
   // A selected Gaia star (its tile and place in it, and what the tile gives
   // for the card at once), its details (loaded on demand) and the SIMBAD
   // lookup for its name; selecting anything else clears them.
@@ -1225,6 +1236,8 @@ export class GlobeEngine {
       this.povDetached = null
       this.povAnim = null
       this.space?.hide()
+      this.skyDimState = null
+      this.skyDimAt = 0
       for (const el of this.spaceLabels.values()) el.hidden = true
       for (const el of this.constLabels) el.hidden = true
       this.constLabelRects = []
@@ -1551,6 +1564,13 @@ export class GlobeEngine {
       : null
   }
 
+  /** For the ?debug=1 overlay: how much the sky is dimmed for the Earth in view. */
+  debugSkyDim(): string {
+    const s = this.skyDimState
+    if (!s) return 'sky dim: not in the satellite view'
+    return `sky dim: glow ×${s.glow.toFixed(2)}, stars ×${s.stars.toFixed(2)} (Earth in view ${s.e.toFixed(2)}, sunlit ${s.lit.toFixed(2)})`
+  }
+
   /** For the ?debug=1 overlay: the engine's own view and selection state. */
   debugSelection(): string {
     return `${this.viewMode}, inspect ${this.inspectIdx}, group ${this.groupIdx?.length ?? 0} pieces, pov ${this.povIdx}`
@@ -1727,6 +1747,23 @@ export class GlobeEngine {
     for (const o of hidden) o.visible = false
     if (this.space && this.bodyEphem) {
       this.space.setDate(date, this.bodyEphem.j2000ToDateMatrix)
+      // The Earth in view dims the glow and the stars (not the bodies, the lines or the selection).
+      const dimNow = performance.now()
+      const dt = this.skyDimAt ? Math.min(0.25, (dimNow - this.skyDimAt) / 1000) : 0
+      this.skyDimAt = dimNow
+      const look = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion)
+      const sunV = this.earthUniforms.sunDir.value
+      this.skyDimState = stepSkyDim(
+        this.skyDimState,
+        [cam.position.x, cam.position.y, cam.position.z],
+        [look.x, look.y, look.z],
+        [sunV.x, sunV.y, sunV.z],
+        fov,
+        dt,
+        this.reducedMotion?.matches ?? false,
+        this.skyDim,
+      )
+      this.space.setSkyDim(this.skyDimState.glow, this.skyDimState.stars)
       this.space.update(cam, fov, date)
       this.updateGaia(cam, fov)
       this.updateSpaceBodies(date, pos, cam, fov)
