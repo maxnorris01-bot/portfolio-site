@@ -1,14 +1,14 @@
 /* The page: the header and the tool fill the window (gutters scale with it,
    a cap on very large monitors); the text sections below keep a readable width. */
 .sat-page {
-  --sat-gutter: clamp(16px, 2.2vw, 48px);
+  --sat-gutter: var(--wide-gutter);
   /* The gap under the site header: about 24-32px, not the 100px of other pages. */
   padding: clamp(1.25rem, 2vw, 2rem) 0 clamp(2rem, 5vw, 4rem);
 }
 
 .sat-wide {
   width: 100%;
-  max-width: 2500px;
+  max-width: var(--wide-width);
   margin: 0 auto;
   padding: 0 var(--sat-gutter);
 }
