@@ -180,7 +180,7 @@ test('dimming changes only brightness: the same stars are loaded, shown and pick
   assert.equal(createStarMaterial(1).uniforms.dim.value, 1) // full brightness by default
   const src = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')
   // Only the star shader and the glow take the dim; bodies, constellations and the selection do not.
-  assert.match(src('globe/space.ts'), /\* narrow \* dim;/)
+  assert.match(src('globe/space.ts'), /\* narrow \* dim \* bright;/)
   assert.match(src('globe/glowlayer.ts'), /glowGain\(ctx\.fovDeg\) \* ctx\.dim/)
   for (const f of ['globe/spacebodies.ts', 'globe/constellationlayer.ts', 'globe/skybodies.ts']) assert.doesNotMatch(src(f), /\bdim\b|skydim/i, f)
 })
@@ -205,6 +205,7 @@ test('the console hook: the engine carries skyDim with the default values, retun
   assert.match(engine, /this\.skyDim,\n\s+\)/) // passed to stepSkyDim each frame, so edits take effect at once
   assert.match(engine, /debugSkyDim\(\)/)
   const comp = readFileSync(new URL('../src/components/SatelliteGlobe.tsx', import.meta.url), 'utf8')
-  assert.match(comp, /get\('debug'\) === '1'\) Object\.assign\(window, \{ __globe: engine \}\)/)
+  assert.match(comp, /import\.meta\.env\.DEV \|\| debugMode\) Object\.assign\(window, \{ __globe: engine \}\)/)
+  assert.match(comp, /const debugMode = new URLSearchParams\(window\.location\.search\)\.get\('debug'\) === '1'/)
   assert.match(comp, /debugEngine\?\.skyDim/)
 })

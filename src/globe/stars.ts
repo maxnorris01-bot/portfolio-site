@@ -153,14 +153,38 @@ export const STAR_MAX_PX = 9
  * (CSS px) and brightness 0..1. Brighter stars are bigger and brighter; ones
  * near the limit fade in. The same formula runs per star in the shader.
  */
-export function starAppearance(mag: number, fovDeg: number, catalogLimit = 12): { sizePx: number; alpha: number } {
+export function starAppearance(mag: number, fovDeg: number, catalogLimit = 12, tuning: StarTuning = STAR_TUNING_NONE): { sizePx: number; alpha: number } {
   const u = starUniforms(fovDeg, catalogLimit)
-  const above = u.limitMag - mag
+  const above = u.limitMag + tuning.limitOffset * wideLimitWeight(fovDeg) - mag
   if (above <= 0) return { sizePx: 0, alpha: 0 }
-  const sizePx = Math.min(STAR_MAX_PX, (1.2 + 0.55 * above) * u.grow)
+  const sizePx = Math.min(STAR_MAX_PX, (1.2 + 0.55 * above) * u.grow) * tuning.size
   const fadeIn = Math.min(1, above / 1.5)
-  const alpha = Math.min(1, (0.35 + 0.15 * above) * fadeIn) * u.narrow
+  const alpha = Math.min(1, (0.35 + 0.15 * above) * fadeIn) * u.narrow * tuning.brightness
   return { sizePx, alpha }
+}
+
+/**
+ * The debug tuning panel's star settings: an overall brightness multiplier, a
+ * point-size multiplier, and an offset (magnitudes) added to the limiting
+ * magnitude at wide fields. All neutral by default (1, 1, 0).
+ */
+export interface StarTuning {
+  brightness: number
+  size: number
+  limitOffset: number
+}
+
+export const STAR_TUNING_NONE: Readonly<StarTuning> = { brightness: 1, size: 1, limitOffset: 0 }
+
+/**
+ * How much of the limiting-magnitude offset applies at a field of view: all of
+ * it at 15 degrees and wider, none at 5 degrees and narrower, smooth between.
+ * (The viewer itself already reaches fainter stars as the field narrows, so
+ * the offset only matters at wide fields.)
+ */
+export function wideLimitWeight(fovDeg: number): number {
+  const t = Math.min(1, Math.max(0, (fovDeg - 5) / 10))
+  return t * t * (3 - 2 * t)
 }
 
 /**
@@ -197,13 +221,14 @@ export function pickStarScored(
   radiusPx: number,
   scale = 1,
   catalogLimit = 12,
+  limitOffset = 0,
 ): { index: number; score: number } {
   const degPerPx = fovDeg / Math.max(1, screenPx)
   const maxRad = (Math.min(radiusPx * degPerPx, 89) * Math.PI) / 180
   // Chord lengths, not cosines: at a 0.01 degree field the pick radius is a
   // few microradians, which 1 - cos() can't resolve in float precision.
   const maxChord2 = (2 * Math.sin(maxRad / 2)) ** 2
-  const limit = limitingMagnitude(fovDeg, catalogLimit)
+  const limit = limitingMagnitude(fovDeg, catalogLimit) + limitOffset
   let best = -1
   let bestScore = Infinity
   for (let i = 0; i < count; i++) {
