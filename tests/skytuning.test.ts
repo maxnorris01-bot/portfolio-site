@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { GLOW_DEFAULT } from '../src/globe/glowtuning.ts'
+import { GLOW_DEFAULT, STAR_LOOK_DEFAULT } from '../src/globe/glowtuning.ts'
 import { SKY_DIM_DEFAULT, type SkyDimTargets } from '../src/globe/skydim.ts'
 import {
   SKY_TUNING_DEFAULTS,
@@ -30,9 +30,9 @@ const target = (): TuningTarget => ({
   glowGamma: GLOW_DEFAULT.gamma,
   glowBlur: GLOW_DEFAULT.blurDeg,
   skyDim: { ...SKY_DIM_DEFAULT },
-  starBrightness: 1,
-  starSize: 1,
-  wideLimitOffset: 0,
+  starBrightness: STAR_LOOK_DEFAULT.brightness,
+  starSize: STAR_LOOK_DEFAULT.size,
+  wideLimitOffset: STAR_LOOK_DEFAULT.limitOffset,
 })
 const memory = (initial: Record<string, string> = {}) => {
   const m = new Map(Object.entries(initial))
@@ -79,19 +79,19 @@ test('the sliders: the requested ranges, steps that divide them, and defaults in
   assert.equal(new Set(SKY_TUNING_KEYS).size, 11)
 })
 
-test('the defaults are exactly what ships: the glow, the Earth dimming, and no change to the stars', () => {
+test('the defaults are exactly what ships (tuned by hand, 2026-10): the glow, the Earth dimming and the stars', () => {
   assert.deepEqual(SKY_TUNING_DEFAULTS, {
-    glowGain: 0.5,
-    glowSaturation: 0.45,
-    glowGamma: 1.3,
-    glowBlur: 1,
-    skyGlowSunlit: 0.2,
-    skyStarsSunlit: 0.45,
-    skyGlowNight: 0.5,
-    skyStarsNight: 0.75,
-    starBrightness: 1,
+    glowGain: 0.2,
+    glowSaturation: 0.6,
+    glowGamma: 1.35,
+    glowBlur: 0,
+    skyGlowSunlit: 1,
+    skyStarsSunlit: 1,
+    skyGlowNight: 0.19,
+    skyStarsNight: 0.19,
+    starBrightness: 1.1,
     starSize: 1,
-    wideLimitOffset: 0,
+    wideLimitOffset: 3.5,
   })
   // A fresh engine reads back as the defaults, and the panel changes nothing until a slider moves.
   const t = target()
@@ -101,9 +101,9 @@ test('the defaults are exactly what ships: the glow, the Earth dimming, and no c
   assert.deepEqual(readValues(t), SKY_TUNING_DEFAULTS)
   // The engine source holds the same defaults (one place each).
   const engine = readFileSync(new URL('../src/globe/engine.ts', import.meta.url), 'utf8')
-  assert.match(engine, /starBrightness = 1\n/)
-  assert.match(engine, /starSize = 1\n/)
-  assert.match(engine, /wideLimitOffset = 0\n/)
+  assert.match(engine, /starBrightness: number = STAR_LOOK_DEFAULT\.brightness\n/)
+  assert.match(engine, /starSize: number = STAR_LOOK_DEFAULT\.size\n/)
+  assert.match(engine, /wideLimitOffset: number = STAR_LOOK_DEFAULT\.limitOffset\n/)
 })
 
 test('slider to setting: each slider writes the engine setting it names (and only that one), held to its range and step', () => {
@@ -128,7 +128,7 @@ test('slider to setting: each slider writes the engine setting it names (and onl
   writeValue(t, 'skyGlowSunlit', 0.333)
   assert.equal(t.skyDim.glowSunlit, 0.33) // to its step
   writeValue(t, 'glowGain', Number.NaN)
-  assert.equal(t.glowGain, 0.5) // not a number: the default
+  assert.equal(t.glowGain, 0.2) // not a number: the default
   assert.equal(clampValue('starSize', 1.004), 1)
 })
 
@@ -212,7 +212,7 @@ test('Reset to defaults: every value back, a waiting blur dropped, the remembere
   assert.equal(c.values().glowBlur, GLOW_DEFAULT.blurDeg) // the dropped pending blur does not come back
 })
 
-test('Original look: glow 1.0 / 0.7 / 1.5, no blur, sky dimming off, the stars at their defaults', () => {
+test('Original look: glow 1.0 / 0.7 / 1.5, no blur, sky dimming off, the stars neutral (x1, x1, no offset)', () => {
   assert.equal(SKY_TUNING_ORIGINAL.glowGain, 1.0)
   assert.equal(SKY_TUNING_ORIGINAL.glowSaturation, 0.7)
   assert.equal(SKY_TUNING_ORIGINAL.glowGamma, 1.5)
@@ -224,7 +224,9 @@ test('Original look: glow 1.0 / 0.7 / 1.5, no blur, sky dimming off, the stars a
   c.set('starBrightness', 2)
   c.original()
   assert.deepEqual(readValues(t), SKY_TUNING_ORIGINAL)
-  assert.equal(t.starBrightness, 1)
+  assert.equal(t.starBrightness, 1) // neutral: the original look had no star tuning
+  assert.equal(t.starSize, 1)
+  assert.equal(t.wideLimitOffset, 0)
   assert.equal(c.isDefault(), false)
   assert.ok(s.store.has(STORAGE_KEY)) // remembered like any change
   // Every value of the original look is reachable on the sliders (inside their ranges).
@@ -242,10 +244,10 @@ test('Copy settings: a short JSON of every value, at the slider\'s precision, th
   assert.deepEqual(Object.keys(o).sort(), [...SKY_TUNING_KEYS].sort())
   assert.equal(o.glowGain, 0.73)
   assert.equal(o.wideLimitOffset, 2)
-  assert.equal(o.glowSaturation, 0.45)
-  assert.equal(o.skyGlowSunlit, 0.2)
+  assert.equal(o.glowSaturation, 0.6)
+  assert.equal(o.skyGlowSunlit, 1)
   assert.deepEqual(parseJson(json), { ...SKY_TUNING_DEFAULTS, glowGain: 0.73, wideLimitOffset: 2 })
-  assert.equal(toJson(SKY_TUNING_DEFAULTS), JSON.stringify({ glowGain: 0.5, glowSaturation: 0.45, glowGamma: 1.3, glowBlur: 1, skyGlowSunlit: 0.2, skyStarsSunlit: 0.45, skyGlowNight: 0.5, skyStarsNight: 0.75, starBrightness: 1, starSize: 1, wideLimitOffset: 0 }))
+  assert.equal(toJson(SKY_TUNING_DEFAULTS), JSON.stringify({ glowGain: 0.2, glowSaturation: 0.6, glowGamma: 1.35, glowBlur: 0, skyGlowSunlit: 1, skyStarsSunlit: 1, skyGlowNight: 0.19, skyStarsNight: 0.19, starBrightness: 1.1, starSize: 1, wideLimitOffset: 3.5 }))
   // Nonsense is refused or ignored, not applied.
   assert.equal(parseJson('not json'), null)
   assert.equal(parseJson('[1,2]'), null)
@@ -265,7 +267,7 @@ test('remembered values: saved on change, restored by applyStored in debug mode,
   assert.equal(b.glowGain, 1.4)
   assert.equal(b.starBrightness, 1.8)
   assert.equal(b.skyDim.starsSunlit, 0.3)
-  assert.equal(b.glowSaturation, 0.45) // what wasn't touched is still the default
+  assert.equal(b.glowSaturation, 0.6) // what wasn't touched is still the default
   // Nothing remembered: the defaults stay.
   const fresh = target()
   assert.equal(applyStored(fresh, memory()), false)

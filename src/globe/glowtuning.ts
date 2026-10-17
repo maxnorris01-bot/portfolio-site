@@ -13,11 +13,18 @@ export interface GlowTuning {
 }
 
 /**
- * Chosen by eye against screenshots: a faint soft band, not a photograph.
- * Gain 0.5 (half the first version's brightness), saturation 0.45 (from 0.7),
- * a 1 degree blur (the atlas's own pixels are 0.46 degrees, so the glow
- * effectively resolves about 2.4 degrees: the bulge, the Great Rift as a soft
- * darkening and the Magellanic Clouds, but not the dust-lane filaments), and a
- * gamma of 1.3 (from 1.5) because the blur already removes the harsh detail.
+ * Tuned by hand with the debug Sky tuning panel (Max, 2026-10): a faint glow
+ * (gain 0.20), a little colour (saturation 0.60), a touch less contrast than
+ * the first version (gamma 1.35, from 1.5), and no blur: the map is drawn as
+ * the atlas gives it, bilinearly interpolated between pixel centres. With a
+ * blur of 0 the background blur work is skipped altogether.
  */
-export const GLOW_DEFAULT: Readonly<GlowTuning> = { gain: 0.5, saturation: 0.45, gamma: 1.3, blurDeg: 1.0 }
+export const GLOW_DEFAULT: Readonly<GlowTuning> = { gain: 0.2, saturation: 0.6, gamma: 1.35, blurDeg: 0 }
+
+/**
+ * The stars' own tuned look (same panel): brightness x1.10, point size x1,
+ * and 3.5 magnitudes added to the limiting magnitude at fields wider than 15
+ * degrees (fading to nothing by 5 degrees), so a wide view shows far more of
+ * the 118,217 Hipparcos stars than the naked-eye rule alone.
+ */
+export const STAR_LOOK_DEFAULT = { brightness: 1.1, size: 1, limitOffset: 3.5 } as const

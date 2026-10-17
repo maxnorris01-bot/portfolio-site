@@ -85,18 +85,21 @@ test('the day/night blend: sunlit below, night weight on the dark side, smooth t
   }
 })
 
-test('the defaults: sunlit nadir glow ×0.20 stars ×0.45, night glow ×0.50 stars ×0.75; none with no Earth', () => {
-  assert.deepEqual(SKY_DIM_DEFAULT, { glowSunlit: 0.2, starsSunlit: 0.45, glowNight: 0.5, starsNight: 0.75 })
+test('the defaults (tuned by hand): daylight undimmed (1.0), night glow and stars ×0.19; none with no Earth', () => {
+  assert.deepEqual(SKY_DIM_DEFAULT, { glowSunlit: 1, starsSunlit: 1, glowNight: 0.19, starsNight: 0.19 })
   const near = (a: { glow: number; stars: number }, glow: number, stars: number) =>
     assert.ok(Math.abs(a.glow - glow) < 1e-12 && Math.abs(a.stars - stars) < 1e-12, JSON.stringify(a))
-  near(dimFactors(1, 1), 0.2, 0.45)
-  near(dimFactors(1, 0), 0.5, 0.75)
+  near(dimFactors(1, 1), 1, 1) // Earth filling the view in daylight: no change at all
+  near(dimFactors(1, 0), 0.19, 0.19) // over the night side: down to 0.19
   assert.deepEqual(dimFactors(0, 1), { glow: 1, stars: 1 })
   assert.deepEqual(dimFactors(0, 0), { glow: 1, stars: 1 })
-  const half = dimFactors(0.5, 1)
-  assert.ok(Math.abs(half.glow - 0.6) < 1e-12 && Math.abs(half.stars - 0.725) < 1e-12) // mix(1, target, e)
+  near(dimFactors(0.5, 1), 1, 1)
+  const half = dimFactors(0.5, 0)
+  assert.ok(Math.abs(half.glow - 0.595) < 1e-12 && Math.abs(half.stars - 0.595) < 1e-12) // mix(1, target, e)
   const dusk = dimFactors(1, 0.5)
-  assert.ok(Math.abs(dusk.glow - 0.35) < 1e-12) // halfway between the day and night targets
+  assert.ok(Math.abs(dusk.glow - 0.595) < 1e-12) // halfway between the day and night targets
+  // The old defaults (sunlit 0.20 / 0.45, night 0.50 / 0.75) are still reachable on the panel's sliders.
+  near(dimFactors(1, 1, { glowSunlit: 0.2, starsSunlit: 0.45, glowNight: 0.5, starsNight: 0.75 }), 0.2, 0.45)
   // Retunable: another set of targets takes effect.
   near(dimFactors(1, 1, { glowSunlit: 0.1, starsSunlit: 0.3, glowNight: 0.4, starsNight: 0.6 }), 0.1, 0.3)
 })
@@ -130,29 +133,29 @@ test('smoothing: about 400 ms, monotone, never overshoots; gentler (slower) for 
   assert.ok(Math.abs(a - b) < 1e-6)
 })
 
-test('a frame: dim looking down on the sunlit side, less on the night side, none looking out; first frame starts there, no fade-in', () => {
+test('a frame: looking down it is undimmed over daylight and 0.19 over night; none looking out; first frame starts there, no fade-in', () => {
   const cam: Vec3 = [0, 0, R_LEO] // above the +z point of the Earth
   const down: Vec3 = [0, 0, -1]
   const out: Vec3 = [0, 0, 1]
   const sunOver: Vec3 = [0, 0, 1] // the Sun over the sub-satellite point
   const sunAway: Vec3 = [0, 0, -1]
   const day = stepSkyDim(null, cam, down, sunOver, 120, 0, false)
-  assert.ok(Math.abs(day.glow - 0.2) < 1e-9 && Math.abs(day.stars - 0.45) < 1e-9 && day.e === 1 && day.lit === 1)
+  assert.ok(day.glow === 1 && day.stars === 1 && day.e === 1 && day.lit === 1)
   const night = stepSkyDim(null, cam, down, sunAway, 120, 0, false)
-  assert.ok(Math.abs(night.glow - 0.5) < 1e-9 && Math.abs(night.stars - 0.75) < 1e-9)
+  assert.ok(Math.abs(night.glow - 0.19) < 1e-9 && Math.abs(night.stars - 0.19) < 1e-9)
   const dark = stepSkyDim(null, cam, out, sunOver, 120, 0, false)
   assert.deepEqual([dark.glow, dark.stars, dark.e], [1, 1, 0])
-  // Turning from Down to Out while dragging: the factors ease, never jump (60 fps, a 1 s swing).
-  let s: SkyDimState | null = dark
-  let prevGlow = 1
+  // Turning from Down to Out over the night side while dragging: the factors ease, never jump (60 fps, a 1 s swing).
+  let s: SkyDimState | null = stepSkyDim(null, cam, down, sunAway, 120, 0, false)
+  let prevGlow = s.glow
   for (let i = 0; i <= 60; i++) {
     const a = (i / 60) * 180
-    s = stepSkyDim(s, cam, [Math.sin((180 - a) * DEG), 0, -Math.cos((180 - a) * DEG)], sunOver, 120, 1 / 60, false)
+    s = stepSkyDim(s, cam, [Math.sin((180 - a) * DEG), 0, -Math.cos((180 - a) * DEG)], sunAway, 120, 1 / 60, false)
     assert.ok(Math.abs(s.glow - prevGlow) < 0.05, `a jump of ${Math.abs(s.glow - prevGlow)} at frame ${i}`)
     prevGlow = s.glow
   }
   // Held looking out for two more seconds: back to full brightness.
-  for (let i = 0; i < 120; i++) s = stepSkyDim(s, cam, out, sunOver, 120, 1 / 60, false)
+  for (let i = 0; i < 120; i++) s = stepSkyDim(s, cam, out, sunAway, 120, 1 / 60, false)
   assert.ok(s!.glow > 0.99 && s!.stars > 0.99, `back to ${s!.glow}`)
 })
 
