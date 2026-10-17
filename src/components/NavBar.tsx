@@ -1,10 +1,10 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import './NavBar.css'
 
-const links = [
+const links: { to: string; label: string; short?: string }[] = [
   { to: '/', label: 'Home' },
   { to: '/resume', label: 'Resume' },
-  { to: '/satellite-conjunction-screening', label: 'Satellite Screening Tool' },
+  { to: '/satellite-conjunction-screening', label: 'Satellite Point-of-View Tool', short: 'Satellite POV Tool' },
 ]
 
 /** The route whose header matches the wide tool layout. */
@@ -21,7 +21,7 @@ export default function NavBar() {
         </Link>
         <nav aria-label="Primary">
           <ul className="nav-links">
-            {links.map(({ to, label }) => (
+            {links.map(({ to, label, short }) => (
               <li key={to}>
                 <NavLink
                   to={to}
@@ -30,7 +30,16 @@ export default function NavBar() {
                     isActive ? 'nav-link is-active' : 'nav-link'
                   }
                 >
-                  {label}
+                  {short ? (
+                    <>
+                      <span className="nav-label-full">{label}</span>
+                      <span className="nav-label-short" aria-hidden="true">
+                        {short}
+                      </span>
+                    </>
+                  ) : (
+                    label
+                  )}
                 </NavLink>
               </li>
             ))}

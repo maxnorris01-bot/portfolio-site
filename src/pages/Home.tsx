@@ -30,7 +30,7 @@ export default function Home() {
           </p>
           <div className="home-ctas">
             <Link to="/satellite-conjunction-screening" className="btn btn-primary">
-              View the screening tool →
+              Open the Satellite POV Tool →
             </Link>
             <Link to="/resume" className="btn btn-secondary">
               Resume
@@ -53,11 +53,9 @@ export default function Home() {
         <h2 className="eyebrow home-featured-label">Featured project</h2>
         <Link to="/satellite-conjunction-screening" className="card home-featured-card">
           <div>
-            <h3 className="home-featured-title">Satellite Conjunction Screening</h3>
+            <h3 className="home-featured-title">{satelliteTool.name}</h3>
             <p className="home-featured-body">
-              Continuously screens public satellite tracking data for close
-              approaches using real orbital mechanics. The core pipeline makes
-              zero LLM calls.
+              {satelliteTool.intro.join(' ')}
             </p>
             <ul className="chip-list">
               {satelliteTool.techStack.map((t) => (

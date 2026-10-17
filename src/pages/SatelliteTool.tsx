@@ -4,6 +4,7 @@ import { nextView, type MainView, type View } from '../globe/pov'
 import type { DatasetKey, FocusRequest } from '../globe/types'
 import { satelliteTool } from '../data/satelliteTool'
 import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
+import { usePageMeta } from '../hooks/usePageMeta'
 import './SatelliteTool.css'
 
 // three.js and satellite.js load with the globe, on this route only.
@@ -167,6 +168,7 @@ function NearMissList({
 }
 
 export default function SatelliteTool() {
+  usePageMeta(satelliteTool.pageTitle, satelliteTool.pageDescription)
   const { state, retry } = useSatelliteSummary()
   const summary = state.status === 'ready' ? state.summary : null
 
@@ -229,7 +231,7 @@ export default function SatelliteTool() {
       <div className="sat-wide">
         <header className="sat-header">
           <div className="sat-title-row">
-            <h1 className="sat-title">Satellite Conjunction Screening</h1>
+            <h1 className="sat-title">{satelliteTool.name}</h1>
             <ul className="chip-list sat-tech" aria-label="Tech stack">
               {satelliteTool.techStack.map((t) => (
                 <li key={t} className="chip">
@@ -249,11 +251,7 @@ export default function SatelliteTool() {
           <div className="sat-sub-row">
             <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
             <p className="sat-lede">
-              <span>
-                Continuously screens public satellite tracking data for close approaches using real
-                orbital mechanics.
-              </span>{' '}
-              <span>The core pipeline makes zero LLM calls.</span>
+              <span>{satelliteTool.intro[0]}</span> <span>{satelliteTool.intro[1]}</span>
             </p>
           </div>
         </header>
