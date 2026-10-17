@@ -1,48 +1,96 @@
-.sat-eyebrow-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem 1.25rem;
+/* The page: the header and the tool fill the window (gutters scale with it,
+   a cap on very large monitors); the text sections below keep a readable width. */
+.sat-page {
+  --sat-gutter: clamp(16px, 2.2vw, 48px);
+  /* The gap under the site header: about 24-32px, not the 100px of other pages. */
+  padding: clamp(1.25rem, 2vw, 2rem) 0 clamp(2rem, 5vw, 4rem);
 }
 
-.sat-eyebrow-row .eyebrow {
-  margin: 0;
+.sat-wide {
+  width: 100%;
+  max-width: 2500px;
+  margin: 0 auto;
+  padding: 0 var(--sat-gutter);
 }
 
-/* The GitHub button follows the title with a normal gap and wraps below it
-   on narrow screens. */
+/* A compact tool header: title, tags and the GitHub button on one line where
+   they fit, then the eyebrow and the two-sentence description. */
+.sat-header {
+  margin-bottom: clamp(0.6rem, 1vw, 0.9rem);
+}
+
 .sat-title-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem 1.5rem;
-  margin: 0.9rem 0 0.75rem;
+  gap: 0.4rem 1rem;
+  margin: 0;
 }
 
 .sat-title {
   margin: 0;
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(1.45rem, 2.1vw, 2rem);
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.sat-tech {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.sat-tech .chip {
+  font-size: 0.74rem;
+}
+
+.sat-github {
+  margin-left: auto;
+  padding: 0.35em 0.9em;
+  font-size: 0.85rem;
+}
+
+.sat-sub-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 1.25rem;
+  margin-top: 0.3rem;
+}
+
+.sat-sub-row .eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
 }
 
 .sat-lede {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 1.1rem;
+  font-size: 0.98rem;
+  line-height: 1.45;
 }
 
-/* Full page width; each sentence on its own line. */
-.sat-lede span {
-  display: block;
+/* The tool: the map and its controls; its own sizing lives in SatelliteGlobe.css. */
+.sat-tool {
+  min-width: 0;
 }
 
-.sat-tech {
+/* "Data and credits": the footnote that sat under the map, every credit in
+   full, and the sources line. */
+.sat-credits-body {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 70rem;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.sat-credits-body p,
+.sat-credits-body ul {
   margin: 0;
 }
 
-.sat-tech .chip {
-  font-size: 0.78rem;
+.sat-context-slot:not(:empty) {
+  margin-top: clamp(2.5rem, 6vw, 4rem);
 }
 
 /* Latest run beside Risk breakdown. Both columns share four rows (title,
@@ -54,7 +102,6 @@
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   grid-template-rows: repeat(4, auto);
   column-gap: 2rem;
-  margin-top: clamp(2rem, 5vw, 3rem);
 }
 
 .sat-overview > section {
@@ -110,6 +157,11 @@
 
 .sat-section {
   margin-top: clamp(2.5rem, 6vw, 4rem);
+}
+
+/* The page's first text section follows the tool closely. */
+.sat-wide + .container > .sat-section:first-child {
+  margin-top: clamp(1.75rem, 3.5vw, 3rem);
 }
 
 /* Stat tiles */
@@ -327,30 +379,15 @@
 .sat-globe-fallback {
   display: grid;
   place-items: center;
-  height: clamp(380px, 64vh, 660px);
+  height: clamp(420px, 70vh, 900px);
   border-radius: var(--radius);
   background: #05070d;
   color: #a3acbd;
 }
 
-/* Section heading with the Globe | Sky toggle on the right; the toggle wraps
-   under the heading (still right-aligned) when there isn't room. */
-.sat-section-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.sat-section-head .section-title {
-  margin: 0;
-}
-
+/* The Globe | Sky | Satellite switch: at the top of the tool's left column (SatelliteGlobe.css places it). */
 .sat-view-toggle {
   display: inline-flex;
-  margin-left: auto;
   padding: 2px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -454,9 +491,27 @@
   }
 }
 
-@media (max-width: 420px) {
+/* A phone: the three tiles stay in one compact row (they fit at 360px). */
+@media (max-width: 520px) {
   .sat-stats {
-    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .sat-stat {
+    padding: 0.7rem 0.6rem;
+    gap: 0.25rem;
+  }
+
+  .sat-stat dd {
+    font-size: clamp(0.95rem, 4.6vw, 1.35rem);
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .sat-stat dt {
+    font-size: 0.7rem;
+    line-height: 1.25;
+    white-space: normal;
   }
 }
 
@@ -496,5 +551,38 @@
 
   .sat-overview > section {
     display: block;
+  }
+}
+
+/* Phone: a short title block, so the map comes straight after it. */
+@media (max-width: 640px) {
+  .sat-sub-row .eyebrow {
+    display: none;
+  }
+
+  .sat-title {
+    font-size: 1.4rem;
+  }
+
+  .sat-github {
+    margin-left: 0;
+  }
+
+  /* The tags scroll sideways inside their own row rather than stacking up. */
+  .sat-tech {
+    flex-wrap: nowrap;
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .sat-tech .chip {
+    flex: none;
+  }
+
+  .sat-lede {
+    font-size: 0.9rem;
   }
 }

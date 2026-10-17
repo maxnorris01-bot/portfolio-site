@@ -204,6 +204,9 @@ export default function SatelliteTool() {
     [],
   )
   const globeRef = useRef<HTMLElement>(null)
+  // Where the globe puts "For context: the real record" and the full credits: sections of this page, below the tool.
+  const [contextEl, setContextEl] = useState<HTMLDivElement | null>(null)
+  const [creditsEl, setCreditsEl] = useState<HTMLDivElement | null>(null)
   const exitFocus = useCallback(() => setFocus(null), [])
 
   const replay = (n: NearMiss) => {
@@ -222,11 +225,11 @@ export default function SatelliteTool() {
   }
 
   return (
-    <main className="page">
-      <div className="container">
+    <main className="page sat-page">
+      <div className="sat-wide">
         <header className="sat-header">
-          <div className="sat-eyebrow-row">
-            <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
+          <div className="sat-title-row">
+            <h1 className="sat-title">Satellite Conjunction Screening</h1>
             <ul className="chip-list sat-tech" aria-label="Tech stack">
               {satelliteTool.techStack.map((t) => (
                 <li key={t} className="chip">
@@ -234,99 +237,31 @@ export default function SatelliteTool() {
                 </li>
               ))}
             </ul>
-          </div>
-          <div className="sat-title-row">
-            <h1 className="sat-title">Satellite Conjunction Screening</h1>
             <a
               href={satelliteTool.repoUrl}
-              className="btn btn-secondary"
+              className="btn btn-secondary sat-github"
               target="_blank"
               rel="noreferrer"
             >
               View on GitHub ↗
             </a>
           </div>
-          <p className="sat-lede">
-            <span>
-              Continuously screens public satellite tracking data for close approaches using real
-              orbital mechanics.
-            </span>
-            <span>The core pipeline makes zero LLM calls.</span>
-          </p>
+          <div className="sat-sub-row">
+            <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
+            <p className="sat-lede">
+              <span>
+                Continuously screens public satellite tracking data for close approaches using real
+                orbital mechanics.
+              </span>{' '}
+              <span>The core pipeline makes zero LLM calls.</span>
+            </p>
+          </div>
         </header>
 
-        <div className="sat-overview">
-          <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
-            <h2 id="sat-results" className="section-title">
-              Latest run
-            </h2>
-            {state.status === 'error' && (
-              <div className="sat-callout sat-error" role="alert">
-                <p>The latest screening results couldn&apos;t be loaded right now.</p>
-                <button type="button" className="btn btn-secondary" onClick={retry}>
-                  Try again
-                </button>
-              </div>
-            )}
-            <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
-              {statsFor(summary).map(({ value, label }) => (
-                <div key={label} className="card sat-stat">
-                  <dt>{label}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-            {summary && (
-              <p className="sat-note">
-                Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
-                passes under {summary.threshold_km} km. Closest approach is the nearest pass
-                involving an active satellite. Runs daily on Fly.io.
-              </p>
-            )}
-          </section>
-
-          <section aria-labelledby="sat-risk">
-            <h2 id="sat-risk" className="section-title">
-              Risk breakdown
-            </h2>
-            {summary ? (
-              <RiskBreakdown summary={summary} />
-            ) : (
-              <div className="card sat-risk-placeholder">
-                {state.status === 'error' ? '—' : 'Loading…'}
-              </div>
-            )}
-          </section>
-        </div>
-
-        <section ref={globeRef} className="sat-section" aria-labelledby="sat-globe">
-          <div className="sat-section-head">
-            <h2 id="sat-globe" className="section-title">
-              Every tracked object
-            </h2>
-            <div className="sat-view-toggle" role="group" aria-label="View">
-              {(['globe', 'sky', 'pov'] as const).map((m) => {
-                // Satellite stays focusable (aria-disabled) so its hint can be read.
-                const unavailable = m === 'pov' && !canPov && viewMode !== 'pov'
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    aria-pressed={viewMode === m}
-                    aria-disabled={unavailable || undefined}
-                    aria-describedby={unavailable ? 'sat-view-pov-hint' : undefined}
-                    title={unavailable ? 'Select a satellite first' : undefined}
-                    onClick={() => !unavailable && switchView(m)}
-                  >
-                    {m === 'globe' ? 'Globe' : m === 'sky' ? 'Sky' : 'Satellite'}
-                  </button>
-                )
-              })}
-              <span id="sat-view-pov-hint" className="visually-hidden">
-                Select a satellite first
-              </span>
-            </div>
-          </div>
+        <section ref={globeRef} className="sat-tool" aria-labelledby="sat-globe">
+          <h2 id="sat-globe" className="visually-hidden">
+            Every tracked object
+          </h2>
           <Suspense fallback={<div className="sat-globe-fallback">Loading the globe…</div>}>
             <SatelliteGlobe
               focus={focus}
@@ -336,8 +271,87 @@ export default function SatelliteTool() {
               viewMode={viewMode}
               onCanPovChange={setCanPov}
               onViewRequest={requestView}
+              contextSlot={contextEl}
+              creditsSlot={creditsEl}
+              modeSwitch={
+      <div className="sat-view-toggle" role="group" aria-label="View">
+                {(['globe', 'sky', 'pov'] as const).map((m) => {
+                  // Satellite stays focusable (aria-disabled) so its hint can be read.
+                  const unavailable = m === 'pov' && !canPov && viewMode !== 'pov'
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={viewMode === m}
+                      aria-disabled={unavailable || undefined}
+                      aria-describedby={unavailable ? 'sat-view-pov-hint' : undefined}
+                      title={unavailable ? 'Select a satellite first' : undefined}
+                      onClick={() => !unavailable && switchView(m)}
+                    >
+                      {m === 'globe' ? 'Globe' : m === 'sky' ? 'Sky' : 'Satellite'}
+                    </button>
+                  )
+                })}
+                <span id="sat-view-pov-hint" className="visually-hidden">
+                  Select a satellite first
+                </span>
+              </div>
+        
+              }
             />
           </Suspense>
+        </section>
+      </div>
+
+      <div className="container">
+        <section className="sat-section" aria-labelledby="sat-screening">
+          <h2 id="sat-screening" className="section-title">
+            Conjunction screening
+          </h2>
+          <div className="sat-overview">
+            <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
+              <h3 id="sat-results" className="section-title">
+                Latest run
+              </h3>
+              {state.status === 'error' && (
+                <div className="sat-callout sat-error" role="alert">
+                  <p>The latest screening results couldn&apos;t be loaded right now.</p>
+                  <button type="button" className="btn btn-secondary" onClick={retry}>
+                    Try again
+                  </button>
+                </div>
+              )}
+              <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
+                {statsFor(summary).map(({ value, label }) => (
+                  <div key={label} className="card sat-stat">
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {summary && (
+                <p className="sat-note">
+                  Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
+                  passes under {summary.threshold_km} km. Closest approach is the nearest pass
+                  involving an active satellite. Runs daily on Fly.io.
+                </p>
+              )}
+            </section>
+
+            <section aria-labelledby="sat-risk">
+              <h3 id="sat-risk" className="section-title">
+                Risk breakdown
+              </h3>
+              {summary ? (
+                <RiskBreakdown summary={summary} />
+              ) : (
+                <div className="card sat-risk-placeholder">
+                  {state.status === 'error' ? '—' : 'Loading…'}
+                </div>
+              )}
+            </section>
+          </div>
+
         </section>
 
         <section className="sat-section" aria-labelledby="sat-near-misses">
@@ -379,6 +393,15 @@ export default function SatelliteTool() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <div ref={setContextEl} className="sat-context-slot" />
+
+        <section id="sat-credits" className="sat-section sat-credits" aria-labelledby="sat-credits-title">
+          <h2 id="sat-credits-title" className="section-title">
+            Data and credits
+          </h2>
+          <div ref={setCreditsEl} className="sat-credits-body" />
         </section>
       </div>
     </main>

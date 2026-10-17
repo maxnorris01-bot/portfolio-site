@@ -1,7 +1,8 @@
 // The 3D globe (Phases 1, 1b and 1c of the visualization plan, satellite-
 // conjunction-screening working notes 2026-10-03). Lazy-loaded by
 // SatelliteTool so three.js and satellite.js stay out of the main bundle.
-import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { SPEEDS, canPlay, isPaused, liveClock, scrubClock, togglePlay, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
@@ -39,7 +40,9 @@ import { starsReadout } from '../globe/starsreadout'
 // The ?debug=1 sky tuning panel: its own chunk, fetched only in debug mode.
 const SkyTuningPanel = lazy(() => import('./SkyTuningPanel'))
 import { FULLSCREEN_OFF, fullscreenStep, type FullscreenEffects, type FullscreenEvent } from '../globe/fullscreen'
-import CollisionHistory from './CollisionHistory'
+import CollisionHistory, { CollisionSources } from './CollisionHistory'
+import { CREDITS_ID, SHORT_CREDITS, allCreditTexts, footnoteText } from '../globe/credits'
+import { PHONE_LAYOUT_QUERY, isCompactKey, loadCompact, saveCompact } from '../globe/pagelayout'
 import './SatelliteGlobe.css'
 
 const TEXTURE_URL = '/textures/earth-day-2k.jpg'
@@ -120,6 +123,11 @@ interface Props {
   onCanPovChange?: (can: boolean) => void
   /** Ask the page to enter the satellite view, or go back to the view it came from. */
   onViewRequest?: (req: 'pov' | 'back') => void
+  /** The Globe | Sky | Satellite switch, which the page owns: shown at the top of the left column. */
+  modeSwitch?: ReactNode
+  /** Where the page wants "For context: the real record" and the full credits (its own sections below the tool); inline when absent. */
+  contextSlot?: HTMLElement | null
+  creditsSlot?: HTMLElement | null
 }
 
 export default function SatelliteGlobe({
@@ -130,6 +138,9 @@ export default function SatelliteGlobe({
   viewMode = 'globe',
   onCanPovChange,
   onViewRequest,
+  modeSwitch,
+  contextSlot,
+  creditsSlot,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -142,6 +153,55 @@ export default function SatelliteGlobe({
   const rootRef = useRef<HTMLDivElement>(null)
   const fsButtonRef = useRef<HTMLButtonElement>(null)
   const [fullscreen, setFullscreen] = useState(FULLSCREEN_OFF)
+  // The layout: the controls (legend, selection and Satellite panels) sit in a
+  // left column beside the map, except on a phone, where they stay over the map
+  // in full screen (the existing sheet). Compact view hides the column; it is
+  // remembered for the session only.
+  const mainRef = useRef<HTMLDivElement>(null)
+  const [sidebarEl, setSidebarEl] = useState<HTMLDivElement | null>(null)
+  const [phone, setPhone] = useState(() => window.matchMedia(PHONE_LAYOUT_QUERY).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE_LAYOUT_QUERY)
+    const on = () => setPhone(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  const [compact, setCompact] = useState(() => loadCompact())
+  const toggleCompact = useCallback(() => {
+    setCompact((c) => {
+      saveCompact(!c)
+      return !c
+    })
+  }, [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (isCompactKey(e)) toggleCompact()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleCompact])
+  // The map's height follows the window: what is left below the part of the page
+  // above it (measured, since the header and the stacked controls wrap), less the
+  // clock row; the CSS does the sum from --globe-top.
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    const main = mainRef.current
+    if (!root || !main || fullscreen.on) return
+    const measure = () => {
+      const v = `${Math.round(main.getBoundingClientRect().top + window.scrollY)}px`
+      if (root.style.getPropertyValue('--globe-top') !== v) root.style.setProperty('--globe-top', v)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(document.documentElement)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [fullscreen.on, compact, phone])
+  /** Where a control panel goes: the left column beside the map (a portal), or in place over the map on a phone. */
+  const aside = (node: ReactNode) => (!phone && sidebarEl ? createPortal(node, sidebarEl) : node)
   const fsRef = useRef(FULLSCREEN_OFF)
   const fsScrollRef = useRef(0)
   // On a phone in full screen the info panel is a bottom sheet: a peek, or opened up.
@@ -1064,7 +1124,25 @@ export default function SatelliteGlobe({
       : 'Enter full screen to see details and controls'
 
   return (
-    <div ref={rootRef} className={`globe${fullscreen.on ? ' is-fullscreen' : ''}`}>
+    <div ref={rootRef} className={`globe${fullscreen.on ? ' is-fullscreen' : ''}${compact ? ' is-compact' : ''}${phone ? ' is-phone' : ''}`}>
+      <div className="globe-layout">
+      <div className="globe-modebar">
+        {modeSwitch}
+        <button
+          type="button"
+          className="globe-compact-btn"
+          aria-pressed={compact}
+          aria-keyshortcuts="C"
+          title={compact ? 'Show the controls (C)' : 'Compact view (C): hide the controls so the map takes the full width'}
+          onClick={toggleCompact}
+        >
+          <span aria-hidden="true">{compact ? '⇥' : '⇤'}</span>
+          <span className="globe-compact-label">{compact ? 'Controls' : 'Compact'}</span>
+          <kbd aria-hidden="true">C</kbd>
+        </button>
+      </div>
+      <div ref={setSidebarEl} className="globe-controls" role="region" aria-label="Controls" />
+      <div ref={mainRef} className="globe-main">
       <div
         ref={stageRef}
         className="globe-stage"
@@ -1082,7 +1160,7 @@ export default function SatelliteGlobe({
       >
         <div ref={containerRef} className="globe-canvas" />
 
-        {coloring && (
+        {coloring && aside(
           <div
             ref={legendRef}
             className={`globe-panel globe-legend${viewMode === 'sky' ? ' is-sky' : ''}${
@@ -1228,7 +1306,7 @@ export default function SatelliteGlobe({
           </div>
         )}
 
-        {(focus || inspected || stationDef || viewMode !== 'globe' || selectedBody) && (
+        {(focus || inspected || stationDef || viewMode !== 'globe' || selectedBody) && aside(
           <div
             ref={sideRef}
             className={`globe-side${sheetOpen ? ' is-open' : ''}`}
@@ -1515,6 +1593,7 @@ export default function SatelliteGlobe({
                   </button>
                 </div>
                 <p className="globe-inspect-name">{povObject.name}</p>
+                <h3 className="globe-pov-heading">Imagery</h3>
                 <div className="globe-pov-imagery-choice" role="group" aria-label="Imagery" aria-describedby="globe-pov-explainer">
                   <button type="button" aria-pressed={!todayImagery} onClick={() => setTodayImagery(false)}>
                     Base map
@@ -1533,10 +1612,14 @@ export default function SatelliteGlobe({
                     · follows the time slider
                   </p>
                 )}
-                <p id="globe-pov-explainer" className="globe-muted globe-pov-explainer">
-                  {IMAGERY_EXPLAINER}
-                </p>
-                {todayImagery && <p className="globe-muted globe-pov-explainer">{TODAY_FADE_NOTE}.</p>}
+                <details className="globe-pov-about">
+                  <summary>About this imagery</summary>
+                  <p id="globe-pov-explainer" className="globe-muted globe-pov-explainer">
+                    {IMAGERY_EXPLAINER}
+                  </p>
+                  {todayImagery && <p className="globe-muted globe-pov-explainer">{TODAY_FADE_NOTE}.</p>}
+                </details>
+                <h3 className="globe-pov-heading">View</h3>
                 <div className="globe-pov-presets" role="group" aria-label="Look">
                   {(['down', 'forward', 'outward'] as const).map((preset) => (
                     <button
@@ -1550,6 +1633,7 @@ export default function SatelliteGlobe({
                     </button>
                   ))}
                 </div>
+                {povInfo && povInfo.sky.stars > 0 && <h3 className="globe-pov-heading">Sky</h3>}
                 {povInfo && povInfo.sky.stars > 0 && (
                   <div className="globe-star-find">
                     <label className="globe-star-find-label" htmlFor="globe-star-find">
@@ -1641,6 +1725,7 @@ export default function SatelliteGlobe({
                     </p>
                   </fieldset>
                 )}
+                <h3 className="globe-pov-heading">Orientation</h3>
                 <div className="globe-pov-imagery-choice globe-pov-orientation" role="group" aria-label="Orientation">
                   <button type="button" aria-pressed={povOrientation === 'heading'} onClick={() => setPovOrientation('heading')}>
                     Heading up
@@ -1649,6 +1734,7 @@ export default function SatelliteGlobe({
                     North up
                   </button>
                 </div>
+                {povInfo && <h3 className="globe-pov-heading">Readout</h3>}
                 {povInfo && (
                   <dl className="globe-pov-facts">
                     <dt>Altitude</dt>
@@ -2039,19 +2125,19 @@ export default function SatelliteGlobe({
             className="globe-fs-btn globe-fs-exit"
             onClick={() => dispatchFs({ type: 'exit' })}
           >
-            <span aria-hidden="true">✕</span> Exit full screen
+            <span aria-hidden="true">✕</span> <span className="globe-fs-label">Exit full screen</span>
           </button>
         ) : (
           <button ref={fsButtonRef} type="button" className="globe-fs-btn" onClick={enterFullscreen}>
-            <span aria-hidden="true">⤢</span> Full screen
+            <span aria-hidden="true">⤢</span> <span className="globe-fs-label">Full screen</span>
           </button>
         )}
         {!fullscreen.on && miniTitle && (
           <div className="globe-mini" role="region" aria-label="Selection">
             <p className="globe-mini-name">{miniTitle}</p>
-            <p className="globe-mini-text">{miniText}</p>
-            <button type="button" className="globe-mini-btn" onClick={enterFullscreen}>
-              Full screen
+            <p className="globe-mini-text">{phone ? miniText : 'Show the controls to see details'}</p>
+            <button type="button" className="globe-mini-btn" onClick={phone ? enterFullscreen : () => setCompact(false)}>
+              {phone ? 'Full screen' : 'Show controls'}
             </button>
           </div>
         )}
@@ -2085,7 +2171,7 @@ export default function SatelliteGlobe({
         {announcement}
       </p>
 
-      {loaded && visibleCount < loaded.file.objects.length && (
+      {loaded && visibleCount < loaded.file.objects.length && aside(
         <div className="globe-filterbar" role="status">
           <span>
             Showing {fmt(visibleCount)} of {fmt(loaded.file.objects.length)} objects
@@ -2166,25 +2252,53 @@ export default function SatelliteGlobe({
           </span>
         </p>
       </div>
-      <p className="globe-footnote">
-        {loaded
-          ? `${fmt(loaded.file.object_count)} objects from the ${snapshotLabel(loaded.key)}. `
-          : ''}
-        {historyDates.length === 0
-          ? 'Earlier days appear on the slider as daily snapshots accumulate. '
-          : ''}
-        Earth imagery: NASA Visible Earth (Blue Marble); city lights: NASA Earth Observatory (Black
-        Marble 2016, Suomi NPP VIIRS).
-        {povCredits.length > 0 && ` Satellite view: ${povCredits.join('. ')}.`}
+      <p className="globe-credits">
+        {SHORT_CREDITS.join(' · ')} ·{' '}
+        <a
+          href={`#${CREDITS_ID}`}
+          onClick={() => {
+            // From full screen the link first leaves it, then the page jumps to the credits.
+            if (fsRef.current.on) dispatchFs({ type: 'exit' })
+          }}
+        >
+          Data and credits
+        </a>
       </p>
-      {loaded && (
-        <CollisionHistory
-          counts={groups.counts}
-          conjunctionsFlagged={conjunctionsFlagged}
-          activeKeys={isolatedKeys}
-          onToggle={toggleCollisionDebris}
-        />
-      )}
+      </div>
+      </div>
+      {(() => {
+        const footnote = (
+          <>
+            <p className="globe-footnote">
+              {footnoteText({
+                objects: loaded ? { count: loaded.file.object_count, snapshot: snapshotLabel(loaded.key) } : undefined,
+                historyEmpty: historyDates.length === 0,
+                satelliteCredits: povCredits,
+              })}
+            </p>
+            <ul className="globe-credit-list">
+              {allCreditTexts().map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+            <CollisionSources />
+          </>
+        )
+        const history = loaded ? (
+          <CollisionHistory
+            counts={groups.counts}
+            conjunctionsFlagged={conjunctionsFlagged}
+            activeKeys={isolatedKeys}
+            onToggle={toggleCollisionDebris}
+          />
+        ) : null
+        return (
+          <>
+            {history && (contextSlot ? createPortal(history, contextSlot) : history)}
+            {creditsSlot ? createPortal(footnote, creditsSlot) : footnote}
+          </>
+        )
+      })()}
     </div>
   )
 }
