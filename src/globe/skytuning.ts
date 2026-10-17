@@ -6,7 +6,7 @@
 // disagree. Pure (the engine, storage and timers are passed in), so it is
 // tested. Loaded only in debug mode.
 
-import { GLOW_DEFAULT } from './glowtuning.ts'
+import { GLOW_DEFAULT, STAR_LOOK_DEFAULT } from './glowtuning.ts'
 import { SKY_DIM_DEFAULT, type SkyDimTargets } from './skydim.ts'
 
 export type SkyTuningKey =
@@ -24,8 +24,13 @@ export type SkyTuningKey =
 
 export type SkyTuningValues = Record<SkyTuningKey, number>
 
-/** The star settings' own defaults: no change to the stars. */
-export const STAR_TUNING_DEFAULT = { starBrightness: 1, starSize: 1, wideLimitOffset: 0 } as const
+/** The star settings' shipped defaults (see glowtuning.ts), and the neutral values (no change to the stars) the original look used. */
+export const STAR_TUNING_DEFAULT = {
+  starBrightness: STAR_LOOK_DEFAULT.brightness,
+  starSize: STAR_LOOK_DEFAULT.size,
+  wideLimitOffset: STAR_LOOK_DEFAULT.limitOffset,
+} as const
+export const STAR_TUNING_NEUTRAL = { starBrightness: 1, starSize: 1, wideLimitOffset: 0 } as const
 
 /** What the panel reads and writes: the engine's public settings (the same ones the console hooks are). */
 export interface TuningTarget {
@@ -77,10 +82,12 @@ export const SKY_TUNING_DEFAULTS: Readonly<SkyTuningValues> = Object.fromEntries
 /**
  * The look before the glow was softened and the Earth-in-view dimming added:
  * glow gain 1.0, saturation 0.7, gamma 1.5, no blur, sky dimming off (every
- * dimming factor 1); the stars at their defaults.
+ * dimming factor 1); the stars as they were then (brightness x1, size x1, no
+ * limiting-magnitude offset).
  */
 export const SKY_TUNING_ORIGINAL: Readonly<SkyTuningValues> = {
   ...SKY_TUNING_DEFAULTS,
+  ...STAR_TUNING_NEUTRAL,
   glowGain: 1.0,
   glowSaturation: 0.7,
   glowGamma: 1.5,

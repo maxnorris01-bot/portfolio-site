@@ -1,8 +1,15 @@
-// Dimming the sky when the satellite view looks at the Earth. A camera
-// exposed for the sunlit Earth would show little of the sky, so the Milky Way
+// Dimming the sky when the satellite view looks at the Earth: the Milky Way
 // glow and the stars dim as the Earth fills the view and stay at full
 // brightness looking at dark sky; the Sun, Moon, planets, constellation lines,
 // the Earth and the selection are never dimmed. Pure, so it is tested.
+//
+// The amount depends on whether the point below the satellite is sunlit: the
+// "sunlit" targets apply when the Sun is up there (the cosine of the Sun's
+// angle from the sub-satellite point, from about 6 degrees below the horizon
+// to 12 above), the "night" targets when it is dark, blended between. The
+// shipped defaults (tuned by hand, 2026-10) leave daylight undimmed (1.0, so
+// with the Earth in view in daylight this does nothing) and dim the sky to 0.19
+// when the Earth fills the view over the night side.
 //
 // How much Earth is in view: the fraction of the view that is Earth, taken
 // over a disc of the view's vertical half field of view around the view axis
@@ -26,7 +33,7 @@ export interface SkyDimTargets {
   starsNight: number
 }
 
-export const SKY_DIM_DEFAULT: Readonly<SkyDimTargets> = { glowSunlit: 0.2, starsSunlit: 0.45, glowNight: 0.5, starsNight: 0.75 }
+export const SKY_DIM_DEFAULT: Readonly<SkyDimTargets> = { glowSunlit: 1, starsSunlit: 1, glowNight: 0.19, starsNight: 0.19 }
 
 /** Time constant of the smoothing, seconds; gentler (slower) for people who ask for less motion. */
 export const SKY_DIM_TAU = 0.4

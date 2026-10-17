@@ -9,11 +9,11 @@ import type { SkyContext } from '../src/globe/space.ts'
 
 const src = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')
 
-test('the defaults: half the brightness, saturation 0.45, softer gamma, a one degree blur', () => {
-  assert.equal(GLOW_DEFAULT.gain, 0.5)
-  assert.equal(GLOW_DEFAULT.saturation, 0.45)
-  assert.equal(GLOW_DEFAULT.gamma, 1.3)
-  assert.equal(GLOW_DEFAULT.blurDeg, 1.0)
+test('the defaults (tuned by hand): gain 0.20, saturation 0.60, gamma 1.35, no blur', () => {
+  assert.equal(GLOW_DEFAULT.gain, 0.2)
+  assert.equal(GLOW_DEFAULT.saturation, 0.6)
+  assert.equal(GLOW_DEFAULT.gamma, 1.35)
+  assert.equal(GLOW_DEFAULT.blurDeg, 0)
 })
 
 /** A black map with one bright texel on the equator. */
@@ -88,45 +88,50 @@ test('the baseline gain multiplies the narrow-field dimming and the Earth-in-vie
   const layer = new GlowLayer(dot(16, 8, 3, 3), 16, 8)
   const gainNow = () => (layer.object as THREE.Mesh).material as THREE.ShaderMaterial
   layer.update(ctxOf(120, 1))
-  assert.ok(Math.abs(gainNow().uniforms.gain.value - 0.5) < 1e-12) // wide field, no Earth: just the baseline
+  const g = GLOW_DEFAULT.gain
+  assert.ok(Math.abs(gainNow().uniforms.gain.value - g) < 1e-12) // wide field, no Earth: just the baseline
   layer.update(ctxOf(0.5, 1))
-  assert.ok(Math.abs(gainNow().uniforms.gain.value - 0.5 * glowGain(0.5)) < 1e-12) // narrow field
-  assert.ok(Math.abs(gainNow().uniforms.gain.value - 0.5 * 0.3) < 1e-9)
+  assert.ok(Math.abs(gainNow().uniforms.gain.value - g * glowGain(0.5)) < 1e-12) // narrow field
+  assert.ok(Math.abs(gainNow().uniforms.gain.value - g * 0.3) < 1e-9)
   layer.update(ctxOf(120, 0.2))
-  assert.ok(Math.abs(gainNow().uniforms.gain.value - 0.5 * 0.2) < 1e-12) // Earth in view
+  assert.ok(Math.abs(gainNow().uniforms.gain.value - g * 0.2) < 1e-12) // Earth in view
   layer.update(ctxOf(0.5, 0.2))
-  assert.ok(Math.abs(gainNow().uniforms.gain.value - 0.5 * glowGain(0.5) * 0.2) < 1e-12) // all three together
+  assert.ok(Math.abs(gainNow().uniforms.gain.value - g * glowGain(0.5) * 0.2) < 1e-12) // all three together
   // Tuned live: the values given each frame are used.
   layer.update(ctxOf(120, 1, { gain: 0.3, saturation: 0.2, gamma: 1.1, blurDeg: 1 }))
   assert.equal(gainNow().uniforms.gain.value, 0.3)
   assert.equal(gainNow().uniforms.saturation.value, 0.2)
   assert.equal(gainNow().uniforms.gamma.value, 1.1)
   layer.update(ctxOf(120, 1))
-  assert.equal(gainNow().uniforms.saturation.value, 0.45)
+  assert.equal(gainNow().uniforms.saturation.value, GLOW_DEFAULT.saturation)
   layer.dispose()
 })
 
-test('the layer shows once its first blur is done; a changed blur rebuilds from the raw map; zero blur shows the raw map', () => {
+test('with the default blur of 0 the raw map shows at once and no blur work is done; a blur rebuilds from the raw map in a few frames', () => {
   const w = 64
   const h = 32
   const raw = dot(w, h, 20, 16)
   const layer = new GlowLayer(raw, w, h)
   assert.equal(layer.object.visible, false)
   assert.equal(layer.appliedBlur, null)
+  layer.update(ctxOf(60, 1)) // the shipped defaults: blur 0
+  assert.equal(layer.appliedBlur, 0)
+  assert.equal(layer.object.visible, true) // one update, no slices of blur work
+  const material = (layer.object as THREE.Mesh).material as THREE.ShaderMaterial
+  const tex = material.uniforms.map.value as THREE.DataTexture
+  assert.deepEqual(new Uint8Array(tex.image.data as Uint8Array), raw)
+  // Turn a blur on (as the panel's slider does): a few frames of slices, then the blurred map.
+  const blurred = { ...GLOW_DEFAULT, blurDeg: 8 } // texels here are 5.6 degrees, so a 1 degree blur would change nothing
   let n = 0
-  while (layer.appliedBlur === null && n < 100) {
-    layer.update(ctxOf(60, 1))
+  while (layer.appliedBlur !== 8 && n < 100) {
+    layer.update(ctxOf(60, 1, blurred))
     n++
   }
   assert.ok(n > 1 && n < 20, `${n} updates`) // a few frames, not one long stall
-  assert.equal(layer.object.visible, true)
-  assert.equal(layer.appliedBlur, 1)
-  // Changing the blur rebuilds; zero is the raw map.
-  const noBlur = { ...GLOW_DEFAULT, blurDeg: 0 }
-  layer.update(ctxOf(60, 1, noBlur))
+  assert.notDeepEqual(new Uint8Array(tex.image.data as Uint8Array), raw)
+  // And back to none: the raw map again.
+  layer.update(ctxOf(60, 1))
   assert.equal(layer.appliedBlur, 0)
-  const material = (layer.object as THREE.Mesh).material as THREE.ShaderMaterial
-  const tex = material.uniforms.map.value as THREE.DataTexture
   assert.deepEqual(new Uint8Array(tex.image.data as Uint8Array), raw)
   layer.dispose()
 })

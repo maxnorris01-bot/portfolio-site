@@ -59,7 +59,7 @@ import type { SimbadClient, SimbadState } from './simbad'
 import type { GaiaStars } from './gaiastars'
 import type { FrameGuard, TileStreamer } from './tilestream'
 import { starDataUrl } from './stardataurl'
-import { GLOW_DEFAULT } from './glowtuning'
+import { GLOW_DEFAULT, STAR_LOOK_DEFAULT } from './glowtuning'
 import type { GlowLayer } from './glowlayer'
 import { SKY_DIM_DEFAULT, stepSkyDim, type SkyDimState, type SkyDimTargets } from './skydim'
 import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
@@ -455,9 +455,9 @@ export class GlobeEngine {
   glowGamma = GLOW_DEFAULT.gamma
   glowBlur = GLOW_DEFAULT.blurDeg
   /** The debug panel's star settings (also read every frame): brightness and point-size multipliers, and the magnitude offset added to the limiting magnitude at fields wider than 15 degrees. */
-  starBrightness = 1
-  starSize = 1
-  wideLimitOffset = 0
+  starBrightness: number = STAR_LOOK_DEFAULT.brightness
+  starSize: number = STAR_LOOK_DEFAULT.size
+  wideLimitOffset: number = STAR_LOOK_DEFAULT.limitOffset
   private glowLayer: GlowLayer | null = null
   private skyDimAt = 0
   // A selected Gaia star (its tile and place in it, and what the tile gives
