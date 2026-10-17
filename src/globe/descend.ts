@@ -397,8 +397,10 @@ export function zoomLockedToward(
   ny: number,
   aspect: number,
   minFov: number,
+  maxFov = POV_FOV_MAX,
 ): { yaw: number; pitch: number; fov: number } {
-  const fov = Math.min(POV_FOV_MAX, Math.max(minFov, look.fov * factor))
+  // The zoom-in limit wins over the cap if they ever cross.
+  const fov = Math.max(minFov, Math.min(POV_FOV_MAX, maxFov, look.fov * factor))
   const before = applyLook(base, look.yaw, look.pitch)
   const target = rayThrough({ pos: [0, 0, 0], ...before }, look.fov, aspect, nx, ny)
   const right = cross(base.look, base.up)

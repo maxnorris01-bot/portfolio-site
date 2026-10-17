@@ -13,7 +13,7 @@ import {
   type TuningTarget,
 } from '../globe/skytuning'
 
-const GROUPS: SliderSpec['group'][] = ['Glow', 'Earth in view', 'Stars']
+const GROUPS: SliderSpec['group'][] = ['View', 'Glow', 'Earth in view', 'Stars']
 
 export default function SkyTuningPanel({ target }: { target: TuningTarget }) {
   const controller = useMemo(() => new TuningController(target), [target])
@@ -92,6 +92,7 @@ export default function SkyTuningPanel({ target }: { target: TuningTarget }) {
                   </div>
                 )
               })}
+              {g === 'View' && <p className="globe-tune-note">Above about 100° the edges of a wide map distort (fish-eye). The cap holds the larger of the horizontal and vertical angles.</p>}
             </fieldset>
           ))}
           <div className="globe-tune-buttons">

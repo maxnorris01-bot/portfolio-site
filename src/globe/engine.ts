@@ -39,6 +39,8 @@ import {
 import { SKY_BODIES, limbDirection, markerSizePx, showsLabel, type SkyBody } from './skybodies'
 import { EOX_LEVEL_KM } from './eox'
 import { SPACE_FOV_MIN } from './stars'
+import { MAX_FOV_DEFAULT, maxVerticalFovDeg } from './fovcap'
+import { insetToShiftPx, toCentredNdcX, ViewShift } from './viewoffset'
 import { bodiesFromSatellite, pickBody, sceneKm } from './spacebodies'
 import { SKY_RADIUS as SKY_RADIUS_UNITS, STAR_PICK_PX } from './stars'
 import {
@@ -89,6 +91,7 @@ import {
 import {
   POV_FOV_DEFAULT,
   POV_FOV_MIN,
+  forwardPitchDeg,
   POV_PITCH_MAX,
   applyLook,
   lookToward,
@@ -142,6 +145,7 @@ const NEIGHBOR_CANDIDATE_CAP = 3000
 const NEIGHBOR_REFRESH_SIM_MS = 1000
 const NEIGHBOR_REFRESH_WALL_MS = 1000
 // Sky view (Phase 1): vertical field of view limits and look sensitivity.
+const GLOBE_FOV = 40
 const SKY_FOV_MIN = 30
 const SKY_FOV_MAX = 100
 const SKY_FOV_DEFAULT = 70
@@ -443,6 +447,20 @@ export class GlobeEngine {
    * __globe.skyDim.glowSunlit = 0.3 (see skydim.ts).
    */
   skyDim: SkyDimTargets = { ...SKY_DIM_DEFAULT }
+  /**
+   * The largest field of view of the perspective views, degrees: the larger of
+   * the horizontal and vertical angles stays within it (fovcap.ts), so a wide
+   * map does not stretch its edges. Settable (__globe.maxFov = 100, or the
+   * debug panel's slider); applied live.
+   */
+  maxFov = MAX_FOV_DEFAULT
+  // The overlay panel's view offset: how much of the canvas's left side the
+  // panel covers, and the animated shift of the projection centre that follows.
+  private insetPx = 0
+  /** The pitch the current preset starts at (Forward is tipped down a little): what the readout measures a drag from. */
+  private povPresetPitch = 0
+  private readonly viewShift = new ViewShift()
+  private shiftApplied = Number.NaN
   private skyDimState: SkyDimState | null = null
   /**
    * The glow's look, read every frame so they can be retuned from the console
@@ -691,7 +709,7 @@ export class GlobeEngine {
     this.renderer.setClearColor(0x05070d)
     container.appendChild(this.renderer.domElement)
 
-    this.camera = new THREE.PerspectiveCamera(40, 1, 0.005, 200)
+    this.camera = new THREE.PerspectiveCamera(GLOBE_FOV, 1, 0.005, 200)
     this.camera.position.copy(DEFAULT_CAMERA)
     this.controls = new TrackballControls(this.camera, this.renderer.domElement)
     this.controls.rotateSpeed = 2.2
@@ -1376,7 +1394,10 @@ export class GlobeEngine {
     this.povDetached = null
     this.povLook.preset = preset
     this.povLook.yaw = 0
-    this.povLook.pitch = 0
+    // Forward is tipped down just enough to keep the Earth's limb in a narrow (capped) view.
+    const st = this.povState
+    this.povPresetPitch = preset === 'forward' && st ? forwardPitchDeg(st.altKm, Math.min(this.povCamera.fov, this.povMaxFov())) : 0
+    this.povLook.pitch = this.povPresetPitch
   }
 
   /**
@@ -1453,7 +1474,7 @@ export class GlobeEngine {
     // looking out at space it narrows much further, to examine stars and planets.
     const minFov = overGround ? DESCEND_FOV : SPACE_FOV_MIN
     const [ux, uy] = this.unrolledNdc(pose, base, look, nx, ny)
-    this.applyLockedLook(zoomLockedToward(base, look, factor, ux, uy, aspect, minFov))
+    this.applyLockedLook(zoomLockedToward(base, look, factor, ux, uy, aspect, minFov, this.povMaxFov()))
   }
 
   /** Pan the held ground view with a drag from one screen point to another (-1..1). */
@@ -1627,6 +1648,7 @@ export class GlobeEngine {
       latDeg,
       lonDeg,
       ...this.povLook,
+      presetPitch: this.povPresetPitch,
       fov: this.povDetached ? this.povDetachedFov : this.povCamera.fov,
       minFov: this.povMinFov,
       imagery,
@@ -2318,7 +2340,8 @@ export class GlobeEngine {
     const stars = this.space?.stars
     if (!stars) return null
     const cam = this.povCamera
-    const [nx, ny] = this.povNdc(clientX, clientY)
+    // unproject() uses the camera's own projection, which includes the view offset: canvas NDC.
+    const [nx, ny] = this.canvasNdc(clientX, clientY)
     const p = new THREE.Vector3(nx, ny, 0.5).unproject(cam).sub(cam.position).normalize()
     const h = Math.max(1, this.container.clientHeight)
     const fov = this.povRenderFov || cam.fov
@@ -2568,7 +2591,7 @@ export class GlobeEngine {
     this.startPovAnim()
     this.povLook.yaw = yaw
     this.povLook.pitch = pitch
-    this.povCamera.fov = Math.max(SPACE_FOV_MIN, m.fitFov(v.extentDeg, this.povCamera.aspect))
+    this.povCamera.fov = Math.min(this.povMaxFov(), Math.max(SPACE_FOV_MIN, m.fitFov(v.extentDeg, this.povCamera.aspect)))
     this.povCamera.updateProjectionMatrix()
     this.track = { kind: 'figure', index }
   }
@@ -3021,10 +3044,17 @@ export class GlobeEngine {
     this.pointerDown = e.isPrimary && e.button === 0 ? { x: e.clientX, y: e.clientY } : null
   }
 
-  // A client-space point as -1..1 across the canvas (right and up).
-  private povNdc(x: number, y: number): [number, number] {
+  // A client-space point as -1..1 across the canvas (right and up), as drawn.
+  private canvasNdc(x: number, y: number): [number, number] {
     const r = this.renderer.domElement.getBoundingClientRect()
     return [((x - r.left) / Math.max(1, r.width)) * 2 - 1, 1 - ((y - r.top) / Math.max(1, r.height)) * 2]
+  }
+
+  // The same point measured from the projection centre, which the overlay panel moves
+  // into the free area: what the ray, zoom and pan maths (field of view and aspect only) take.
+  private povNdc(x: number, y: number): [number, number] {
+    const [nx, ny] = this.canvasNdc(x, y)
+    return [toCentredNdcX(nx, this.viewShift.value(performance.now()), Math.max(1, this.renderer.domElement.getBoundingClientRect().width)), ny]
   }
 
   private pinchDistance(): number {
@@ -3033,7 +3063,7 @@ export class GlobeEngine {
   }
 
   private setSkyFov(fov: number) {
-    this.skyCamera.fov = Math.min(SKY_FOV_MAX, Math.max(SKY_FOV_MIN, fov))
+    this.skyCamera.fov = Math.max(SKY_FOV_MIN, Math.min(SKY_FOV_MAX, this.skyMaxFov(), fov))
     this.skyCamera.updateProjectionMatrix()
   }
 
@@ -3304,12 +3334,79 @@ export class GlobeEngine {
       slot.sky.material.resolution.set(w, h)
     }
     this.camera.aspect = w / h
-    this.camera.updateProjectionMatrix()
     this.skyCamera.aspect = w / h
-    this.skyCamera.updateProjectionMatrix()
     this.povCamera.aspect = w / h
+    this.camera.fov = Math.min(GLOBE_FOV, maxVerticalFovDeg(this.maxFov, w / h))
+    this.skyCamera.fov = Math.max(SKY_FOV_MIN, Math.min(this.skyCamera.fov, this.skyMaxFov()))
+    this.camera.updateProjectionMatrix()
+    this.skyCamera.updateProjectionMatrix()
     this.povCamera.updateProjectionMatrix()
     this.controls.handleResize()
+    // A new width changes what the panel's inset means: follow it at once (no animation on a window resize).
+    this.viewShift.set(insetToShiftPx(this.insetPx, w), performance.now(), true)
+    this.shiftApplied = Number.NaN
+  }
+
+  /**
+   * The overlay panel covers the left `px` of the canvas: move the projection
+   * centre into the free part (animated about 300 ms, at once under reduced
+   * motion), so the Earth and the focus are not behind it. 0 when no panel
+   * covers the map (compact view, a phone, the controls stacked above).
+   */
+  setViewInset(px: number) {
+    this.insetPx = Math.max(0, px)
+    const w = this.container.clientWidth
+    this.viewShift.set(insetToShiftPx(this.insetPx, w), performance.now(), this.reducedMotion?.matches ?? false)
+  }
+
+  /** The projection centre's current shift in px (right of the canvas centre); 0 with no panel. */
+  viewShiftPx(): number {
+    return this.viewShift.value(performance.now())
+  }
+
+  // Put the shift on the three cameras (only when it changed: setViewOffset rebuilds the projection).
+  private applyViewShift(now: number) {
+    const s = this.viewShift.value(now)
+    if (s === this.shiftApplied) return
+    this.shiftApplied = s
+    const w = this.container.clientWidth
+    const h = this.container.clientHeight
+    if (!w || !h) return
+    for (const cam of [this.camera, this.skyCamera, this.povCamera]) {
+      if (s === 0) cam.clearViewOffset()
+      else cam.setViewOffset(w, h, -s, 0, w, h)
+    }
+  }
+
+  // The largest vertical field of view the cap allows for the current map shape.
+  private povMaxFov(): number {
+    return maxVerticalFovDeg(this.maxFov, this.povCamera.aspect)
+  }
+
+  private skyMaxFov(): number {
+    return maxVerticalFovDeg(this.maxFov, this.skyCamera.aspect)
+  }
+
+  // A cap lowered (the debug slider) or a map reshaped by a resize: bring each view within it.
+  private applyFovCap() {
+    const globe = Math.min(GLOBE_FOV, maxVerticalFovDeg(this.maxFov, this.camera.aspect))
+    if (Math.abs(this.camera.fov - globe) > 1e-6) {
+      this.camera.fov = globe
+      this.camera.updateProjectionMatrix()
+    }
+    const sky = Math.max(SKY_FOV_MIN, Math.min(this.skyCamera.fov, this.skyMaxFov()))
+    if (sky !== this.skyCamera.fov) {
+      this.skyCamera.fov = sky
+      this.skyCamera.updateProjectionMatrix()
+    }
+    const pov = this.povCamera
+    const cap = Math.max(this.povMinFov, this.povMaxFov())
+    if (pov.fov > cap + 1e-6) {
+      // Riding the satellite the change eases in; otherwise it simply applies.
+      if (this.viewMode === 'pov' && !this.povDetached) this.startPovAnim()
+      pov.fov = cap
+      pov.updateProjectionMatrix()
+    }
   }
 
   private positionOf(i: number, date: Date): THREE.Vector3 | null {
@@ -3891,6 +3988,8 @@ export class GlobeEngine {
   private frame = (now: number) => {
     if (this.disposed) return
     this.frameNo++
+    this.applyViewShift(now)
+    this.applyFovCap()
     const simMs = this.clampToEnd()
     const date = new Date(simMs)
     this.syncOrbits(simMs)

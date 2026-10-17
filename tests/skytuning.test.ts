@@ -33,6 +33,7 @@ const target = (): TuningTarget => ({
   starBrightness: STAR_LOOK_DEFAULT.brightness,
   starSize: STAR_LOOK_DEFAULT.size,
   wideLimitOffset: STAR_LOOK_DEFAULT.limitOffset,
+  maxFov: 90,
 })
 const memory = (initial: Record<string, string> = {}) => {
   const m = new Map(Object.entries(initial))
@@ -68,15 +69,16 @@ test('the sliders: the requested ranges, steps that divide them, and defaults in
     starBrightness: [0.25, 3],
     starSize: [0.5, 2.5],
     wideLimitOffset: [-1, 4],
+    maxFov: [45, 140],
   }
-  assert.equal(SKY_TUNING_SLIDERS.length, 11)
+  assert.equal(SKY_TUNING_SLIDERS.length, 12)
   for (const s of SKY_TUNING_SLIDERS) {
     assert.deepEqual([s.min, s.max], r[s.key], s.key)
     assert.ok(s.default >= s.min && s.default <= s.max, `${s.key} default in range`)
     assert.ok(s.step > 0 && (s.max - s.min) / s.step > 20, `${s.key} step`)
     assert.ok(s.label.length > 0 && s.digits >= 0)
   }
-  assert.equal(new Set(SKY_TUNING_KEYS).size, 11)
+  assert.equal(new Set(SKY_TUNING_KEYS).size, 12)
 })
 
 test('the defaults are exactly what ships (tuned by hand, 2026-10): the glow, the Earth dimming and the stars', () => {
@@ -92,6 +94,7 @@ test('the defaults are exactly what ships (tuned by hand, 2026-10): the glow, th
     starBrightness: 1.1,
     starSize: 1,
     wideLimitOffset: 3.5,
+    maxFov: 90,
   })
   // A fresh engine reads back as the defaults, and the panel changes nothing until a slider moves.
   const t = target()
@@ -104,6 +107,7 @@ test('the defaults are exactly what ships (tuned by hand, 2026-10): the glow, th
   assert.match(engine, /starBrightness: number = STAR_LOOK_DEFAULT\.brightness\n/)
   assert.match(engine, /starSize: number = STAR_LOOK_DEFAULT\.size\n/)
   assert.match(engine, /wideLimitOffset: number = STAR_LOOK_DEFAULT\.limitOffset\n/)
+  assert.match(engine, /maxFov = MAX_FOV_DEFAULT\n/)
 })
 
 test('slider to setting: each slider writes the engine setting it names (and only that one), held to its range and step', () => {
@@ -247,7 +251,7 @@ test('Copy settings: a short JSON of every value, at the slider\'s precision, th
   assert.equal(o.glowSaturation, 0.6)
   assert.equal(o.skyGlowSunlit, 1)
   assert.deepEqual(parseJson(json), { ...SKY_TUNING_DEFAULTS, glowGain: 0.73, wideLimitOffset: 2 })
-  assert.equal(toJson(SKY_TUNING_DEFAULTS), JSON.stringify({ glowGain: 0.2, glowSaturation: 0.6, glowGamma: 1.35, glowBlur: 0, skyGlowSunlit: 1, skyStarsSunlit: 1, skyGlowNight: 0.19, skyStarsNight: 0.19, starBrightness: 1.1, starSize: 1, wideLimitOffset: 3.5 }))
+  assert.equal(toJson(SKY_TUNING_DEFAULTS), JSON.stringify({ glowGain: 0.2, glowSaturation: 0.6, glowGamma: 1.35, glowBlur: 0, skyGlowSunlit: 1, skyStarsSunlit: 1, skyGlowNight: 0.19, skyStarsNight: 0.19, starBrightness: 1.1, starSize: 1, wideLimitOffset: 3.5, maxFov: 90 }))
   // Nonsense is refused or ignored, not applied.
   assert.equal(parseJson('not json'), null)
   assert.equal(parseJson('[1,2]'), null)

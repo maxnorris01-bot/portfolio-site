@@ -8,6 +8,7 @@
 
 import { GLOW_DEFAULT, STAR_LOOK_DEFAULT } from './glowtuning.ts'
 import { SKY_DIM_DEFAULT, type SkyDimTargets } from './skydim.ts'
+import { MAX_FOV_DEFAULT, MAX_FOV_SLIDER_MAX, MAX_FOV_SLIDER_MIN } from './fovcap.ts'
 
 export type SkyTuningKey =
   | 'glowGain'
@@ -21,6 +22,7 @@ export type SkyTuningKey =
   | 'starBrightness'
   | 'starSize'
   | 'wideLimitOffset'
+  | 'maxFov'
 
 export type SkyTuningValues = Record<SkyTuningKey, number>
 
@@ -42,11 +44,12 @@ export interface TuningTarget {
   starBrightness: number
   starSize: number
   wideLimitOffset: number
+  maxFov: number
 }
 
 export interface SliderSpec {
   key: SkyTuningKey
-  group: 'Glow' | 'Earth in view' | 'Stars'
+  group: 'Glow' | 'Earth in view' | 'Stars' | 'View'
   label: string
   min: number
   max: number
@@ -70,6 +73,7 @@ export const SKY_TUNING_SLIDERS: readonly SliderSpec[] = [
   { key: 'starBrightness', group: 'Stars', label: 'Brightness', min: 0.25, max: 3, step: 0.01, default: STAR_TUNING_DEFAULT.starBrightness, digits: 2, unit: '×', hint: 'Every star\'s brightness' },
   { key: 'starSize', group: 'Stars', label: 'Point size', min: 0.5, max: 2.5, step: 0.01, default: STAR_TUNING_DEFAULT.starSize, digits: 2, unit: '×' },
   { key: 'wideLimitOffset', group: 'Stars', label: 'Wide-field limit', min: -1, max: 4, step: 0.05, default: STAR_TUNING_DEFAULT.wideLimitOffset, digits: 2, unit: ' mag', hint: 'Fainter stars shown at fields wider than 15° (none under 5°)' },
+  { key: 'maxFov', group: 'View', label: 'Max field of view', min: MAX_FOV_SLIDER_MIN, max: MAX_FOV_SLIDER_MAX, step: 1, default: MAX_FOV_DEFAULT, digits: 0, unit: '°', hint: 'The larger of the horizontal and vertical angles cannot exceed this (Satellite, Sky and Globe views). Above about 100° the edges distort.' },
 ]
 
 const SPEC = new Map(SKY_TUNING_SLIDERS.map((s) => [s.key, s]))
@@ -121,6 +125,7 @@ export function readValues(t: TuningTarget): SkyTuningValues {
     starBrightness: t.starBrightness,
     starSize: t.starSize,
     wideLimitOffset: t.wideLimitOffset,
+    maxFov: t.maxFov,
   }
 }
 
@@ -139,6 +144,7 @@ export function writeValue(t: TuningTarget, key: SkyTuningKey, value: number): v
     case 'starBrightness': t.starBrightness = v; break
     case 'starSize': t.starSize = v; break
     case 'wideLimitOffset': t.wideLimitOffset = v; break
+    case 'maxFov': t.maxFov = v; break
   }
 }
 
