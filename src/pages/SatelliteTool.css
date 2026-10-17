@@ -557,7 +557,7 @@
 /* Phone: a short title block, so the map comes straight after it. */
 @media (max-width: 640px) {
   .sat-sub-row .eyebrow {
-    display: none;
+    font-size: 0.68rem;
   }
 
   .sat-title {
@@ -569,17 +569,11 @@
   }
 
   /* The tags scroll sideways inside their own row rather than stacking up. */
+  /* Six tags: they wrap onto a second line rather than hide in a sideways scroll. */
   .sat-tech {
-    flex-wrap: nowrap;
     order: 3;
     width: 100%;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-
-  .sat-tech .chip {
-    flex: none;
+    gap: 0.35rem;
   }
 
   .sat-lede {

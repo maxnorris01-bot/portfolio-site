@@ -6,7 +6,7 @@ Personal portfolio for Max Norris. Built with Vite, React, TypeScript and React 
 
 - `/` — Home
 - `/resume` — Resume
-- `/satellite-conjunction-screening` — Satellite conjunction screening project
+- `/satellite-conjunction-screening` — the Satellite Point-of-View Tool (the satellite viewer, with the daily conjunction screening it grew out of). The address keeps its original name so existing links work; the name, intro and tags live in `src/data/satelliteTool.ts`.
 
 ## Development
 

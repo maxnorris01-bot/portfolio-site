@@ -69,15 +69,17 @@ test('the page: the tool first, then Conjunction screening, For context, Data an
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'sections are out of order')
   assert.match(page, /Conjunction screening/)
   assert.match(page, /Data and credits/)
-  // The existing title, description and tags are unchanged.
-  assert.match(page, /Satellite Conjunction Screening<\/h1>/)
-  assert.match(page, /Continuously screens public satellite tracking data for close approaches using real\s+orbital mechanics\./)
-  assert.match(page, /The core pipeline makes zero LLM calls\./)
+  // The tool's name and intro come from one place (data/satelliteTool.ts) and are what the page, the Home card and the Resume show.
+  assert.match(page, /<h1 className="sat-title">\{satelliteTool\.name\}<\/h1>/)
+  assert.match(page, /satelliteTool\.intro\[0\]/)
+  assert.match(page, /satelliteTool\.intro\[1\]/)
+  assert.match(page, /usePageMeta\(satelliteTool\.pageTitle, satelliteTool\.pageDescription\)/)
+  assert.match(page, /Project · Applied AI &amp; data engineering/)
   assert.match(page, /View on GitHub ↗/)
   assert.match(page, /Latest run/)
   assert.match(page, /Risk breakdown/)
-  // Navigation labels and the route are untouched.
-  assert.match(src('components/NavBar.tsx'), /label: 'Satellite Screening Tool'/)
+  // The nav label is the new name; the route is unchanged, so existing links keep working.
+  assert.match(src('components/NavBar.tsx'), /label: 'Satellite Point-of-View Tool'/)
   assert.match(src('App.tsx'), /path="\/satellite-conjunction-screening"/)
   // The globe: "For context" and the credits are handed to the page's sections; the short line is on the map side, outside the controls column.
   const tsx = src('components/SatelliteGlobe.tsx')

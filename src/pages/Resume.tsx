@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import './Resume.css'
+import { satelliteTool } from '../data/satelliteTool'
 
 const skills = [
   'Python',
@@ -106,11 +107,9 @@ export default function Resume() {
             <section className="resume-projects">
               <h2 className="section-title">Applied AI Projects</h2>
               <Link to="/satellite-conjunction-screening" className="card resume-project-card">
-                <h3>Satellite Conjunction Screening</h3>
+                <h3>{satelliteTool.name}</h3>
                 <p>
-                  Continuously screens public satellite tracking data for close
-                  approaches using real orbital mechanics. The core pipeline
-                  makes zero LLM calls.
+                  {satelliteTool.intro.join(' ')}
                 </p>
                 <span className="card-link">View project →</span>
               </Link>
