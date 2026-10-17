@@ -368,7 +368,8 @@ export default function SatelliteGlobe({
       NIGHT_TEXTURE_URL,
     )
     engineRef.current = engine
-    if (import.meta.env.DEV) Object.assign(window, { __globe: engine })
+    // The engine on window for development, and on the live site with ?debug=1 (to retune, e.g. __globe.skyDim).
+    if (import.meta.env.DEV || new URLSearchParams(window.location.search).get('debug') === '1') Object.assign(window, { __globe: engine })
     return () => {
       engine.dispose()
       engineRef.current = null
@@ -935,6 +936,7 @@ export default function SatelliteGlobe({
   // now), read twice a second while the overlay is on.
   const [debugEngine, setDebugEngine] = useState<{
     selection: string
+    skyDim: string
     prop: ReturnType<GlobeEngine['debugObject']> | null
   } | null>(null)
   useEffect(() => {
@@ -944,6 +946,7 @@ export default function SatelliteGlobe({
       if (!engine) return
       setDebugEngine({
         selection: engine.debugSelection(),
+        skyDim: engine.debugSkyDim(),
         prop: povTarget !== null ? engine.debugObject(povTarget) : null,
       })
     }
@@ -961,6 +964,7 @@ export default function SatelliteGlobe({
       `snapshot ${loaded ? `${loaded.key}, ${loaded.file.objects.length} objects, generated ${loaded.file.generated_at_utc ?? '?'}` : 'not loaded'}${loadError ? ` · load error ${loadError}` : ''}`,
       `clock ${clock.kind} ×${clock.speed} · displayed ${time.simMs ? new Date(time.simMs).toISOString() : '?'}`,
       `view ${viewMode} · engine ${debugEngine?.selection ?? 'not ready'}`,
+      debugEngine?.skyDim ?? 'sky dim: not read yet',
       `selection: satellite ${obj(inspect)} · station ${station ?? 'none'}${stationForPov ? ` (core ${stationForPov.main})` : ''} · pair ${pairIdx ? `${obj(pairIdx[0])} / ${obj(pairIdx[1])}` : 'none'}`,
       `viewpoint ${obj(povTarget)} · in loaded objects ${povObject ? 'yes' : 'no'} · satrec ${prop ? (prop.satrec ? 'yes' : 'no') : '-'} · propagates now ${prop ? (prop.propagated ? 'yes' : `no (${prop.error})`) : '-'}`,
       `toggle: canPov sent ${povTarget !== null} · handler ${onCanPovChange ? 'yes' : 'MISSING'}`,

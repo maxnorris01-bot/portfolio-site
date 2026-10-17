@@ -20,6 +20,8 @@ export interface SkyContext {
   camera: THREE.PerspectiveCamera
   /** The field of view actually rendered, degrees. */
   fovDeg: number
+  /** How much to dim the sky for the Earth in view (1 = not at all): layers that are light from the sky multiply by it. */
+  dim: number
   /** Scene axes back to J2000 (for layers whose images are in J2000 coordinates). */
   sceneToJ2000: THREE.Matrix3
   date: Date
@@ -42,6 +44,7 @@ attribute vec3 color;
 uniform float limitMag;
 uniform float grow;
 uniform float narrow;
+uniform float dim;
 uniform float pixelRatio;
 varying vec3 vColor;
 varying float vAlpha;
@@ -55,7 +58,7 @@ void main() {
   }
   float sizePx = min(${STAR_MAX_PX.toFixed(1)}, (1.2 + 0.55 * above) * grow);
   float fadeIn = min(1.0, above / 1.5);
-  vAlpha = min(1.0, (0.35 + 0.15 * above) * fadeIn) * narrow;
+  vAlpha = min(1.0, (0.35 + 0.15 * above) * fadeIn) * narrow * dim;
   vColor = color;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   // At least 1.5 device pixels, so faint stars don't shimmer in and out.
@@ -82,6 +85,7 @@ export function createStarMaterial(pixelRatio: number): THREE.ShaderMaterial {
       limitMag: { value: 6.5 },
       grow: { value: 1 },
       narrow: { value: 1 },
+      dim: { value: 1 },
       pixelRatio: { value: pixelRatio },
     },
     vertexShader: STAR_VERTEX,
@@ -156,6 +160,11 @@ export class StarField {
   /** The star a click or tap at this ray selects (catalogue index, or -1). */
   pick(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): number {
     return this.pickScored(ray, fovDeg, screenPx, radiusPx).index
+  }
+
+  /** Dim every star's brightness (the Earth in view): only the brightness, never which stars are loaded, drawn or pickable. */
+  setDim(dim: number) {
+    this.material.uniforms.dim.value = dim
   }
 
   /** The shared material (the streamed stars use the same one). */
@@ -504,6 +513,8 @@ export class SpaceView {
   private starField: StarField | null = null
   private readonly rotating: SkyRotatingLayer[] = []
   private lastRotation: Mat3 | null = null
+  private dimGlow = 1
+  private dimStars = 1
   readonly bodies = new SpaceBodies()
   readonly glow = new AtmosphereGlow()
   private readonly backdrops: SkyBackdropLayer[] = []
@@ -580,17 +591,27 @@ export class SpaceView {
     this.sceneToJ2000.copy(toDate.transpose()).multiply(sceneToDate)
   }
 
+  /** The dimming for the Earth in view: the glow and the stars (see skydim.ts). */
+  setSkyDim(glow: number, stars: number) {
+    this.dimGlow = glow
+    this.dimStars = stars
+  }
+
   /** Each satellite-view frame: follow the camera, size the stars for the field of view. */
   update(camera: THREE.PerspectiveCamera, fovDeg: number, date: Date) {
     this.group.visible = true
     this.group.position.copy(camera.position)
     this.starField?.update(fovDeg)
-    const ctx: SkyContext = { camera, fovDeg, sceneToJ2000: this.sceneToJ2000, date }
+    this.starField?.setDim(this.dimStars)
+    const ctx: SkyContext = { camera, fovDeg, dim: this.dimGlow, sceneToJ2000: this.sceneToJ2000, date }
     for (const b of this.backdrops) b.update(ctx)
   }
 
   hide() {
     this.group.visible = false
+    this.dimGlow = 1
+    this.dimStars = 1
+    this.starField?.setDim(1)
     this.bodies.hide()
     this.glow.hide()
   }
