@@ -5,10 +5,16 @@
 /** The phone layout of the globe's CSS: narrow, or a phone on its side. Panels wait for full screen there. */
 export const PHONE_LAYOUT_QUERY = '(max-width: 640px), (max-height: 500px)'
 
-/** Below this width the left column stacks above the map instead of beside it (CSS: the same number). */
+/** Up to this width the controls stack above the map instead of sitting over it (CSS: the same number). */
 export const STACK_BREAKPOINT_PX = 900
 
-/** The left column's width: clamp(300px, 24vw, 420px), as a number for a given window width. */
+/** The stacked layout (the controls above the map, no overlay panel): the same breakpoint as a media query. */
+export const STACKED_LAYOUT_QUERY = `(max-width: ${STACK_BREAKPOINT_PX}px)`
+
+/** Clear space between the overlay panel's right edge and the part of the map treated as free (px). */
+export const OVERLAY_GAP_PX = 12
+
+/** The overlay panel's width: clamp(300px, 24vw, 420px), as a number for a given window width. */
 export function sidebarWidthPx(windowWidth: number): number {
   return Math.min(420, Math.max(300, windowWidth * 0.24))
 }

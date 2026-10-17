@@ -27,7 +27,7 @@ const blocked = {
   },
 }
 
-test('the left column is clamp(300px, 24vw, 420px) and the gutter clamp(16px, 2.2vw, 48px)', () => {
+test('the panel is clamp(300px, 24vw, 420px) and the gutter clamp(16px, 2.2vw, 48px)', () => {
   assert.equal(sidebarWidthPx(1000), 300)
   assert.ok(Math.abs(sidebarWidthPx(1440) - 345.6) < 1e-9)
   assert.equal(sidebarWidthPx(1920), 420)
@@ -38,7 +38,11 @@ test('the left column is clamp(300px, 24vw, 420px) and the gutter clamp(16px, 2.
   // The same numbers are in the CSS.
   const css = src('components/SatelliteGlobe.css')
   assert.match(css, /--side-w: clamp\(300px, 24vw, 420px\)/)
-  assert.match(src('pages/SatelliteTool.css'), /--sat-gutter: clamp\(16px, 2\.2vw, 48px\)/)
+  // The page, its header and the tool share one gutter and one cap (tokens.css).
+  assert.match(src('styles/tokens.css'), /--wide-gutter: clamp\(16px, 2\.2vw, 48px\)/)
+  assert.match(src('styles/tokens.css'), /--wide-width: 2500px/)
+  assert.match(src('pages/SatelliteTool.css'), /--sat-gutter: var\(--wide-gutter\)/)
+  assert.match(src('pages/SatelliteTool.css'), /max-width: var\(--wide-width\)/)
   assert.equal(STACK_BREAKPOINT_PX, 900)
   assert.match(css, /@media \(min-width: 641px\) and \(min-height: 501px\) and \(max-width: 900px\)/)
 })
@@ -103,23 +107,24 @@ test('the compact toggle: a pressed button with a label and the C shortcut, in a
   assert.match(tsx, /className="globe-compact-btn"\s+aria-pressed=\{compact\}\s+aria-keyshortcuts="C"/)
   assert.match(tsx, /if \(isCompactKey\(e\)\) toggleCompact\(\)/)
   const css = src('components/SatelliteGlobe.css')
-  assert.match(css, /\.globe\.is-compact \.globe-controls \{\s+display: none;/)
+  assert.match(css, /\.globe\.is-compact \.globe-overlay,\s+\.globe\.is-compact \.globe-controls \{\s+display: none;/)
   // Neither the map's stage nor the clock row nor the credits line is hidden by it.
   assert.doesNotMatch(css, /\.is-compact [^{]*\.(globe-stage|globe-timebar|globe-credits)[^{]*\{\s+display: none/)
   // Reduced motion: the column's fade-in is only for people who haven't asked for less.
-  assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s+\.globe-controls \{\s+animation/)
+  assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s+\.globe-controls,\s+\.globe-overlay \{\s+animation/)
 })
 
-test('the layout: the controls are in their own column with their own scrolling, the map and clock row beside it', () => {
+test('the layout: one overlay panel over the map with its own scrolling; the stacked block above the map; the clock row attached', () => {
   const css = src('components/SatelliteGlobe.css')
-  assert.match(css, /\.globe-controls \{[^}]*contain: size;[^}]*overflow-y: auto;/)
+  assert.match(css, /\.globe-overlay \{[^}]*position: absolute;[^}]*max-height: calc\(100% - 1\.5rem\);[^}]*overflow-y: auto;[^}]*backdrop-filter: blur\(10px\)/)
+  assert.match(css, /\.globe-controls \{\s+display: none;[^}]*overflow-y: auto;/)
   assert.match(css, /\.globe-timebar \{\s+margin-top: 0;/)
   const tsx = src('components/SatelliteGlobe.tsx')
-  // The panels are portalled into the column except on a phone, where they stay over the map.
-  assert.match(tsx, /const aside = \(node: ReactNode\) => \(!phone && sidebarEl \? createPortal\(node, sidebarEl\) : node\)/)
-  // The mode switch is the first thing in the column.
-  assert.ok(tsx.indexOf('{modeSwitch}') < tsx.indexOf('className="globe-controls"'))
-  assert.ok(tsx.indexOf('className="globe-controls"') < tsx.indexOf('className="globe-stage"'))
+  // The panels are portalled into the overlay on the map (the block above it when stacked), except on a phone, where they stay over the map.
+  assert.match(tsx, /const host = phone \? null : stacked \? sidebarEl : overlayEl/)
+  // The mode switch and the compact button are in the row above the map; the overlay is inside the stage.
+  assert.ok(tsx.indexOf('{modeSwitch}') < tsx.indexOf('className="globe-stage"'))
+  assert.ok(tsx.indexOf('className="globe-stage"') < tsx.indexOf('className="globe-overlay"'))
   // Full screen is an icon on the map in the wide layout (its label stays for assistive tech).
   assert.match(tsx, /<span className="globe-fs-label">Full screen<\/span>/)
   // The Satellite panel's groups.

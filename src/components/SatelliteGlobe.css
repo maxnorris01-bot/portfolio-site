@@ -1774,6 +1774,8 @@ html.globe-fs-lock body {
   align-items: center;
   gap: 0.35rem;
   max-width: 92%;
+  /* The card scrolls inside the map rather than running out of it. */
+  max-height: calc(100% - 1.2rem);
 }
 
 .globe-tune-tab,
@@ -1795,6 +1797,7 @@ html.globe-fs-lock body {
 .globe-tune-panel {
   width: min(24rem, 92vw);
   max-height: min(70vh, 34rem);
+  min-height: 0;
   overflow-y: auto;
   padding: 0.6rem 0.8rem 0.8rem;
   border: 1px solid var(--globe-line, rgb(255 255 255 / 0.2));
@@ -1886,10 +1889,13 @@ html.globe-fs-lock body {
 }
 
 /* ======================================================================
-   Page layout: the controls in a left column beside the map, the clock row
-   attached under it, a short credits line, and a compact view that hides
-   the column. A phone (narrow, or on its side) keeps the old behaviour: the
-   map clean, the panels over it in full screen.
+   Page layout: a full-width map with the controls in one translucent panel
+   over its left side (the engine moves the projection centre into the free
+   part, and --free-left tells the CSS how much of the left side the panel
+   covers), the clock row attached under it, a short credits line, and a
+   compact view that hides the panel. Narrow windows stack the controls above
+   the map; a phone (narrow, or on its side) keeps the map clean with the
+   panels over it in full screen.
    ====================================================================== */
 
 .globe {
@@ -1902,15 +1908,11 @@ html.globe-fs-lock body {
 
 .globe-layout {
   display: grid;
-  grid-template-columns: var(--side-w) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
-  column-gap: clamp(0.75rem, 1.2vw, 1.25rem);
+  grid-template-columns: minmax(0, 1fr);
   row-gap: 0.6rem;
 }
 
 .globe-modebar {
-  grid-column: 1;
-  grid-row: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1950,32 +1952,77 @@ html.globe-fs-lock body {
   font-size: 0.7rem;
 }
 
-/* The left column: its own scrolling, sized by the map beside it (contain: size
-   keeps its long content from stretching the row). */
+/* The controls block above the map: used only when the window is narrow (stacked, below). */
 .globe-controls {
-  grid-column: 1;
-  grid-row: 2;
-  display: grid;
+  display: none;
   align-content: start;
   gap: 0.75rem;
   min-height: 0;
-  contain: size;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
 
-.globe-controls:empty {
-  display: none;
-}
-
 .globe-main {
-  grid-column: 2;
-  grid-row: 1 / span 2;
   min-width: 0;
 }
 
-/* Panels in the column are ordinary dark cards, not overlays on the map. */
+/* The overlay panel: one panel over the map's left side, with its own
+   scrolling and a height that stays inside the map; slightly translucent, with
+   a soft blur so the sky shows through. */
+.globe-overlay {
+  position: absolute;
+  z-index: 3;
+  top: 0.75rem;
+  left: 0.75rem;
+  box-sizing: border-box;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  width: var(--side-w);
+  max-width: calc(100% - 1.5rem);
+  max-height: calc(100% - 1.5rem);
+  padding: 0.8rem 0.85rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  border: 1px solid var(--globe-line);
+  border-radius: var(--radius);
+  background: rgb(5 7 13 / 0.8);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--globe-ink);
+  font-size: 0.85rem;
+}
+
+.globe-overlay:empty,
+.globe-controls:empty,
+.globe.is-compact .globe-overlay,
+.globe.is-compact .globe-controls {
+  display: none;
+}
+
+/* Inside the panel the cards lose their own surface: one panel, groups divided by a line. */
+.globe-overlay .globe-panel {
+  position: static;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* The mode's own panel comes first (order: -1 below); what follows it is divided from it by a line. */
+.globe-overlay:has(> .globe-side) > :not(.globe-side) {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--globe-line);
+}
+
+.globe-overlay .globe-legend {
+  min-width: 0;
+}
+
 .globe .globe-controls .globe-panel {
   position: static;
   background: var(--globe-bg);
@@ -1987,7 +2034,8 @@ html.globe-fs-lock body {
   min-width: 0;
 }
 
-.globe .globe-controls .globe-side {
+.globe .globe-controls .globe-side,
+.globe .globe-overlay .globe-side {
   position: static;
   top: auto;
   right: auto;
@@ -2003,13 +2051,26 @@ html.globe-fs-lock body {
   backdrop-filter: none;
 }
 
-.globe-controls .globe-sheet-handle {
+.globe-controls .globe-sheet-handle,
+.globe-overlay .globe-sheet-handle {
   display: none;
 }
 
 /* The panel for the current mode (a selection, Your Sky, the Satellite view) comes first; the colour and filter legend follows it. */
-.globe .globe-controls .globe-side {
+.globe .globe-controls .globe-side,
+.globe .globe-overlay .globe-side {
   order: -1;
+}
+
+/* The "showing N of M" bar in the panel is a dark strip, not the page's light one. */
+.globe-overlay .globe-filterbar {
+  margin: 0;
+  padding: 0.55rem 0;
+  border: 0;
+  border-top: 1px solid var(--globe-line);
+  border-radius: 0;
+  background: none;
+  color: var(--globe-ink);
 }
 
 /* The clock row sits right under the map, attached to it. */
@@ -2091,32 +2152,38 @@ html.globe-fs-lock body {
     top: 0.6rem;
   }
 
-  .globe-hint {
-    right: 0.75rem;
-    left: auto;
-  }
-
+  /* What sits on the map keeps to the free area: --free-left is how much of
+     the left side the panel covers (0 with the panel closed, in compact view
+     and when stacked). */
+  .globe-hint,
   .globe-hint.is-sky {
     right: 0.75rem;
     left: auto;
+    max-width: calc(100% - var(--free-left, 0px) - 1.5rem);
+    text-align: right;
   }
 
-  /* Compact view: the column goes and the map takes the full width. The
-     switch and the toggle stay in a bar above it. */
-  .globe.is-compact .globe-layout {
-    grid-template-columns: minmax(0, 1fr);
+  .globe-compass {
+    left: calc(var(--free-left, 0px) + 1rem);
   }
 
-  .globe.is-compact .globe-controls {
-    display: none;
+  .globe-debug,
+  .globe-pov-return,
+  .globe-tune {
+    left: calc(var(--free-left, 0px) + (100% - var(--free-left, 0px)) / 2);
   }
 
-  .globe.is-compact .globe-main {
-    grid-column: 1;
-    grid-row: 2;
+  .globe-debug {
+    max-width: calc((100% - var(--free-left, 0px)) * 0.92);
   }
 
-  /* With the column hidden, a small box on the map names what is selected. */
+  .globe-tune {
+    max-width: calc((100% - var(--free-left, 0px)) * 0.92);
+  }
+
+  /* Compact view: the panel goes and the map is clear. The switch and the
+     toggle stay in the bar above it. With the panel hidden, a small box on
+     the map names what is selected. */
   .globe.is-compact:not(.is-fullscreen) .globe-mini {
     position: absolute;
     bottom: 0.75rem;
@@ -2169,25 +2236,9 @@ html.globe-fs-lock body {
 /* Narrower than a laptop (tablets, narrow windows): the controls stack above
    the map, in a scrolling block that leaves most of the window to the map. */
 @media (min-width: 641px) and (min-height: 501px) and (max-width: 900px) {
-  .globe-layout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
-  }
-
   .globe-controls {
-    grid-column: 1;
-    grid-row: 2;
-    contain: none;
+    display: grid;
     max-height: min(30dvh, 20rem);
-  }
-
-  .globe-main {
-    grid-column: 1;
-    grid-row: 3;
-  }
-
-  .globe.is-compact .globe-main {
-    grid-row: 2;
   }
 }
 
@@ -2195,18 +2246,12 @@ html.globe-fs-lock body {
    full screen as before (the panels render over the map, not in the column). */
 @media (max-width: 640px), (max-height: 500px) {
   .globe-layout {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
     row-gap: 0.5rem;
   }
 
-  .globe-controls {
+  .globe-controls,
+  .globe-overlay {
     display: none;
-  }
-
-  .globe-main {
-    grid-column: 1;
-    grid-row: 2;
   }
 
   .globe-compact-btn {
@@ -2219,9 +2264,11 @@ html.globe-fs-lock body {
   }
 }
 
-/* Full screen: the layout (column, map, clock row) fills the screen. */
+/* Full screen: the layout (switch, map, clock row) fills the screen. */
 .globe.is-fullscreen .globe-layout {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
 }
 
@@ -2232,8 +2279,13 @@ html.globe-fs-lock body {
 
 .globe.is-fullscreen .globe-main {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+}
+
+.globe.is-fullscreen .globe-controls {
+  flex: 0 0 auto;
 }
 
 .globe.is-fullscreen .globe-stage {
@@ -2255,39 +2307,32 @@ html.globe-fs-lock body {
 }
 
 @media (min-width: 641px) and (min-height: 501px) {
-  .globe.is-fullscreen .globe-layout {
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-
   .globe.is-fullscreen .globe-controls .globe-panel,
   .globe.is-fullscreen .globe-controls .globe-side {
     max-height: none;
-  }
-
-  .globe.is-fullscreen .globe-main {
-    height: 100%;
   }
 }
 
 /* Phone full screen: the phone sheet and panels sit over the map as before. */
 @media (max-width: 640px), (max-height: 500px) {
-  .globe.is-fullscreen .globe-layout {
-    display: flex;
-    flex-direction: column;
-  }
-
   .globe.is-fullscreen .globe-modebar {
     display: none;
-  }
-
-  .globe.is-fullscreen .globe-main {
-    flex: 1 1 auto;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .globe-controls {
+  .globe-controls,
+  .globe-overlay {
     animation: globe-ctl-in 0.16s ease-out;
+  }
+
+  /* The things on the map slide to the free area with the camera (about 300 ms, the same ease). */
+  .globe-hint,
+  .globe-compass,
+  .globe-debug,
+  .globe-pov-return,
+  .globe-tune {
+    transition: left 0.3s cubic-bezier(0.65, 0, 0.35, 1);
   }
 
   @keyframes globe-ctl-in {
