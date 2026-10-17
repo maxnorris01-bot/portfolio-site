@@ -10,6 +10,7 @@
 
 import * as THREE from 'three'
 import { SKY_BODIES, markerSizePx } from './skybodies.ts'
+import type { GlowTuning } from './glowtuning.ts'
 import { bodyPixels, type SpaceBodyView } from './spacebodies.ts'
 import { SKY_RADIUS, STAR_MAX_PX, j2000ToScene, pickStarScored, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
 
@@ -22,6 +23,8 @@ export interface SkyContext {
   fovDeg: number
   /** How much to dim the sky for the Earth in view (1 = not at all): layers that are light from the sky multiply by it. */
   dim: number
+  /** The glow's look (gain, saturation, gamma, blur), read every frame. */
+  glow?: GlowTuning
   /** Scene axes back to J2000 (for layers whose images are in J2000 coordinates). */
   sceneToJ2000: THREE.Matrix3
   date: Date
@@ -515,6 +518,7 @@ export class SpaceView {
   private lastRotation: Mat3 | null = null
   private dimGlow = 1
   private dimStars = 1
+  private glowTuning: GlowTuning | undefined
   readonly bodies = new SpaceBodies()
   readonly glow = new AtmosphereGlow()
   private readonly backdrops: SkyBackdropLayer[] = []
@@ -591,6 +595,11 @@ export class SpaceView {
     this.sceneToJ2000.copy(toDate.transpose()).multiply(sceneToDate)
   }
 
+  /** The glow's tuning, passed to the backdrop layers each frame. */
+  setGlowTuning(t: GlowTuning) {
+    this.glowTuning = t
+  }
+
   /** The dimming for the Earth in view: the glow and the stars (see skydim.ts). */
   setSkyDim(glow: number, stars: number) {
     this.dimGlow = glow
@@ -603,7 +612,7 @@ export class SpaceView {
     this.group.position.copy(camera.position)
     this.starField?.update(fovDeg)
     this.starField?.setDim(this.dimStars)
-    const ctx: SkyContext = { camera, fovDeg, dim: this.dimGlow, sceneToJ2000: this.sceneToJ2000, date }
+    const ctx: SkyContext = { camera, fovDeg, dim: this.dimGlow, glow: this.glowTuning, sceneToJ2000: this.sceneToJ2000, date }
     for (const b of this.backdrops) b.update(ctx)
   }
 

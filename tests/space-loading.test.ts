@@ -138,6 +138,7 @@ test('the NASA Milky Way picture is gone: no file, no loader, no credit; the Gai
   const engine = src('globe/engine.ts')
   assert.match(engine, /import\('\.\/glowlayer'\)/)
   assert.doesNotMatch(engine, /^import (?!type)[^\n]*from '\.\/glow(layer)?'/m)
-  assert.match(engine, /space\.addBackdrop\(new layer\.GlowLayer/)
+  assert.match(engine, /new layer\.GlowLayer\(/)
+  assert.match(engine, /space\.addBackdrop\(glowLayer\)/)
   assert.match(src('globe/glowlayer.ts'), /implements SkyBackdropLayer/)
 })
