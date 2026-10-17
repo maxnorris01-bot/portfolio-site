@@ -22,4 +22,7 @@
   --radius: 6px;
   --content-width: 1120px;
   --gutter: clamp(16px, 4vw, 40px);
+  /* The satellite tool page's width: its header and its content share them. */
+  --wide-width: 2500px;
+  --wide-gutter: clamp(16px, 2.2vw, 48px);
 }

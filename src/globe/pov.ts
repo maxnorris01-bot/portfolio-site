@@ -51,6 +51,23 @@ export function presetView(preset: PovPreset, pos: Vec3, vel: Vec3): { look: Vec
 
 const DEG = Math.PI / 180
 
+/**
+ * How far to tip the Forward view down so the Earth's limb is in it. The limb
+ * lies `acos(R / (R + h))` below the horizontal (20 degrees from the ISS), more
+ * than half a narrow field of view away, so level it only just shows (under
+ * the field-of-view cap, with the wide default gone). The view is tipped until
+ * the limb sits a little over half-way from the centre to the bottom edge;
+ * a wide field needs almost none, and from so high that the limb is out of
+ * reach (more than twice the half-field below the horizon, e.g. geostationary
+ * orbit) it stays level. Degrees, negative (downward).
+ */
+export function forwardPitchDeg(altKm: number, vFovDeg: number, earthRadiusKm = 6371): number {
+  const dip = Math.acos(earthRadiusKm / (earthRadiusKm + Math.max(0, altKm))) / DEG
+  const half = vFovDeg / 2
+  if (!(half > 0) || dip >= 2 * half) return 0
+  return dip > 0.55 * half ? 0.55 * half - dip : 0
+}
+
 /** Pitch is limited so looking up or down never flips over the top. */
 export const POV_PITCH_MAX = 85
 

@@ -42,7 +42,7 @@ const SkyTuningPanel = lazy(() => import('./SkyTuningPanel'))
 import { FULLSCREEN_OFF, fullscreenStep, type FullscreenEffects, type FullscreenEvent } from '../globe/fullscreen'
 import CollisionHistory, { CollisionSources } from './CollisionHistory'
 import { CREDITS_ID, SHORT_CREDITS, allCreditTexts, footnoteText } from '../globe/credits'
-import { PHONE_LAYOUT_QUERY, isCompactKey, loadCompact, saveCompact } from '../globe/pagelayout'
+import { OVERLAY_GAP_PX, PHONE_LAYOUT_QUERY, STACKED_LAYOUT_QUERY, isCompactKey, isTyping, loadCompact, saveCompact } from '../globe/pagelayout'
 import './SatelliteGlobe.css'
 
 const TEXTURE_URL = '/textures/earth-day-2k.jpg'
@@ -153,18 +153,28 @@ export default function SatelliteGlobe({
   const rootRef = useRef<HTMLDivElement>(null)
   const fsButtonRef = useRef<HTMLButtonElement>(null)
   const [fullscreen, setFullscreen] = useState(FULLSCREEN_OFF)
-  // The layout: the controls (legend, selection and Satellite panels) sit in a
-  // left column beside the map, except on a phone, where they stay over the map
-  // in full screen (the existing sheet). Compact view hides the column; it is
-  // remembered for the session only.
+  // The layout: the map spans the full width and the controls (legend,
+  // selection and Satellite panels) sit in one translucent panel over its left
+  // side (the engine moves the projection centre into the free part). Below the
+  // stack breakpoint they stack above the map instead; on a phone they stay over
+  // the map in full screen (the existing sheet). Compact view hides the panel;
+  // it is remembered for the session only.
   const mainRef = useRef<HTMLDivElement>(null)
   const [sidebarEl, setSidebarEl] = useState<HTMLDivElement | null>(null)
+  const [overlayEl, setOverlayEl] = useState<HTMLDivElement | null>(null)
   const [phone, setPhone] = useState(() => window.matchMedia(PHONE_LAYOUT_QUERY).matches)
+  const [stacked, setStacked] = useState(() => window.matchMedia(STACKED_LAYOUT_QUERY).matches)
   useEffect(() => {
     const mq = window.matchMedia(PHONE_LAYOUT_QUERY)
     const on = () => setPhone(mq.matches)
     mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
+    const sq = window.matchMedia(STACKED_LAYOUT_QUERY)
+    const onStack = () => setStacked(sq.matches)
+    sq.addEventListener('change', onStack)
+    return () => {
+      mq.removeEventListener('change', on)
+      sq.removeEventListener('change', onStack)
+    }
   }, [])
   const [compact, setCompact] = useState(() => loadCompact())
   const toggleCompact = useCallback(() => {
@@ -200,8 +210,11 @@ export default function SatelliteGlobe({
       window.removeEventListener('resize', measure)
     }
   }, [fullscreen.on, compact, phone])
-  /** Where a control panel goes: the left column beside the map (a portal), or in place over the map on a phone. */
-  const aside = (node: ReactNode) => (!phone && sidebarEl ? createPortal(node, sidebarEl) : node)
+  /** Where a control panel goes: the panel over the map's left side (a portal), the block above the map when stacked, or in place over the map on a phone. */
+  const aside = (node: ReactNode) => {
+    const host = phone ? null : stacked ? sidebarEl : overlayEl
+    return host ? createPortal(node, host) : node
+  }
   const fsRef = useRef(FULLSCREEN_OFF)
   const fsScrollRef = useRef(0)
   // On a phone in full screen the info panel is a bottom sheet: a peek, or opened up.
@@ -454,6 +467,35 @@ export default function SatelliteGlobe({
     }
   }, [])
 
+  // The overlay panel and the camera: how much of the map's left side the panel
+  // covers goes to the engine (it moves the projection centre into the free
+  // part) and to the CSS (--free-left: where the compass, the hint and the
+  // like sit). Measured, so a changed panel width or a resize is followed.
+  useEffect(() => {
+    const stage = stageRef.current
+    if (!stage) return
+    const overlay = !phone && !stacked && !compact ? overlayEl : null
+    const push = () => {
+      let inset = 0
+      if (overlay) {
+        const o = overlay.getBoundingClientRect()
+        if (o.width > 0 && o.height > 0) inset = Math.max(0, o.right - stage.getBoundingClientRect().left + OVERLAY_GAP_PX)
+      }
+      inset = Math.round(inset)
+      if (stage.style.getPropertyValue('--free-left') !== `${inset}px`) stage.style.setProperty('--free-left', `${inset}px`)
+      engineRef.current?.setViewInset(inset)
+    }
+    push()
+    const ro = new ResizeObserver(push)
+    ro.observe(stage)
+    if (overlay) ro.observe(overlay)
+    return () => {
+      ro.disconnect()
+      stage.style.setProperty('--free-left', '0px')
+      engineRef.current?.setViewInset(0)
+    }
+  }, [overlayEl, phone, stacked, compact, fullscreen.on])
+
   useEffect(() => {
     let live = true
     loadHistoryDates().then((dates) => live && setHistoryDates(dates))
@@ -680,8 +722,10 @@ export default function SatelliteGlobe({
   }, [povNote])
 
   // Keyboard alternative to dragging and pinching in the satellite view.
-  const onStageKeyDown = (e: { key: string; preventDefault: () => void }) => {
+  const onStageKeyDown = (e: { key: string; preventDefault: () => void; target?: unknown }) => {
     if (viewMode !== 'pov') return
+    // A slider or box in the panel over the map keeps its own arrow keys.
+    if (isTyping(e.target) || (e.target as { type?: string } | null)?.type === 'range') return
     const engine = engineRef.current
     if (!engine) return
     const step = 5
@@ -1159,6 +1203,7 @@ export default function SatelliteGlobe({
         onKeyDown={onStageKeyDown}
       >
         <div ref={containerRef} className="globe-canvas" />
+        <div ref={setOverlayEl} className="globe-overlay" role="region" aria-label="Controls" />
 
         {coloring && aside(
           <div
@@ -1763,8 +1808,8 @@ export default function SatelliteGlobe({
                         <dd>
                           {PRESET_LABEL[povInfo.preset]}
                           {povInfo.preset === 'down' ? (povInfo.orientation === 'north' ? ', north up' : ', heading up') : ''}
-                          {povInfo.yaw !== 0 || povInfo.pitch !== 0
-                            ? ` · ${Math.round(povInfo.yaw)}° right, ${Math.round(povInfo.pitch)}° up`
+                          {Math.round(povInfo.yaw) !== 0 || Math.round(povInfo.pitch - povInfo.presetPitch) !== 0
+                            ? ` · ${Math.round(povInfo.yaw)}° right, ${Math.abs(Math.round(povInfo.pitch - povInfo.presetPitch))}° ${povInfo.pitch - povInfo.presetPitch < 0 ? 'down' : 'up'}`
                             : ''}
                         </dd>
                       </>
