@@ -1884,3 +1884,415 @@ html.globe-fs-lock body {
     border-radius: 12px 12px 0 0;
   }
 }
+
+/* ======================================================================
+   Page layout: the controls in a left column beside the map, the clock row
+   attached under it, a short credits line, and a compact view that hides
+   the column. A phone (narrow, or on its side) keeps the old behaviour: the
+   map clean, the panels over it in full screen.
+   ====================================================================== */
+
+.globe {
+  --side-w: clamp(300px, 24vw, 420px);
+  /* The clock row's height, for sizing the map so both fit the window. */
+  --clock-h: 3.6rem;
+  /* And the short credits line under it (one line on a wide screen, two on a laptop). */
+  --credits-h: 2.4rem;
+}
+
+.globe-layout {
+  display: grid;
+  grid-template-columns: var(--side-w) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: clamp(0.75rem, 1.2vw, 1.25rem);
+  row-gap: 0.6rem;
+}
+
+.globe-modebar {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.globe-compact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.2rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.globe-compact-btn:hover {
+  color: var(--color-navy);
+  border-color: var(--color-navy);
+}
+
+.globe-compact-btn[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  color: var(--color-navy);
+}
+
+.globe-compact-btn kbd {
+  padding: 0 0.3rem;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+/* The left column: its own scrolling, sized by the map beside it (contain: size
+   keeps its long content from stretching the row). */
+.globe-controls {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-height: 0;
+  contain: size;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.globe-controls:empty {
+  display: none;
+}
+
+.globe-main {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 0;
+}
+
+/* Panels in the column are ordinary dark cards, not overlays on the map. */
+.globe .globe-controls .globe-panel {
+  position: static;
+  background: var(--globe-bg);
+  backdrop-filter: none;
+  color: var(--globe-ink);
+}
+
+.globe .globe-controls .globe-legend {
+  min-width: 0;
+}
+
+.globe .globe-controls .globe-side {
+  position: static;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  width: auto;
+  max-height: none;
+  overflow: visible;
+  gap: 0.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  backdrop-filter: none;
+}
+
+.globe-controls .globe-sheet-handle {
+  display: none;
+}
+
+/* The panel for the current mode (a selection, Your Sky, the Satellite view) comes first; the colour and filter legend follows it. */
+.globe .globe-controls .globe-side {
+  order: -1;
+}
+
+/* The clock row sits right under the map, attached to it. */
+.globe-timebar {
+  margin-top: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--color-surface);
+}
+
+.globe-credits {
+  margin: 0.45rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.globe-credits a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+.globe-credit-list {
+  display: grid;
+  gap: 0.35rem;
+  padding-left: 1.1rem;
+}
+
+/* Satellite panel: short headings group its controls. */
+.globe-pov-heading {
+  margin: 0.85rem 0 0.25rem;
+  color: var(--globe-ink-muted);
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.globe-pov-about summary {
+  min-height: 1.75rem;
+  color: var(--globe-ink-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* The map's own pieces in the wide layout. */
+@media (min-width: 641px) and (min-height: 501px) {
+  .globe:not(.is-fullscreen) .globe-stage {
+    /* The window less what is above the map (measured into --globe-top) and the clock row. */
+    height: clamp(420px, calc(100vh - var(--globe-top, 15rem) - var(--clock-h) - var(--credits-h) - 0.6rem), 1500px);
+    height: clamp(420px, calc(100dvh - var(--globe-top, 15rem) - var(--clock-h) - var(--credits-h) - 0.6rem), 1500px);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  /* Full screen is a small icon at the top right of the map. */
+  .globe-fs-btn {
+    top: 0.6rem;
+    right: 0.6rem;
+    bottom: auto;
+    justify-content: center;
+    width: 2.75rem;
+    padding: 0;
+    font-size: 1.15rem;
+  }
+
+  .globe-fs-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .globe-fs-exit {
+    top: 0.6rem;
+  }
+
+  .globe-hint {
+    right: 0.75rem;
+    left: auto;
+  }
+
+  .globe-hint.is-sky {
+    right: 0.75rem;
+    left: auto;
+  }
+
+  /* Compact view: the column goes and the map takes the full width. The
+     switch and the toggle stay in a bar above it. */
+  .globe.is-compact .globe-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .globe.is-compact .globe-controls {
+    display: none;
+  }
+
+  .globe.is-compact .globe-main {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* With the column hidden, a small box on the map names what is selected. */
+  .globe.is-compact:not(.is-fullscreen) .globe-mini {
+    position: absolute;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.1rem 0.75rem;
+    max-width: min(26rem, calc(100% - 1.5rem));
+    padding: 0.55rem 0.6rem 0.55rem 0.8rem;
+    border: 1px solid var(--globe-line);
+    border-radius: var(--radius);
+    background: var(--globe-panel);
+    backdrop-filter: blur(4px);
+  }
+}
+
+.globe-mini-name {
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.globe-mini-text {
+  grid-column: 1;
+  margin: 0;
+  color: var(--globe-ink-muted);
+  font-size: 0.75rem;
+}
+
+.globe-mini-btn {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  min-height: 2.75rem;
+  padding: 0.4rem 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--globe-ink);
+  color: #0b1220;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Narrower than a laptop (tablets, narrow windows): the controls stack above
+   the map, in a scrolling block that leaves most of the window to the map. */
+@media (min-width: 641px) and (min-height: 501px) and (max-width: 900px) {
+  .globe-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+
+  .globe-controls {
+    grid-column: 1;
+    grid-row: 2;
+    contain: none;
+    max-height: min(30dvh, 20rem);
+  }
+
+  .globe-main {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .globe.is-compact .globe-main {
+    grid-row: 2;
+  }
+}
+
+/* A phone: a single column, the switch above the map; the controls wait for
+   full screen as before (the panels render over the map, not in the column). */
+@media (max-width: 640px), (max-height: 500px) {
+  .globe-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 0.5rem;
+  }
+
+  .globe-controls {
+    display: none;
+  }
+
+  .globe-main {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .globe-compact-btn {
+    display: none;
+  }
+
+  .globe.is-compact.is-fullscreen .globe-legend,
+  .globe.is-compact.is-fullscreen .globe-side {
+    display: none;
+  }
+}
+
+/* Full screen: the layout (column, map, clock row) fills the screen. */
+.globe.is-fullscreen .globe-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.globe.is-fullscreen:not(.is-phone) .globe-layout {
+  padding: 0.6rem;
+  background: var(--globe-bg);
+}
+
+.globe.is-fullscreen .globe-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.globe.is-fullscreen .globe-stage {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+.globe.is-fullscreen .globe-timebar {
+  border: 0;
+  border-radius: 0;
+}
+
+.globe.is-fullscreen .globe-credits {
+  margin: 0;
+  padding: 0.3rem 0.75rem calc(0.3rem + env(safe-area-inset-bottom));
+  background: var(--color-bg);
+  font-size: 0.7rem;
+}
+
+@media (min-width: 641px) and (min-height: 501px) {
+  .globe.is-fullscreen .globe-layout {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .globe.is-fullscreen .globe-controls .globe-panel,
+  .globe.is-fullscreen .globe-controls .globe-side {
+    max-height: none;
+  }
+
+  .globe.is-fullscreen .globe-main {
+    height: 100%;
+  }
+}
+
+/* Phone full screen: the phone sheet and panels sit over the map as before. */
+@media (max-width: 640px), (max-height: 500px) {
+  .globe.is-fullscreen .globe-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .globe.is-fullscreen .globe-modebar {
+    display: none;
+  }
+
+  .globe.is-fullscreen .globe-main {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .globe-controls {
+    animation: globe-ctl-in 0.16s ease-out;
+  }
+
+  @keyframes globe-ctl-in {
+    from {
+      opacity: 0;
+    }
+  }
+}

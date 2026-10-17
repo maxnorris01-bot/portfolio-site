@@ -78,21 +78,27 @@ export default function CollisionHistory({
           {showButton(['fengyun1cdeb'])}
         </article>
       </div>
-      <p className="globe-history-sources">
-        Sources:{' '}
-        <a href="https://www.celestrak.org/events/collision/" target="_blank" rel="noreferrer">
-          CelesTrak, Iridium 33/Cosmos 2251 collision
-        </a>
-        ;{' '}
-        <a
-          href="https://en.wikipedia.org/wiki/2007_Chinese_anti-satellite_missile_test"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Wikipedia, 2007 Chinese anti-satellite missile test
-        </a>
-        .
-      </p>
     </section>
+  )
+}
+
+/** The sources line of "For context: the real record", shown with the page's data credits. */
+export function CollisionSources() {
+  return (
+    <p className="globe-history-sources">
+      Sources:{' '}
+      <a href="https://www.celestrak.org/events/collision/" target="_blank" rel="noreferrer">
+        CelesTrak, Iridium 33/Cosmos 2251 collision
+      </a>
+      ;{' '}
+      <a
+        href="https://en.wikipedia.org/wiki/2007_Chinese_anti-satellite_missile_test"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Wikipedia, 2007 Chinese anti-satellite missile test
+      </a>
+      .
+    </p>
   )
 }
