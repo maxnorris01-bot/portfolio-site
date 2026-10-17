@@ -937,6 +937,7 @@ export default function SatelliteGlobe({
   const [debugEngine, setDebugEngine] = useState<{
     selection: string
     skyDim: string
+    glow: string
     prop: ReturnType<GlobeEngine['debugObject']> | null
   } | null>(null)
   useEffect(() => {
@@ -947,6 +948,7 @@ export default function SatelliteGlobe({
       setDebugEngine({
         selection: engine.debugSelection(),
         skyDim: engine.debugSkyDim(),
+        glow: engine.debugGlow(),
         prop: povTarget !== null ? engine.debugObject(povTarget) : null,
       })
     }
@@ -965,6 +967,7 @@ export default function SatelliteGlobe({
       `clock ${clock.kind} ×${clock.speed} · displayed ${time.simMs ? new Date(time.simMs).toISOString() : '?'}`,
       `view ${viewMode} · engine ${debugEngine?.selection ?? 'not ready'}`,
       debugEngine?.skyDim ?? 'sky dim: not read yet',
+      debugEngine?.glow ?? 'glow: not read yet',
       `selection: satellite ${obj(inspect)} · station ${station ?? 'none'}${stationForPov ? ` (core ${stationForPov.main})` : ''} · pair ${pairIdx ? `${obj(pairIdx[0])} / ${obj(pairIdx[1])}` : 'none'}`,
       `viewpoint ${obj(povTarget)} · in loaded objects ${povObject ? 'yes' : 'no'} · satrec ${prop ? (prop.satrec ? 'yes' : 'no') : '-'} · propagates now ${prop ? (prop.propagated ? 'yes' : `no (${prop.error})`) : '-'}`,
       `toggle: canPov sent ${povTarget !== null} · handler ${onCanPovChange ? 'yes' : 'MISSING'}`,

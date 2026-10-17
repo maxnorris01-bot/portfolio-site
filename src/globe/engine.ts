@@ -59,6 +59,8 @@ import type { SimbadClient, SimbadState } from './simbad'
 import type { GaiaStars } from './gaiastars'
 import type { FrameGuard, TileStreamer } from './tilestream'
 import { starDataUrl } from './stardataurl'
+import { GLOW_DEFAULT } from './glowtuning'
+import type { GlowLayer } from './glowlayer'
 import { SKY_DIM_DEFAULT, stepSkyDim, type SkyDimState, type SkyDimTargets } from './skydim'
 import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
 import { overlayFade } from './imagery'
@@ -442,6 +444,17 @@ export class GlobeEngine {
    */
   skyDim: SkyDimTargets = { ...SKY_DIM_DEFAULT }
   private skyDimState: SkyDimState | null = null
+  /**
+   * The glow's look, read every frame so they can be retuned from the console
+   * (__globe.glowGain = 0.3): baseline gain, colour saturation, gamma (contrast)
+   * and blur (sigma, degrees; a change rebuilds the map in the background, a
+   * fraction of a second).
+   */
+  glowGain = GLOW_DEFAULT.gain
+  glowSaturation = GLOW_DEFAULT.saturation
+  glowGamma = GLOW_DEFAULT.gamma
+  glowBlur = GLOW_DEFAULT.blurDeg
+  private glowLayer: GlowLayer | null = null
   private skyDimAt = 0
   // A selected Gaia star (its tile and place in it, and what the tile gives
   // for the card at once), its details (loaded on demand) and the SIMBAD
@@ -1564,6 +1577,12 @@ export class GlobeEngine {
       : null
   }
 
+  /** For the ?debug=1 overlay: the glow's tuning and the blur the map shows now. */
+  debugGlow(): string {
+    const applied = this.glowLayer?.appliedBlur
+    return `glow: gain ${this.glowGain.toFixed(2)}, saturation ${this.glowSaturation.toFixed(2)}, gamma ${this.glowGamma.toFixed(2)}, blur ${this.glowBlur.toFixed(2)}° (map shows ${applied === null || applied === undefined ? 'not built yet' : applied.toFixed(2) + '°'})`
+  }
+
   /** For the ?debug=1 overlay: how much the sky is dimmed for the Earth in view. */
   debugSkyDim(): string {
     const s = this.skyDimState
@@ -1764,6 +1783,7 @@ export class GlobeEngine {
         this.skyDim,
       )
       this.space.setSkyDim(this.skyDimState.glow, this.skyDimState.stars)
+      this.space.setGlowTuning({ gain: this.glowGain, saturation: this.glowSaturation, gamma: this.glowGamma, blurDeg: this.glowBlur })
       this.space.update(cam, fov, date)
       this.updateGaia(cam, fov)
       this.updateSpaceBodies(date, pos, cam, fov)
@@ -2112,7 +2132,9 @@ export class GlobeEngine {
         await new Promise((r) => setTimeout(r, 0))
         if (this.disposed || this.space !== space) return
       }
-      space.addBackdrop(new layer.GlowLayer(out, w, h))
+      const glowLayer = new layer.GlowLayer(out, w, h)
+      this.glowLayer = glowLayer
+      space.addBackdrop(glowLayer)
       this.glowShown = true
     } catch (err) {
       if (import.meta.env.DEV) console.warn('glow atlas:', err)
