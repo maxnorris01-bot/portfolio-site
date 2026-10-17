@@ -1,7 +1,7 @@
 // The 3D globe (Phases 1, 1b and 1c of the visualization plan, satellite-
 // conjunction-screening working notes 2026-10-03). Lazy-loaded by
 // SatelliteTool so three.js and satellite.js stay out of the main bundle.
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SPEEDS, canPlay, isPaused, liveClock, scrubClock, togglePlay, withSpeed, type Clock } from '../globe/clock'
 import { colorize, describeType, withVisibility, type ColorMode } from '../globe/colors'
 import { loadHistoryDates, loadObjects } from '../globe/data'
@@ -35,6 +35,9 @@ import { DAY_MS, HOUR_MS, datasetFor, sliderBounds } from '../globe/timeline'
 import type { DatasetKey, FocusRequest, ObjectsFile } from '../globe/types'
 import type { ConstellationToggle } from '../globe/constellations'
 import { starsReadout } from '../globe/starsreadout'
+
+// The ?debug=1 sky tuning panel: its own chunk, fetched only in debug mode.
+const SkyTuningPanel = lazy(() => import('./SkyTuningPanel'))
 import { FULLSCREEN_OFF, fullscreenStep, type FullscreenEffects, type FullscreenEvent } from '../globe/fullscreen'
 import CollisionHistory from './CollisionHistory'
 import './SatelliteGlobe.css'
@@ -254,6 +257,8 @@ export default function SatelliteGlobe({
   const [povOrientation, setPovOrientation] = useState<'heading' | 'north'>('heading')
   // "Find a star": the query, and the IAU names and catalogue membership once loaded.
   const [starQuery, setStarQuery] = useState('')
+  // The engine, handed to the tuning panel once the debug-only module has restored the remembered values.
+  const [tuneTarget, setTuneTarget] = useState<GlobeEngine | null>(null)
   // Constellations: the switch (off by default) and its Names and Boundaries options.
   const [constellations, setConstellations] = useState<ConstellationToggle>({ on: false, names: false, boundaries: false })
   const [starTools, setStarTools] = useState<ReturnType<GlobeEngine['starSearch']>>(null)
@@ -369,8 +374,21 @@ export default function SatelliteGlobe({
     )
     engineRef.current = engine
     // The engine on window for development, and on the live site with ?debug=1 (to retune, e.g. __globe.skyDim).
-    if (import.meta.env.DEV || new URLSearchParams(window.location.search).get('debug') === '1') Object.assign(window, { __globe: engine })
+    const debugMode = new URLSearchParams(window.location.search).get('debug') === '1'
+    if (import.meta.env.DEV || debugMode) Object.assign(window, { __globe: engine })
+    let alive = true
+    if (debugMode) {
+      // Debug mode only: restore the remembered tuning values and offer the panel
+      // (for this engine only: a re-created one, as in development's double effect, replaces it).
+      void import('../globe/skytuning').then((m) => {
+        if (!alive) return
+        m.applyStored(engine)
+        setTuneTarget(engine)
+      })
+    }
     return () => {
+      alive = false
+      setTuneTarget(null)
       engine.dispose()
       engineRef.current = null
     }
@@ -2041,6 +2059,11 @@ export default function SatelliteGlobe({
           <button type="button" className="globe-pov-return" onClick={() => engineRef.current?.returnToSatellite()}>
             ↑ Return to satellite
           </button>
+        )}
+        {debug && viewMode === 'pov' && tuneTarget && (
+          <Suspense fallback={null}>
+            <SkyTuningPanel target={tuneTarget} />
+          </Suspense>
         )}
         {debugLines && (
           <pre className="globe-debug" aria-hidden="true">

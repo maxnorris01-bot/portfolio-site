@@ -454,6 +454,10 @@ export class GlobeEngine {
   glowSaturation = GLOW_DEFAULT.saturation
   glowGamma = GLOW_DEFAULT.gamma
   glowBlur = GLOW_DEFAULT.blurDeg
+  /** The debug panel's star settings (also read every frame): brightness and point-size multipliers, and the magnitude offset added to the limiting magnitude at fields wider than 15 degrees. */
+  starBrightness = 1
+  starSize = 1
+  wideLimitOffset = 0
   private glowLayer: GlowLayer | null = null
   private skyDimAt = 0
   // A selected Gaia star (its tile and place in it, and what the tile gives
@@ -1783,6 +1787,7 @@ export class GlobeEngine {
         this.skyDim,
       )
       this.space.setSkyDim(this.skyDimState.glow, this.skyDimState.stars)
+      this.space.setStarTuning({ brightness: this.starBrightness, size: this.starSize, limitOffset: this.wideLimitOffset })
       this.space.setGlowTuning({ gain: this.glowGain, saturation: this.glowSaturation, gamma: this.glowGamma, blurDeg: this.glowBlur })
       this.space.update(cam, fov, date)
       this.updateGaia(cam, fov)

@@ -11,6 +11,7 @@
 import * as THREE from 'three'
 import { SKY_BODIES, markerSizePx } from './skybodies.ts'
 import type { GlowTuning } from './glowtuning.ts'
+import { STAR_TUNING_NONE, wideLimitWeight, type StarTuning } from './stars.ts'
 import { bodyPixels, type SpaceBodyView } from './spacebodies.ts'
 import { SKY_RADIUS, STAR_MAX_PX, j2000ToScene, pickStarScored, starColor, starUniforms, type Mat3, type StarCatalog } from './stars.ts'
 
@@ -48,6 +49,8 @@ uniform float limitMag;
 uniform float grow;
 uniform float narrow;
 uniform float dim;
+uniform float bright;
+uniform float sizeMul;
 uniform float pixelRatio;
 varying vec3 vColor;
 varying float vAlpha;
@@ -61,11 +64,11 @@ void main() {
   }
   float sizePx = min(${STAR_MAX_PX.toFixed(1)}, (1.2 + 0.55 * above) * grow);
   float fadeIn = min(1.0, above / 1.5);
-  vAlpha = min(1.0, (0.35 + 0.15 * above) * fadeIn) * narrow * dim;
+  vAlpha = min(1.0, (0.35 + 0.15 * above) * fadeIn) * narrow * dim * bright;
   vColor = color;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   // At least 1.5 device pixels, so faint stars don't shimmer in and out.
-  gl_PointSize = max(1.5, sizePx * pixelRatio);
+  gl_PointSize = max(1.5, sizePx * sizeMul * pixelRatio);
 }
 `
 
@@ -89,6 +92,8 @@ export function createStarMaterial(pixelRatio: number): THREE.ShaderMaterial {
       grow: { value: 1 },
       narrow: { value: 1 },
       dim: { value: 1 },
+      bright: { value: 1 },
+      sizeMul: { value: 1 },
       pixelRatio: { value: pixelRatio },
     },
     vertexShader: STAR_VERTEX,
@@ -157,12 +162,21 @@ export class StarField {
   /** The star a click or tap at this ray selects (catalogue index, or -1) and its score: see pickStarScored. */
   pickScored(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): { index: number; score: number } {
     const a = (this.geometry.getAttribute('position') as THREE.BufferAttribute).array as Float32Array
-    return pickStarScored(a, this.mags, this.count, ray, fovDeg, screenPx, radiusPx, SKY_RADIUS)
+    return pickStarScored(a, this.mags, this.count, ray, fovDeg, screenPx, radiusPx, SKY_RADIUS, 12, this.tuning.limitOffset * wideLimitWeight(fovDeg))
   }
 
   /** The star a click or tap at this ray selects (catalogue index, or -1). */
   pick(ray: [number, number, number], fovDeg: number, screenPx: number, radiusPx: number): number {
     return this.pickScored(ray, fovDeg, screenPx, radiusPx).index
+  }
+
+  private tuning: StarTuning = STAR_TUNING_NONE
+
+  /** The debug panel's star settings: brightness and point-size multipliers, and the wide-field limiting-magnitude offset. */
+  setTuning(t: StarTuning) {
+    this.tuning = t
+    this.material.uniforms.bright.value = t.brightness
+    this.material.uniforms.sizeMul.value = t.size
   }
 
   /** Dim every star's brightness (the Earth in view): only the brightness, never which stars are loaded, drawn or pickable. */
@@ -182,7 +196,7 @@ export class StarField {
 
   update(fovDeg: number) {
     const u = starUniforms(fovDeg, this.catalogLimit)
-    this.material.uniforms.limitMag.value = u.limitMag
+    this.material.uniforms.limitMag.value = u.limitMag + this.tuning.limitOffset * wideLimitWeight(fovDeg)
     this.material.uniforms.grow.value = u.grow
     this.material.uniforms.narrow.value = u.narrow
   }
@@ -519,6 +533,7 @@ export class SpaceView {
   private dimGlow = 1
   private dimStars = 1
   private glowTuning: GlowTuning | undefined
+  private starTuning: StarTuning = STAR_TUNING_NONE
   readonly bodies = new SpaceBodies()
   readonly glow = new AtmosphereGlow()
   private readonly backdrops: SkyBackdropLayer[] = []
@@ -595,6 +610,11 @@ export class SpaceView {
     this.sceneToJ2000.copy(toDate.transpose()).multiply(sceneToDate)
   }
 
+  /** The star settings of the debug panel, applied to the star field each frame. */
+  setStarTuning(t: StarTuning) {
+    this.starTuning = t
+  }
+
   /** The glow's tuning, passed to the backdrop layers each frame. */
   setGlowTuning(t: GlowTuning) {
     this.glowTuning = t
@@ -610,6 +630,7 @@ export class SpaceView {
   update(camera: THREE.PerspectiveCamera, fovDeg: number, date: Date) {
     this.group.visible = true
     this.group.position.copy(camera.position)
+    this.starField?.setTuning(this.starTuning)
     this.starField?.update(fovDeg)
     this.starField?.setDim(this.dimStars)
     const ctx: SkyContext = { camera, fovDeg, dim: this.dimGlow, glow: this.glowTuning, sceneToJ2000: this.sceneToJ2000, date }
