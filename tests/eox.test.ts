@@ -178,7 +178,7 @@ const status = (o: Partial<ImageryStatus> = {}): ImageryStatus => ({
 })
 
 test('"Today\'s imagery" is off by default; the panel line follows the layer state', () => {
-  assert.equal(TODAY_IMAGERY_DEFAULT, false)
+  assert.equal(TODAY_IMAGERY_DEFAULT, true)
   assert.match(IMAGERY_EXPLAINER, /cloud-free 2016 composite/)
   assert.match(IMAGERY_EXPLAINER, /visible seams between satellite passes/)
   assert.equal(TODAY_FADE_NOTE, "Zoom in close and Today's imagery fades to the sharper base map")

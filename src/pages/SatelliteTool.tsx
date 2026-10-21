@@ -4,6 +4,8 @@ import { nextView, type MainView, type View } from '../globe/pov'
 import type { DatasetKey, FocusRequest } from '../globe/types'
 import { satelliteTool } from '../data/satelliteTool'
 import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
+import ConjunctionsMenu from '../components/ConjunctionsMenu'
+import { closestRows } from '../globe/conjunctions'
 import { usePageMeta } from '../hooks/usePageMeta'
 import './SatelliteTool.css'
 
@@ -92,93 +94,20 @@ function RiskBreakdown({ summary }: { summary: SatelliteSummary }) {
   )
 }
 
-function objectLabel(o: NearMiss['object_a']) {
-  return `${o.name} (${o.norad_id})`
-}
-
 const nearMissKey = (n: NearMiss) => `${n.object_a.norad_id}-${n.object_b.norad_id}-${n.tca_utc}`
-
-function NearMissList({
-  summary,
-  selectedKey,
-  onSelect,
-}: {
-  summary: SatelliteSummary
-  selectedKey: string | null
-  onSelect: (n: NearMiss) => void
-}) {
-  return (
-    <div className="card sat-table-wrap">
-      <table className="sat-table">
-        <thead>
-          <tr>
-            <th scope="col">Risk</th>
-            <th scope="col">Objects</th>
-            <th scope="col" className="num">
-              Miss
-            </th>
-            <th scope="col" className="num">
-              Rel. speed
-            </th>
-            <th scope="col">Closest approach</th>
-            <th scope="col">
-              <span className="visually-hidden">Replay</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {summary.near_misses.map((n) => {
-            const key = nearMissKey(n)
-            return (
-              <tr
-                key={key}
-                className={`sat-row${key === selectedKey ? ' is-selected' : ''}`}
-                onClick={() => onSelect(n)}
-              >
-                <td>
-                  <span className={`sat-risk-tag risk-${n.risk_level}`}>{n.risk_level}</span>
-                </td>
-                <td className="sat-pair">
-                  <span>{objectLabel(n.object_a)}</span>
-                  <span>{objectLabel(n.object_b)}</span>
-                </td>
-                <td className="num">{km(n.miss_distance_km)}</td>
-                <td className="num">{n.relative_speed_km_s.toFixed(1)} km/s</td>
-                <td>{utc(n.tca_utc)}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="sat-replay"
-                    aria-pressed={key === selectedKey}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onSelect(n)
-                    }}
-                  >
-                    Show on globe
-                  </button>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
 
 export default function SatelliteTool() {
   usePageMeta(satelliteTool.pageTitle, satelliteTool.pageDescription)
   const { state, retry } = useSatelliteSummary()
   const summary = state.status === 'ready' ? state.summary : null
 
-  // The near-miss table follows the snapshot the globe is showing: the latest
+  // The conjunctions list follows the snapshot the globe is showing: the latest
   // run, or a retained day's report while the slider is in the past.
   const [globeDataset, setGlobeDataset] = useState<DatasetKey>('current')
   const pastDate = globeDataset === 'current' ? null : globeDataset
   const past = useSatelliteSummary({ date: pastDate, enabled: pastDate !== null })
-  const tableState = pastDate ? past.state : state
-  const tableSummary = tableState.status === 'ready' ? tableState.summary : null
+  const shownState = pastDate ? past.state : state
+  const shownSummary = shownState.status === 'ready' ? shownState.summary : null
 
   const [focus, setFocus] = useState<(FocusRequest & { key: string }) | null>(null)
   // Globe or Sky: the toggle lives in this section's header, so the page owns
@@ -230,29 +159,82 @@ export default function SatelliteTool() {
     <main className="page sat-page">
       <div className="sat-wide">
         <header className="sat-header">
-          <div className="sat-title-row">
-            <h1 className="sat-title">{satelliteTool.name}</h1>
-            <ul className="chip-list sat-tech" aria-label="Tech stack">
-              {satelliteTool.techStack.map((t) => (
-                <li key={t} className="chip">
-                  {t}
-                </li>
-              ))}
-            </ul>
-            <a
-              href={satelliteTool.repoUrl}
-              className="btn btn-secondary sat-github"
-              target="_blank"
-              rel="noreferrer"
-            >
-              View on GitHub ↗
-            </a>
+          <div className="sat-header-main">
+            <div className="sat-title-row">
+              <h1 className="sat-title">{satelliteTool.name}</h1>
+              <ul className="chip-list sat-tech" aria-label="Tech stack">
+                {satelliteTool.techStack.map((t) => (
+                  <li key={t} className="chip">
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="sat-sub-row">
+              <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
+              <p className="sat-lede">
+                <span>{satelliteTool.intro[0]}</span> <span>{satelliteTool.intro[1]}</span>
+              </p>
+            </div>
           </div>
-          <div className="sat-sub-row">
-            <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
-            <p className="sat-lede">
-              <span>{satelliteTool.intro[0]}</span> <span>{satelliteTool.intro[1]}</span>
-            </p>
+
+          <div className="sat-header-side">
+            <div className="sat-side-top">
+              <h2 id="sat-screening" className="sat-side-title">
+                Conjunction screening
+              </h2>
+              <a
+                href={satelliteTool.repoUrl}
+                className="btn btn-secondary sat-github"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View on GitHub ↗
+              </a>
+            </div>
+            <div className="sat-overview">
+              <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
+                <h3 id="sat-results" className="section-title">
+                  Latest run
+                </h3>
+                {state.status === 'error' && (
+                  <div className="sat-callout sat-error" role="alert">
+                    <p>The latest screening results couldn&apos;t be loaded right now.</p>
+                    <button type="button" className="btn btn-secondary" onClick={retry}>
+                      Try again
+                    </button>
+                  </div>
+                )}
+                <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
+                  {statsFor(summary).map(({ value, label }) => (
+                    <div key={label} className="card sat-stat">
+                      <dt>{label}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {summary && (
+                  <p className="sat-note">
+                    Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
+                    passes under {summary.threshold_km} km. Closest approach is the nearest pass
+                    involving an active satellite. Runs daily on Fly.io.
+                  </p>
+                )}
+              </section>
+
+              <section aria-labelledby="sat-risk">
+                <h3 id="sat-risk" className="section-title">
+                  Risk breakdown
+                </h3>
+                {summary ? (
+                  <RiskBreakdown summary={summary} />
+                ) : (
+                  <div className="card sat-risk-placeholder">
+                    {state.status === 'error' ? '—' : 'Loading…'}
+                  </div>
+                )}
+              </section>
+            </div>
           </div>
         </header>
 
@@ -269,6 +251,15 @@ export default function SatelliteTool() {
               viewMode={viewMode}
               onCanPovChange={setCanPov}
               onViewRequest={requestView}
+              conjunctionsControl={
+                <ConjunctionsMenu
+                  rows={shownSummary ? closestRows(shownSummary) : null}
+                  failed={shownState.status === 'error'}
+                  selectedKey={focus?.key ?? null}
+                  keyOf={nearMissKey}
+                  onSelect={replay}
+                />
+              }
               contextSlot={contextEl}
               creditsSlot={creditsEl}
               modeSwitch={
@@ -301,83 +292,7 @@ export default function SatelliteTool() {
         </section>
       </div>
 
-      <div className="container">
-        <section className="sat-section" aria-labelledby="sat-screening">
-          <h2 id="sat-screening" className="section-title">
-            Conjunction screening
-          </h2>
-          <div className="sat-overview">
-            <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
-              <h3 id="sat-results" className="section-title">
-                Latest run
-              </h3>
-              {state.status === 'error' && (
-                <div className="sat-callout sat-error" role="alert">
-                  <p>The latest screening results couldn&apos;t be loaded right now.</p>
-                  <button type="button" className="btn btn-secondary" onClick={retry}>
-                    Try again
-                  </button>
-                </div>
-              )}
-              <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
-                {statsFor(summary).map(({ value, label }) => (
-                  <div key={label} className="card sat-stat">
-                    <dt>{label}</dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              {summary && (
-                <p className="sat-note">
-                  Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
-                  passes under {summary.threshold_km} km. Closest approach is the nearest pass
-                  involving an active satellite. Runs daily on Fly.io.
-                </p>
-              )}
-            </section>
-
-            <section aria-labelledby="sat-risk">
-              <h3 id="sat-risk" className="section-title">
-                Risk breakdown
-              </h3>
-              {summary ? (
-                <RiskBreakdown summary={summary} />
-              ) : (
-                <div className="card sat-risk-placeholder">
-                  {state.status === 'error' ? '—' : 'Loading…'}
-                </div>
-              )}
-            </section>
-          </div>
-
-        </section>
-
-        <section className="sat-section" aria-labelledby="sat-near-misses">
-          <h2 id="sat-near-misses" className="section-title">
-            Top conjunctions{pastDate ? ` · ${pastDate} snapshot` : ''}
-          </h2>
-          {tableSummary ? (
-            <>
-              <NearMissList
-                summary={tableSummary}
-                selectedKey={focus?.key ?? null}
-                onSelect={replay}
-              />
-              <p className="sat-note">
-                Top {tableSummary.near_misses.length} of{' '}
-                {fmt(tableSummary.conjunctions_flagged)}, ranked by risk tier, then miss distance.
-                Select one to replay it on the globe at its closest approach.
-              </p>
-            </>
-          ) : (
-            <p className="sat-note" role={tableState.status === 'error' ? 'alert' : undefined}>
-              {tableState.status === 'error'
-                ? 'These conjunctions couldn’t be loaded right now.'
-                : 'Loading conjunctions…'}
-            </p>
-          )}
-        </section>
-
+      <div className="sat-wide">
         <section className="sat-section" aria-labelledby="sat-pipeline">
           <h2 id="sat-pipeline" className="section-title">
             Pipeline

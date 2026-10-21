@@ -18,6 +18,8 @@ export const REPORT_URL = `${BUCKET_URL}/reports/current.json`
 export const SUMMARY_SCHEMA_VERSION = 1
 export const DEFAULT_LIMIT = 25
 export const MAX_LIMIT = 200
+/** How many of the smallest miss distances the summary carries, whatever their risk tier (the page's Show conjunctions list). */
+export const CLOSEST_COUNT = 10
 
 export type RiskLevel = 'high' | 'moderate' | 'low'
 
@@ -88,6 +90,8 @@ export interface SatelliteSummary {
   co_located_pairs: number
   closest_active_approach_km: number | null
   near_misses: NearMiss[]
+  /** The CLOSEST_COUNT smallest miss distances across every conjunction, closest first (ties: earlier time first). */
+  closest_approaches: NearMiss[]
 }
 
 function trimObject(o: ReportObject): SummaryObject {
@@ -114,6 +118,15 @@ export function summarize(report: Report): SatelliteSummary {
     }
   }
 
+  const toNearMiss = (c: ReportConjunction): NearMiss => ({
+    risk_level: c.risk_level,
+    risk_reason: c.risk_reason,
+    tca_utc: c.tca_utc,
+    miss_distance_km: c.miss_distance_km,
+    relative_speed_km_s: c.relative_speed_km_s,
+    object_a: trimObject(c.object_a),
+    object_b: trimObject(c.object_b),
+  })
   const nearMisses = [...conjunctions]
     .sort(
       (a, b) =>
@@ -121,15 +134,11 @@ export function summarize(report: Report): SatelliteSummary {
         a.miss_distance_km - b.miss_distance_km,
     )
     .slice(0, MAX_LIMIT)
-    .map((c) => ({
-      risk_level: c.risk_level,
-      risk_reason: c.risk_reason,
-      tca_utc: c.tca_utc,
-      miss_distance_km: c.miss_distance_km,
-      relative_speed_km_s: c.relative_speed_km_s,
-      object_a: trimObject(c.object_a),
-      object_b: trimObject(c.object_b),
-    }))
+    .map(toNearMiss)
+  const closest = [...conjunctions]
+    .sort((a, b) => a.miss_distance_km - b.miss_distance_km || a.tca_utc.localeCompare(b.tca_utc))
+    .slice(0, CLOSEST_COUNT)
+    .map(toNearMiss)
 
   return {
     schema_version: SUMMARY_SCHEMA_VERSION,
@@ -144,6 +153,7 @@ export function summarize(report: Report): SatelliteSummary {
     co_located_pairs: report.summary.co_located_pairs,
     closest_active_approach_km: closestActive,
     near_misses: nearMisses,
+    closest_approaches: closest,
   }
 }
 

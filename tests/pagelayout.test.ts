@@ -129,6 +129,6 @@ test('the layout: one overlay panel over the map with its own scrolling; the sta
   assert.match(tsx, /<span className="globe-fs-label">Full screen<\/span>/)
   // The Satellite panel's groups.
   for (const h of ['Imagery', 'View', 'Sky', 'Orientation', 'Readout']) assert.match(tsx, new RegExp(`<h3 className="globe-pov-heading">${h}</h3>`), h)
-  assert.match(tsx, /Today&apos;s imagery/) // the switch stays outside the collapsible text
+  assert.match(tsx, /Hide today&apos;s imagery/) // the checkbox stays outside the collapsible text
   assert.match(tsx, /<details className="globe-pov-about">[\s\S]*?<\/details>/)
 })
