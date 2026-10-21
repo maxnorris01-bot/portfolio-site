@@ -61,9 +61,9 @@ test('every attribution and licence statement is still there, in full, in the Da
   assert.match(all, /SIMBAD database, CDS, Strasbourg/)
 })
 
-test('the page: the tool first, then Conjunction screening, For context, Data and credits; the credits line sits with the map in compact view too', () => {
+test('the page: the tool first, then Conjunction screening, Pipeline, For context, Data and credits; the credits line sits with the map in compact view too', () => {
   const page = src('pages/SatelliteTool.tsx')
-  const order = ['className="sat-wide"', 'id="sat-screening"', 'id="sat-near-misses"', 'id="sat-pipeline"', 'className="sat-context-slot"', 'id="sat-credits"']
+  const order = ['className="sat-wide"', 'id="sat-screening"', 'id="sat-pipeline"', 'className="sat-context-slot"', 'id="sat-credits"']
   const at = order.map((s) => page.indexOf(s))
   assert.ok(at.every((i) => i > 0), 'a section is missing')
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'sections are out of order')

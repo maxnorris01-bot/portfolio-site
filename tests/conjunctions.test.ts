@@ -54,7 +54,7 @@ test('the summary carries the closest approaches over every conjunction, not jus
   assert.equal(s.closest_approaches.length, 10)
   assert.equal(s.closest_approaches[0].miss_distance_km, 0.01)
   assert.deepEqual(s.closest_approaches.map((n) => n.miss_distance_km), [...s.closest_approaches.map((n) => n.miss_distance_km)].sort((a, b) => a - b))
-  assert.equal(s.near_misses[0].risk_level, 'high', 'the table keeps its risk-tier ordering')
+  assert.equal(s.near_misses[0].risk_level, 'high', 'near_misses keeps its risk-tier ordering')
 })
 
 test('relative times read as "in 3 h 20 min", "42 min ago" and "now"', () => {
@@ -74,6 +74,6 @@ test('the dropdown: a toggle button with aria-expanded, closing on Escape, outsi
   assert.match(tsx, /document\.addEventListener\('pointerdown'/)
   assert.match(tsx, /onSelect\(n\)\n\s+close\(false\)/)
   const page = readFileSync(new URL('../src/pages/SatelliteTool.tsx', import.meta.url), 'utf8')
-  assert.match(page, /rows=\{tableSummary \? closestRows\(tableSummary\) : null\}/)
+  assert.match(page, /rows=\{shownSummary \? closestRows\(shownSummary\) : null\}/)
   assert.match(page, /onSelect=\{replay\}/)
 })
