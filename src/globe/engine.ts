@@ -65,7 +65,7 @@ import { GLOW_DEFAULT, STAR_LOOK_DEFAULT } from './glowtuning'
 import type { GlowLayer } from './glowlayer'
 import { SKY_DIM_DEFAULT, stepSkyDim, type SkyDimState, type SkyDimTargets } from './skydim'
 import { LEVEL_KM, minFovForImagery, nightStreamWorthIt, tileFullyLit } from './gibs'
-import { overlayFade } from './imagery'
+import { TODAY_IMAGERY_DEFAULT, overlayFade } from './imagery'
 import {
   DESCEND_FOV,
   DOUBLE_CLICK_ZOOM,
@@ -543,7 +543,7 @@ export class GlobeEngine {
   private spaceObstacles: LabelRect[] = []
   private constFrameAt = 0
   private readonly spaceLabels = new Map<string, HTMLDivElement>()
-  private todayImagery = false
+  private todayImagery = TODAY_IMAGERY_DEFAULT
   /** Today's imagery's fade with zoom (1 shown, 0 faded out up close). */
   private overlayFadeNow = 1
   private tilesModule: typeof import('./earthTiles') | null = null
@@ -1380,7 +1380,7 @@ export class GlobeEngine {
 
   /**
    * "Today's imagery": draw NASA GIBS's daily mosaic (following the displayed
-   * date) over the EOX base in the satellite view. Off by default.
+   * date) over the EOX base in the satellite view. On by default (the panel's checkbox hides it).
    */
   setTodayImagery(on: boolean) {
     this.todayImagery = on

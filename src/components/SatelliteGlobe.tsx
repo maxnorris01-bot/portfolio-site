@@ -42,6 +42,7 @@ const SkyTuningPanel = lazy(() => import('./SkyTuningPanel'))
 import { FULLSCREEN_OFF, fullscreenStep, type FullscreenEffects, type FullscreenEvent } from '../globe/fullscreen'
 import CollisionHistory, { CollisionSources } from './CollisionHistory'
 import { CREDITS_ID, SHORT_CREDITS, allCreditTexts, footnoteText } from '../globe/credits'
+import { panelState } from '../globe/panelstate'
 import { OVERLAY_GAP_PX, PHONE_LAYOUT_QUERY, STACKED_LAYOUT_QUERY, isCompactKey, isTyping, loadCompact, saveCompact } from '../globe/pagelayout'
 import './SatelliteGlobe.css'
 
@@ -125,6 +126,8 @@ interface Props {
   onViewRequest?: (req: 'pov' | 'back') => void
   /** The Globe | Sky | Satellite switch, which the page owns: shown at the top of the left column. */
   modeSwitch?: ReactNode
+  /** The page's "Show conjunctions" button and its list, at the far right of the row above the map. */
+  conjunctionsControl?: ReactNode
   /** Where the page wants "For context: the real record" and the full credits (its own sections below the tool); inline when absent. */
   contextSlot?: HTMLElement | null
   creditsSlot?: HTMLElement | null
@@ -139,6 +142,7 @@ export default function SatelliteGlobe({
   onCanPovChange,
   onViewRequest,
   modeSwitch,
+  conjunctionsControl,
   contextSlot,
   creditsSlot,
 }: Props) {
@@ -1167,6 +1171,16 @@ export default function SatelliteGlobe({
       ? 'Enter full screen to choose your location and see the sky'
       : 'Enter full screen to see details and controls'
 
+  // One state at a time in the panel (panelstate.ts).
+  const panel = panelState({
+    viewMode,
+    inspected: !!inspected,
+    focus: !!focus,
+    station: !!stationDef,
+    skyBody: !!selectedBody,
+    spaceSelection: !!(spaceStar || gaiaStar || spaceConstellation || spaceBody),
+  })
+
   return (
     <div ref={rootRef} className={`globe${fullscreen.on ? ' is-fullscreen' : ''}${compact ? ' is-compact' : ''}${phone ? ' is-phone' : ''}`}>
       <div className="globe-layout">
@@ -1184,6 +1198,7 @@ export default function SatelliteGlobe({
           <span className="globe-compact-label">{compact ? 'Controls' : 'Compact'}</span>
           <kbd aria-hidden="true">C</kbd>
         </button>
+        {conjunctionsControl}
       </div>
       <div ref={setSidebarEl} className="globe-controls" role="region" aria-label="Controls" />
       <div ref={mainRef} className="globe-main">
@@ -1208,6 +1223,7 @@ export default function SatelliteGlobe({
         {coloring && aside(
           <div
             ref={legendRef}
+            hidden={panel.state !== 'browse'}
             className={`globe-panel globe-legend${viewMode === 'sky' ? ' is-sky' : ''}${
               viewMode === 'sky' || fullscreen.on ? ' is-foldable' : ''
             }${(viewMode === 'sky' || fullscreen.on) && !legendOpen ? ' is-folded' : ''}`}
@@ -1368,7 +1384,7 @@ export default function SatelliteGlobe({
                 {sheetOpen ? 'Less' : 'Details and controls'}
               </button>
             )}
-            {viewMode === 'sky' && (
+            {viewMode === 'sky' && panel.state === 'browse' && (
               <>
                 {observer && !skyPanelOpen ? (
                   <div className="globe-panel globe-sky-panel is-compact">
@@ -1478,7 +1494,7 @@ export default function SatelliteGlobe({
                 )}
               </>
             )}
-            {stationDef && viewMode !== 'pov' && (
+            {stationDef && panel.object === 'station' && (
               <div className="globe-panel" aria-live="polite">
                 <p className="globe-panel-title">
                   <span className="globe-ring-key" style={{ borderColor: RING_GROUP }} />
@@ -1508,7 +1524,7 @@ export default function SatelliteGlobe({
                 </div>
               </div>
             )}
-            {focus && viewMode !== 'pov' && (
+            {focus && panel.object === 'focus' && (
               <div className="globe-panel" aria-live="polite">
                 <p className="globe-panel-title">Closest approach</p>
                 <p className="globe-pair">
@@ -1549,7 +1565,7 @@ export default function SatelliteGlobe({
                 </div>
               </div>
             )}
-            {selectedBody && viewMode === 'sky' && (
+            {selectedBody && panel.object === 'body' && (
               <div
                 className={`globe-panel globe-inspect globe-body is-sky${
                   bodyDetailsFor !== selectedBody.key ? ' is-collapsed' : ''
@@ -1625,7 +1641,7 @@ export default function SatelliteGlobe({
                 </div>
               </div>
             )}
-            {viewMode === 'pov' && povObject && (
+            {panel.state === 'pov' && povObject && (
               <div className="globe-panel globe-pov" role="region" aria-label="Satellite view">
                 <div className="globe-panel-head">
                   <p className="globe-panel-title">Satellite view</p>
@@ -1638,32 +1654,6 @@ export default function SatelliteGlobe({
                   </button>
                 </div>
                 <p className="globe-inspect-name">{povObject.name}</p>
-                <h3 className="globe-pov-heading">Imagery</h3>
-                <div className="globe-pov-imagery-choice" role="group" aria-label="Imagery" aria-describedby="globe-pov-explainer">
-                  <button type="button" aria-pressed={!todayImagery} onClick={() => setTodayImagery(false)}>
-                    Base map
-                  </button>
-                  <button type="button" aria-pressed={todayImagery} onClick={() => setTodayImagery(true)}>
-                    Today&apos;s imagery
-                  </button>
-                </div>
-                {todayImagery && (
-                  <p className="globe-pov-date">
-                    {povInfo?.imagery.overlay?.date ? (
-                      <strong>{povInfo.imagery.overlay.date}</strong>
-                    ) : (
-                      <strong>Loading…</strong>
-                    )}{' '}
-                    · follows the time slider
-                  </p>
-                )}
-                <details className="globe-pov-about">
-                  <summary>About this imagery</summary>
-                  <p id="globe-pov-explainer" className="globe-muted globe-pov-explainer">
-                    {IMAGERY_EXPLAINER}
-                  </p>
-                  {todayImagery && <p className="globe-muted globe-pov-explainer">{TODAY_FADE_NOTE}.</p>}
-                </details>
                 <h3 className="globe-pov-heading">View</h3>
                 <div className="globe-pov-presets" role="group" aria-label="Look">
                   {(['down', 'forward', 'outward'] as const).map((preset) => (
@@ -1818,6 +1808,33 @@ export default function SatelliteGlobe({
                     <dd>{fmtFov(povInfo.fov)}</dd>
                   </dl>
                 )}
+                <h3 className="globe-pov-heading">Imagery</h3>
+                <label className="globe-const-row globe-pov-hide-today">
+                  <input
+                    type="checkbox"
+                    checked={!todayImagery}
+                    onChange={(e) => setTodayImagery(!e.target.checked)}
+                    aria-describedby="globe-pov-explainer"
+                  />
+                  <span>Hide today&apos;s imagery</span>
+                </label>
+                {todayImagery && (
+                  <p className="globe-pov-date">
+                    {povInfo?.imagery.overlay?.date ? (
+                      <strong>{povInfo.imagery.overlay.date}</strong>
+                    ) : (
+                      <strong>Loading…</strong>
+                    )}{' '}
+                    · follows the time slider
+                  </p>
+                )}
+                <details className="globe-pov-about">
+                  <summary>About this imagery</summary>
+                  <p id="globe-pov-explainer" className="globe-muted globe-pov-explainer">
+                    {IMAGERY_EXPLAINER}
+                  </p>
+                  {todayImagery && <p className="globe-muted globe-pov-explainer">{TODAY_FADE_NOTE}.</p>}
+                </details>
                 {povInfo && <p className="globe-muted globe-pov-imagery">{imageryLine(povInfo.imagery)}</p>}
               </div>
             )}
@@ -1866,6 +1883,11 @@ export default function SatelliteGlobe({
                     </Fragment>
                   ))}
                 </dl>
+                <div className="globe-inspect-actions">
+                  <button type="button" className="globe-button" onClick={() => engineRef.current?.selectStar(-1)}>
+                    Deselect
+                  </button>
+                </div>
                 <p className="globe-muted globe-star-source">
                   Hipparcos Catalogue (ESA, 1997). Estimates inherit the catalogue&apos;s errors and ignore
                   interstellar dust.
@@ -1909,6 +1931,11 @@ export default function SatelliteGlobe({
                     </Fragment>
                   ))}
                 </dl>
+                <div className="globe-inspect-actions">
+                  <button type="button" className="globe-button" onClick={() => engineRef.current?.selectStar(-1)}>
+                    Deselect
+                  </button>
+                </div>
                 <p className="globe-muted globe-star-source">
                   Gaia DR3 (Credit: ESA, Gaia DPAC; CC BY-NC 3.0 IGO). The name, type and spectral type come from SIMBAD (CDS) when it has the star.
                 </p>
@@ -1940,13 +1967,18 @@ export default function SatelliteGlobe({
                     </Fragment>
                   ))}
                 </dl>
-                <button
-                  type="button"
-                  className="globe-button"
-                  onClick={() => engineRef.current?.goToConstellation(spaceConstellation.index)}
-                >
-                  Centre it in the view
-                </button>
+                <div className="globe-inspect-actions">
+                  <button
+                    type="button"
+                    className="globe-button"
+                    onClick={() => engineRef.current?.goToConstellation(spaceConstellation.index)}
+                  >
+                    Centre it in the view
+                  </button>
+                  <button type="button" className="globe-button" onClick={() => engineRef.current?.selectConstellation(-1)}>
+                    Deselect
+                  </button>
+                </div>
                 <p className="globe-muted globe-star-source">
                   Figure: d3-celestial (BSD-3-Clause), traditional, not IAU-defined. Boundary and area: IAU (Delporte, 1930).
                 </p>
@@ -1997,9 +2029,14 @@ export default function SatelliteGlobe({
                     the Earth&apos;s centre.
                   </p>
                 )}
+                <div className="globe-inspect-actions">
+                  <button type="button" className="globe-button" onClick={() => engineRef.current?.setSpaceSelected(null)}>
+                    Deselect
+                  </button>
+                </div>
               </div>
             )}
-            {inspected && viewMode !== 'pov' && (
+            {inspected && panel.object === 'inspected' && (
               <div
                 className={`globe-panel globe-inspect${viewMode === 'sky' ? ' is-sky' : ''}${
                   viewMode === 'sky' && detailsFor !== inspect ? ' is-collapsed' : ''
@@ -2216,7 +2253,7 @@ export default function SatelliteGlobe({
         {announcement}
       </p>
 
-      {loaded && visibleCount < loaded.file.objects.length && aside(
+      {loaded && visibleCount < loaded.file.objects.length && panel.state === 'browse' && aside(
         <div className="globe-filterbar" role="status">
           <span>
             Showing {fmt(visibleCount)} of {fmt(loaded.file.objects.length)} objects

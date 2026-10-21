@@ -25,10 +25,10 @@ export interface ImageryStatus {
   overlay: LayerStatus | null
 }
 
-/** "Today's imagery" starts off: the base layer alone is the default. */
-export const TODAY_IMAGERY_DEFAULT = false
+/** Today's imagery (NASA GIBS) is on when the satellite view opens; "Hide today's imagery" switches to the base map alone. */
+export const TODAY_IMAGERY_DEFAULT = true
 
-/** The plain-language explanation beside the "Base map | Today's imagery" control. */
+/** The plain-language explanation beside the "Hide today's imagery" checkbox. */
 export const IMAGERY_EXPLAINER =
   'The base map is a cloud-free 2016 composite: sharp and seamless, but it does not show current ' +
   "weather. Today's imagery shows real clouds and storms for the date on the slider, with visible " +

@@ -2341,3 +2341,13 @@ html.globe-fs-lock body {
     }
   }
 }
+
+/* The overlay panel shows one state at a time (panelstate.ts): the filters are
+   hidden, not removed, while something is selected, so their settings stay. */
+.globe-legend[hidden] {
+  display: none !important;
+}
+
+.globe-pov-hide-today {
+  margin-top: 0.1rem;
+}
