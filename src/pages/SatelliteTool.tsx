@@ -4,6 +4,8 @@ import { nextView, type MainView, type View } from '../globe/pov'
 import type { DatasetKey, FocusRequest } from '../globe/types'
 import { satelliteTool } from '../data/satelliteTool'
 import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
+import ConjunctionsMenu from '../components/ConjunctionsMenu'
+import { closestRows } from '../globe/conjunctions'
 import { usePageMeta } from '../hooks/usePageMeta'
 import './SatelliteTool.css'
 
@@ -230,29 +232,82 @@ export default function SatelliteTool() {
     <main className="page sat-page">
       <div className="sat-wide">
         <header className="sat-header">
-          <div className="sat-title-row">
-            <h1 className="sat-title">{satelliteTool.name}</h1>
-            <ul className="chip-list sat-tech" aria-label="Tech stack">
-              {satelliteTool.techStack.map((t) => (
-                <li key={t} className="chip">
-                  {t}
-                </li>
-              ))}
-            </ul>
-            <a
-              href={satelliteTool.repoUrl}
-              className="btn btn-secondary sat-github"
-              target="_blank"
-              rel="noreferrer"
-            >
-              View on GitHub ↗
-            </a>
+          <div className="sat-header-main">
+            <div className="sat-title-row">
+              <h1 className="sat-title">{satelliteTool.name}</h1>
+              <ul className="chip-list sat-tech" aria-label="Tech stack">
+                {satelliteTool.techStack.map((t) => (
+                  <li key={t} className="chip">
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="sat-sub-row">
+              <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
+              <p className="sat-lede">
+                <span>{satelliteTool.intro[0]}</span> <span>{satelliteTool.intro[1]}</span>
+              </p>
+            </div>
           </div>
-          <div className="sat-sub-row">
-            <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
-            <p className="sat-lede">
-              <span>{satelliteTool.intro[0]}</span> <span>{satelliteTool.intro[1]}</span>
-            </p>
+
+          <div className="sat-header-side">
+            <div className="sat-side-top">
+              <h2 id="sat-screening" className="sat-side-title">
+                Conjunction screening
+              </h2>
+              <a
+                href={satelliteTool.repoUrl}
+                className="btn btn-secondary sat-github"
+                target="_blank"
+                rel="noreferrer"
+              >
+                View on GitHub ↗
+              </a>
+            </div>
+            <div className="sat-overview">
+              <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
+                <h3 id="sat-results" className="section-title">
+                  Latest run
+                </h3>
+                {state.status === 'error' && (
+                  <div className="sat-callout sat-error" role="alert">
+                    <p>The latest screening results couldn&apos;t be loaded right now.</p>
+                    <button type="button" className="btn btn-secondary" onClick={retry}>
+                      Try again
+                    </button>
+                  </div>
+                )}
+                <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
+                  {statsFor(summary).map(({ value, label }) => (
+                    <div key={label} className="card sat-stat">
+                      <dt>{label}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {summary && (
+                  <p className="sat-note">
+                    Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
+                    passes under {summary.threshold_km} km. Closest approach is the nearest pass
+                    involving an active satellite. Runs daily on Fly.io.
+                  </p>
+                )}
+              </section>
+
+              <section aria-labelledby="sat-risk">
+                <h3 id="sat-risk" className="section-title">
+                  Risk breakdown
+                </h3>
+                {summary ? (
+                  <RiskBreakdown summary={summary} />
+                ) : (
+                  <div className="card sat-risk-placeholder">
+                    {state.status === 'error' ? '—' : 'Loading…'}
+                  </div>
+                )}
+              </section>
+            </div>
           </div>
         </header>
 
@@ -269,6 +324,15 @@ export default function SatelliteTool() {
               viewMode={viewMode}
               onCanPovChange={setCanPov}
               onViewRequest={requestView}
+              conjunctionsControl={
+                <ConjunctionsMenu
+                  rows={tableSummary ? closestRows(tableSummary) : null}
+                  failed={tableState.status === 'error'}
+                  selectedKey={focus?.key ?? null}
+                  keyOf={nearMissKey}
+                  onSelect={replay}
+                />
+              }
               contextSlot={contextEl}
               creditsSlot={creditsEl}
               modeSwitch={
@@ -302,56 +366,6 @@ export default function SatelliteTool() {
       </div>
 
       <div className="container">
-        <section className="sat-section" aria-labelledby="sat-screening">
-          <h2 id="sat-screening" className="section-title">
-            Conjunction screening
-          </h2>
-          <div className="sat-overview">
-            <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
-              <h3 id="sat-results" className="section-title">
-                Latest run
-              </h3>
-              {state.status === 'error' && (
-                <div className="sat-callout sat-error" role="alert">
-                  <p>The latest screening results couldn&apos;t be loaded right now.</p>
-                  <button type="button" className="btn btn-secondary" onClick={retry}>
-                    Try again
-                  </button>
-                </div>
-              )}
-              <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
-                {statsFor(summary).map(({ value, label }) => (
-                  <div key={label} className="card sat-stat">
-                    <dt>{label}</dt>
-                    <dd>{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              {summary && (
-                <p className="sat-note">
-                  Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
-                  passes under {summary.threshold_km} km. Closest approach is the nearest pass
-                  involving an active satellite. Runs daily on Fly.io.
-                </p>
-              )}
-            </section>
-
-            <section aria-labelledby="sat-risk">
-              <h3 id="sat-risk" className="section-title">
-                Risk breakdown
-              </h3>
-              {summary ? (
-                <RiskBreakdown summary={summary} />
-              ) : (
-                <div className="card sat-risk-placeholder">
-                  {state.status === 'error' ? '—' : 'Loading…'}
-                </div>
-              )}
-            </section>
-          </div>
-
-        </section>
-
         <section className="sat-section" aria-labelledby="sat-near-misses">
           <h2 id="sat-near-misses" className="section-title">
             Top conjunctions{pastDate ? ` · ${pastDate} snapshot` : ''}
