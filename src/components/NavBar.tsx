@@ -5,6 +5,7 @@ const links: { to: string; label: string; short?: string }[] = [
   { to: '/', label: 'Home' },
   { to: '/resume', label: 'Resume' },
   { to: '/satellite-conjunction-screening', label: 'Satellite Point-of-View Tool', short: 'Satellite POV Tool' },
+  { to: '/shop', label: 'Shop' },
 ]
 
 /** The route whose header matches the wide tool layout. */

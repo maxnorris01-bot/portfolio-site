@@ -1,5 +1,6 @@
 // Invented products for tests and the dev-only /shop?fixture=... states. No real stores or image hosts.
-import type { ShopState } from './state.ts'
+import type { RatingsState } from './ratings.ts'
+import type { Banner, ShopState } from './state.ts'
 import type { SessionView, ShopItem } from './types.ts'
 
 const art = (fill: string) =>
@@ -67,8 +68,43 @@ export const fixtureView: SessionView = {
     headline: 'Four modern couches, mostly under $1,000.',
     topic_notice: 'This looks like a new topic, so earlier ratings were not used.',
     warnings: ['Only 4 of the 12 results you asked for matched the price limit.'],
+    query: {
+      search_text: 'modern couch',
+      category: 'sofa',
+      price_max: 1000,
+      style_terms: ['modern'],
+      material_terms: ['boucle'],
+      color_terms: ['oatmeal'],
+      avoid: ['walmart'],
+      must_have: ['3-seat'],
+    },
     results: fixtureItems,
   },
+  refine: [
+    { id: 'rf-1', kind: 'avoid', label: 'No Walmart', text: 'no Walmart' },
+    { id: 'rf-2', kind: 'focus', label: 'Focus on cream', text: 'focus on cream', approximate: true },
+  ],
+  can_shop_again: true,
+  shop_agains_used: 0,
+  shop_agains_cap: 5,
+}
+
+export const fixtureBatch2: SessionView = {
+  session_id: 'fixture-session',
+  search: {
+    request: 'modern couch under $1000',
+    kind: 'shop_again',
+    headline: 'Three more couches, leaning cream and wood.',
+    results: [
+      { ...fixtureItems[1], id: 'fx-5', title: 'Sample Cream Boucle sofa', price: 679, thumbnail_url: art('#e8dfd0') },
+      { ...fixtureItems[0], id: 'fx-6', title: 'Example Walnut-leg loveseat', price: 589, thumbnail_url: art('#8a6a4f'), also_at: [] },
+      { ...fixtureItems[2], id: 'fx-7', title: 'Demo Oak frame couch', price: 810, thumbnail_url: art('#b08a5a') },
+    ],
+  },
+  refine: [{ id: 'rf-3', kind: 'focus', label: 'More wood', text: 'more wood' }],
+  can_shop_again: true,
+  shop_agains_used: 1,
+  shop_agains_cap: 5,
 }
 
 export const fixtureNoResults: SessionView = {
@@ -85,11 +121,54 @@ const steps = (states: ('done' | 'active' | 'pending' | 'skipped')[]) =>
     total: states[i] === 'active' && i === 1 ? 40 : null,
   }))
 
+const rated = (rating: 'love' | 'like' | 'dislike' | null, comment = '', save: 'idle' | 'saving' | 'saved' | 'failed' = 'saved', error: string | null = null) => ({
+  rating,
+  comment,
+  savedComment: save === 'failed' ? '' : comment,
+  save,
+  error,
+})
+
+const ratedCards: RatingsState = {
+  'fx-1': rated('love', 'Great colour, but check the depth.'),
+  'fx-2': rated('like', '', 'saving'),
+  'fx-3': rated('dislike', 'Too small', 'failed', 'Could not save your rating. Check your connection and try again.'),
+}
+
+const done = (view: SessionView, batch: number, ratings: RatingsState = {}, banner: Banner | null = null): ShopState => ({
+  status: 'done',
+  request: 'modern couch under $1000',
+  view,
+  batch,
+  ratings,
+  banner,
+  fresh: false,
+})
+
 export const fixtureStates: Record<string, ShopState> = {
   empty: { status: 'idle', restoring: false },
-  running: { status: 'running', request: 'modern couch under $1000', phase: 'tagging', startedAt: Date.now() - 12_000, slow: false, steps: steps(['done', 'active', 'pending', 'skipped']) },
-  slow: { status: 'running', request: 'modern couch under $1000', phase: 'ranking', startedAt: Date.now() - 65_000, slow: true, steps: steps(['done', 'done', 'active', 'skipped']) },
-  results: { status: 'done', request: 'modern couch under $1000', view: fixtureView },
-  none: { status: 'done', request: 'purple unicorn couch under $5', view: fixtureNoResults },
-  error: { status: 'error', request: 'modern couch under $1000', message: 'Too many searches from your address today. Please try again tomorrow.', retryAfterS: null },
+  running: { status: 'running', request: 'modern couch under $1000', kind: 'search', batch: 1, prev: null, phase: 'tagging', startedAt: Date.now() - 12_000, slow: false, steps: steps(['done', 'active', 'pending', 'skipped']) },
+  slow: { status: 'running', request: 'modern couch under $1000', kind: 'search', batch: 1, prev: null, phase: 'ranking', startedAt: Date.now() - 65_000, slow: true, steps: steps(['done', 'done', 'active', 'skipped']) },
+  results: done(fixtureView, 1),
+  none: { status: 'done', request: 'purple unicorn couch under $5', view: fixtureNoResults, batch: 1, ratings: {}, banner: null, fresh: false },
+  error: { status: 'error', request: 'modern couch under $1000', message: 'Too many searches from your address today. Please try again tomorrow.', retryAfterS: null, resetsAt: null },
+  // Part 2
+  rated: done(fixtureView, 1, ratedCards),
+  again: {
+    status: 'running',
+    request: 'modern couch under $1000',
+    kind: 'shop_again',
+    batch: 2,
+    prev: { view: fixtureView, batch: 1, ratings: ratedCards },
+    phase: 'ranking',
+    startedAt: Date.now() - 9_000,
+    slow: false,
+    steps: steps(['done', 'done', 'active', 'skipped']),
+  },
+  batch2: done(fixtureBatch2, 2, { 'fx-5': rated('like') }),
+  cap: done(fixtureView, 1, ratedCards, {
+    message: 'You have used all of your Shop Again searches for today.',
+    retryAfterS: null,
+    resetsAt: '2026-11-01T00:00:00+00:00',
+  }),
 }
