@@ -32,8 +32,34 @@ export type ShopItem = {
   also_at?: AlsoAt[]
 }
 
+export type Rating = 'love' | 'like' | 'dislike'
+export type RatingEntry = { rating: Rating | null; comment: string }
+
+/** What the server understood from the request (the parts this page shows). */
+export type ParsedQuery = {
+  search_text?: string
+  category?: string | null
+  price_min?: number | null
+  price_max?: number | null
+  style_terms?: string[]
+  material_terms?: string[]
+  color_terms?: string[]
+  shape_terms?: string[]
+  must_have?: string[]
+  avoid?: string[]
+  context?: string[]
+}
+
+/** A refine instruction the server understood ("no Walmart", "focus on cream"). */
+export type RefineChip = { id: string; kind?: string; label: string; approximate?: boolean; text?: string }
+
+/** Kinds POST /context/remove accepts. */
+export type ContextKind = 'context' | 'suggested' | 'avoid' | 'color_term' | 'material' | 'shape_term'
+
 export type ShopSearch = {
   request: string
+  kind?: 'search' | 'shop_again'
+  query?: ParsedQuery | null
   /** The one sentence above the grid. */
   headline?: string
   topic_notice?: string | null
@@ -46,6 +72,12 @@ export type ShopSearch = {
 export type SessionView = {
   session_id: string | null
   search: ShopSearch | null
+  /** Result id to its rating and comment. */
+  ratings?: Record<string, RatingEntry>
+  refine?: RefineChip[]
+  can_shop_again?: boolean
+  shop_agains_used?: number
+  shop_agains_cap?: number
 }
 
 export type StepState = 'pending' | 'active' | 'done' | 'skipped'

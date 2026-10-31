@@ -5,24 +5,24 @@ import { fixtureItems, fixtureView } from '../src/shop/fixtures.ts'
 import { LIMITATIONS_NOTICE } from '../src/shop/copy.ts'
 
 test('reducer: submit, progress, done; a new search replaces old results', () => {
-  let s: ShopState = shopReducer(initialState, { type: 'submit', request: 'couch', now: 5 })
+  let s: ShopState = shopReducer(initialState, { type: 'submit', request: 'couch', kind: 'search', batch: 1, now: 5 })
   assert.equal(s.status, 'running')
   s = shopReducer(s, { type: 'progress', job: { state: 'running', phase: 'tagging', steps: [{ id: 'a', label: 'Searching', state: 'done', done_count: null, total: null }] } })
   assert.equal(s.status === 'running' && s.steps.length, 1)
   s = shopReducer(s, { type: 'done', view: fixtureView })
   assert.equal(s.status, 'done')
-  s = shopReducer(s, { type: 'submit', request: 'rug', now: 9 })
+  s = shopReducer(s, { type: 'submit', request: 'rug', kind: 'search', batch: 1, now: 9 })
   assert.deepEqual([s.status, 'request' in s && s.request], ['running', 'rug'])
 })
 
 test('reducer: errors keep the request for a retry; late progress is ignored; restore loses to a new search', () => {
-  const running = shopReducer(initialState, { type: 'submit', request: 'couch', now: 1 })
-  const failed = shopReducer(running, { type: 'fail', message: 'Nope.', retryAfterS: 30 })
-  assert.deepEqual(failed, { status: 'error', request: 'couch', message: 'Nope.', retryAfterS: 30 })
+  const running = shopReducer(initialState, { type: 'submit', request: 'couch', kind: 'search', batch: 1, now: 1 })
+  const failed = shopReducer(running, { type: 'fail', message: 'Nope.', retryAfterS: 30, resetsAt: null, phase: 'poll' })
+  assert.deepEqual(failed, { status: 'error', request: 'couch', message: 'Nope.', retryAfterS: 30, resetsAt: null })
   assert.equal(shopReducer(failed, { type: 'progress', job: { state: 'running' } }), failed)
-  assert.equal(shopReducer(running, { type: 'restored', view: fixtureView }), running)
-  assert.equal(shopReducer({ status: 'idle', restoring: true }, { type: 'restored', view: null }).status, 'idle')
-  assert.equal(shopReducer({ status: 'idle', restoring: true }, { type: 'restored', view: fixtureView }).status, 'done')
+  assert.equal(shopReducer(running, { type: 'restored', view: fixtureView, batch: 1 }), running)
+  assert.equal(shopReducer({ status: 'idle', restoring: true }, { type: 'restored', view: null, batch: 1 }).status, 'idle')
+  assert.equal(shopReducer({ status: 'idle', restoring: true }, { type: 'restored', view: fixtureView, batch: 1 }).status, 'done')
 })
 
 test('helpers: price, rating, also-at, notices, steps', () => {

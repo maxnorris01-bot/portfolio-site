@@ -300,3 +300,159 @@
     animation: none;
   }
 }
+
+/* Ratings (part 2) */
+.shop-rating {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.shop-rate {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.shop-rate-btn {
+  flex: 1;
+  padding: 0.4em 0.3em;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.shop-rate-btn:hover {
+  border-color: var(--color-navy);
+  color: var(--color-navy);
+}
+
+/* Selected: filled, with a check, so it does not rely on colour alone. */
+.shop-rate-btn.is-on {
+  border-color: var(--color-navy);
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+}
+
+.shop-rate-btn.is-on.is-love {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
+.shop-rate-btn.is-on::before {
+  content: '✓ ';
+}
+
+.shop-comment {
+  display: block;
+}
+
+.shop-comment-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5em 0.7em;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.shop-comment-input:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.shop-save {
+  min-height: 1.1em;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.shop-save.is-failed {
+  color: var(--color-accent);
+}
+
+.shop-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Shop Again and refine */
+.shop-again {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 48rem;
+  margin-top: 2rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.shop-batch {
+  color: var(--color-navy);
+  font-weight: 600;
+}
+
+.shop-banner {
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.shop-chips {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
+.shop-chips-title {
+  margin-bottom: 0.3rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shop-understood {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.shop-chip-x {
+  padding: 0 0.15rem;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shop-chip-x:hover {
+  color: var(--color-accent);
+}

@@ -7,7 +7,7 @@ import type { ShopState } from '../shop/state'
 import { useShopSearch } from '../shop/useShopSearch'
 import './Shop.css'
 
-/** Development only: /shop?fixture=results|running|slow|none|error|empty shows canned states, no network. */
+/** Development only: /shop?fixture=empty|running|slow|results|none|error|rated|again|batch2|cap shows canned states, no network. */
 function useFixture(): ShopState | null {
   const [params] = useSearchParams()
   const name = import.meta.env.DEV ? params.get('fixture') : null
@@ -21,21 +21,34 @@ function useFixture(): ShopState | null {
 
 export default function Shop() {
   usePageMeta(SHOP_PAGE_TITLE, SHOP_PAGE_DESCRIPTION)
-  const { state, search, retry } = useShopSearch()
+  const shop = useShopSearch()
   const [value, setValue] = useState('')
+  const [refineText, setRefineText] = useState('')
   const fixture = useFixture()
 
   return (
     <ShopView
-      state={fixture ?? state}
+      state={fixture ?? shop.state}
       value={value}
       onChange={setValue}
-      onSubmit={() => void search(value)}
+      onSubmit={() => void shop.search(value)}
       onExample={(text) => {
         setValue(text)
-        void search(text)
+        void shop.search(text)
       }}
-      onRetry={retry}
+      onRetry={shop.retry}
+      refineText={refineText}
+      onRefineChange={setRefineText}
+      onShopAgain={() => {
+        void shop.shopAgain(refineText)
+        setRefineText('')
+      }}
+      onRate={shop.rate}
+      onComment={shop.setComment}
+      onCommentBlur={shop.commentBlur}
+      onRetryRating={shop.retryRating}
+      onRemoveRefine={(id) => void shop.removeRefine(id)}
+      onRemoveContext={(kind, v) => void shop.removeContext(kind, v)}
     />
   )
 }

@@ -1,19 +1,43 @@
-import type { JobStatus, JobStep, SessionView, ShopItem } from './types.ts'
+import { ratingsFromView, ratingsReducer, type RatingAction, type RatingsState } from './ratings.ts'
+import type { JobStatus, JobStep, RefineChip, ParsedQuery, SessionView, ShopItem } from './types.ts'
+
+export type JobKind = 'search' | 'shop_again'
+
+/** A refused or failed request shown above results that are still on screen. */
+export type Banner = { message: string; retryAfterS: number | null; resetsAt: string | null }
+
+type Previous = { view: SessionView; batch: number; ratings: RatingsState }
 
 export type ShopState =
   | { status: 'idle'; restoring: boolean }
-  | { status: 'running'; request: string; steps: JobStep[]; phase: string; startedAt: number; slow: boolean }
-  | { status: 'done'; request: string; view: SessionView }
-  | { status: 'error'; request: string; message: string; retryAfterS: number | null }
+  | {
+      status: 'running'
+      request: string
+      kind: JobKind
+      batch: number
+      steps: JobStep[]
+      phase: string
+      startedAt: number
+      slow: boolean
+      /** The results on screen when this started, put back if it fails. */
+      prev: Previous | null
+    }
+  | { status: 'done'; request: string; view: SessionView; batch: number; ratings: RatingsState; banner: Banner | null; fresh: boolean }
+  | { status: 'error'; request: string; message: string; retryAfterS: number | null; resetsAt: string | null }
+
+export type FailInfo = { message: string; retryAfterS: number | null; resetsAt: string | null; phase: 'start' | 'poll' }
 
 export type ShopAction =
   | { type: 'restoring' }
-  | { type: 'restored'; view: SessionView | null }
-  | { type: 'submit'; request: string; now: number }
+  | { type: 'restored'; view: SessionView | null; batch: number }
+  | { type: 'submit'; request: string; kind: JobKind; batch: number; now: number }
   | { type: 'progress'; job: JobStatus }
   | { type: 'slow' }
   | { type: 'done'; view: SessionView }
-  | { type: 'fail'; message: string; retryAfterS: number | null }
+  | ({ type: 'fail' } & FailInfo)
+  | { type: 'ratings'; action: RatingAction }
+  | { type: 'patch'; refine?: RefineChip[]; query?: ParsedQuery }
+  | { type: 'banner'; banner: Banner | null }
 
 export const initialState: ShopState = { status: 'idle', restoring: false }
 
@@ -25,21 +49,48 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
       // A search started while the old one was loading wins.
       if (state.status !== 'idle') return state
       return action.view?.search
-        ? { status: 'done', request: action.view.search.request, view: action.view }
+        ? { status: 'done', request: action.view.search.request, view: action.view, batch: action.batch, ratings: ratingsFromView(action.view.ratings), banner: null, fresh: false }
         : { status: 'idle', restoring: false }
-    case 'submit':
-      return { status: 'running', request: action.request, steps: [], phase: '', startedAt: action.now, slow: false }
+    case 'submit': {
+      const prev = state.status === 'done' ? { view: state.view, batch: state.batch, ratings: state.ratings } : state.status === 'running' ? state.prev : null
+      return { status: 'running', request: action.request, kind: action.kind, batch: action.batch, steps: [], phase: '', startedAt: action.now, slow: false, prev }
+    }
     case 'progress':
       if (state.status !== 'running') return state
-      return { ...state, steps: action.job.state === 'done' || action.job.state === 'error' ? state.steps : (action.job.steps ?? state.steps), phase: ('phase' in action.job && action.job.phase) || state.phase }
+      if (action.job.state === 'done' || action.job.state === 'error') return state
+      return { ...state, steps: action.job.steps ?? state.steps, phase: action.job.phase || state.phase }
     case 'slow':
       return state.status === 'running' ? { ...state, slow: true } : state
     case 'done': {
-      const request = action.view.search?.request ?? (state.status === 'running' ? state.request : '')
-      return { status: 'done', request, view: action.view }
+      const running = state.status === 'running' ? state : null
+      return {
+        status: 'done',
+        request: action.view.search?.request ?? running?.request ?? '',
+        view: action.view,
+        batch: running?.batch ?? 1,
+        ratings: ratingsFromView(action.view.ratings),
+        banner: null,
+        fresh: true,
+      }
     }
-    case 'fail':
-      return { status: 'error', request: 'request' in state ? state.request : '', message: action.message, retryAfterS: action.retryAfterS }
+    case 'fail': {
+      const request = 'request' in state ? state.request : ''
+      const info = { message: action.message, retryAfterS: action.retryAfterS, resetsAt: action.resetsAt }
+      // A refused start, or a failed Shop Again, leaves the earlier results in place with the reason above them.
+      if (state.status === 'running' && state.prev && (action.phase === 'start' || state.kind === 'shop_again')) {
+        return { status: 'done', request: state.prev.view.search?.request ?? request, view: state.prev.view, batch: state.prev.batch, ratings: state.prev.ratings, banner: info, fresh: false }
+      }
+      return { status: 'error', request, ...info }
+    }
+    case 'ratings':
+      return state.status === 'done' ? { ...state, ratings: ratingsReducer(state.ratings, action.action) } : state
+    case 'patch': {
+      if (state.status !== 'done' || !state.view.search) return state
+      const search = action.query ? { ...state.view.search, query: action.query } : state.view.search
+      return { ...state, view: { ...state.view, search, refine: action.refine ?? state.view.refine } }
+    }
+    case 'banner':
+      return state.status === 'done' ? { ...state, banner: action.banner } : state
   }
 }
 
@@ -90,18 +141,34 @@ export function stepSummary(step: JobStep): string {
 }
 
 const KEY = 'shop.session'
-export function readSavedSession(): string | null {
+const BATCH_KEY = 'shop.batch'
+export function readSavedSession(): { id: string; batch: number } | null {
   try {
-    return sessionStorage.getItem(KEY)
+    const id = sessionStorage.getItem(KEY)
+    const batch = Number(sessionStorage.getItem(BATCH_KEY))
+    return id ? { id, batch: Number.isInteger(batch) && batch >= 1 ? batch : 1 } : null
   } catch {
     return null
   }
 }
-export function saveSession(id: string | null) {
+export function saveSession(id: string | null, batch = 1) {
   try {
-    if (id) sessionStorage.setItem(KEY, id)
-    else sessionStorage.removeItem(KEY)
+    if (id) {
+      sessionStorage.setItem(KEY, id)
+      sessionStorage.setItem(BATCH_KEY, String(batch))
+    } else {
+      sessionStorage.removeItem(KEY)
+      sessionStorage.removeItem(BATCH_KEY)
+    }
   } catch {
     // Storage blocked: the page just doesn't restore after a refresh.
   }
+}
+
+/** "Resets 5:00 PM UTC" style text for a cap's reset time (ISO), or null. */
+export function resetText(iso: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' })
 }
