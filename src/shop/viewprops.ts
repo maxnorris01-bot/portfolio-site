@@ -1,3 +1,4 @@
+import type { ShopMeta } from './controller.ts'
 import type { RatingsState } from './ratings.ts'
 import type { ShopState } from './state.ts'
 import type { ContextKind, Rating } from './types.ts'
@@ -19,6 +20,15 @@ export type ShopViewProps = {
   onRetryRating: (id: string) => void
   onRemoveRefine: (id: string) => void
   onRemoveContext: (kind: ContextKind, value: string) => void
+  /** The visit's limits and which buttons a refusal turned off. */
+  meta: ShopMeta
+  /** The Saved panel: shown or hidden, and which tab. */
+  savedOpen: boolean
+  onToggleSaved: () => void
+  savedTab: 'love' | 'like'
+  onSavedTab: (tab: 'love' | 'like') => void
+  /** Look up a result's store link (for Open). */
+  onResolve: (id: string) => Promise<string | null>
 }
 
 export type RatingsProps = { ratings: RatingsState }

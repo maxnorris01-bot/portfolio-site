@@ -1,4 +1,4 @@
-import type { AuthSession, ContextKind, JobStatus, ParsedQuery, Rating, RefineChip, SessionView, ShopErrorCode } from './types.ts'
+import type { AuthSession, ContextKind, JobStatus, ParsedQuery, Rating, RefineChip, ResolvedLink, SessionView, ShopErrorCode } from './types.ts'
 
 const BASE = '/api/shop'
 
@@ -10,13 +10,16 @@ export class ShopError extends Error {
   readonly retryAfterS: number | null
   /** For cap_reached: when the allowance comes back (ISO time), or null. */
   readonly resetsAt: string | null
-  constructor(code: ShopErrorCode, message: string, status = 0, retryAfterS: number | null = null, resetsAt: string | null = null) {
+  /** For cap_reached: which limit (session, ip_day, global_day, searches, shop_agains). */
+  readonly limit: string | null
+  constructor(code: ShopErrorCode, message: string, status = 0, retryAfterS: number | null = null, resetsAt: string | null = null, limit: string | null = null) {
     super(message)
     this.name = 'ShopError'
     this.code = code
     this.status = status
     this.retryAfterS = retryAfterS
     this.resetsAt = resetsAt
+    this.limit = limit
   }
 }
 
@@ -50,7 +53,8 @@ export function errorFromResponse(status: number, body: unknown, retryAfter: str
   const [fallbackCode, fallbackMessage] =
     GENERIC[status] ?? (status === 400 ? (['bad_request', 'That request could not be understood.'] as const) : (['server_error', 'Something went wrong on the server. Please try again.'] as const))
   const resetsAt = err && typeof err.resets_at === 'string' ? err.resets_at : null
-  return new ShopError(known ?? fallbackCode, message ?? fallbackMessage, status, retryAfterS, resetsAt)
+  const limit = err && typeof err.limit === 'string' ? err.limit : null
+  return new ShopError(known ?? fallbackCode, message ?? fallbackMessage, status, retryAfterS, resetsAt, limit)
 }
 
 type RequestOptions = {
@@ -111,6 +115,13 @@ export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)
       request<{ refine: RefineChip[] }>('/refine/remove', { method: 'POST', body: { session_id: sessionId, id }, signal }),
     removeContext: (sessionId: string, kind: ContextKind, value: string, signal?: AbortSignal) =>
       request<{ query: ParsedQuery; removed: string }>('/context/remove', { method: 'POST', body: { session_id: sessionId, kind, value }, signal }),
+    /** Look up the store link for a result (cached on the server once found). */
+    resolve: (sessionId: string, resultId: string, signal?: AbortSignal) =>
+      request<{ resolved: ResolvedLink & { result_id: string }; lookups_used: number; lookups_cap: number }>('/resolve', {
+        method: 'POST',
+        body: { session_id: sessionId, result_id: resultId },
+        signal,
+      }),
     /** Reload a session; no visit is started for it (an old id just fails). */
     loadSession: (sessionId: string, signal?: AbortSignal) =>
       request<SessionView>(`/session?id=${encodeURIComponent(sessionId)}`, { signal, autoStart: false }),

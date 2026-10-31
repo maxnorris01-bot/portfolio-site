@@ -58,19 +58,3 @@
   border-bottom-color: var(--color-accent);
   color: var(--color-navy);
 }
-
-/* The full name where it fits; on the narrowest phones the short one, so the
-   links stay on one line. */
-.nav-label-short {
-  display: none;
-}
-
-@media (max-width: 399px) {
-  .nav-label-full {
-    display: none;
-  }
-
-  .nav-label-short {
-    display: inline;
-  }
-}

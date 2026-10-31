@@ -1,8 +1,13 @@
 import { ShopError, isAbort, type ShopClient } from './api.ts'
+import { limitBlocks, noBlocks, usageFrom, type Blocked } from './limits.ts'
 import { JobPoller } from './poller.ts'
 import { ratingBody } from './ratings.ts'
 import { initialState, readSavedSession, saveSession, shopReducer, type JobKind, type ShopAction, type ShopState } from './state.ts'
-import type { ContextKind, Rating } from './types.ts'
+import { safeHref } from './state.ts'
+import type { ContextKind, Rating, UsageInfo } from './types.ts'
+
+/** What the page knows besides the results: the visit's limits, which buttons a refusal turned off. */
+export type ShopMeta = { usage: UsageInfo | null; blocked: Blocked; maintenance: boolean }
 
 /**
  * The page's work outside React: search, Shop Again, ratings, chips, polling and
@@ -14,6 +19,8 @@ export class ShopController {
   private poller: JobPoller
   private listeners = new Set<() => void>()
   private snapshot: ShopState = initialState
+  private meta: ShopMeta = { usage: null, blocked: noBlocks, maintenance: false }
+  private resolving = new Map<string, Promise<string | null>>()
   private session: string | null = null
   private batch = 1
   private lastRequest = ''
@@ -28,6 +35,13 @@ export class ShopController {
   }
 
   getState = () => this.snapshot
+
+  getMeta = () => this.meta
+
+  private setMeta(next: Partial<ShopMeta>) {
+    this.meta = { ...this.meta, ...next }
+    this.listeners.forEach((l) => l())
+  }
 
   subscribe = (fn: () => void) => {
     this.listeners.add(fn)
@@ -44,7 +58,10 @@ export class ShopController {
   private failWith(e: unknown, phase: 'start' | 'poll') {
     if (isAbort(e)) return
     const err = e instanceof ShopError ? e : new ShopError('server_error', 'Something went wrong. Please try again.')
-    this.dispatch({ type: 'fail', message: err.message, retryAfterS: err.retryAfterS, resetsAt: err.resetsAt, phase })
+    const info = { message: err.message, retryAfterS: err.retryAfterS, resetsAt: err.resetsAt, code: err.code, limit: err.limit }
+    const hit = limitBlocks(info)
+    if (hit.search || hit.again) this.setMeta({ blocked: { search: this.meta.blocked.search || hit.search, again: this.meta.blocked.again || hit.again }, maintenance: this.meta.maintenance || err.code === 'maintenance' })
+    this.dispatch({ type: 'fail', ...info, phase })
   }
 
   private async begin(request: string, kind: JobKind, start: (signal: AbortSignal) => Promise<{ job_id: string }>) {
@@ -64,6 +81,7 @@ export class ShopController {
           this.batch = nextBatch
           saveSession(this.session, this.batch)
           this.dispatch({ type: 'done', view })
+          void this.loadUsage()
         },
         onError: (e) => this.failWith(e, 'poll'),
       })
@@ -108,7 +126,7 @@ export class ShopController {
 
   /** Choosing a rating saves it at once (the rating alone is sent). */
   rate = (id: string, rating: Rating | null) => {
-    this.dispatch({ type: 'ratings', action: { type: 'choose', id, rating } })
+    this.dispatch({ type: 'ratings', action: { type: 'choose', id, rating, at: Date.now() } })
     return this.persist(id, { rating })
   }
 
@@ -133,7 +151,7 @@ export class ShopController {
 
   private note(e: unknown) {
     if (isAbort(e)) return
-    this.dispatch({ type: 'banner', banner: { message: e instanceof ShopError ? e.message : 'Could not remove that.', retryAfterS: null, resetsAt: null } })
+    this.dispatch({ type: 'banner', banner: { message: e instanceof ShopError ? e.message : 'Could not remove that.', retryAfterS: null, resetsAt: null, code: e instanceof ShopError ? e.code : null, limit: null } })
   }
 
   removeRefine = async (chipId: string) => {
@@ -152,6 +170,45 @@ export class ShopController {
     } catch (e) {
       this.note(e)
     }
+  }
+
+  /**
+   * The visit's limits and reset time, for the usage line. Does not start a visit: a visitor with no visit yet
+   * simply has no line until their first search.
+   */
+  loadUsage = async () => {
+    try {
+      const auth = await this.client.authSession()
+      const maintenance = auth.maintenance === true
+      this.setMeta({ usage: usageFrom(auth), maintenance, blocked: maintenance ? { search: true, again: true } : this.meta.blocked })
+    } catch {
+      // The line is a convenience: no line when the service cannot be reached.
+    }
+  }
+
+  /**
+   * The store link for a result (a lookup the server caches, and caps per session). Resolves to the link, or null
+   * when there is none or the lookup failed, in which case the caller uses the result's own (Google) link.
+   */
+  resolveLink = (id: string): Promise<string | null> => {
+    const sid = this.session
+    if (!sid) return Promise.resolve(null)
+    const known = this.snapshot.status === 'done' ? this.snapshot.view.resolved?.[id] : undefined
+    const store = known?.status === 'resolved' ? safeHref(known.link) : null
+    if (store) return Promise.resolve(store)
+    const pending = this.resolving.get(id)
+    if (pending) return pending
+    const run = this.client
+      .resolve(sid, id)
+      .then((out) => {
+        const link = out.resolved.status === 'resolved' ? safeHref(out.resolved.link) : null
+        this.dispatch({ type: 'patch', resolved: { id, entry: { status: out.resolved.status, link: out.resolved.link, link_kind: out.resolved.link_kind } } })
+        return link
+      })
+      .catch(() => null)
+      .finally(() => this.resolving.delete(id))
+    this.resolving.set(id, run)
+    return run
   }
 
   /** Bring back the last results after a refresh. */

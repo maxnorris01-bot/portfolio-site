@@ -183,7 +183,7 @@ test('cap_reached on Shop Again keeps the earlier results and shows the message 
   assert.ok(s.status === 'done')
   assert.equal(s.view.search?.results.length, 4, 'the grid is still there')
   assert.equal(s.batch, 1)
-  assert.deepEqual(s.banner, { message: 'You have used all of your Shop Again searches for today.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00' })
+  assert.deepEqual(s.banner, { message: 'You have used all of your Shop Again searches for today.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00', code: 'cap_reached', limit: 'shop_agains' })
 })
 
 test('rate_limited on Shop Again keeps the results and carries Retry-After', async () => {
@@ -191,7 +191,7 @@ test('rate_limited on Shop Again keeps the results and carries Retry-After', asy
   await t.controller.shopAgain('')
   const s = t.controller.getState()
   assert.ok(s.status === 'done')
-  assert.deepEqual(s.banner, { message: 'Slow down a little.', retryAfterS: 20, resetsAt: null })
+  assert.deepEqual(s.banner, { message: 'Slow down a little.', retryAfterS: 20, resetsAt: null, code: 'rate_limited', limit: null })
 })
 
 test('a Shop Again job that fails puts the earlier batch back with the reason', async () => {
