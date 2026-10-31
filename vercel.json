@@ -1,3 +1,24 @@
 {
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
+  "routes": [
+    {
+      "src": "/api/shop/(.*)",
+      "dest": "https://room-redesign-shop.fly.dev/api/shop/$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": { "key": "x-origin-secret" },
+          "args": "$SHOP_ORIGIN_SECRET",
+          "env": ["SHOP_ORIGIN_SECRET"]
+        }
+      ]
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/shop/:path*",
+      "headers": [{ "key": "x-vercel-enable-rewrite-caching", "value": "0" }]
+    }
+  ]
 }

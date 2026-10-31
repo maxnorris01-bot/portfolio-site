@@ -8,6 +8,10 @@ Personal portfolio for Max Norris. Built with Vite, React, TypeScript and React 
 - `/resume` — Resume
 - `/satellite-conjunction-screening` — the Satellite Point-of-View Tool (the satellite viewer, with the daily conjunction screening it grew out of). The address keeps its original name so existing links work; the name, intro and tags live in `src/data/satelliteTool.ts`.
 
+## Shop Mode proxy
+
+`vercel.json` forwards `/api/shop/*` to the Shop Mode API on Fly with an `x-origin-secret` header taken from the `SHOP_ORIGIN_SECRET` environment variable. See `docs/shop-proxy.md` (how it works, rotating the secret, and what is still unverified until a preview deployment).
+
 ## Development
 
 ```sh
