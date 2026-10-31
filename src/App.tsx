@@ -1,9 +1,12 @@
-import { useEffect } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import NavBar from './components/NavBar'
 import Home from './pages/Home'
 import Resume from './pages/Resume'
 import SatelliteTool from './pages/SatelliteTool'
+
+// Unlisted for now: not in the nav yet.
+const Shop = lazy(() => import('./pages/Shop'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -33,6 +36,14 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/resume" element={<Resume />} />
         <Route path="/satellite-conjunction-screening" element={<SatelliteTool />} />
+        <Route
+          path="/shop"
+          element={
+            <Suspense fallback={null}>
+              <Shop />
+            </Suspense>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <footer className="site-footer container">

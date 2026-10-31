@@ -7,6 +7,7 @@ Personal portfolio for Max Norris. Built with Vite, React, TypeScript and React 
 - `/` — Home
 - `/resume` — Resume
 - `/satellite-conjunction-screening` — the Satellite Point-of-View Tool (the satellite viewer, with the daily conjunction screening it grew out of). The address keeps its original name so existing links work; the name, intro and tags live in `src/data/satelliteTool.ts`.
+- `/shop` — Shop Mode, part 1 (unlisted: not in the nav yet): type a product request, watch the job's steps, see a grid of results. API client, polling and state in `src/shop/`; the page in `src/pages/Shop.tsx`. In development, `/shop?fixture=empty|running|slow|results|none|error` shows canned states with no network (stripped from the production build).
 
 ## Shop Mode proxy
 
