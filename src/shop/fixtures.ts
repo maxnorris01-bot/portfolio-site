@@ -1,5 +1,6 @@
 // Invented products for tests and the dev-only /shop?fixture=... states. No real stores or image hosts.
 import type { RatingsState } from './ratings.ts'
+import type { ShopMeta } from './controller.ts'
 import type { Banner, ShopState } from './state.ts'
 import type { SessionView, ShopItem } from './types.ts'
 
@@ -67,7 +68,7 @@ export const fixtureView: SessionView = {
     request: 'modern couch under $1000',
     headline: 'Four modern couches, mostly under $1,000.',
     topic_notice: 'This looks like a new topic, so earlier ratings were not used.',
-    warnings: ['Only 4 of the 12 results you asked for matched the price limit.'],
+    warnings: [],
     query: {
       search_text: 'modern couch',
       category: 'sofa',
@@ -87,6 +88,18 @@ export const fixtureView: SessionView = {
   can_shop_again: true,
   shop_agains_used: 0,
   shop_agains_cap: 5,
+}
+
+/** A batch short of a typed finish, with the internal notices the server also sends (none of which may be shown). */
+export const fixtureShortWarnings = [
+  'Only 14 of 24 results match your finish warm wood: the pool had 14 that do and 3 results show no finish yet.',
+  'Not mixing frame color: only 2 of the 24 new candidates have another frame color; the limit is off for this batch.',
+  'Could not keep color under 80%: the pool is mostly black (31 of 40).',
+  'Not mixing shape: the guard is off for this batch.',
+]
+export const fixtureShort: SessionView = {
+  ...fixtureView,
+  search: { ...(fixtureView.search as NonNullable<SessionView['search']>), warnings: fixtureShortWarnings },
 }
 
 export const fixtureBatch2: SessionView = {
@@ -121,12 +134,13 @@ const steps = (states: ('done' | 'active' | 'pending' | 'skipped')[]) =>
     total: states[i] === 'active' && i === 1 ? 40 : null,
   }))
 
-const rated = (rating: 'love' | 'like' | 'dislike' | null, comment = '', save: 'idle' | 'saving' | 'saved' | 'failed' = 'saved', error: string | null = null) => ({
+const rated = (rating: 'love' | 'like' | 'dislike' | null, comment = '', save: 'idle' | 'saving' | 'saved' | 'failed' = 'saved', error: string | null = null, touched = 0) => ({
   rating,
   comment,
   savedComment: save === 'failed' ? '' : comment,
   save,
   error,
+  touched,
 })
 
 const ratedCards: RatingsState = {
@@ -145,13 +159,31 @@ const done = (view: SessionView, batch: number, ratings: RatingsState = {}, bann
   fresh: false,
 })
 
+// Items saved in an earlier search, to show in the Saved panel next to this batch's.
+const earlier: SessionView['saved'] = [
+  { ...fixtureItems[0], id: 'old-1', title: 'Example Boho curtain panel set', price: 64, seller: 'Example Home Co.', thumbnail_url: art('#d9c3a5'), link_kind: 'retailer', link: 'https://example.com/product/curtains', topic_label: 'boho curtains' },
+  { ...fixtureItems[1], id: 'old-2', title: 'Sample Linen curtains, 96 in', price: 42.5, seller: 'Sample Furniture', thumbnail_url: art('#9fb0a0'), topic_label: 'boho curtains' },
+]
+const savedView: SessionView = { ...fixtureView, saved: earlier }
+const savedRatings: RatingsState = {
+  ...ratedCards,
+  'fx-1': rated('love', 'Great colour, but check the depth.', 'saved', null, 3),
+  'fx-2': rated('like', '', 'saved', null, 2),
+  'fx-3': rated('dislike'),
+  'old-1': rated('love'),
+  'old-2': rated('like'),
+}
+
+const limitUsage = { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-01T00:00:00+00:00' }
+const limitView: SessionView = { ...fixtureView, search_count: 9, shop_agains_used: 1, shop_agains_cap: 25 }
+
 export const fixtureStates: Record<string, ShopState> = {
   empty: { status: 'idle', restoring: false },
   running: { status: 'running', request: 'modern couch under $1000', kind: 'search', batch: 1, prev: null, phase: 'tagging', startedAt: Date.now() - 12_000, slow: false, steps: steps(['done', 'active', 'pending', 'skipped']) },
   slow: { status: 'running', request: 'modern couch under $1000', kind: 'search', batch: 1, prev: null, phase: 'ranking', startedAt: Date.now() - 65_000, slow: true, steps: steps(['done', 'done', 'active', 'skipped']) },
   results: done(fixtureView, 1),
   none: { status: 'done', request: 'purple unicorn couch under $5', view: fixtureNoResults, batch: 1, ratings: {}, banner: null, fresh: false },
-  error: { status: 'error', request: 'modern couch under $1000', message: 'Too many searches from your address today. Please try again tomorrow.', retryAfterS: null, resetsAt: null },
+  error: { status: 'error', request: 'modern couch under $1000', message: 'Something went wrong on the server. Please try again.', retryAfterS: null, resetsAt: null, code: 'server_error', limit: null },
   // Part 2
   rated: done(fixtureView, 1, ratedCards),
   again: {
@@ -167,8 +199,28 @@ export const fixtureStates: Record<string, ShopState> = {
   },
   batch2: done(fixtureBatch2, 2, { 'fx-5': rated('like') }),
   cap: done(fixtureView, 1, ratedCards, {
-    message: 'You have used all of your Shop Again searches for today.',
+    message: 'Shop Again limit reached (25 per session)',
     retryAfterS: null,
-    resetsAt: '2026-11-01T00:00:00+00:00',
+    resetsAt: null,
+    code: 'cap_reached',
+    limit: 'shop_agains',
   }),
+  // Part 3
+  saved: done(savedView, 1, savedRatings),
+  savedempty: done({ ...fixtureView, saved: [] }, 1, {}),
+  short: done(fixtureShort, 1),
+  limit: done(limitView, 1, {}, { message: 'Daily limit reached.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00', code: 'cap_reached', limit: 'ip_day' }),
+}
+
+const clear: ShopMeta = { usage: null, blocked: { search: false, again: false }, maintenance: false }
+
+/** What the dev page needs besides the state: the usage line, blocked buttons, the Saved panel's tab. */
+export type FixtureBundle = { state: ShopState; meta: ShopMeta; savedTab?: 'love' | 'like' }
+
+export const fixtureBundles: Record<string, FixtureBundle> = {
+  ...Object.fromEntries(Object.entries(fixtureStates).map(([k, state]) => [k, { state, meta: { ...clear, usage: limitUsage } } satisfies FixtureBundle])),
+  savedliked: { state: fixtureStates.saved, meta: clear, savedTab: 'like' },
+  savedempty: { state: fixtureStates.savedempty, meta: clear },
+  limit: { state: fixtureStates.limit, meta: { usage: limitUsage, blocked: { search: true, again: true }, maintenance: false } },
+  maintenance: { state: fixtureStates.empty, meta: { usage: null, blocked: { search: true, again: true }, maintenance: true } },
 }

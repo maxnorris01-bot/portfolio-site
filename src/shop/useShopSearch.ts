@@ -8,10 +8,12 @@ const defaultClient = createShopClient()
 export function useShopSearch(client: ShopClient = defaultClient) {
   const controller = useMemo(() => new ShopController(client), [client])
   const state = useSyncExternalStore(controller.subscribe, controller.getState)
+  const meta = useSyncExternalStore(controller.subscribe, controller.getMeta)
   useEffect(() => {
     void controller.restore()
+    void controller.loadUsage()
     return controller.dispose
   }, [controller])
-  const { search, retry, shopAgain, rate, setComment, commentBlur, retryRating, removeRefine, removeContext } = controller
-  return { state, search, retry, shopAgain, rate, setComment, commentBlur, retryRating, removeRefine, removeContext }
+  const { search, retry, shopAgain, rate, setComment, commentBlur, retryRating, removeRefine, removeContext, resolveLink } = controller
+  return { state, meta, resolveLink, search, retry, shopAgain, rate, setComment, commentBlur, retryRating, removeRefine, removeContext }
 }

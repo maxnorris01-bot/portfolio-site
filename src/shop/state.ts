@@ -1,10 +1,11 @@
 import { ratingsFromView, ratingsReducer, type RatingAction, type RatingsState } from './ratings.ts'
-import type { JobStatus, JobStep, RefineChip, ParsedQuery, SessionView, ShopItem } from './types.ts'
+import type { LimitInfo } from './limits.ts'
+import type { JobStatus, JobStep, RefineChip, ParsedQuery, ResolvedLink, SessionView, ShopItem } from './types.ts'
 
 export type JobKind = 'search' | 'shop_again'
 
 /** A refused or failed request shown above results that are still on screen. */
-export type Banner = { message: string; retryAfterS: number | null; resetsAt: string | null }
+export type Banner = LimitInfo
 
 type Previous = { view: SessionView; batch: number; ratings: RatingsState }
 
@@ -23,9 +24,9 @@ export type ShopState =
       prev: Previous | null
     }
   | { status: 'done'; request: string; view: SessionView; batch: number; ratings: RatingsState; banner: Banner | null; fresh: boolean }
-  | { status: 'error'; request: string; message: string; retryAfterS: number | null; resetsAt: string | null }
+  | ({ status: 'error'; request: string } & LimitInfo)
 
-export type FailInfo = { message: string; retryAfterS: number | null; resetsAt: string | null; phase: 'start' | 'poll' }
+export type FailInfo = LimitInfo & { phase: 'start' | 'poll' }
 
 export type ShopAction =
   | { type: 'restoring' }
@@ -36,7 +37,7 @@ export type ShopAction =
   | { type: 'done'; view: SessionView }
   | ({ type: 'fail' } & FailInfo)
   | { type: 'ratings'; action: RatingAction }
-  | { type: 'patch'; refine?: RefineChip[]; query?: ParsedQuery }
+  | { type: 'patch'; refine?: RefineChip[]; query?: ParsedQuery; resolved?: { id: string; entry: ResolvedLink } }
   | { type: 'banner'; banner: Banner | null }
 
 export const initialState: ShopState = { status: 'idle', restoring: false }
@@ -75,7 +76,7 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
     }
     case 'fail': {
       const request = 'request' in state ? state.request : ''
-      const info = { message: action.message, retryAfterS: action.retryAfterS, resetsAt: action.resetsAt }
+      const info: LimitInfo = { message: action.message, retryAfterS: action.retryAfterS, resetsAt: action.resetsAt, code: action.code, limit: action.limit }
       // A refused start, or a failed Shop Again, leaves the earlier results in place with the reason above them.
       if (state.status === 'running' && state.prev && (action.phase === 'start' || state.kind === 'shop_again')) {
         return { status: 'done', request: state.prev.view.search?.request ?? request, view: state.prev.view, batch: state.prev.batch, ratings: state.prev.ratings, banner: info, fresh: false }
@@ -87,7 +88,8 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
     case 'patch': {
       if (state.status !== 'done' || !state.view.search) return state
       const search = action.query ? { ...state.view.search, query: action.query } : state.view.search
-      return { ...state, view: { ...state.view, search, refine: action.refine ?? state.view.refine } }
+      const resolved = action.resolved ? { ...state.view.resolved, [action.resolved.id]: action.resolved.entry } : state.view.resolved
+      return { ...state, view: { ...state.view, search, refine: action.refine ?? state.view.refine, resolved } }
     }
     case 'banner':
       return state.status === 'done' ? { ...state, banner: action.banner } : state
@@ -129,10 +131,23 @@ export function alsoAtLine(item: Pick<ShopItem, 'also_at' | 'currency'>): string
   return parts.length ? `Also at: ${parts.join(', ')}` : null
 }
 
-/** The notices above the grid: the topic notice, the headline's warnings. Plain text. */
-export function noticesFor(search: SessionView['search']): string[] {
-  if (!search) return []
-  return [search.topic_notice, ...(search.warnings ?? [])].filter((s): s is string => typeof s === 'string' && s.trim() !== '')
+/**
+ * The one line above the grid when the batch fell short of a must-match the shopper typed (a colour, material
+ * or finish). The contract documents no structured shortfall field, only the server's sentences in `warnings`;
+ * the quota sentence has one fixed form ("Only G of B results match your ATTRIBUTE: the pool had S that do..."),
+ * so this reads its numbers and builds the shopper-facing line. Every other notice (diversity limits, dropped
+ * filters, evidence) is ignored and never shown.
+ */
+export function shortfallLine(search: SessionView['search']): string | null {
+  for (const w of search?.warnings ?? []) {
+    const m = /^Only (\d+) of (\d+) results match your (.+?): the pool had (\d+) that do/.exec(w)
+    if (!m) continue
+    const [got, batch, supply] = [Number(m[1]), Number(m[2]), Number(m[4])]
+    const base = `Only ${got} of ${batch} results match your ${m[3]}.`
+    // "That is all the stores had" only when every match in the pool made it into the batch.
+    return supply <= got ? `${base} That is all the stores had.` : base
+  }
+  return null
 }
 
 export function stepSummary(step: JobStep): string {

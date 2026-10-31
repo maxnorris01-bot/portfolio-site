@@ -78,8 +78,8 @@ test('the page: the tool first, then Conjunction screening, Pipeline, For contex
   assert.match(page, /View on GitHub ↗/)
   assert.match(page, /Latest run/)
   assert.match(page, /Risk breakdown/)
-  // The nav label is the new name; the route is unchanged, so existing links keep working.
-  assert.match(src('components/NavBar.tsx'), /label: 'Satellite Point-of-View Tool'/)
+  // The nav tab is called SatPOV (the page and the Home card keep the full name); the route is unchanged, so existing links keep working.
+  assert.match(src('components/NavBar.tsx'), /label: 'SatPOV'/)
   assert.match(src('App.tsx'), /path="\/satellite-conjunction-screening"/)
   // The globe: "For context" and the credits are handed to the page's sections; the short line is on the map side, outside the controls column.
   const tsx = src('components/SatelliteGlobe.tsx')

@@ -69,9 +69,20 @@ export type ShopSearch = {
 }
 
 /** The body of GET /session, and the `result` of a finished job. */
+/** A loved or liked result in the session's Saved list (an earlier topic's carries the request it came from). */
+export type SavedRow = ShopItem & { topic_label?: string }
+
+export type ResolvedLink = { status: 'resolved' | 'fallback'; link: string; link_kind?: string }
+
 export type SessionView = {
   session_id: string | null
   search: ShopSearch | null
+  /** Loved and liked results from every search in the session, newest first. */
+  saved?: SavedRow[]
+  /** Result id to its store link, once looked up. */
+  resolved?: Record<string, ResolvedLink>
+  /** Searches and Shop Agains recorded in the session. */
+  search_count?: number
   /** Result id to its rating and comment. */
   ratings?: Record<string, RatingEntry>
   refine?: RefineChip[]
@@ -95,4 +106,12 @@ export type JobDone = { state: 'done'; phase?: string; steps?: JobStep[]; elapse
 export type JobFailed = { state: 'error'; status?: number; error: string }
 export type JobStatus = JobRunning | JobDone | JobFailed
 
-export type AuthSession = { authenticated: boolean; contact_email?: string | null }
+/** The part of GET /auth/session's usage block this page shows: per-visit limits and the daily reset. (Dollar figures are never shown.) */
+export type UsageInfo = { maxSearches: number; maxShopAgains: number; resetsAt: string | null }
+
+export type AuthSession = {
+  authenticated: boolean
+  contact_email?: string | null
+  maintenance?: boolean
+  usage?: { session?: { max_searches?: number; max_shop_agains?: number }; resets_at?: string }
+}

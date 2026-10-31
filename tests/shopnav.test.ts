@@ -13,18 +13,24 @@ const nav = async (location: string) => {
 }
 const link = (html: string, label: string) => html.match(new RegExp(`<a [^>]*>(?:(?!</a>).)*${label}(?:(?!</a>).)*</a>`))?.[0] ?? ''
 
-test('the nav lists Shop after the other tabs and links to /shop', async () => {
+test('the nav tabs are Home, Resume, SatPOV and ShopAI; ShopAI links to /shop and SatPOV keeps its route', async () => {
   const html = await nav('/')
   const labels = [...html.matchAll(/class="nav-link[^"]*"[^>]*>(.*?)<\/a>/g)].map((m) => m[1].replace(/<[^>]+>/g, ''))
-  assert.equal(labels.at(-1), 'Shop')
-  assert.deepEqual(labels.slice(0, 2), ['Home', 'Resume'])
-  assert.match(link(html, 'Shop'), /href="\/shop"/)
+  assert.deepEqual(labels, ['Home', 'Resume', 'SatPOV', 'ShopAI'])
+    assert.match(link(html, 'ShopAI'), /href="\/shop"/)
+  assert.match(link(html, 'SatPOV'), /href="\/satellite-conjunction-screening"/)
 })
 
-test('Shop is the active tab on /shop (aria-current) and only there', async () => {
+test('ShopAI is the active tab on /shop (aria-current) and only there; SatPOV is active on its route', async () => {
   const onShop = await nav('/shop')
-  assert.match(link(onShop, 'Shop'), /class="nav-link is-active"/)
-  assert.match(link(onShop, 'Shop'), /aria-current="page"/)
+  assert.match(link(onShop, 'ShopAI'), /class="nav-link is-active"/)
+  assert.match(link(onShop, 'ShopAI'), /aria-current="page"/)
   assert.doesNotMatch(link(onShop, 'Resume'), /is-active/)
-  assert.doesNotMatch(link(await nav('/resume'), 'Shop'), /is-active/)
+  assert.doesNotMatch(link(await nav('/resume'), 'ShopAI'), /is-active/)
+})
+
+test('SatPOV is active on the satellite tool route and ShopAI is not', async () => {
+  const html = await nav('/satellite-conjunction-screening')
+  assert.match(link(html, 'SatPOV'), /class="nav-link is-active"/)
+  assert.doesNotMatch(link(html, 'ShopAI'), /is-active/)
 })

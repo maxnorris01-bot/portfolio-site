@@ -14,24 +14,26 @@ export type ItemRating = {
   savedComment: string
   save: SaveState
   error: string | null
+  /** When the rating last changed on this page (ms), for newest-first in Saved; 0 for restored ones. */
+  touched: number
 }
 
 export type RatingsState = Record<string, ItemRating>
 
 export type RatingAction =
-  | { type: 'choose'; id: string; rating: Rating | null }
+  | { type: 'choose'; id: string; rating: Rating | null; at?: number }
   | { type: 'comment'; id: string; text: string }
   | { type: 'saving'; id: string }
   | { type: 'saved'; id: string; rating: Rating | null; comment: string }
   | { type: 'failed'; id: string; message: string }
 
-const blank: ItemRating = { rating: null, comment: '', savedComment: '', save: 'idle', error: null }
+const blank: ItemRating = { rating: null, comment: '', savedComment: '', save: 'idle', error: null, touched: 0 }
 
 /** The ratings a session payload carries (GET /session or a finished job). */
 export function ratingsFromView(saved: Record<string, RatingEntry> | undefined): RatingsState {
   const out: RatingsState = {}
   for (const [id, e] of Object.entries(saved ?? {})) {
-    if (e.rating || e.comment) out[id] = { rating: e.rating, comment: e.comment ?? '', savedComment: e.comment ?? '', save: 'idle', error: null }
+    if (e.rating || e.comment) out[id] = { rating: e.rating, comment: e.comment ?? '', savedComment: e.comment ?? '', save: 'idle', error: null, touched: 0 }
   }
   return out
 }
@@ -40,7 +42,7 @@ export function ratingsReducer(state: RatingsState, a: RatingAction): RatingsSta
   const cur = state[a.id] ?? blank
   switch (a.type) {
     case 'choose':
-      return { ...state, [a.id]: { ...cur, rating: a.rating, save: 'saving', error: null } }
+      return { ...state, [a.id]: { ...cur, rating: a.rating, save: 'saving', error: null, touched: a.at ?? cur.touched } }
     case 'comment':
       return { ...state, [a.id]: { ...cur, comment: a.text.slice(0, COMMENT_MAX), save: cur.save === 'saved' ? 'idle' : cur.save } }
     case 'saving':
@@ -72,8 +74,9 @@ export function nextRatingForKey(current: Rating | null, key: string): Rating | 
 export const ratedCount = (ids: string[], ratings: RatingsState) => ids.filter((id) => ratings[id]?.rating).length
 
 /** Why Shop Again is off, or null when it is on. */
-export function shopAgainBlock(args: { running: boolean; saving: boolean; rated: number; used?: number; cap?: number }): string | null {
+export function shopAgainBlock(args: { running: boolean; saving: boolean; rated: number; used?: number; cap?: number; limited?: string | null }): string | null {
   if (args.running) return 'A search is running.'
+  if (args.limited) return args.limited
   if (args.cap !== undefined && args.used !== undefined && args.used >= args.cap) return 'You have used every Shop Again for this visit.'
   if (args.saving) return 'Saving your ratings…'
   if (args.rated === 0) return 'Rate at least one result first.'

@@ -25,6 +25,12 @@ const props = (state: ShopViewProps['state'], value = ''): ShopViewProps => ({
   onRetryRating: noop,
   onRemoveRefine: noop,
   onRemoveContext: noop,
+  meta: { usage: null, blocked: { search: false, again: false }, maintenance: false },
+  savedOpen: true,
+  onToggleSaved: noop,
+  savedTab: 'love',
+  onSavedTab: noop,
+  onResolve: async () => null,
 })
 const mod = () =>
   loadModule<{
@@ -66,7 +72,7 @@ test('running: named steps (done, active with counts, pending, skipped) and a po
   assert.match(render(View, props(fixtureStates.slow)), /taking longer than usual/)
 })
 
-test('results: a card per item with price, seller, stars, also-at, count, notices and the grid', async () => {
+test('results: a card per item with price, seller, stars, also-at, count and the grid; no headline or notes box', async () => {
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.results))
   assert.equal(html.match(/class="shop-card"/g)?.length, fixtureItems.length)
@@ -77,9 +83,9 @@ test('results: a card per item with price, seller, stars, also-at, count, notice
   assert.match(html, /Example Home Co\./)
   assert.match(html, /★ 4\.6 \(1,284\)/)
   assert.match(html, /Also at: Sample Furniture \$929, Demo Living \$949\.50/)
-  assert.match(html, /This looks like a new topic/)
-  assert.match(html, /Only 4 of the 12 results/)
-  assert.match(html, /Four modern couches, mostly under/)
+  assert.doesNotMatch(html, /Four modern couches, mostly under/, 'the headline is not shown')
+  assert.doesNotMatch(html, /This looks like a new topic/, 'the topic notice is not shown')
+  assert.doesNotMatch(html, /shop-headline|shop-notices|shop-short/)
 })
 
 test('Open links: new tab, noopener noreferrer, only for safe http(s) links', async () => {
@@ -125,7 +131,7 @@ test('error: an alert with the server message and a retry button; never raw JSON
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.error))
   assert.match(html, /role="alert"/)
-  assert.match(html, /Too many searches from your address today/)
+  assert.match(html, /Something went wrong on the server\. Please try again\./)
   assert.match(html, /Try again/)
   assert.doesNotMatch(html, /\{"error"/)
 })
@@ -217,15 +223,92 @@ test('Shop Again running: the same steps and timer as a search, named for the ba
   assert.match(html, /<button type="submit"[^>]*disabled/)
 })
 
-test('limit banners: the server message, the reset time for cap_reached, Retry-After for rate_limited; results stay', async () => {
+test('a Shop Again limit: friendly text, the results stay, and no reset time is invented', async () => {
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.cap))
-  assert.match(html, /role="alert"[^>]*>\s*<p>You have used all of your Shop Again searches for today\./)
-  assert.match(html, /Your allowance comes back at Nov 1, 12:00 AM UTC/)
+  assert.match(html, /role="alert"[^>]*>\s*<p>You have used all of your Shop Agains for this visit\./)
+  assert.doesNotMatch(html, /Shop Again limit reached \(25 per session\)/, 'the server text is only a fallback')
   assert.match(html, /Example Home Co\./)
-  const cap = fixtureStates.cap
-  assert.ok(cap.status === 'done')
-  const rate = render(View, props({ ...cap, banner: { message: 'Slow down a little.', retryAfterS: 20, resetsAt: null } }))
-  assert.match(rate, /Slow down a little\./)
-  assert.match(rate, /try again in about 20 s/)
+})
+
+const view = async (key: string, over: Partial<ShopViewProps> = {}) => {
+  const { default: View } = await mod()
+  const { fixtureBundles } = await loadModule<{ fixtureBundles: Record<string, { state: ShopViewProps['state']; meta: ShopViewProps['meta']; savedTab?: 'love' | 'like' }> }>('/src/shop/fixtures.ts')
+  const b = fixtureBundles[key]
+  return render(View, { ...props(b.state), meta: b.meta, savedTab: b.savedTab ?? 'love', ...over })
+}
+
+test('no debug notice text appears anywhere in the rendered page, even when the server sends it', async () => {
+  const html = await view('short')
+  for (const debug of ['Not mixing', 'Could not keep', 'limit is off', 'guard is off', 'show no finish yet', 'the pool had', 'This looks like a new topic', 'Four modern couches', 'Only 4 new results']) {
+    assert.ok(!html.includes(debug), debug)
+  }
+  assert.doesNotMatch(html, /How I decided|trace|diversity|seller_cap|filtered out/i)
+})
+
+test('the one shortfall line: shown for a missed typed finish, in plain words, once, above the grid', async () => {
+  const html = await view('short')
+  assert.equal(html.match(/class="shop-short"/g)?.length, 1)
+  assert.match(html, /<p class="shop-short">Only 14 of 24 results match your finish warm wood\. That is all the stores had\.<\/p>/)
+  assert.ok(html.indexOf('shop-short') < html.indexOf('shop-grid'))
+  assert.doesNotMatch(await view('results'), /shop-short/)
+})
+
+test('Saved panel: a heading with the total, Loved and Liked tabs with counts, the loved items with image, title, price, seller and Open', async () => {
+  const html = await view('saved')
+  assert.match(html, /<h2[^>]*>Saved <span class="shop-saved-total">\(4\)<\/span><\/h2>/)
+  assert.match(html, /role="tablist" aria-label="Saved results"/)
+  assert.match(html, /role="tab" aria-selected="true"[^>]*tabindex="0"[^>]*>Loved \(2\)<\/button>/)
+  assert.match(html, /role="tab" aria-selected="false"[^>]*tabindex="-1"[^>]*>Liked \(2\)<\/button>/)
+  const panel = html.split('role="tabpanel"')[1].split('</section>')[0]
+  assert.match(panel, /Example Home Co\./)
+  assert.match(panel, /Example Boho curtain panel set/)
+  assert.match(panel, /From “boho curtains”/)
+  assert.match(panel, /\$64/)
+  assert.doesNotMatch(panel, /Sample Arc velvet sofa/, 'liked items are on the other tab')
+  assert.match(panel, /rel="noopener noreferrer"/)
+  assert.match(panel, /<img /)
+})
+
+test('Saved panel: the Liked tab, the empty states, and the Show/Hide toggle with aria-expanded', async () => {
+  const liked = await view('savedliked')
+  const panel = liked.split('role="tabpanel"')[1]
+  assert.match(panel, /Sample Arc velvet sofa/)
+  assert.match(panel, /Sample Linen curtains/)
+  const empty = await view('savedempty')
+  assert.match(empty, /Loved \(0\)/)
+  assert.match(empty, /Nothing loved yet\. Choose Love on a result to keep it here\./)
+  assert.match(await view('savedempty', { savedTab: 'like' }), /Nothing liked yet\./)
+  assert.match(await view('saved'), /aria-expanded="true"[^>]*>Hide<\/button>/)
+  const hidden = await view('saved', { savedOpen: false })
+  assert.match(hidden, /aria-expanded="false"[^>]*>Show<\/button>/)
+  assert.match(hidden, /<div id="[^"]+-body" hidden="">/)
+})
+
+test('usage line: searches, Shop Agains and the daily reset; never a dollar amount', async () => {
+  const html = await view('results')
+  const line = html.match(/<p class="shop-usage"[^>]*>(.*?)<\/p>/)?.[1] ?? ''
+  assert.match(line, /^Searches used: 0 of 8 · Shop Agains: 0 of 25 · Daily limit resets at \d{1,2}:\d{2} [AP]M$/)
+  assert.doesNotMatch(html, /\$0\.|used_usd|cap_usd|usd/i)
+  assert.doesNotMatch(await view('savedempty'), /shop-usage/, 'no line without usage data (a visit not started yet)')
+})
+
+test('limit reached: the friendly sentence with the reset time, and the Search, example and Shop Again buttons are off', async () => {
+  const html = await view('limit')
+  assert.match(html, /You have reached your limit for today\. It resets at \d{1,2}:\d{2} [AP]M\./)
+  assert.match(html, /<button type="submit" class="btn btn-primary shop-submit" disabled="">Search/)
+  assert.match(html, /<button type="button" class="chip shop-chip" disabled="">/)
+  assert.match(againButton(html), /disabled=""/)
+  assert.match(html, /Searches used: 8 of 8/)
+})
+
+test('maintenance: a paused notice and no way to start a search', async () => {
+  const html = await view('maintenance')
+  assert.match(html, /Shop Mode is paused right now\. Please try again later\./)
+  assert.match(html, /<button type="submit" class="btn btn-primary shop-submit" disabled="">Search/)
+})
+
+test('Open links on Google pages say so only to the click handler: the link itself is the result link, new tab, noopener', async () => {
+  const html = await view('results')
+  assert.match(html, /href="https:\/\/example\.com\/product\/loft-sofa" target="_blank" rel="noopener noreferrer"/)
 })

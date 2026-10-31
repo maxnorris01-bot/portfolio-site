@@ -1,10 +1,13 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { EXAMPLE_REQUESTS, LIMITATIONS_NOTICE, NO_RESULTS_MESSAGE, SHOP_TITLE } from './copy.ts'
 import { requestChips } from './chips.ts'
+import { limitText, isLimit, usageLine } from './limits.ts'
+import { openResolved } from './open.ts'
+import { openTarget, savedLists, type SavedItem } from './saved.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
-import { alsoAtLine, formatPrice, noticesFor, ratingLine, resetText, safeHref, stepSummary, type ShopState } from './state.ts'
+import { alsoAtLine, formatPrice, ratingLine, safeHref, shortfallLine, stepSummary, type ShopState } from './state.ts'
 import type { ShopViewProps } from './viewprops.ts'
-import type { Rating, ShopItem } from './types.ts'
+import type { Rating, ResolvedLink, ShopItem } from './types.ts'
 
 export function ProductImageView({ src, alt, failed, onError }: { src: string; alt: string; failed: boolean; onError?: () => void }) {
   return (
@@ -84,11 +87,29 @@ function SaveStatus({ entry, onRetry }: { entry: ItemRating | undefined; onRetry
   )
 }
 
-export function ProductCard({ item, entry, handlers }: { item: ShopItem; entry?: ItemRating; handlers?: RateHandlers }) {
+type OpenProps = { resolved?: Record<string, ResolvedLink>; onResolve: (id: string) => Promise<string | null> }
+
+/** Open the store: the resolved store link when known, else the result's own link (looked up on click when it is Google's page). */
+function OpenLink({ item, open }: { item: ShopItem; open?: OpenProps }) {
+  const { href, needsResolve } = openTarget(item, open?.resolved, safeHref)
+  if (!href) return null
+  return (
+    <a
+      className="btn btn-secondary shop-open"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={needsResolve && open ? (e) => openResolved(e, item.link, () => open.onResolve(item.id)) : undefined}
+    >
+      Open<span className="visually-hidden"> {item.title} (opens in a new tab)</span> ↗
+    </a>
+  )
+}
+
+export function ProductCard({ item, entry, handlers, open }: { item: ShopItem; entry?: ItemRating; handlers?: RateHandlers; open?: OpenProps }) {
   const price = formatPrice(item.price, item.currency)
   const rating = ratingLine(item)
   const also = alsoAtLine(item)
-  const href = item.link_kind === 'none' ? null : safeHref(item.link)
   return (
     <li className="shop-card">
       <ProductImage src={item.thumbnail_url} alt={item.title} />
@@ -99,11 +120,7 @@ export function ProductCard({ item, entry, handlers }: { item: ShopItem; entry?:
         {rating && <p className="shop-card-meta">{rating}</p>}
         {item.size_hint && <p className="shop-card-meta">{item.size_hint}</p>}
         {also && <p className="shop-card-meta shop-card-also">{also}</p>}
-        {href && (
-          <a className="btn btn-secondary shop-open" href={href} target="_blank" rel="noopener noreferrer">
-            Open<span className="visually-hidden"> {item.title} (opens in a new tab)</span> ↗
-          </a>
-        )}
+        <OpenLink item={item} open={open} />
         {handlers && (
           <div className="shop-rating">
             <RatingGroup item={item} entry={entry} onRate={handlers.onRate} />
@@ -142,16 +159,25 @@ export default function ShopView(props: ShopViewProps) {
   const { state, value, onChange, onSubmit, onExample, onRetry } = props
   const inputId = useId()
   const running = state.status === 'running'
+  const blocked = props.meta.blocked.search
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (!running && value.trim()) onSubmit()
+    if (!running && !blocked && value.trim()) onSubmit()
   }
+  const counts = state.status === 'done' ? state.view : state.status === 'running' ? state.prev?.view : null
+  const usage = usageLine(props.meta.usage, counts ? { searchCount: counts.search_count, shopAgainsUsed: counts.shop_agains_used } : null)
 
   return (
     <main className="page container shop">
       <p className="eyebrow">Project · Personal shopping assistant</p>
       <h1 className="shop-title">{SHOP_TITLE}</h1>
       <p className="shop-lede">Describe what you want to buy in plain words. It searches Google Shopping, ranks the matches and shows them here.</p>
+
+      {props.meta.maintenance && (
+        <div className="shop-banner" role="alert">
+          <p>{limitText({ message: '', retryAfterS: null, resetsAt: null, code: 'maintenance', limit: null })}</p>
+        </div>
+      )}
 
       <form className="shop-form" onSubmit={submit}>
         <label className="shop-label" htmlFor={inputId}>
@@ -168,19 +194,24 @@ export default function ShopView(props: ShopViewProps) {
             placeholder="modern couch under $1000"
             onChange={(e) => onChange(e.target.value)}
           />
-          <button type="submit" className="btn btn-primary shop-submit" disabled={running || !value.trim()}>
+          <button type="submit" className="btn btn-primary shop-submit" disabled={running || blocked || !value.trim()}>
             {running ? 'Searching…' : 'Search'}
           </button>
         </div>
         <ul className="chip-list shop-examples" aria-label="Example requests">
           {EXAMPLE_REQUESTS.map((text) => (
             <li key={text}>
-              <button type="button" className="chip shop-chip" disabled={running} onClick={() => onExample(text)}>
+              <button type="button" className="chip shop-chip" disabled={running || blocked} onClick={() => onExample(text)}>
                 {text}
               </button>
             </li>
           ))}
         </ul>
+        {usage && (
+          <p className="shop-usage" aria-label="Your usage this visit">
+            {usage}
+          </p>
+        )}
       </form>
 
       <section className="shop-output" aria-label="Results">
@@ -221,9 +252,9 @@ export default function ShopView(props: ShopViewProps) {
 
         {state.status === 'error' && (
           <div className="shop-error" role="alert">
-            <p>{state.message}</p>
+            <p>{limitText(state)}</p>
             {state.retryAfterS !== null && <p className="shop-card-meta">You can try again in about {state.retryAfterS} s.</p>}
-            {state.request && (
+            {state.request && !isLimit(state) && (
               <button type="button" className="btn btn-secondary" onClick={onRetry}>
                 Try again
               </button>
@@ -242,14 +273,18 @@ export default function ShopView(props: ShopViewProps) {
 }
 
 function Banner({ banner }: { banner: NonNullable<Extract<ShopState, { status: 'done' }>['banner']> }) {
-  const reset = resetText(banner.resetsAt)
   return (
     <div className="shop-banner" role="alert">
-      <p>{banner.message}</p>
-      {reset && <p className="shop-card-meta">Your allowance comes back at {reset}.</p>}
-      {!reset && banner.retryAfterS !== null && <p className="shop-card-meta">You can try again in about {banner.retryAfterS} s.</p>}
+      <p>{limitText(banner)}</p>
+      {banner.retryAfterS !== null && <p className="shop-card-meta">You can try again in about {banner.retryAfterS} s.</p>}
     </div>
   )
+}
+
+/** What to say when a batch has nothing in it: the server's own shopper-facing sentence (nothing new left, or nothing matched), else a plain one. */
+function emptyMessage(search: Extract<ShopState, { status: 'done' }>['view']['search']): string {
+  const ownWords = [search?.headline, ...(search?.warnings ?? [])].find((w) => typeof w === 'string' && /^(I ran out of new results|No results matched)/.test(w))
+  return ownWords || search?.note || NO_RESULTS_MESSAGE
 }
 
 function Chips({ state, props }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps }) {
@@ -305,6 +340,7 @@ function AgainBar({ state, props }: { state: Extract<ShopState, { status: 'done'
     rated: ratedCount(items.map((i) => i.id), state.ratings),
     used: state.view.shop_agains_used,
     cap: state.view.shop_agains_cap,
+    limited: props.meta.blocked.again ? 'Shop Again is not available right now.' : null,
   })
   return (
     <form
@@ -339,10 +375,90 @@ function AgainBar({ state, props }: { state: Extract<ShopState, { status: 'done'
   )
 }
 
+function SavedCard({ item, open }: { item: SavedItem; open: OpenProps }) {
+  const price = formatPrice(item.price, item.currency)
+  return (
+    <li className="shop-saved-card">
+      <div className="shop-saved-thumb">
+        <ProductImage src={item.thumbnail_url} alt={item.title} />
+      </div>
+      <div className="shop-saved-body">
+        <h4 className="shop-saved-title">{item.title}</h4>
+        <p className="shop-card-price">{price ?? 'Price not listed'}</p>
+        <p className="shop-card-meta">{item.seller}</p>
+        {item.topic_label && <p className="shop-card-meta">From “{item.topic_label}”</p>}
+        <OpenLink item={item} open={open} />
+      </div>
+    </li>
+  )
+}
+
+const SAVED_TABS = [
+  { id: 'love', label: 'Loved', empty: 'Nothing loved yet. Choose Love on a result to keep it here.' },
+  { id: 'like', label: 'Liked', empty: 'Nothing liked yet. Choose Like on a result to keep it here.' },
+] as const
+
+function SavedPanel({ state, props, open }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; open: OpenProps }) {
+  const id = useId()
+  const lists = savedLists(state.view.saved, state.view.search?.results ?? [], state.ratings)
+  const counts = { love: lists.loved.length, like: lists.liked.length }
+  const shown = props.savedTab === 'like' ? lists.liked : lists.loved
+  const tab = SAVED_TABS.find((t) => t.id === props.savedTab) ?? SAVED_TABS[0]
+  const total = counts.love + counts.like
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    e.preventDefault()
+    props.onSavedTab(props.savedTab === 'love' ? 'like' : 'love')
+    document.getElementById(`${id}-tab-${props.savedTab === 'love' ? 'like' : 'love'}`)?.focus()
+  }
+  return (
+    <section className="shop-saved" aria-labelledby={`${id}-title`}>
+      <div className="shop-saved-head">
+        <h2 id={`${id}-title`} className="shop-saved-heading">
+          Saved <span className="shop-saved-total">({total})</span>
+        </h2>
+        <button type="button" className="shop-link" aria-expanded={props.savedOpen} aria-controls={`${id}-body`} onClick={props.onToggleSaved}>
+          {props.savedOpen ? 'Hide' : 'Show'}
+        </button>
+      </div>
+      <div id={`${id}-body`} hidden={!props.savedOpen}>
+        <div className="shop-saved-tabs" role="tablist" aria-label="Saved results" onKeyDown={onKey}>
+          {SAVED_TABS.map((t) => (
+            <button
+              key={t.id}
+              id={`${id}-tab-${t.id}`}
+              type="button"
+              role="tab"
+              aria-selected={props.savedTab === t.id}
+              aria-controls={`${id}-panel`}
+              tabIndex={props.savedTab === t.id ? 0 : -1}
+              className={`shop-saved-tab${props.savedTab === t.id ? ' is-on' : ''}`}
+              onClick={() => props.onSavedTab(t.id)}
+            >
+              {t.label} ({counts[t.id]})
+            </button>
+          ))}
+        </div>
+        <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-tab-${tab.id}`}>
+          {shown.length === 0 ? (
+            <p className="shop-empty">{tab.empty}</p>
+          ) : (
+            <ul className="shop-saved-list">
+              {shown.map((item) => (
+                <SavedCard key={item.id} item={item} open={open} />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function Results({ state, props }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps }) {
   const search = state.view.search
   const items = search?.results ?? []
-  const notices = noticesFor(search)
+  const short = shortfallLine(search)
   const top = useRef<HTMLDivElement>(null)
   // A new batch from Shop Again scrolls to its top (not after a page refresh).
   useEffect(() => {
@@ -351,6 +467,7 @@ function Results({ state, props }: { state: Extract<ShopState, { status: 'done' 
     top.current?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' })
   }, [state.fresh, state.batch, state.view])
   const handlers = { onRate: props.onRate, onComment: props.onComment, onCommentBlur: props.onCommentBlur, onRetryRating: props.onRetryRating }
+  const open = { resolved: state.view.resolved, onResolve: props.onResolve }
   return (
     <div className="shop-results" ref={top}>
       {state.banner && <Banner banner={state.banner} />}
@@ -358,27 +475,21 @@ function Results({ state, props }: { state: Extract<ShopState, { status: 'done' 
         {items.length === 0 ? '0 results' : `${items.length} result${items.length === 1 ? '' : 's'} for “${state.request}”`}
         {items.length > 0 && <span className="shop-batch"> · Batch {state.batch}</span>}
       </p>
-      {search?.headline && items.length > 0 && <p className="shop-headline">{search.headline}</p>}
-      {notices.length > 0 && (
-        <ul className="shop-notices">
-          {notices.map((n) => (
-            <li key={n}>{n}</li>
-          ))}
-        </ul>
-      )}
+      {short && items.length > 0 && <p className="shop-short">{short}</p>}
       <Chips state={state} props={props} />
       {items.length === 0 ? (
-        <p className="shop-empty">{search?.note || search?.headline || NO_RESULTS_MESSAGE}</p>
+        <p className="shop-empty">{emptyMessage(search)}</p>
       ) : (
         <>
           <ul className="shop-grid">
             {items.map((item) => (
-              <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} />
+              <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} />
             ))}
           </ul>
           <AgainBar state={state} props={props} />
         </>
       )}
+      <SavedPanel state={state} props={props} open={open} />
     </div>
   )
 }
