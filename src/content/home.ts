@@ -14,11 +14,17 @@ type PanelText = {
   paragraphs: string[]
 }
 
-/** A line of text, and a shorter version of it for windows too short for the full one (see Home.css). */
-export type Copy = { text: string; short?: string }
+/**
+ * A line of text in three sizes of window (see Home.css): `text` for a large one (about 1700px wide and 950 tall), `mid` for the
+ * windows between, `short` for a short or narrow one. Each is cut to fill its box at the type size that window gets.
+ */
+export type Copy = { text: string; mid?: string; short?: string }
 
-/** A short list item with a bold lead-in. */
-export type Bullet = { lead: string } & Copy
+/**
+ * A row of the About card: a bold lead-in and its text. `lines`, `midLines` and `shortLines` are how many lines the text takes
+ * in each size of window, which sets the row's share of the card's height (so the text fills its row).
+ */
+export type Bullet = { lead: string; lines: number; midLines: number; shortLines: number } & Copy
 
 /** Always on the page, in this order: a paragraph, or bullets. */
 export type InfoPanel = { id: InfoPanelId; label: string; paragraphs?: Copy[]; bullets?: Bullet[] }
@@ -36,13 +42,14 @@ export const HOME_INFO: InfoPanel[] = [
     label: 'Background',
     paragraphs: [
       {
-        text: 'Aerospace mass-properties engineer with 10+ years at Northrop Grumman and Joby Aviation, now building applied AI and data pipelines that are fast, transparent about their assumptions, and grounded in real physics.',
-        short: 'Aerospace mass-properties engineer, 10+ years at Northrop Grumman and Joby Aviation, now building applied AI and data pipelines grounded in real physics.',
+        text: 'Aerospace mass-properties engineer with 10+ years at Northrop Grumman and Joby Aviation, now building applied AI and data pipelines that are fast, transparent and grounded in real physics.',
+        short: 'Aerospace mass-properties engineer, 10+ years at Northrop Grumman and Joby Aviation, now building applied AI and data pipelines.',
       },
     ],
   },
   {
-    // The spec's closing stack line ("Vite, React 19 and TypeScript on Vercel; three.js for the satellite view.") did not fit the card at 1440x900 and is left out.
+    // The spec's closing stack line ("Vite, React 19 and TypeScript on Vercel; three.js for the satellite view.") did not fit the card and is left out.
+    // The text is cut to fill its rows exactly: three rows of two, three and three lines (two, three and two in a short window).
     id: 'site',
     label: 'About this site',
     bullets: [
@@ -50,16 +57,25 @@ export const HOME_INFO: InfoPanel[] = [
         lead: 'Purpose:',
         text: 'a working portfolio of applied AI and data projects. Every tool here runs live; none of it is a mock-up.',
         short: 'a working portfolio of applied AI and data projects; every tool here runs live.',
+        lines: 2,
+        midLines: 2,
+        shortLines: 2,
       },
       {
         lead: 'Backend:',
-        text: 'ShopAI runs on a Python service (Fly.io) with Postgres, reachable only through this site. Spending is capped per session, per visitor and per day, and the service has 1,700+ automated tests and a locked evaluation set.',
-        short: 'ShopAI runs on a Python service (Fly.io) with Postgres, reachable only through this site, with spending caps and 1,700+ automated tests.',
+        text: 'ShopAI runs on a Python service (Fly.io) with Postgres, reachable only through this site. Spending is capped per session, per visitor and per day, with 1,700+ automated tests and a locked evaluation set.',
+        short: 'ShopAI runs on Python (Fly.io) with Postgres, reachable only through this site, with spending capped per session, visitor and day and 1,700+ automated tests.',
+        lines: 4,
+        midLines: 4,
+        shortLines: 3,
       },
       {
         lead: 'What it shows:',
         text: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment, and the physics background to sanity-check results.',
         short: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment.',
+        lines: 3,
+        midLines: 3,
+        shortLines: 2,
       },
     ],
   },

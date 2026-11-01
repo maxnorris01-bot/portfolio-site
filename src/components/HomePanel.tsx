@@ -1,36 +1,48 @@
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { HOME_SLOT_LABEL, type Copy, type InfoPanel, type PlanetPanel } from '../content/home'
+import { HOME_SLOT_LABEL, type Bullet, type Copy, type InfoPanel, type PlanetPanel } from '../content/home'
 
-/** The full text, and where there is one a shorter version that a short window shows instead. */
+/** The text three times, for the three sizes of window; Home.css shows the one that fits. */
 function Text({ copy }: { copy: Copy }) {
-  if (!copy.short) return <>{copy.text}</>
+  if (!copy.mid && !copy.short) return <>{copy.text}</>
   return (
     <>
       <span className="home-full">{copy.text}</span>
-      <span className="home-short">{copy.short}</span>
+      <span className="home-mid">{copy.mid ?? copy.text}</span>
+      <span className="home-short">{copy.short ?? copy.mid ?? copy.text}</span>
     </>
   )
 }
 
+/** The About rows' heights, in proportion to the lines of text each has (so each row's text fills its row). */
+const weights = (items: Bullet[], pick: (b: Bullet) => number) => items.map((b) => `${pick(b)}fr`).join(' ')
+
 /** Background or About this site: plain content, always on the page. */
 export function HomeInfoCard({ panel }: { panel: InfoPanel }) {
   const titleId = `home-${panel.id}-title`
+  const rows = panel.bullets
   return (
     <section className="card home-panel home-info" aria-labelledby={titleId}>
       <h2 id={titleId} className="home-panel-title">
         {panel.label}
       </h2>
-      {panel.bullets && (
-        <ul className="home-bullets">
-          {panel.bullets.map((b) => (
-            <li key={b.lead}>
-              <strong>{b.lead}</strong> <Text copy={b} />
+      {rows && (
+        <ul
+          className="home-rows"
+          style={{ '--rows-full': weights(rows, (b) => b.lines), '--rows-mid': weights(rows, (b) => b.midLines), '--rows-short': weights(rows, (b) => b.shortLines) } as CSSProperties}
+        >
+          {rows.map((b) => (
+            <li key={b.lead} className="home-row">
+              <strong className="home-row-label">{b.lead.replace(/:$/, '')}</strong>
+              <span className="home-row-text">
+                <Text copy={b} />
+              </span>
             </li>
           ))}
         </ul>
       )}
       {panel.paragraphs?.map((t) => (
-        <p key={t.text}>
+        <p key={t.text} className="home-lead">
           <Text copy={t} />
         </p>
       ))}
