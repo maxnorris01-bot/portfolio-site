@@ -100,13 +100,7 @@
 }
 
 .home-slot > * {
-  grid-area: 1 / 1;
   min-width: 0;
-}
-
-.home-slot-sizer {
-  visibility: hidden;
-  pointer-events: none;
 }
 
 .home-slot-content {
@@ -220,7 +214,7 @@
   .home-page {
     --home-aspect: calc(418 / 273);
     /* Nav, the gap under it, the title row, 2.4% under the title, 1.6% above the strip, the strip, a little at the foot. */
-    --home-strip-est: 11rem;
+    --home-strip-est: 7.8rem;
     --home-room: calc(100vh - 74.1px - clamp(1.25rem, 2vw, 2rem) - 36px - 2.4cqw - 1.6cqw - var(--home-strip-est) - 1rem);
     --home-r: max(300px, min(32cqw, var(--home-room)));
     --home-card-gap: calc(var(--home-r) * 0.04);
@@ -267,8 +261,7 @@
   }
 
   .home-slot {
-    min-height: 8.8cqw;
-    padding: clamp(10px, 1.1cqw, 20px) clamp(20px, 5cqw, 100px);
+    padding: clamp(12px, 1.2cqw, 20px) clamp(20px, 2.2cqw, 36px);
   }
 
   .home-slot-content {
@@ -329,15 +322,12 @@
     grid-template-rows: var(--rows-short);
   }
 
-  /* The cards are shorter here: the type is 16px, growing to 17px as the window gets taller from 720px. */
+  /* The cards are smaller here: the type is 16px, growing to 17px as the window gets taller from 720px, and the lead a little less large. */
   .home-page {
     --home-fs: clamp(16px, calc(16px + (100vh - 720px) * 0.0208), 17px);
   }
-}
 
-/* A short window a little taller than 720px: the rows have a little more room than their text, which is spread as even padding. */
-@media (min-width: 1280px) and (min-height: 750px) and (max-height: 820px), (min-width: 1280px) and (min-height: 750px) and (max-width: 1359px) {
-  .home-row {
-    padding-block: 3px;
+  .home-panel .home-lead {
+    font-size: min(calc(var(--home-fs) * 1.05), 24px);
   }
 }

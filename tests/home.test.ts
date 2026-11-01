@@ -28,18 +28,19 @@ test('the title and the two tags are unchanged; the Background and About this si
   assert.match(src('content/home.ts'), /DRAFT/)
 })
 
-test('copy: each block is within 15% of the spec\'s length (top card 215 characters, bottom card about 520), and the short texts are shorter', () => {
+test('copy: each block is within 15% of the spec\'s length (top card 215 characters, bottom card about 520)', () => {
   const bg = HOME_INFO[0].paragraphs ?? []
   const top = bg.map((c) => c.text.length).reduce((a, b) => a + b, 0)
   assert.ok(top >= 215 * 0.85 && top <= 215 * 1.15, `top ${top}`)
   const bullets = HOME_INFO[1].bullets ?? []
   const bottom = bullets.map((b) => b.text.length).reduce((a, b) => a + b, 0)
   assert.ok(bottom >= 480 * 0.8 && bottom <= 580 * 1.15, `bottom ${bottom}`)
-  for (const c of [...bg, ...bullets]) assert.ok(c.short && c.short.length < c.text.length, c.text.slice(0, 20))
-  // The rows share the card's height as their line counts: 2, 4 and 3 lines (2, 3 and 2 in a short window).
+  const backend = bullets[1]
+  assert.ok(backend.short && backend.short.length < backend.text.length, 'the Backend row has a shorter text for a small window')
+  // The rows share the card's height as their line counts: 2, 4 and 3 lines (2, 3 and 3 in a small window).
   assert.deepEqual(bullets.map((b) => b.lines), [2, 4, 3])
   assert.deepEqual(bullets.map((b) => b.midLines), [2, 4, 3])
-  assert.deepEqual(bullets.map((b) => b.shortLines), [2, 3, 2])
+  assert.deepEqual(bullets.map((b) => b.shortLines), [1.9, 3, 3])
 })
 
 test('only three planets lead somewhere, each with an Open link to its route; the strip is never empty (SatPOV is chosen from the start)', () => {
@@ -57,9 +58,18 @@ test('only three planets lead somewhere, each with an Open link to its route; th
 
 test('the planet descriptions say only what the README, the pages and the Résumé data say', () => {
   const text = (id: string) => (HOME_PLANETS.find((p) => p.id === id)?.paragraphs ?? []).join(' ')
-  for (const fact of ['3D globe', 'Hipparcos and Gaia', 'zero LLM calls', 'close approaches']) assert.ok(text('satpov').includes(fact), fact)
-  for (const fact of ['Google Shopping', 'Love, Like or Dislike', 'Shop Again', 'Saved']) assert.ok(text('shopai').includes(fact), fact)
+  for (const fact of ['3D globe', 'Hipparcos and Gaia', 'close approaches', 'ride along']) assert.ok(text('satpov').includes(fact), fact)
+  for (const fact of ['Google Shopping', 'Love, Like or Dislike', 'Shop Again', 'Saved list']) assert.ok(text('shopai').includes(fact), fact)
   for (const fact of ['Joby Aviation', 'Northrop Grumman', 'DoD Secret', 'Cal State Northridge', 'SciPy']) assert.ok(text('resume').includes(fact), fact)
+})
+
+test('the three planet descriptions are about the same length: totals within 15% of each other, a short first sentence and a longer second one', () => {
+  const sizes = HOME_PLANETS.map((p) => p.paragraphs.join('').length)
+  assert.ok(Math.min(...sizes) >= Math.max(...sizes) * 0.85, `totals ${sizes.join(', ')}`)
+  for (const p of HOME_PLANETS) {
+    assert.equal(p.paragraphs.length, 2, p.id)
+    assert.ok(p.paragraphs[0].length <= 125 && p.paragraphs[1].length >= 150 && p.paragraphs[1].length <= 215, `${p.id}: ${p.paragraphs.map((x) => x.length).join(' + ')}`)
+  }
 })
 
 test('exactly three planets can be chosen (SatPOV, ShopAI, Résumé), on different orbits and at different speeds; the rest are decoration', () => {
@@ -241,24 +251,25 @@ test('each chosen planet has a hit area of at least 44 CSS px on a phone, and a 
   assert.match(src('components/SolarSystem.css'), /\.solar-planet:focus-visible \.solar-focus \{\s*opacity: 1/)
 })
 
-const homeParts = async () => loadModule<{ HomeInfoCard: ComponentType<{ panel: (typeof HOME_INFO)[number] }>; HomePlanetSlot: ComponentType<{ panel: (typeof HOME_PLANETS)[number]; all: typeof HOME_PLANETS }> }>('/src/components/HomePanel.tsx')
+const homeParts = async () => loadModule<{ HomeInfoCard: ComponentType<{ panel: (typeof HOME_INFO)[number] }>; HomePlanetSlot: ComponentType<{ panel: (typeof HOME_PLANETS)[number] }> }>('/src/components/HomePanel.tsx')
 const inRouter = (node: ReturnType<typeof createElement>) => renderToStaticMarkup(createElement(StaticRouter, { location: '/' }, node))
 
-test('the strip: a labelled live region in three zones (heading and first sentence, second sentence, a real router link, same tab); every planet\'s text is also laid out hidden so the height is the tallest', async () => {
+test('the strip: a labelled live region in three zones (heading and first sentence, second sentence, a real router link, same tab), laid out for the chosen planet only', async () => {
   const { HomePlanetSlot } = await homeParts()
   for (const [id, to, text] of [['satpov', '/satellite-conjunction-screening', 'Open SatPOV'], ['shopai', '/shop', 'Open ShopAI'], ['resume', '/resume', 'Open Résumé']]) {
     const panel = HOME_PLANETS.find((p) => p.id === id)!
-    const html = inRouter(createElement(HomePlanetSlot, { panel, all: HOME_PLANETS }))
+    const html = inRouter(createElement(HomePlanetSlot, { panel }))
     assert.match(html, /<section class="card home-panel home-slot" aria-label="Explore the site">/)
     const live = html.slice(html.indexOf('aria-live="polite"'))
     assert.ok(live.includes(`<h2 class="home-panel-title">${panel.label}</h2>`), id)
     assert.equal(live.match(/class="home-zone"/g)?.length, 2, 'two text zones')
-    assert.ok(live.indexOf(panel.paragraphs[0]) < live.indexOf(panel.paragraphs[1]) && live.indexOf(panel.paragraphs[1]) < live.indexOf('<a '), 'heading and first sentence, second sentence, link')
+    const esc = (s: string) => s.replace(/'/g, '&#x27;')
+    assert.ok(live.indexOf(esc(panel.paragraphs[0])) > 0 && live.indexOf(esc(panel.paragraphs[0])) < live.indexOf(esc(panel.paragraphs[1])) && live.indexOf(esc(panel.paragraphs[1])) < live.indexOf('<a '), 'heading and first sentence, second sentence, link')
     const link = live.match(/<a [^>]*>[^<]*<\/a>/)?.[0] ?? ''
     assert.ok(link.includes('class="btn btn-primary home-panel-link"') && link.includes(`href="${to}"`) && link.endsWith(`>${text}</a>`), `${id}: ${link}`)
     assert.doesNotMatch(link, /target=/, 'same tab')
-    assert.equal(html.match(/home-slot-sizer" aria-hidden="true"/g)?.length, 3, 'all three planets laid out hidden')
-    assert.equal(html.match(/<a /g)?.length, 1, 'only the chosen planet\'s link is a link')
+    assert.doesNotMatch(html, /sizer|aria-hidden/, 'no hidden copies of the other planets\' text: the strip is as tall as its own text')
+    assert.equal(html.match(/<a /g)?.length, 1)
   }
 })
 
@@ -272,7 +283,7 @@ test('Home: SatPOV\'s strip shows from the start; Background and About this site
   assert.match(html, /<h2 id="home-background-title"[^>]*>Background<\/h2>/)
   assert.match(html, /<h2 id="home-site-title"[^>]*>About this site<\/h2>/)
   assert.match(html, /<strong class="home-row-label">Purpose<\/strong>/)
-  assert.match(html, /class="home-rows" style="--rows-full:2fr 4fr 3fr;--rows-mid:2fr 4fr 3fr;--rows-short:2fr 3fr 2fr"/)
+  assert.match(html, /class="home-rows" style="--rows-full:2fr 4fr 3fr;--rows-mid:2fr 4fr 3fr;--rows-short:1.9fr 3fr 3fr"/)
   assert.match(html, /<h2 class="home-panel-title">SatPOV<\/h2>/)
   assert.match(html, /href="\/satellite-conjunction-screening"/)
   assert.doesNotMatch(html, /Open the Satellite POV Tool|Featured project|home-featured|Objects screened/)
@@ -325,14 +336,13 @@ test('layout: row 1 is R = 32% of Wc tall; the system box is 49% wide (at most),
   assert.ok(Math.abs(32 * (VIEW.w / VIEW.h) - 49) < 0.1)
 })
 
-test('layout: the cards are 32% : 4% : 64% of R, with the same top and bottom as the system; the strip is 1.6% below and 8.8% tall at least', () => {
+test('layout: the cards are 32% : 4% : 64% of R, with the same top and bottom as the system; the strip is 1.6% below', () => {
   const c = css()
   assert.match(c, /--home-card-gap: calc\(var\(--home-r\) \* 0\.04\)/)
   assert.match(c, /\.home-info \{\s*flex: 0 0 calc\(\(100% - var\(--home-card-gap\)\) \/ 3\)/)
   assert.match(c, /\.home-info \+ \.home-info \{\s*flex-basis: calc\(\(100% - var\(--home-card-gap\)\) \* 2 \/ 3\)/)
   assert.match(c, /\.home-grid \{[^}]*align-items: stretch/s)
   assert.match(c, /row-gap: 1\.6cqw/)
-  assert.match(c, /\.home-slot \{\s*min-height: 8\.8cqw/)
   // (0.96 R) / 3 = 0.32 R and (0.96 R) x 2 / 3 = 0.64 R.
   assert.ok(Math.abs(0.96 / 3 - 0.32) < 1e-9 && Math.abs((0.96 * 2) / 3 - 0.64) < 1e-9)
 })
@@ -340,7 +350,7 @@ test('layout: the cards are 32% : 4% : 64% of R, with the same top and bottom as
 test('layout: R is also at most the room the window has left, and then the cards get wider, not taller', () => {
   const c = css()
   assert.match(c, /--home-room: calc\(100vh - 74\.1px - clamp\(1\.25rem, 2vw, 2rem\) - 36px - 2\.4cqw - 1\.6cqw - var\(--home-strip-est\) - 1rem\)/)
-  assert.match(c, /--home-strip-est: 11rem/)
+  assert.match(c, /--home-strip-est: 7\.8rem/)
   assert.match(c, /calc\(var\(--home-r\) \* var\(--home-aspect\)\)\) minmax\(0, 1fr\)/)
 })
 
@@ -391,10 +401,6 @@ test('the cards\' side padding is small and fixed in range (about 32px at 1440):
   assert.ok(px > 29 && px < 33, `${px.toFixed(1)}px at 1440`)
 })
 
-test('a short window a little taller than 720px spreads the rows\' slack as even padding', () => {
-  assert.match(css(), /@media \(min-width: 1280px\) and \(min-height: 750px\) and \(max-height: 820px\), \(min-width: 1280px\) and \(min-height: 750px\) and \(max-width: 1359px\) \{\s*\.home-row \{\s*padding-block: 3px/)
-})
-
 test('the layout check is a runnable script with an npm script, and its targets are the owner\'s', () => {
   const script = readFileSync(new URL('../scripts/check-layout.mjs', import.meta.url), 'utf8')
   assert.match(script, /hFill: 0\.9, vFill: 0\.88, cplMin: 45, cplMax: 80/)
@@ -406,15 +412,29 @@ test('the layout check is a runnable script with an npm script, and its targets 
   assert.ok(Array.isArray(JSON.parse(readFileSync(new URL('../scripts/check-layout.expected.json', import.meta.url), 'utf8')).misses))
 })
 
-test('the strip keeps one height whatever planet is chosen; the cards have none of their own; the fade stops under reduced motion', () => {
+test('the strip hugs its text: no reserved height, padded like the other cards, three zones with the button centred at the right; the rows above are sized for the tallest strip', () => {
   const c = css()
-  assert.doesNotMatch(c, /\.home-info[^{]*\{[^}]*(?<![-\w])height:/s)
-  assert.doesNotMatch(c, /panel-stack|height: 406/)
-  assert.match(c, /\.home-slot-sizer \{\s*visibility: hidden/)
+  assert.doesNotMatch(c, /\.home-slot[^{]*\{[^}]*(min-)?height:/s, 'the strip has no height of its own')
+  assert.doesNotMatch(c, /sizer|panel-stack|8\.8cqw/)
+  assert.match(c, /\.home-slot \{\s*padding: clamp\(12px, 1\.2cqw, 20px\) clamp\(20px, 2\.2cqw, 36px\)/)
   assert.match(c, /\.home-slot-content \{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\) auto/s)
+  assert.match(c, /\.home-slot-content \{[^}]*column-gap: clamp\(2rem, 5\.5cqw, 100px\)/s)
   assert.match(c, /\.home-slot \.home-panel-link \{\s*justify-self: end/)
+  assert.match(c, /\.home-slot-content \{[^}]*align-items: center/s)
+  // The viewport rule counts the strip at one fixed height (the tallest planet's, about 125px), so choosing a planet never moves row 1.
+  assert.match(c, /--home-strip-est: 7\.8rem/)
   assert.match(c, /\.home-panel-content \{\s*animation: home-panel-in/)
   assert.match(c, /prefers-reduced-motion: reduce\) \{\s*\.home-panel-content \{\s*animation: none/)
+  assert.doesNotMatch(c.slice(c.indexOf('.home-info {'), c.indexOf('}', c.indexOf('.home-info {'))), /(?<![-\w])(min-)?height:/)
+})
+
+test('the strip is measured against the visible strip card\'s inner rectangle, and so is every other box (never a content-sized child)', () => {
+  const script = readFileSync(new URL('../scripts/check-layout.mjs', import.meta.url), 'utf8')
+  assert.match(script, /const stripCard = document\.querySelector\('\.home-slot'\)\s*const sbox = inner\(stripCard\)/)
+  assert.match(script, /stripTall: 0\.88, stripShort: 0\.75, stripSpan: 0\.92/)
+  assert.match(script, /boxOf\('Background card', cards\[0\]/)
+  assert.match(script, /boxOf\('About card \(whole\)', cards\[1\]/)
+  assert.doesNotMatch(script, /\.\.\.zones\.map\(\(z, i\) => boxOf/, 'the strip zones are no longer measured as boxes of their own')
 })
 
 test('alignment: the system starts at the left edge (no centring or inner padding)', () => {

@@ -43,7 +43,6 @@ export const HOME_INFO: InfoPanel[] = [
     paragraphs: [
       {
         text: 'Aerospace mass-properties engineer with 10+ years at Northrop Grumman and Joby Aviation, now building applied AI and data pipelines that are fast, transparent and grounded in real physics.',
-        short: 'Aerospace mass-properties engineer, 10+ years at Northrop Grumman and Joby Aviation, now building applied AI and data pipelines.',
       },
     ],
   },
@@ -56,10 +55,9 @@ export const HOME_INFO: InfoPanel[] = [
       {
         lead: 'Purpose:',
         text: 'a working portfolio of applied AI and data projects. Every tool here runs live; none of it is a mock-up.',
-        short: 'a working portfolio of applied AI and data projects; every tool here runs live.',
         lines: 2,
         midLines: 2,
-        shortLines: 2,
+        shortLines: 1.9,
       },
       {
         lead: 'Backend:',
@@ -72,10 +70,9 @@ export const HOME_INFO: InfoPanel[] = [
       {
         lead: 'What it shows:',
         text: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment, and the physics background to sanity-check results.',
-        short: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment.',
         lines: 3,
         midLines: 3,
-        shortLines: 2,
+        shortLines: 3,
       },
     ],
   },
@@ -86,8 +83,8 @@ export const HOME_PLANETS: PlanetPanel[] = [
     id: 'satpov',
     label: 'SatPOV',
     paragraphs: [
-      "SatPOV, the Satellite Point-of-View Tool, shows the tracked satellites around the Earth on a 3D globe and lets you ride along with any one of them to see what it sees: Earth below, the Sun, Moon and planets, and millions of real stars from ESA's Hipparcos and Gaia catalogues.",
-      'The same page shows a daily screening of public tracking data for close approaches between satellites, which uses real orbital mechanics and makes zero LLM calls.',
+      'SatPOV shows every tracked satellite on a 3D globe and lets you ride along with any one of them to see what it sees.',
+      "You see Earth below, the Sun, Moon and planets, and millions of real stars from ESA's Hipparcos and Gaia catalogues; a daily screening of public tracking data flags close approaches between satellites.",
     ],
     link: { to: '/satellite-conjunction-screening', text: 'Open SatPOV' },
   },
@@ -95,8 +92,8 @@ export const HOME_PLANETS: PlanetPanel[] = [
     id: 'shopai',
     label: 'ShopAI',
     paragraphs: [
-      'ShopAI is a shopping search. Describe a product in plain words and it searches Google Shopping and ranks the matches with an AI model.',
-      'Rate results with Love, Like or Dislike, add a comment if you like, then press Shop Again for a new batch based on your ratings. Loved and liked items are kept in a Saved list.',
+      'ShopAI is a shopping search: describe a product in plain words and it searches Google Shopping for matches.',
+      'An AI model ranks the matches. Rate results with Love, Like or Dislike, then press Shop Again for a new batch based on your ratings; loved and liked items are kept in a Saved list.',
     ],
     link: { to: '/shop', text: 'Open ShopAI' },
   },
@@ -104,8 +101,8 @@ export const HOME_PLANETS: PlanetPanel[] = [
     id: 'resume',
     label: 'Résumé',
     paragraphs: [
-      'My Résumé: Senior Mass Properties Engineer at Joby Aviation and Mass Properties Engineer at Northrop Grumman, a DoD Secret clearance, and a physics degree from Cal State Northridge.',
-      'It also lists my skills (Python, SciPy, SGP4, orbital mechanics, data pipelines and mass properties) and the applied AI project on this site.',
+      'My Résumé: Senior Mass Properties Engineer at Joby Aviation and Mass Properties Engineer at Northrop Grumman.',
+      "It also lists my DoD Secret clearance, my physics degree from Cal State Northridge, my skills (Python, SciPy, SGP4, orbital mechanics, data pipelines and mass properties) and this site's applied AI project.",
     ],
     link: { to: '/resume', text: 'Open Résumé' },
   },

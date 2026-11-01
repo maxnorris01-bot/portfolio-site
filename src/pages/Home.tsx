@@ -38,7 +38,7 @@ export default function Home() {
             <SolarSystem selected={selected} onSelect={setSelected} />
           </div>
           <div className="home-cell-slot">
-            <HomePlanetSlot panel={panel} all={HOME_PLANETS} />
+            <HomePlanetSlot panel={panel} />
           </div>
         </div>
       </div>

@@ -1,11 +1,14 @@
 // Measures the Home page's layout in headless Chromium and fails when a target is missed:
 //   npm run check:layout           (needs Playwright with Chromium installed; it is not a dependency of this repo)
-// For each window size and each chosen planet it measures every text box (the Background card, the About card and each of its
-// rows, the two text zones of the strip):
+// For each window size and each chosen planet it measures every text box: the Background card and the About card (each measured
+// against the visible card's inner content rectangle, border and padding excluded), each of the About rows (a row of that card,
+// whose height the card gives it), and the strip (against the visible strip card's inner rectangle):
 //   horizontal fill  the right end of the longest line, from the box's inner left edge, over the box's inner width  >= 0.90
 //   vertical fill    the text block (first line's top to last line's bottom, from Range rects) over the box's inner height >= 0.88
 //   characters per line  45 to 80 for body text (the last line of a paragraph is ignored)
 //   no overflow      no text outside its box
+// The strip is measured as a whole: its tallest text zone over the card's inner height >= 0.88, its shorter zone >= 0.75, and the
+// span from the left of the first zone's text to the right of the button over the inner width >= 0.92.
 // and the page's proportions (row 1 and its columns, the cards' 1 : 2, the strip) and that the strip is inside the window.
 // Known, explained misses are listed in scripts/check-layout.expected.json and do not fail the run.
 import { readFileSync } from 'node:fs'
@@ -17,7 +20,7 @@ const ALL = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080]]
 // CHECK_SIZES=1440x900,1920x1080 limits the run to some sizes.
 const SIZES = process.env.CHECK_SIZES ? ALL.filter(([w, h]) => process.env.CHECK_SIZES.split(',').includes(`${w}x${h}`)) : ALL
 const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
-const TARGET = { hFill: 0.9, vFill: 0.88, cplMin: 45, cplMax: 80 }
+const TARGET = { hFill: 0.9, vFill: 0.88, cplMin: 45, cplMax: 80, stripTall: 0.88, stripShort: 0.75, stripSpan: 0.92 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
 const expected = new Set(JSON.parse(readFileSync(expectedFile, 'utf8')).misses)
 const outDir = process.env.CHECK_LAYOUT_OUT
@@ -77,13 +80,33 @@ function measureBoxes() {
   }
   const cards = [...document.querySelectorAll('.home-info')]
   const rows = [...cards[1].querySelectorAll('.home-row')]
-  const zones = [...document.querySelectorAll('.home-slot-live .home-zone')]
   const boxes = [
     boxOf('Background card', cards[0], null, ['p']),
     boxOf('About card (whole)', cards[1], null, ['.home-row-text']),
     ...rows.map((r, i) => boxOf(`About row ${i + 1}`, r, null, ['.home-row-text'])),
-    ...zones.map((z, i) => boxOf(`Strip zone ${i + 1}`, z, null, ['p'])),
   ]
+  // The strip, against the visible card's inner rectangle.
+  const stripCard = document.querySelector('.home-slot')
+  const sbox = inner(stripCard)
+  const zones = [...stripCard.querySelectorAll('.home-slot-live .home-zone')].map((z) => {
+    const ls = linesOf(z)
+    const ps = ls.filter((l) => l.block?.matches('p'))
+    const cpl = []
+    const byBlock = new Map()
+    for (const l of ps) { if (!byBlock.has(l.block)) byBlock.set(l.block, []); byBlock.get(l.block).push(l) }
+    for (const g of byBlock.values()) g.slice(0, -1).forEach((l) => cpl.push(l.text.trim().length))
+    return { left: Math.min(...ls.map((l) => l.left)), top: Math.min(...ls.map((l) => l.top)), bottom: Math.max(...ls.map((l) => l.bottom)), lines: ps.length, cpl: cpl.length ? [Math.min(...cpl), Math.max(...cpl)] : [ps[0]?.text.trim().length ?? 0, ps[0]?.text.trim().length ?? 0], fs: parseFloat(getComputedStyle(z.querySelector('p')).fontSize), right: Math.max(...ls.map((l) => l.right)) }
+  })
+  const btn = stripCard.querySelector('.home-slot-live .home-panel-link').getBoundingClientRect()
+  const innerH = sbox.b - sbox.t, innerW = sbox.r - sbox.l
+  const heights = zones.map((z) => z.bottom - z.top)
+  const tallest = Math.max(...heights), shorter = Math.min(...heights)
+  const strip = {
+    tall: tallest / innerH, short: shorter / innerH, span: (btn.right - zones[0].left) / innerW,
+    lines: zones.map((z) => z.lines), cpl: [Math.min(...zones.map((z) => z.cpl[0])), Math.max(...zones.map((z) => z.cpl[1]))], fs: zones[0].fs,
+    heightPx: stripCard.getBoundingClientRect().height, innerPx: innerH, padLeft: sbox.l - stripCard.getBoundingClientRect().left,
+    overflow: zones.some((z) => z.bottom > sbox.b + 2 || z.top < sbox.t - 2 || z.right > sbox.r + 1) || btn.right > sbox.r + 1 || btn.bottom > sbox.b + 2 || btn.top < sbox.t - 2,
+  }
   // The page's proportions.
   const R = (e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height } }
   const pc = document.querySelector('.page-container'), pcs = getComputedStyle(pc), pcr = pc.getBoundingClientRect()
@@ -91,7 +114,7 @@ function measureBoxes() {
   const sys = R(document.querySelector('.home-system')), col = R(document.querySelector('.home-info-col')), slot = R(document.querySelector('.home-slot')), title = R(document.querySelector('h1'))
   const [c1, c2] = cards.map(R)
   const geometry = { Wc, left: sys.w / Wc, gutter: (col.l - sys.r) / Wc, right: col.w / Wc, row: col.h / Wc, rowPx: col.h, top: c1.h / col.h, gap: (c2.t - c1.b) / col.h, bottom: c2.h / col.h, stripOffset: (slot.t - col.b) / Wc, stripPx: slot.h, stripBottom: slot.b, vh: innerHeight, edgesEqual: Math.abs(slot.l - sys.l) < 0.6 && Math.abs(slot.r - col.r) < 0.6, alignEqual: Math.abs(col.t - sys.t) < 0.6 && Math.abs(col.b - sys.b) < 0.6, titleGap: (sys.t - title.b) / Wc, hscroll: document.documentElement.scrollWidth - innerWidth }
-  return { boxes, geometry }
+  return { boxes, strip, geometry }
 }
 
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'silent' })
@@ -110,7 +133,7 @@ try {
       await page.locator(`.solar-planet[aria-label="${planet}"]`).click({ force: true })
       await page.mouse.move(2, 2)
       await page.waitForTimeout(450)
-      const { boxes, geometry: g } = await page.evaluate(measureBoxes)
+      const { boxes, strip, geometry: g } = await page.evaluate(measureBoxes)
       console.log(`-- ${planet}   Wc ${g.Wc.toFixed(0)}  left ${fmt(g.left)}  gutter ${fmt(g.gutter)}  right ${fmt(g.right)}  row ${fmt(g.row)} (${g.rowPx.toFixed(0)}px)  cards ${fmt(g.top)}:${fmt(g.gap)}:${fmt(g.bottom)}  strip +${fmt(g.stripOffset)} ${g.stripPx.toFixed(0)}px, bottom ${g.stripBottom.toFixed(0)}/${g.vh}`)
       const bad = []
       if (!g.edgesEqual) bad.push('row 1 and the strip do not share their left and right edges')
@@ -131,6 +154,15 @@ try {
         console.log(`   ${b.name.padEnd(22)} ${`${b.w}x${b.h}`.padEnd(9)} ${String(b.fs).padEnd(6)} ${String(b.lines).padEnd(5)} ${fmt(b.hFill, 2)}   ${fmt(b.vFill, 2)}   ${String(b.cplMin).padStart(2)}-${String(b.cplMax).padEnd(3)}   ${why.length ? 'MISS: ' + why.join('; ') : ''}`)
         for (const w2 of why) bad.push(`${b.name}: ${w2}`)
       }
+      // The strip.
+      const sWhy = []
+      if (strip.tall < TARGET.stripTall) sWhy.push(`tallest zone ${fmt(strip.tall, 2)} < ${TARGET.stripTall}`)
+      if (strip.short < TARGET.stripShort) sWhy.push(`shorter zone ${fmt(strip.short, 2)} < ${TARGET.stripShort}`)
+      if (strip.span < TARGET.stripSpan) sWhy.push(`span ${fmt(strip.span, 2)} < ${TARGET.stripSpan}`)
+      if (strip.cpl[0] < TARGET.cplMin || strip.cpl[1] > TARGET.cplMax) sWhy.push(`chars/line ${strip.cpl[0]}-${strip.cpl[1]}`)
+      if (strip.overflow) sWhy.push('overflow or clipped')
+      console.log(`   Strip card ${strip.heightPx.toFixed(0)}px (inner ${strip.innerPx.toFixed(0)}, side padding ${strip.padLeft.toFixed(0)})  font ${strip.fs}  lines ${strip.lines.join('+')}  tall ${fmt(strip.tall, 2)}  short ${fmt(strip.short, 2)}  span ${fmt(strip.span, 2)}  chars/line ${strip.cpl[0]}-${strip.cpl[1]}  ${sWhy.length ? 'MISS: ' + sWhy.join('; ') : ''}`)
+      for (const w2 of sWhy) bad.push(`Strip card: ${w2}`)
       for (const m of bad) {
         const key = `${w}x${h} ${planet} | ${m}`
         const known = [...expected].some((e) => key.startsWith(e) || e === `${w}x${h} * | ${m.split(':')[0]}`)

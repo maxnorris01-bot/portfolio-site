@@ -69,18 +69,12 @@ function StripText({ panel }: { panel: PlanetPanel }) {
 
 /**
  * The strip for the chosen planet, in three zones: its heading and first sentence, the second sentence, and the link to
- * its page. Every planet's text is also laid out, hidden, in the same space, so the strip is as tall as the tallest and
- * choosing a planet never moves the page. A labelled region that announces its changes politely.
+ * its page. It is as tall as its own text (the rows above are sized for the tallest planet's strip, so they never move
+ * when the choice changes). A labelled region that announces its changes politely.
  */
-export function HomePlanetSlot({ panel, all }: { panel: PlanetPanel; all: PlanetPanel[] }) {
+export function HomePlanetSlot({ panel }: { panel: PlanetPanel }) {
   return (
     <section className="card home-panel home-slot" aria-label={HOME_SLOT_LABEL}>
-      {all.map((p) => (
-        <div key={p.id} className="home-slot-content home-slot-sizer" aria-hidden="true">
-          <StripText panel={p} />
-          <span className="btn btn-primary home-panel-link">{p.link.text}</span>
-        </div>
-      ))}
       <div className="home-slot-live" aria-live="polite" aria-atomic="true">
         <div key={panel.id} className="home-slot-content home-panel-content">
           <StripText panel={panel} />
