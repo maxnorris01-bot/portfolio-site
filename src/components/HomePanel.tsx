@@ -1,86 +1,60 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { HOME_SLOT_LABEL, type Bullet, type Copy, type InfoPanel, type PlanetPanel } from '../content/home'
+import { HOME_SLOT_LABEL, type Copy, type InfoPanel, type PlanetPanel } from '../content/home'
 
-/** The text three times, for the three sizes of window; Home.css shows the one that fits. */
+/** The text, and where there is one a compact cut that a short window shows instead (Home.css). */
 function Text({ copy }: { copy: Copy }) {
-  if (!copy.mid && !copy.short) return <>{copy.text}</>
+  if (!copy.compact) return <>{copy.text}</>
   return (
     <>
       <span className="home-full">{copy.text}</span>
-      <span className="home-mid">{copy.mid ?? copy.text}</span>
-      <span className="home-short">{copy.short ?? copy.mid ?? copy.text}</span>
+      <span className="home-compact">{copy.compact}</span>
     </>
   )
 }
 
-/** The About rows' heights, in proportion to the lines of text each has (so each row's text fills its row). */
-const weights = (items: Bullet[], pick: (b: Bullet) => number) => items.map((b) => `${pick(b)}fr`).join(' ')
-
-/** Background or About this site: plain content, always on the page. */
+/** Background or About this site: label | text rows with a hairline between them, always on the page. */
 export function HomeInfoCard({ panel }: { panel: InfoPanel }) {
   const titleId = `home-${panel.id}-title`
-  const rows = panel.bullets
   return (
-    <section className="card home-panel home-info" aria-labelledby={titleId}>
+    <section className={`card home-panel home-info home-info-${panel.id}`} style={{ '--rows': panel.bullets.length } as CSSProperties} aria-labelledby={titleId}>
       <h2 id={titleId} className="home-panel-title">
         {panel.label}
       </h2>
-      {rows && (
-        <ul
-          className="home-rows"
-          style={{ '--rows-full': weights(rows, (b) => b.lines), '--rows-mid': weights(rows, (b) => b.midLines), '--rows-short': weights(rows, (b) => b.shortLines) } as CSSProperties}
-        >
-          {rows.map((b) => (
-            <li key={b.lead} className="home-row">
-              <strong className="home-row-label">{b.lead.replace(/:$/, '')}</strong>
-              <span className="home-row-text">
-                <Text copy={b} />
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {panel.paragraphs?.map((t) => (
-        <p key={t.text} className="home-lead">
-          <Text copy={t} />
-        </p>
-      ))}
+      <ul className="home-rows">
+        {panel.bullets.map((b) => (
+          <li key={b.lead} className={`home-row${b.compactHide ? ' home-row-full-only' : ''}`}>
+            <strong className="home-row-label">{b.lead}</strong>
+            <span className="home-row-text">
+              <Text copy={b} />
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }
 
-function StripText({ panel }: { panel: PlanetPanel }) {
-  const [first, ...rest] = panel.paragraphs
-  return (
-    <>
-      <div className="home-zone">
-        <h2 className="home-panel-title">{panel.label}</h2>
-        <p>{first}</p>
-      </div>
-      <div className="home-zone">
-        {rest.map((t) => (
-          <p key={t}>{t}</p>
-        ))}
-      </div>
-    </>
-  )
-}
-
 /**
- * The strip for the chosen planet, in three zones: its heading and first sentence, the second sentence, and the link to
- * its page. It is as tall as its own text (the rows above are sized for the tallest planet's strip, so they never move
- * when the choice changes). A labelled region that announces its changes politely.
+ * The card for the chosen planet: its name on the left and the link to its page on the right, on one line, then its two
+ * sentences. As tall as its own text. A labelled region that announces its changes politely.
  */
 export function HomePlanetSlot({ panel }: { panel: PlanetPanel }) {
   return (
     <section className="card home-panel home-slot" aria-label={HOME_SLOT_LABEL}>
       <div className="home-slot-live" aria-live="polite" aria-atomic="true">
-        <div key={panel.id} className="home-slot-content home-panel-content">
-          <StripText panel={panel} />
-          <Link to={panel.link.to} className="btn btn-primary home-panel-link">
-            {panel.link.text}
-          </Link>
+        <div key={panel.id} className="home-panel-content">
+          <div className="home-slot-head">
+            <h2 className="home-panel-title">{panel.label}</h2>
+            <Link to={panel.link.to} className="btn btn-primary home-panel-link">
+              {panel.link.text}
+            </Link>
+          </div>
+          {panel.paragraphs.map((t) => (
+            <p key={t.text}>
+              <Text copy={t} />
+            </p>
+          ))}
         </div>
       </div>
     </section>

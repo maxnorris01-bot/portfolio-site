@@ -26,4 +26,33 @@
   /* The longest a line of running text gets in the wide page: a lead under a title, and body paragraphs. */
   --measure-lead: 70ch;
   --measure-text: 90ch;
+
+  /*
+   * The shared type and spacing scale (docs/style-audit.md). Home uses it from this change on; the other pages are listed there
+   * as follow-ups. The values are what the audit showed the site mostly uses (the 17px card text and 18.4px card label of the
+   * Résumé, the 15 to 16px lead of the tool pages) rounded onto one scale.
+   */
+  --text-body: 16px;
+  --text-card: 17px; /* card text and lead; 18px from 1920px wide, never above */
+  --text-small: 14px;
+  --text-label: 18px; /* a card's heading (h3 level), weight 600 */
+  --text-title: clamp(1.75rem, 2cqw, 2.25rem); /* a page's h1 */
+  --leading: 1.55;
+  --title-weight: 700;
+  --label-weight: 600;
+
+  /* Spacing, on an 8px scale. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --space-6: 48px;
+  --card-pad: clamp(20px, 2.2cqw, 32px);
+}
+
+@media (min-width: 1920px) {
+  :root {
+    --text-card: 18px;
+  }
 }
