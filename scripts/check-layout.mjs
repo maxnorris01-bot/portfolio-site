@@ -111,9 +111,9 @@ function measureBoxes() {
   const R = (e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height } }
   const pc = document.querySelector('.page-container'), pcs = getComputedStyle(pc), pcr = pc.getBoundingClientRect()
   const Wc = pcr.width - px(pcs.paddingLeft) - px(pcs.paddingRight)
-  const sys = R(document.querySelector('.home-system')), col = R(document.querySelector('.home-info-col')), slot = R(document.querySelector('.home-slot')), title = R(document.querySelector('h1'))
+  const sys = R(document.querySelector('.home-system')), col = R(document.querySelector('.home-info-col')), slot = R(document.querySelector('.home-slot')), nav = R(document.querySelector('.nav'))
   const [c1, c2] = cards.map(R)
-  const geometry = { Wc, left: sys.w / Wc, gutter: (col.l - sys.r) / Wc, right: col.w / Wc, row: col.h / Wc, rowPx: col.h, top: c1.h / col.h, gap: (c2.t - c1.b) / col.h, bottom: c2.h / col.h, stripOffset: (slot.t - col.b) / Wc, stripPx: slot.h, stripBottom: slot.b, vh: innerHeight, edgesEqual: Math.abs(slot.l - sys.l) < 0.6 && Math.abs(slot.r - col.r) < 0.6, alignEqual: Math.abs(col.t - sys.t) < 0.6 && Math.abs(col.b - sys.b) < 0.6, titleGap: (sys.t - title.b) / Wc, hscroll: document.documentElement.scrollWidth - innerWidth }
+  const geometry = { Wc, left: sys.w / Wc, gutter: (col.l - sys.r) / Wc, right: col.w / Wc, row: col.h / Wc, rowPx: col.h, top: c1.h / col.h, gap: (c2.t - c1.b) / col.h, bottom: c2.h / col.h, stripOffset: (slot.t - col.b) / Wc, stripPx: slot.h, stripBottom: slot.b, vh: innerHeight, edgesEqual: Math.abs(slot.l - sys.l) < 0.6 && Math.abs(slot.r - col.r) < 0.6, alignEqual: Math.abs(col.t - sys.t) < 0.6 && Math.abs(col.b - sys.b) < 0.6, topGap: sys.t - nav.b, pageTop: px(getComputedStyle(document.querySelector('.home-page')).paddingTop), hscroll: document.documentElement.scrollWidth - innerWidth }
   return { boxes, strip, geometry }
 }
 
@@ -143,7 +143,7 @@ try {
       if (Math.abs(g.gutter - 0.02) > 0.0015) bad.push(`gutter ${fmt(g.gutter)}`)
       if (Math.abs(g.top - 0.32) > 0.005 || Math.abs(g.gap - 0.04) > 0.005 || Math.abs(g.bottom - 0.64) > 0.005) bad.push(`cards ${fmt(g.top)}:${fmt(g.gap)}:${fmt(g.bottom)}`)
       if (Math.abs(g.stripOffset - 0.016) > 0.001) bad.push(`strip offset ${fmt(g.stripOffset)}`)
-      if (Math.abs(g.titleGap - 0.024) > 0.001) bad.push(`title gap ${fmt(g.titleGap)}`)
+      if (Math.abs(g.topGap - g.pageTop) > 1) bad.push(`the row starts ${g.topGap.toFixed(1)}px under the nav, not the page's ${g.pageTop.toFixed(1)}px`)
       console.log('   box                    size      font   lines hFill  vFill  chars/line  ')
       for (const b of boxes) {
         const why = []

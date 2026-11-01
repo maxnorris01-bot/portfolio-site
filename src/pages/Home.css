@@ -1,19 +1,11 @@
-/* The two tags sit beside the title, as on the SatPOV page. */
-.home-tags {
-  flex: 1 1 auto;
-  margin: 0;
-}
-
-.home-tags .chip {
-  font-size: 0.74rem;
-}
-
-@media (max-width: 640px) {
-  .home-tags {
-    order: 3;
-    width: 100%;
-    gap: 0.35rem;
-  }
+/* The page's one h1 is there for screen readers and search engines only. */
+.home-page .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /*
@@ -199,23 +191,19 @@
  *   row 1 is R = 32% of Wc tall: the system is a box 49% wide (its aspect, 418:273, is 49:32), the two cards a box 49% wide,
  *   2% between them; the cards are 32% : 4% : 64% of R (heights 1 : gap : 2), the same top and bottom as the system;
  *   the strip is 1.6% below row 1, as wide as the two together, and 8.8% tall at least (it is as tall as its tallest text).
- * R is also at most the room the window has left under the nav, the title and above the strip (--home-room); when that binds,
+ * R is also at most the room the window has left under the nav and above the strip (--home-room); when that binds,
  * the system shrinks to R x its aspect and the cards take the width it frees: wider, not taller.
  */
 .home-page .page-container {
   container-type: inline-size;
 }
 
-.home-page .page-header {
-  margin-bottom: 2.4cqw;
-}
-
 @media (min-width: 1280px) {
   .home-page {
     --home-aspect: calc(418 / 273);
-    /* Nav, the gap under it, the title row, 2.4% under the title, 1.6% above the strip, the strip, a little at the foot. */
+    /* Nav, the page's gap under it, 1.6% above the strip, the strip, a little at the foot. */
     --home-strip-est: 7.8rem;
-    --home-room: calc(100vh - 74.1px - clamp(1.25rem, 2vw, 2rem) - 36px - 2.4cqw - 1.6cqw - var(--home-strip-est) - 1rem);
+    --home-room: calc(100vh - 74.1px - clamp(1.25rem, 2vw, 2rem) - 1.6cqw - var(--home-strip-est) - 1rem);
     --home-r: max(300px, min(32cqw, var(--home-room)));
     --home-card-gap: calc(var(--home-r) * 0.04);
     padding-bottom: 1rem;

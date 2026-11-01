@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { HomeInfoCard, HomePlanetSlot } from '../components/HomePanel'
-import PageHeader from '../components/PageHeader'
 import SolarSystem from '../components/SolarSystem'
-import { HOME_CREDENTIALS, HOME_DEFAULT_PLANET, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../content/home'
+import { HOME_DEFAULT_PLANET, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../content/home'
 import './Home.css'
 
 export default function Home() {
@@ -13,18 +12,8 @@ export default function Home() {
   return (
     <main className="page home-page">
       <div className="page-container">
-        <PageHeader
-          title={HOME_TITLE}
-          titleMeta={
-            <ul className="chip-list home-tags" aria-label="Credentials">
-              {HOME_CREDENTIALS.map((c) => (
-                <li key={c} className="chip">
-                  {c}
-                </li>
-              ))}
-            </ul>
-          }
-        />
+        {/* The page's one h1: for screen readers and search engines only, so the row starts right under the nav. */}
+        <h1 className="visually-hidden">{HOME_TITLE}</h1>
 
         {/* In reading order: the two cards, the system, then the planet's strip. From 1280px, row 1 is the system (49% of the content width)
             beside the cards (49%), 2% apart and 32% of the width tall; the strip is full width under it. */}

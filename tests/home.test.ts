@@ -5,7 +5,8 @@ import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { StaticRouter } from 'react-router-dom'
 import { BODIES, CHOSEN, LABEL_SLOTS, ORBITS, VIEW, advance, labelWidth, labelsOverlap, layoutLabels, place, positionAt, shouldMove } from '../src/components/solarmodel.ts'
-import { HOME_CREDENTIALS, HOME_DEFAULT_PLANET, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../src/content/home.ts'
+import { HOME_DEFAULT_PLANET, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../src/content/home.ts'
+import * as contentModule from '../src/content/home.ts'
 import { closeServer, loadModule, render } from './helpers/ssr.ts'
 
 after(closeServer)
@@ -14,9 +15,9 @@ const src = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url),
 
 const visible = (copy: { text: string; short?: string }) => copy.text
 
-test('the title and the two tags are unchanged; the Background and About this site texts (DRAFT, all in content/home.ts) say what the spec says', () => {
+test('the title text is kept (for the hidden h1); the Background and About this site texts (DRAFT, all in content/home.ts) say what the spec says', () => {
   assert.equal(HOME_TITLE, 'Aerospace engineering, now pointed at data')
-  assert.deepEqual(HOME_CREDENTIALS, ['DoD Secret Clearance', 'Physics — Cal State Northridge'])
+  assert.ok(!('HOME_CREDENTIALS' in contentModule), 'the credentials tags are gone')
   const bg = HOME_INFO.find((p) => p.id === 'background')
   const text = bg?.paragraphs?.map(visible).join(' ') ?? ''
   for (const fact of ['Aerospace mass-properties engineer', '10+ years', 'Northrop Grumman', 'Joby Aviation', 'applied AI and data pipelines', 'transparent', 'real physics']) assert.ok(text.includes(fact), fact)
@@ -278,8 +279,7 @@ test('Home: SatPOV\'s strip shows from the start; Background and About this site
   const html = inRouter(createElement(Home))
   assert.equal(html.match(/<h1[ >]/g)?.length, 1)
   assert.match(html, /Aerospace engineering, now pointed at data/)
-  assert.match(html, /DoD Secret Clearance/)
-  assert.match(html, /Physics — Cal State Northridge/)
+  assert.doesNotMatch(html, /DoD Secret Clearance|Physics — Cal State Northridge|chip-list|page-header/, 'no visible header or tags')
   assert.match(html, /<h2 id="home-background-title"[^>]*>Background<\/h2>/)
   assert.match(html, /<h2 id="home-site-title"[^>]*>About this site<\/h2>/)
   assert.match(html, /<strong class="home-row-label">Purpose<\/strong>/)
@@ -302,25 +302,35 @@ test('order: the two cards, the solar system, then the planet strip (the phone o
   assert.doesNotMatch(css.slice(0, css.indexOf('@media (min-width: 1280px) {')), /grid-template-areas/)
 })
 
-test('the header: the two tags sit beside the title (as on SatPOV) and the eyebrow line is gone', async () => {
+test('the page has no visible header: exactly one h1, visually hidden, with the old title text; the row starts right under the nav', async () => {
   const home = src('pages/Home.tsx')
-  assert.match(home, /titleMeta=\{/)
-  assert.doesNotMatch(home, /eyebrow/)
+  assert.doesNotMatch(home, /PageHeader|titleMeta|eyebrow|HOME_CREDENTIALS/)
   const { default: Home } = await loadModule<{ default: ComponentType }>('/src/pages/Home.tsx')
   const html = inRouter(createElement(Home))
-  assert.doesNotMatch(html, /class="eyebrow"|APPLIED AI/)
-  assert.match(html, /<div class="page-title-row"><h1 class="page-title">Aerospace engineering, now pointed at data<\/h1><ul class="chip-list home-tags" aria-label="Credentials">/)
-  assert.doesNotMatch(html, /is-aside/, 'no empty right-hand column in the header')
-  assert.match(src('components/PageHeader.tsx'), /aside \? `is-aside-\$\{asideSize\}` : ''/)
+  assert.equal(html.match(/<h1[ >]/g)?.length, 1)
+  assert.match(html, /<h1 class="visually-hidden">Aerospace engineering, now pointed at data<\/h1>/)
+  assert.ok(html.indexOf('<h1') < html.indexOf('home-grid'), 'the h1 comes first')
+  const c = css()
+  assert.match(c, /\.home-page \.visually-hidden \{[^}]*position: absolute[^}]*width: 1px[^}]*height: 1px[^}]*clip-path: inset\(50%\)/s)
+  assert.doesNotMatch(c, /home-tags|\.page-header|2\.4cqw/, 'nothing left that assumed a header')
+  assert.ok(!('HOME_CREDENTIALS' in contentModule))
+  // The page's own padding is the gap under the nav (the row is the first thing in the page).
+  assert.match(src('index.css'), /\.page \{[^}]*padding: clamp\(1\.25rem, 2vw, 2rem\) 0 clamp\(2rem, 5vw, 4rem\)/s)
+})
+
+test('Shop and the 404 page still use PageHeader, and so does SatPOV (titleMeta and eyebrow are still used there)', () => {
+  assert.match(src('shop/ShopView.tsx'), /<PageHeader/)
+  assert.match(src('App.tsx'), /<PageHeader title="Page not found"/)
+  assert.match(src('pages/SatelliteTool.tsx'), /titleMeta=\{/)
+  assert.match(src('pages/SatelliteTool.tsx'), /eyebrow=\{/)
 })
 
 // ---- the layout's proportions, from the owner's measured mockup (fractions of the content width Wc, or of the row height R) ----
 
 const css = () => src('pages/Home.css')
 
-test('layout: the container is a size container, so cqw is 1% of Wc; the title is 2.4% above row 1', () => {
+test('layout: the container is a size container, so cqw is 1% of Wc', () => {
   assert.match(css(), /\.home-page \.page-container \{\s*container-type: inline-size/)
-  assert.match(css(), /\.home-page \.page-header \{\s*margin-bottom: 2\.4cqw/)
 })
 
 test('layout: row 1 is R = 32% of Wc tall; the system box is 49% wide (at most), the gutter 2%, the cards take the rest (49%)', () => {
@@ -349,7 +359,7 @@ test('layout: the cards are 32% : 4% : 64% of R, with the same top and bottom as
 
 test('layout: R is also at most the room the window has left, and then the cards get wider, not taller', () => {
   const c = css()
-  assert.match(c, /--home-room: calc\(100vh - 74\.1px - clamp\(1\.25rem, 2vw, 2rem\) - 36px - 2\.4cqw - 1\.6cqw - var\(--home-strip-est\) - 1rem\)/)
+  assert.match(c, /--home-room: calc\(100vh - 74\.1px - clamp\(1\.25rem, 2vw, 2rem\) - 1\.6cqw - var\(--home-strip-est\) - 1rem\)/)
   assert.match(c, /--home-strip-est: 7\.8rem/)
   assert.match(c, /calc\(var\(--home-r\) \* var\(--home-aspect\)\)\) minmax\(0, 1fr\)/)
 })

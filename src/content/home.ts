@@ -3,7 +3,6 @@
 // Background and About this site are always on the page; the planets (SatPOV, ShopAI, Résumé) each fill the strip under them.
 
 export const HOME_TITLE = 'Aerospace engineering, now pointed at data'
-export const HOME_CREDENTIALS = ['DoD Secret Clearance', 'Physics — Cal State Northridge']
 
 export type InfoPanelId = 'background' | 'site'
 export type PlanetId = 'satpov' | 'shopai' | 'resume'
