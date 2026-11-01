@@ -1,53 +1,18 @@
-.home-credentials {
-  margin-top: 0.6rem;
+/* The two tags sit beside the title, as on the SatPOV page. */
+.home-tags {
+  flex: 1 1 auto;
+  margin: 0;
 }
 
-/* Phone: one column in reading order (Background, Site Info, the system, the planet's card). From 900px the system fills the
-   left column, level with the top of the right one, where Background, Site Info and the planet's card stack. */
-.home-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  gap: clamp(1rem, 2vw, 1.5rem);
-  margin-top: clamp(0.75rem, 2vw, 1.5rem);
+.home-tags .chip {
+  font-size: 0.74rem;
 }
 
-.home-cell {
-  min-width: 0;
-}
-
-.home-system {
-  width: 100%;
-  max-width: 34rem;
-  justify-self: start;
-}
-
-@media (min-width: 900px) {
-  .home-stage {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    grid-template-areas:
-      'system background'
-      'system site'
-      'system slot';
-    grid-template-rows: auto auto 1fr;
-    column-gap: clamp(1.25rem, 3vw, 3rem);
-  }
-
-  .home-system {
-    grid-area: system;
-    max-width: 44rem;
-  }
-
-  .home-cell-background {
-    grid-area: background;
-  }
-
-  .home-cell-site {
-    grid-area: site;
-  }
-
-  .home-cell-slot {
-    grid-area: slot;
+@media (max-width: 640px) {
+  .home-tags {
+    order: 3;
+    width: 100%;
+    gap: 0.35rem;
   }
 }
 
@@ -87,6 +52,12 @@
   margin-top: 0.4rem;
 }
 
+.home-slot-text {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 @keyframes home-panel-in {
   from {
     opacity: 0;
@@ -96,5 +67,140 @@
 @media (prefers-reduced-motion: reduce) {
   .home-panel-content {
     animation: none;
+  }
+}
+
+/* Phone: one column in reading order (Background, Site Info, the system, the planet's card). From 900px: one row, the system on
+   the left and the two cards on the right, exactly the same height H; under it the planet's strip. H comes from the window's
+   height, so the nav, the header, that row and the strip all fit on screen without scrolling (the page scrolls only when the
+   window is too short for H's minimum). */
+.home-page {
+  /* The window height taken by what is not the row: the nav (74px), the gap under it, the header (one line plus its margin),
+     the gap above the row, the gap under it, the strip and a little room at the foot. */
+  --home-strip-h: 9rem;
+  --home-chrome: calc(74.1px + clamp(1.25rem, 2vw, 2rem) + 28px + clamp(0.6rem, 1vw, 0.9rem) + clamp(0.75rem, 2vw, 1.5rem) + 0.9rem + var(--home-strip-h) + 0.75rem);
+  /* Never taller than the picture was before (570px), and never so short that it stops being a good picture. */
+  --home-h: clamp(340px, calc(100vh - var(--home-chrome)), 570px);
+  --home-aspect: calc(412 / 336);
+}
+
+.home-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: clamp(0.75rem, 2vw, 1.5rem);
+}
+
+.home-info-col {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.home-system {
+  width: 100%;
+  max-width: 34rem;
+  justify-self: start;
+}
+
+.home-cell-slot {
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .home-page {
+    padding-bottom: 1rem;
+  }
+
+  .home-stage {
+    grid-template-columns: calc(var(--home-h) * var(--home-aspect)) minmax(0, 1fr);
+    grid-template-rows: minmax(var(--home-h), auto) auto;
+    grid-template-areas:
+      'system info'
+      'slot slot';
+    column-gap: clamp(1rem, 2.2vw, 2rem);
+    row-gap: 0.9rem;
+    align-items: stretch;
+  }
+
+  .home-system {
+    grid-area: system;
+    max-width: none;
+  }
+
+  .home-info-col {
+    grid-area: info;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  /* The cards share the row's height between them. Their type grows with the window's height (a short window gets the smallest
+     size that still reads well, a tall one a larger one), so the text fills the row rather than leaving it empty. */
+  .home-info {
+    --home-fs: clamp(13.4px, calc(13.4px + (100vh - 720px) * 0.0211), 19px);
+    flex: 1 1 auto;
+    padding: 0.7rem 1rem;
+  }
+
+  .home-info .home-panel-content {
+    gap: 0.45em;
+    font-size: var(--home-fs);
+  }
+
+  .home-info .home-panel-title {
+    font-size: 1.2em;
+  }
+
+  .home-info .home-panel-content p {
+    font-size: 1em;
+    line-height: 1.42;
+  }
+
+  .home-cell-slot {
+    grid-area: slot;
+  }
+
+  /* The strip keeps its height whether or not a planet is chosen, so choosing never moves anything. */
+  .home-slot {
+    min-height: var(--home-strip-h);
+    padding: 0.8rem 1.25rem;
+  }
+
+  .home-slot {
+    display: grid;
+    align-items: center;
+  }
+
+  .home-slot-content {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1.5rem;
+    align-items: center;
+    align-content: center;
+  }
+
+  .home-slot-content .home-panel-title {
+    font-size: 1.05rem;
+  }
+
+  .home-slot-content p {
+    font-size: 0.88rem;
+    line-height: 1.42;
+  }
+
+  .home-slot .home-panel-link {
+    margin: 0;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1099px) {
+  /* A narrower strip wraps its text onto more lines. */
+  .home-page {
+    --home-strip-h: 10.25rem;
+  }
+
+  /* ...and the cards, in a narrower column, take a smaller type so they still fit the row. */
+  .home-info {
+    --home-fs: clamp(12.4px, calc(12.4px + (100vh - 720px) * 0.0211), 19px);
   }
 }

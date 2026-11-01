@@ -25,7 +25,7 @@ type Props = {
 
 /** The page header every page shares: title, optional lead and eyebrow, optional right-hand area. */
 export default function PageHeader({ title, eyebrow, lead, titleMeta, aside, children, asideSize = 'wide', asideFirst = false, fullLead = false, className }: Props) {
-  const classes = ['page-header', `is-aside-${asideSize}`, asideFirst ? 'is-aside-first' : '', fullLead ? 'is-lead-full' : '', className ?? ''].filter(Boolean).join(' ')
+  const classes = ['page-header', aside ? `is-aside-${asideSize}` : '', asideFirst ? 'is-aside-first' : '', fullLead ? 'is-lead-full' : '', className ?? ''].filter(Boolean).join(' ')
   return (
     <header className={classes}>
       <div className="page-header-main">

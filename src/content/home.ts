@@ -2,7 +2,6 @@
 // DRAFT: the Site Info, SatPOV, ShopAI and Résumé texts below are first drafts, written from the README and the pages, for the owner to edit.
 // Background and Site Info are always on the page; the planets (SatPOV, ShopAI, Résumé) each open a card under them.
 
-export const HOME_EYEBROW = 'Aerospace engineer · Applied AI & data'
 export const HOME_TITLE = 'Aerospace engineering, now pointed at data'
 export const HOME_CREDENTIALS = ['DoD Secret Clearance', 'Physics — Cal State Northridge']
 

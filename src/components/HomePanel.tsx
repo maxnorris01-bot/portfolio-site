@@ -19,20 +19,22 @@ export function HomeInfoCard({ panel }: { panel: InfoPanel }) {
 }
 
 /**
- * The card for the chosen planet, with a link to its page; a hint while no planet is chosen. A labelled region that
- * announces its changes politely.
+ * The strip for the chosen planet (its text, and a link to its page on the right); a hint while no planet is chosen, in
+ * the same strip. A labelled region that announces its changes politely.
  */
 export function HomePlanetSlot({ panel }: { panel: PlanetPanel | null }) {
   return (
     <section className="card home-panel home-slot" aria-label={HOME_SLOT_LABEL}>
       <div aria-live="polite" aria-atomic="true">
-        <div key={panel?.id ?? 'hint'} className="home-panel-content">
+        <div key={panel?.id ?? 'hint'} className="home-panel-content home-slot-content">
           {panel ? (
             <>
-              <h2 className="home-panel-title">{panel.label}</h2>
-              {panel.paragraphs.map((t) => (
-                <p key={t}>{t}</p>
-              ))}
+              <div className="home-slot-text">
+                <h2 className="home-panel-title">{panel.label}</h2>
+                {panel.paragraphs.map((t) => (
+                  <p key={t}>{t}</p>
+                ))}
+              </div>
               <Link to={panel.link.to} className="btn btn-primary home-panel-link">
                 {panel.link.text}
               </Link>

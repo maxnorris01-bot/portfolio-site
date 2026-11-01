@@ -250,33 +250,64 @@ test('Home: nothing chosen at first; Background and Site Info always shown, in o
   assert.doesNotMatch(html, /aria-pressed="true"/)
 })
 
-test('order: Background, Site Info, the solar system, then the planet card (the phone order, and the tab order: planets, then the card\'s link)', async () => {
+test('order: Background, Site Info, the solar system, then the planet strip (the phone order, and the tab order: planets, then the strip\'s link)', async () => {
   const { default: Home } = await loadModule<{ default: ComponentType }>('/src/pages/Home.tsx')
   const html = inRouter(createElement(Home))
   const at = ['home-background-title', 'home-site-title', 'class="home-system"', 'home-slot'].map((k) => html.indexOf(k))
   assert.ok(at.every((i) => i > 0))
   assert.deepEqual([...at].sort((a, b) => a - b), at)
   const css = src('pages/Home.css')
-  // Below 900px the stage is one column (no named areas); from 900px the system is on the left and the other three stack on the right.
-  const wide = css.slice(css.indexOf('@media (min-width: 900px)'))
-  assert.match(wide, /grid-template-areas:\s*'system background'\s*'system site'\s*'system slot'/)
-  assert.doesNotMatch(css.slice(0, css.indexOf('@media (min-width: 900px)')), /grid-template-areas/)
+  // Below 900px the stage is one column (no named areas); from 900px: the system and the two cards in one row, the strip under them.
+  const wide = css.slice(css.indexOf('@media (min-width: 900px) {'))
+  assert.match(wide, /grid-template-areas:\s*'system info'\s*'slot slot'/)
+  assert.doesNotMatch(css.slice(0, css.indexOf('@media (min-width: 900px) {')), /grid-template-areas/)
 })
 
-test('the cards are as tall as their own text: no reserved height, no hidden sizing copies', () => {
+test('the header: the two tags sit beside the title (as on SatPOV) and the eyebrow line is gone', async () => {
+  const home = src('pages/Home.tsx')
+  assert.match(home, /titleMeta=\{/)
+  assert.doesNotMatch(home, /eyebrow/)
+  assert.doesNotMatch(src('content/home.ts'), /HOME_EYEBROW|Aerospace engineer ·/)
+  const { default: Home } = await loadModule<{ default: ComponentType }>('/src/pages/Home.tsx')
+  const html = inRouter(createElement(Home))
+  assert.doesNotMatch(html, /class="eyebrow"|APPLIED AI|Applied AI &amp; data/)
+  assert.match(html, /<div class="page-title-row"><h1 class="page-title">Aerospace engineering, now pointed at data<\/h1><ul class="chip-list home-tags" aria-label="Credentials">/)
+  assert.doesNotMatch(html, /is-aside/, 'no empty right-hand column in the header')
+  assert.match(src('components/PageHeader.tsx'), /aside \? `is-aside-\$\{asideSize\}` : ''/)
+})
+
+test('one screen: the row\'s height comes from the window, and nav, header, row and strip fit', () => {
   const css = src('pages/Home.css')
-  assert.doesNotMatch(css, /sizer|panel-stack|min-height|height: 406|(?<![-\w])height:/)
+  assert.match(css, /--home-strip-h: 9rem/)
+  assert.match(css, /--home-chrome: calc\(74\.1px \+ clamp\(1\.25rem, 2vw, 2rem\) \+ 28px \+ clamp\(0\.6rem, 1vw, 0\.9rem\) \+ clamp\(0\.75rem, 2vw, 1\.5rem\) \+ 0\.9rem \+ var\(--home-strip-h\) \+ 0\.75rem\)/)
+  assert.match(css, /--home-h: clamp\(340px, calc\(100vh - var\(--home-chrome\)\), 570px\)/)
+  assert.match(css, new RegExp(`--home-aspect: calc\\(${VIEW.w} / ${VIEW.h}\\)`), 'the picture\'s own aspect ratio')
+  // The system column is as wide as H gives the picture (so it is exactly H tall); the row is at least H and grows rather than overlap.
+  assert.match(css, /grid-template-columns: calc\(var\(--home-h\) \* var\(--home-aspect\)\) minmax\(0, 1fr\)/)
+  assert.match(css, /grid-template-rows: minmax\(var\(--home-h\), auto\) auto/)
+  assert.match(css, /\.home-stage \{[^}]*align-items: stretch/s)
+  assert.match(css, /\.home-info \{[^}]*flex: 1 1 auto/s)
+  assert.ok(VIEW.w / VIEW.h > 1.2 && VIEW.w / VIEW.h < 1.25)
+})
+
+test('the strip keeps one height whether or not a planet is chosen; the cards have none of their own', () => {
+  const css = src('pages/Home.css')
+  assert.match(css, /\.home-slot \{[^}]*min-height: var\(--home-strip-h\)/s)
+  assert.match(css, /\.home-slot-content \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto/s)
+  assert.doesNotMatch(css, /\.home-info[^{]*\{[^}]*(?<![-\w])(min-)?height:/s)
+  assert.doesNotMatch(css, /sizer|panel-stack|height: 406/)
   assert.doesNotMatch(src('pages/Home.tsx') + src('components/HomePanel.tsx'), /sizer|panel-stack/)
   assert.match(css, /\.home-panel-content \{[^}]*animation: home-panel-in/s)
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.home-panel-content \{\s*animation: none/)
+  // The strip's text is on the left and the button on the right: the text group comes first.
+  assert.match(src('components/HomePanel.tsx'), /home-slot-text[\s\S]*home-panel-link/)
 })
 
-test('alignment: the system starts at the left edge (no centring or inner padding) and the right column is level with its top', () => {
+test('alignment: the system starts at the left edge (no centring or inner padding)', () => {
   const css = src('pages/Home.css')
-  assert.match(css, /\.home-stage \{[^}]*align-items: start/s)
   assert.match(css, /\.home-system \{[^}]*justify-self: start/s)
   assert.doesNotMatch(css.slice(css.indexOf('.home-system {'), css.indexOf('}', css.indexOf('.home-system {'))), /margin|padding|center/)
-  assert.doesNotMatch(css, /align-items: center/)
+  assert.doesNotMatch(css, /align-items: center;\s*\n\s*gap/)
 })
 
 test('Home: the featured project is gone from the code and the styles; the intro has no reading-width cap', () => {
