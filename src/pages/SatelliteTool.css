@@ -85,7 +85,6 @@
 .sat-credits-body {
   display: grid;
   gap: 0.6rem;
-  max-width: var(--sat-measure);
   color: var(--color-text-secondary);
   font-size: 0.88rem;
 }
@@ -486,10 +485,9 @@
 }
 
 /* Full-width sections, readable text: cards and the step row span the width,
-   while running text keeps to about 90 characters a line. */
+   while the "For context" text keeps to about 90 characters a line. "Data and credits" runs the full width. */
 .sat-page .globe-history-lede,
-.sat-page .globe-history-sources,
-.sat-page .globe-footnote {
+.sat-page .globe-history-sources {
   max-width: var(--sat-measure);
 }
 
