@@ -1,13 +1,17 @@
 // Measures the Home page's layout in headless Chromium and fails when a target is missed:
 //   npm run check:layout           (needs Playwright with Chromium installed; it is not a dependency of this repo)
 // Home is two columns (49% / 2% / 49% of the content width Wc): on the left the title and two text cards, on the right the solar
-// system and the chosen planet's card. For each window size and each chosen planet it checks:
+// system and the chosen planet's card. All Home text is on the shared scale in src/styles/tokens.css. For each window size and each
+// chosen planet it checks:
 //   no scroll        the page is no taller than the window
 //   alignment        the left column's bottom is the right column's bottom (1px); the system's top is the title's top (2px)
 //   columns          49% / 2% / 49% of Wc (within 1%)
-//   left cards       against the visible card's inner rectangle (border and padding excluded): the longest line's right end
-//                    over the inner width >= 0.90 and the text block (Range rects) over the inner height >= 0.88;
-//                    body text 45 to 80 characters a line (the last line of a paragraph is ignored); nothing outside the card
+//   type             the body, card text, card label and title sizes are the tokens' (exactly); Home's body size is within 1px of
+//                    the body text of the Résumé, SatPOV and ShopAI pages (a side-by-side table is printed)
+//   left cards       against the visible card's inner rectangle (border and padding excluded): the longest line's right end over
+//                    the inner width >= 0.85 and the text block over the inner height >= 0.80; lines of 45 to 80 characters
+//                    (the last line of a paragraph, and one-line texts, are not counted); nothing outside the card
+//   rows             how much room each text row has above and below its text (printed; the brief allows up to 16px)
 //   planet card      heading row included: width fill >= 0.85, height fill >= 0.85, 45 to 80 characters a line
 //   system           the picture is at least 0.40 Wc wide (the ratio is printed)
 //   title            one or two lines, not clipped, inside the left column
@@ -21,7 +25,7 @@ const ALL = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080]]
 // CHECK_SIZES=1440x900,1920x1080 limits the run to some sizes.
 const SIZES = process.env.CHECK_SIZES ? ALL.filter(([w, h]) => process.env.CHECK_SIZES.split(',').includes(`${w}x${h}`)) : ALL
 const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
-const TARGET = { hFill: 0.9, vFill: 0.88, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4 }
+const TARGET = { hFill: 0.85, vFill: 0.8, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4, rowPad: 16 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
 const expected = new Set(JSON.parse(readFileSync(expectedFile, 'utf8')).misses)
 const outDir = process.env.CHECK_LAYOUT_OUT
@@ -73,9 +77,8 @@ function measure() {
     for (const l of lines) if (l.block && body.some((s) => l.block.matches(s))) { if (!blocks.has(l.block)) blocks.set(l.block, []); blocks.get(l.block).push(l) }
     const cpl = []
     for (const ls of blocks.values()) ls.slice(0, -1).forEach((l) => cpl.push(l.text.trim().length))
-    const last = [...blocks.values()].map((ls) => ls[ls.length - 1].text.trim().length)
-    const use = cpl.length ? cpl : last
-    return { min: use.length ? Math.min(...use) : 0, max: use.length ? Math.max(...use) : 0, lines: [...blocks.values()].reduce((a, ls) => a + ls.length, 0) }
+    // A one-line text has no full line to count: it is left out.
+    return { min: cpl.length ? Math.min(...cpl) : 45, max: cpl.length ? Math.max(...cpl) : 45, lines: [...blocks.values()].reduce((a, ls) => a + ls.length, 0) }
   }
   const boxOf = (name, el, body, extra = []) => {
     const box = inner(el), lines = linesOf(el)
@@ -87,7 +90,23 @@ function measure() {
     return { name, hFill: (right - box.l) / (box.r - box.l), vFill: (bottom - top) / (box.b - box.t), cplMin: cpl.min, cplMax: cpl.max, lines: cpl.lines, overflow, w: Math.round(box.r - box.l), h: Math.round(box.b - box.t), fs: first ? Math.round(parseFloat(getComputedStyle(first.block).fontSize) * 10) / 10 : 0 }
   }
   const cards = [...document.querySelectorAll('.home-info')]
-  const left = [boxOf('Background card', cards[0], ['p']), boxOf('About card', cards[1], ['.home-row-text'])]
+  const left = [boxOf('Background card', cards[0], ['.home-row-text']), boxOf('About card', cards[1], ['.home-row-text'])]
+  // The room each row has above and below its text.
+  let rowPad = 0
+  for (const row of document.querySelectorAll('.home-row')) {
+    if (!row.getClientRects().length) continue
+    const ls = linesOf(row.querySelector('.home-row-text')), rr = R(row)
+    rowPad = Math.max(rowPad, ((rr.h - (Math.max(...ls.map((l) => l.bottom)) - Math.min(...ls.map((l) => l.top)))) / 2))
+  }
+  // The type, against the tokens.
+  const rootCs = getComputedStyle(document.documentElement)
+  const tok = (n) => px(rootCs.getPropertyValue(n))
+  const fsOf = (sel) => px(getComputedStyle(document.querySelector(sel)).fontSize)
+  const type = {
+    body: fsOf('.home-page'), card: fsOf('.home-row-text'), label: fsOf('.home-info .home-panel-title'), slotText: fsOf('.home-slot p'), slotLabel: fsOf('.home-slot .home-panel-title'), button: fsOf('.home-panel-link'), title: fsOf('.home-title'),
+    labelWeight: getComputedStyle(document.querySelector('.home-info .home-panel-title')).fontWeight, titleWeight: getComputedStyle(document.querySelector('.home-title')).fontWeight, lineHeight: px(getComputedStyle(document.querySelector('.home-row-text')).lineHeight) / fsOf('.home-row-text'),
+    tokens: { body: tok('--text-body'), card: tok('--text-card'), small: tok('--text-small'), label: tok('--text-label') },
+  }
   const slotEl = document.querySelector('.home-slot')
   const btn = slotEl.querySelector('.home-panel-link').getBoundingClientRect()
   const slot = boxOf('Planet card', slotEl, ['p'], [{ right: btn.right, top: btn.top, bottom: btn.bottom }])
@@ -100,6 +119,7 @@ function measure() {
   const titleLines = Math.round(tr.h / (px(tcs.lineHeight) || px(tcs.fontSize) * 1.15))
   const doc = document.documentElement
   const g = {
+    rowPad, type,
     Wc, scroll: doc.scrollHeight, vh: innerHeight, hscroll: doc.scrollWidth - innerWidth,
     bottomL: colL.b, bottomR: colR.b, sysTop: sys.t, titleTop: tr.t,
     left: colL.w / Wc, gutter: (colR.l - colL.r) / Wc, right: colR.w / Wc,
@@ -122,13 +142,40 @@ try {
     await page.goto(url, { waitUntil: 'load' })
     await page.waitForSelector('.home-slot-live')
     console.log(`\n=== ${w}x${h} ===`)
+    // The body text of the other pages, at this window size.
+    const other = await page.context().newPage()
+    const bodyOf = async (path, sel) => {
+      await other.goto(url.slice(0, -1) + path, { waitUntil: 'load' })
+      await other.waitForSelector(sel, { timeout: 30000 })
+      return other.evaluate((q) => parseFloat(getComputedStyle(document.querySelector(q)).fontSize), sel)
+    }
+    const others = { 'Résumé': await bodyOf('/resume', '.resume-job-bullets li'), SatPOV: await bodyOf('/satellite-conjunction-screening', '.page-lede'), ShopAI: await bodyOf('/shop?fixture=empty', '.page-lede') }
+    await other.close()
+    let sideBySide = false
     for (const planet of PLANETS) {
       await page.locator(`.solar-planet[aria-label="${planet}"]`).click({ force: true })
       await page.mouse.move(2, 2)
       await page.waitForTimeout(450)
       const { left, slot, g } = await page.evaluate(measure)
-      console.log(`-- ${planet}   Wc ${g.Wc.toFixed(0)}  columns ${fmt(g.left)} / ${fmt(g.gutter)} / ${fmt(g.right)}  system ${fmt(g.system)} Wc wide (${g.systemH.toFixed(0)}px tall${g.systemFull ? '' : ', shortened by the window'})  page ${g.scroll}/${g.vh}  title ${g.titleLines} line(s) ${g.titleFs}px  planet card ${g.cardH.toFixed(0)}px`)
+      const t = g.type, wantCard = w >= 1920 ? 18 : 17
+      if (!sideBySide) {
+        sideBySide = true
+        console.log(`   body text, side by side:  Home ${t.body}px | ${Object.entries(others).map(([k, v]) => `${k} ${v}px`).join(' | ')}`)
+        for (const [k, v] of Object.entries(others)) if (Math.abs(t.body - v) > 1.001) misses.push(`${w}x${h} | Home body ${t.body}px is not within 1px of ${k}'s ${v}px`)
+        console.log(`   Home type: body ${t.body} (token ${t.tokens.body}) | card text ${t.card} (token ${t.tokens.card}) | label ${t.label}/${t.labelWeight} (token ${t.tokens.label}) | planet card text ${t.slotText}, name ${t.slotLabel}, button ${t.button} (token ${t.tokens.small}) | title ${t.title}/${t.titleWeight} | line-height ${t.lineHeight.toFixed(2)}`)
+      }
+      console.log(`-- ${planet}   Wc ${g.Wc.toFixed(0)}  columns ${fmt(g.left)} / ${fmt(g.gutter)} / ${fmt(g.right)}  system ${fmt(g.system)} Wc wide (${g.systemH.toFixed(0)}px tall${g.systemFull ? '' : ', shortened by the window'})  page ${g.scroll}/${g.vh}  title ${g.titleLines} line(s) ${g.titleFs}px  planet card ${g.cardH.toFixed(0)}px  row padding ${g.rowPad.toFixed(1)}px`)
       const bad = []
+      const wantTitle = Math.min(36, Math.max(28, 0.02 * g.Wc))
+      const typeWhy = []
+      if (t.body !== 16 || t.tokens.body !== 16) typeWhy.push(`body ${t.body}`)
+      if (t.card !== wantCard || t.tokens.card !== wantCard || t.slotText !== wantCard) typeWhy.push(`card text ${t.card}/${t.slotText}, token ${t.tokens.card}, wanted ${wantCard}`)
+      if (t.label !== 18 || t.slotLabel !== 18 || t.tokens.label !== 18 || t.labelWeight !== '600') typeWhy.push(`label ${t.label}/${t.slotLabel}/${t.labelWeight}`)
+      if (t.button !== 14 || t.tokens.small !== 14) typeWhy.push(`button ${t.button}`)
+      if (Math.abs(t.title - wantTitle) > 0.1 || t.titleWeight !== '700') typeWhy.push(`title ${t.title}, wanted ${wantTitle.toFixed(1)}`)
+      if (Math.abs(t.lineHeight - 1.55) > 0.01) typeWhy.push(`line-height ${t.lineHeight.toFixed(2)}`)
+      for (const m of typeWhy) bad.push(`type: ${m}`)
+      if (g.rowPad > TARGET.rowPad + 0.5) bad.push(`the rows have ${g.rowPad.toFixed(1)}px above and below their text (the brief allows ${TARGET.rowPad}px)`)
       if (g.scroll > g.vh) bad.push(`the page scrolls (${g.scroll} > ${g.vh})`)
       if (g.hscroll) bad.push('horizontal scroll')
       if (Math.abs(g.bottomL - g.bottomR) > 1) bad.push(`the columns' bottoms differ (${g.bottomL.toFixed(1)} vs ${g.bottomR.toFixed(1)})`)

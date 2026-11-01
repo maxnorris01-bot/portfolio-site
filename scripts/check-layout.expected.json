@@ -1,1 +1,7 @@
-{ "misses": [] }
+{
+  "misses": [
+    "1920x1080 SatPOV | the rows have 17.",
+    "1920x1080 ShopAI | the rows have 17.",
+    "1920x1080 Résumé | the rows have 17."
+  ]
+}

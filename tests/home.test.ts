@@ -20,20 +20,23 @@ test('the title is editable in one place and is the owner\'s draft; the credenti
   assert.match(src('content/home.ts'), /DRAFT/)
 })
 
-test('Background and About this site (DRAFT, all in content/home.ts) say what the spec says', () => {
+test('Background and About this site (DRAFT, all in content/home.ts) say what the brief says, as label | text rows', () => {
   const bg = HOME_INFO.find((p) => p.id === 'background')
-  const text = bg?.paragraphs?.join(' ') ?? ''
-  for (const fact of ['Aerospace mass-properties engineer', '10+ years', 'Northrop Grumman', 'Joby Aviation', 'applied AI and data pipelines', 'transparent', 'real physics']) assert.ok(text.includes(fact), fact)
+  assert.deepEqual(bg?.bullets.map((b) => b.lead), ['Experience', 'Focus', 'Education'])
+  const text = bg?.bullets.map((b) => b.text).join(' ') ?? ''
+  for (const fact of ['aerospace mass-properties engineer', '10+ years', 'Northrop Grumman', 'Joby Aviation', 'applied AI and data pipelines', 'transparent', 'real physics', 'Cal State Northridge']) assert.ok(text.includes(fact), fact)
   const site = HOME_INFO.find((p) => p.id === 'site')
   assert.equal(site?.label, 'About this site')
-  assert.deepEqual(site?.bullets?.map((b) => b.lead), ['Purpose', 'Backend', 'What it shows'])
-  const all = site?.bullets?.map((b) => b.text).join(' ') ?? ''
-  for (const fact of ['working portfolio', 'runs live', 'Python service (Fly.io) with Postgres', 'reachable only through this site', 'spending is capped', '1,700+ automated tests', 'locked evaluation set', 'end-to-end ownership', 'LLM ranking with cost controls']) assert.ok(all.includes(fact), fact)
-  assert.deepEqual(site?.bullets?.map((b) => b.lines), [2, 4, 3])
+  assert.deepEqual(site?.bullets.map((b) => b.lead), ['Purpose', 'Backend', 'What it shows', 'Stack'])
+  const all = site?.bullets.map((b) => b.text).join(' ') ?? ''
+  for (const fact of ['working portfolio', 'Python service (Fly.io) with Postgres', 'reachable only through this site', 'Spending is capped', '1,700+ automated tests', 'locked evaluation set', 'end-to-end ownership', 'LLM ranking with cost controls', 'React, TypeScript, Vercel']) assert.ok(all.includes(fact), fact)
+  assert.match(src('content/home.ts'), /DRAFT/)
 })
 
-test('the Stack row was not needed: the About card fills its height (0.94 or more) with its three rows, at every test size', () => {
-  assert.ok(!(HOME_INFO[1].bullets ?? []).some((b) => b.lead === 'Stack'))
+test('the Stack row is back, and is the one row a short window leaves out; every other row has a compact cut or none needed', () => {
+  const rows = HOME_INFO[1].bullets
+  assert.ok(rows.some((b) => b.lead === 'Stack' && b.compactHide))
+  assert.deepEqual(rows.filter((b) => b.compactHide).map((b) => b.lead), ['Stack'])
 })
 
 test('only three planets lead somewhere, each with an Open link to its route; the card is never empty (SatPOV is chosen from the start)', () => {
@@ -48,11 +51,11 @@ test('only three planets lead somewhere, each with an Open link to its route; th
 })
 
 test('the planet descriptions say only what the README, the pages and the Résumé data say, and are about the same length', () => {
-  const text = (id: string) => (HOME_PLANETS.find((p) => p.id === id)?.paragraphs ?? []).join(' ')
+  const text = (id: string) => (HOME_PLANETS.find((p) => p.id === id)?.paragraphs ?? []).map((c) => c.text).join(' ')
   for (const fact of ['3D globe', 'Hipparcos and Gaia', 'close approaches', 'ride along']) assert.ok(text('satpov').includes(fact), fact)
   for (const fact of ['Google Shopping', 'Love, Like or Dislike', 'Shop Again', 'Saved list']) assert.ok(text('shopai').includes(fact), fact)
   for (const fact of ['Joby Aviation', 'Northrop Grumman', 'DoD Secret', 'Cal State Northridge', 'SciPy']) assert.ok(text('resume').includes(fact), fact)
-  const sizes = HOME_PLANETS.map((p) => p.paragraphs.join('').length)
+  const sizes = HOME_PLANETS.map((p) => p.paragraphs.map((c) => c.text).join('').length)
   assert.ok(Math.min(...sizes) >= Math.max(...sizes) * 0.85, `totals ${sizes.join(', ')}`)
 })
 
@@ -251,7 +254,7 @@ test('the planet card: a labelled live region; the name on the left and the pill
     assert.ok(link.includes('class="btn btn-primary home-panel-link"') && link.includes(`href="${to}"`) && link.endsWith(`>${text}</a>`), `${id}: ${link}`)
     assert.doesNotMatch(link, /target=/, 'same tab')
     const esc = (s: string) => s.replace(/'/g, '&#x27;')
-    assert.ok(live.indexOf('</div>', live.indexOf('home-slot-head')) < live.indexOf(esc(panel.paragraphs[0])), 'the text comes under the heading row')
+    assert.ok(live.indexOf('</div>', live.indexOf('home-slot-head')) < live.indexOf(esc(panel.paragraphs[0].text)), 'the text comes under the heading row')
     assert.equal(html.match(/<p>/g)?.length, 2, 'two sentences')
     assert.equal(html.match(/<a /g)?.length, 1)
   }
@@ -265,8 +268,7 @@ test('Home: a visible h1 (the title), the two cards, the system, the planet card
   assert.doesNotMatch(html, /visually-hidden|page-header|chip-list|DoD Secret Clearance/)
   assert.match(html, /<h2 id="home-background-title"[^>]*>Background<\/h2>/)
   assert.match(html, /<h2 id="home-site-title"[^>]*>About this site<\/h2>/)
-  assert.match(html, /<strong class="home-row-label">Purpose<\/strong>/)
-  assert.match(html, /class="home-rows" style="--rows:2fr 4fr 3fr"/)
+  for (const lead of ['Experience', 'Focus', 'Education', 'Purpose', 'Backend', 'What it shows', 'Stack']) assert.match(html, new RegExp(`<strong class="home-row-label">${lead}</strong>`), lead)
   assert.match(html, /<h2 class="home-panel-title">SatPOV<\/h2>/)
   assert.match(html, /href="\/satellite-conjunction-screening"/)
   assert.equal(html.match(/<a /g)?.length, 1)
@@ -287,66 +289,71 @@ test('stacked (below 1280px) the order is title, system, planet card, Background
   for (const [sel, n] of [['\\.home-title', 1], ['\\.home-system', 2], ['\\.home-slot', 3], ['\\.home-info', 4], ['\\.home-info \\+ \\.home-info', 5]] as const) {
     assert.match(c, new RegExp(`${sel} \\{[^}]*order: ${n};`), `${sel} is item ${n}`)
   }
-  assert.match(c, /@media \(max-width: 1279px\) \{[\s\S]*?\.home-rows \{\s*grid-template-rows: none/)
-  assert.match(c, /@media \(max-width: 1279px\) \{[\s\S]*?\.home-info,\s*\.home-slot \{\s*padding-inline: max\(24px, calc\(\(100cqw - 40rem\) \/ 2\)\)/)
+  assert.match(c, /@media \(max-width: 1279px\) \{[\s\S]*?\.home-info,\s*\.home-slot \{\s*padding-inline: max\(var\(--card-pad\), calc\(\(100cqw - 40rem\) \/ 2\)\)/)
 })
 
 // ---- the layout's proportions, from the spec (fractions of the content width Wc) ----
 
-test('two columns from 1280px: 49% / 2% / 49% of Wc, stretched to one height; the left column is a size container so its type follows its height', () => {
+test('two columns from 1280px: 49% / 2% / 49% of Wc, stretched to one height; the title is not inside a size container (its cqw is Wc)', () => {
   const c = css()
   assert.match(c, /\.home-page \.page-container \{\s*container-type: inline-size/)
   const wide = c.slice(c.indexOf('@media (min-width: 1280px) {'))
   assert.match(wide, /\.home-grid \{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);\s*column-gap: 2cqw;[^}]*align-items: stretch/s)
-  assert.match(wide, /\.home-left \{\s*container-type: size/)
+  assert.doesNotMatch(c, /container-type: size/)
   assert.match(wide, /\.home-left,\s*\.home-right \{\s*display: flex;\s*flex-direction: column;\s*gap: var\(--home-gap\)/s)
   assert.match(c, /--home-gap: 1\.6cqw/)
 })
 
-test('the system: 32% of Wc tall (a 49:32 box, the picture\'s aspect) unless the window has less room, never under 26.2% (the picture 40% of Wc wide), centred in its column', () => {
+test('the system: 32% of Wc tall at most (a 49:32 box), shortened when the window has less room, never under 26.2% (the picture 40% of Wc wide); it grows to match the left column', () => {
   const wide = css().slice(css().indexOf('@media (min-width: 1280px) {'))
   assert.match(wide, /--home-sys-h: max\(26\.2cqw, min\(32cqw, calc\(var\(--home-avail\) - var\(--home-gap\) - var\(--home-card-est\)\)\)\)/)
-  assert.match(wide, /\.home-system \{[^}]*justify-content: center[^}]*height: var\(--home-sys-h\)/s)
+  assert.match(wide, /\.home-system \{[^}]*flex: 1 1 var\(--home-sys-h\)[^}]*justify-content: center[^}]*min-height: var\(--home-sys-h\)[^}]*max-height: 32cqw/s)
   assert.match(wide, /\.home-system \.solar \{\s*width: auto;\s*max-width: 100%;\s*height: 100%/)
   assert.ok(Math.abs(49 / (VIEW.w / VIEW.h) - 32) < 0.1, 'the full-size box is 32% of Wc tall')
   assert.ok(26.2 * (VIEW.w / VIEW.h) > 40, 'the floor keeps the picture at 40% of Wc')
 })
 
-test('no page scroll: the right column\'s room is the window less the nav, the page\'s gap above, 24px below and the footer; the planet card is estimated at its tallest', () => {
+test('no page scroll: the right column\'s room is the window less the nav, the page\'s gap above, 24px below and the footer; the planet card is estimated from measurement', () => {
   const wide = css().slice(css().indexOf('@media (min-width: 1280px) {'))
   assert.match(wide, /--home-avail: calc\(100vh - 74\.1px - clamp\(1\.25rem, 2vw, 2rem\) - 1\.5rem - var\(--home-footer\)\)/)
   assert.match(wide, /--home-footer: 2\.9rem/)
-  assert.match(wide, /--home-card-est: 14\.5rem/)
+  assert.match(wide, /--home-card-est: 13\.4rem/)
   assert.match(wide, /\.home-page \{[^}]*padding-bottom: 1\.5rem/s)
 })
 
-test('the title: Wc-relative size (2.2% of Wc), balanced, navy, heading font and weight; no PageHeader', () => {
+test('a short window (under 880px, from 1280px wide) shows the compact copy and hides the Stack row, at the same type size', () => {
   const c = css()
-  assert.match(c, /\.home-title \{[^}]*color: var\(--color-navy\)[^}]*font-family: var\(--font-heading\)[^}]*font-size: clamp\(1\.5rem, 2\.2cqw, 2\.5rem\)[^}]*font-weight: 700[^}]*text-wrap: balance/s)
-  assert.match(c, /\.home-title \{\s*font-size: clamp\(1\.5rem, 4\.5cqw, 2\.5rem\)/, 'in the left column, 4.5% of it is 2.2% of Wc')
-  assert.ok(Math.abs(4.5 * 0.49 - 2.2) < 0.01)
+  assert.match(c, /@media \(min-width: 1280px\) and \(max-height: 879px\) \{\s*\.home-full \{\s*display: none/)
+  assert.match(c, /\.home-compact \{\s*display: inline/)
+  assert.match(c, /\.home-row-full-only \{\s*display: none/)
 })
 
-test('type: left cards sized from the left column\'s height (16px or more, capped at 24px) at line-height 1.55; the planet card from its own width, capped at 24px', () => {
+test('all Home text is on the shared tokens: no cqh or fill-driven sizes, no 24px cap', () => {
   const c = css()
-  assert.match(c, /\.home-panel p,\s*\.home-row-text,\s*\.home-row-label \{[^}]*font-size: var\(--home-fs\)[^}]*line-height: 1\.55/s)
-  const wide = c.slice(c.indexOf('@media (min-width: 1280px) {'))
-  assert.match(wide, /\.home-info-background \{\s*--home-fs: clamp\(16px, 3\.46cqh, 24px\)/)
-  assert.match(wide, /\.home-info-site \{\s*--home-fs: clamp\(16px, 2\.9cqh, 24px\)/)
-  // Stacked, there is no column height to follow: the type comes from the card's width.
-  assert.match(c, /\.home-info-background \{\s*--home-fs: clamp\(16px, 3cqw, 22px\)/)
-  assert.match(c, /--home-slot-fs: clamp\(16px, 3cqw, 24px\)/)
-  assert.match(c, /\.home-slot \{\s*--home-fs: var\(--home-slot-fs\)/)
+  assert.doesNotMatch(c, /cqh|--home-fs|--home-slot-fs|24px\)/)
+  assert.match(c, /\.home-page \{[^}]*font-size: var\(--text-body\)[^}]*line-height: var\(--leading\)/s)
+  assert.match(c, /\.home-title \{[^}]*font-size: var\(--text-title\)[^}]*font-weight: var\(--title-weight\)[^}]*text-wrap: balance/s)
+  assert.match(c, /\.home-panel-title \{[^}]*font-size: var\(--text-label\)[^}]*font-weight: var\(--label-weight\)/s)
+  assert.match(c, /\.home-panel p,\s*\.home-row-text,\s*\.home-row-label \{[^}]*font-size: var\(--text-card\)/s)
+  assert.match(c, /\.home-panel-link \{[^}]*font-size: var\(--text-small\)/s)
+  assert.match(c, /\.home-panel \{\s*padding: var\(--card-pad\)/)
 })
 
-test('cards: side padding clamp(20px, 2.2cqw, 36px); the Background card is as tall as its text and the About card has the rest, in label | text rows with hairlines', () => {
+test('the shared scale in tokens.css: body 16, card 17 (18 from 1920px, never more), small 14, label 18/600, title clamp(1.75rem, 2cqw, 2.25rem), an 8px spacing scale, card padding clamp(20px, 2.2cqw, 32px)', () => {
+  const t = src('styles/tokens.css')
+  for (const re of [
+    /--text-body: 16px/, /--text-card: 17px/, /@media \(min-width: 1920px\) \{\s*:root \{\s*--text-card: 18px/, /--text-small: 14px/, /--text-label: 18px/,
+    /--text-title: clamp\(1\.75rem, 2cqw, 2\.25rem\)/, /--label-weight: 600/, /--space-2: 8px/, /--space-4: 24px/, /--card-pad: clamp\(20px, 2\.2cqw, 32px\)/,
+  ]) assert.match(t, re, String(re))
+  assert.doesNotMatch(t, /--text-card: (19|2\d)px/)
+})
+
+test('cards: label | text rows with hairlines that share the card\'s height; the Background card and the About card share the left column by their row counts', () => {
   const c = css()
-  assert.match(c, /\.home-panel \{[^}]*padding: clamp\(12px, 1\.2cqw, 20px\) clamp\(20px, 2\.2cqw, 36px\)/s)
-  assert.match(c, /\.home-info-background \{\s*flex: none/)
-  assert.match(c, /\.home-info-site \{\s*flex: 1 1 0/)
-  assert.match(c, /\.home-rows \{[^}]*grid-template-rows: var\(--rows\)/s)
   assert.match(c, /\.home-row \{[^}]*grid-template-columns: 21% minmax\(0, 1fr\)/s)
   assert.match(c, /\.home-row \+ \.home-row \{\s*border-top: 1px solid var\(--color-border\)/)
+  assert.match(c, /\.home-rows \{[^}]*flex: 1 1 auto[^}]*flex-direction: column/s)
+  assert.match(c, /\.home-info \{\s*flex: var\(--rows\) 1 auto/)
 })
 
 test('the planet card hugs its text: its name and the pill Open link on one line; the fade stops under reduced motion', () => {
@@ -360,12 +367,13 @@ test('the planet card hugs its text: its name and the pill Open link on one line
 
 test('the layout check is a runnable script with an npm script, and measures what the spec lists', () => {
   const script = readFileSync(new URL('../scripts/check-layout.mjs', import.meta.url), 'utf8')
-  assert.match(script, /hFill: 0\.9, vFill: 0\.88, cplMin: 45, cplMax: 80, slotFill: 0\.85, system: 0\.4/)
+  assert.match(script, /hFill: 0\.85, vFill: 0\.8, cplMin: 45, cplMax: 80, slotFill: 0\.85, system: 0\.4, rowPad: 16/)
   for (const size of ['1280, 720', '1366, 768', '1440, 900', '1920, 1080']) assert.ok(script.includes(`[${size}]`), size)
   for (const what of ['the page scrolls', "the columns' bottoms differ", "the system's top", 'the system is', 'the title']) assert.ok(script.includes(what), what)
   assert.match(script, /boxOf\('Background card', cards\[0\]/)
   assert.match(script, /boxOf\('About card', cards\[1\]/)
   assert.match(script, /boxOf\('Planet card', slotEl/)
+  assert.match(script, /rowPad: 16/)
   assert.match(script, /process\.exit\(1\)/)
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.equal(pkg.scripts['check:layout'], 'node scripts/check-layout.mjs')

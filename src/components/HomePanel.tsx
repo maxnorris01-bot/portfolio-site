@@ -1,31 +1,36 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { HOME_SLOT_LABEL, type InfoPanel, type PlanetPanel } from '../content/home'
+import { HOME_SLOT_LABEL, type Copy, type InfoPanel, type PlanetPanel } from '../content/home'
 
-/** Background or About this site: plain content, always on the page. */
+/** The text, and where there is one a compact cut that a short window shows instead (Home.css). */
+function Text({ copy }: { copy: Copy }) {
+  if (!copy.compact) return <>{copy.text}</>
+  return (
+    <>
+      <span className="home-full">{copy.text}</span>
+      <span className="home-compact">{copy.compact}</span>
+    </>
+  )
+}
+
+/** Background or About this site: label | text rows with a hairline between them, always on the page. */
 export function HomeInfoCard({ panel }: { panel: InfoPanel }) {
   const titleId = `home-${panel.id}-title`
-  const rows = panel.bullets
   return (
-    <section className={`card home-panel home-info home-info-${panel.id}`} aria-labelledby={titleId}>
+    <section className={`card home-panel home-info home-info-${panel.id}`} style={{ '--rows': panel.bullets.length } as CSSProperties} aria-labelledby={titleId}>
       <h2 id={titleId} className="home-panel-title">
         {panel.label}
       </h2>
-      {rows && (
-        <ul className="home-rows" style={{ '--rows': rows.map((b) => `${b.lines}fr`).join(' ') } as CSSProperties}>
-          {rows.map((b) => (
-            <li key={b.lead} className="home-row">
-              <strong className="home-row-label">{b.lead}</strong>
-              <span className="home-row-text">{b.text}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {panel.paragraphs?.map((t) => (
-        <p key={t} className="home-lead">
-          {t}
-        </p>
-      ))}
+      <ul className="home-rows">
+        {panel.bullets.map((b) => (
+          <li key={b.lead} className={`home-row${b.compactHide ? ' home-row-full-only' : ''}`}>
+            <strong className="home-row-label">{b.lead}</strong>
+            <span className="home-row-text">
+              <Text copy={b} />
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }
@@ -46,7 +51,9 @@ export function HomePlanetSlot({ panel }: { panel: PlanetPanel }) {
             </Link>
           </div>
           {panel.paragraphs.map((t) => (
-            <p key={t}>{t}</p>
+            <p key={t.text}>
+              <Text copy={t} />
+            </p>
           ))}
         </div>
       </div>

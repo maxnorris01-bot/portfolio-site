@@ -1,19 +1,20 @@
 /*
  * Home, two columns (from 1280px), 49% / 2% / 49% of the content width Wc (cqw is 1% of it: the page container is a size container):
- *   left   the title, then the Background and About cards, which fill what is left of the column's height;
+ *   left   the title, then the Background and About cards (label | text rows) which share what is left of the column's height;
  *   right  the solar system, then the chosen planet's card (as tall as its text).
- * The left column stretches to the right one's height, so its bottom edge is the same. The system is 32% of Wc tall (a 49:32 box, the
- * picture's own aspect) unless the window has less room than that: then it is shortened (and centred in its column) so the page does not
- * scroll. Below 1280px everything stacks: title, system, planet card, Background, About.
- * Type fits its box: each card is a size container and its text is sized from the card's width (16px or more, capped).
+ * The columns stretch to one height, so their bottoms are the same: the rows of the left cards spread out (equal space on both sides of
+ * each row) when the left column is shorter, and the system grows (to 32% of Wc at most) when it is taller. The system is 32% of Wc
+ * tall (a 49:32 box, the picture's own aspect) unless the window has less room: then it is shortened so the page does not scroll.
+ * Below 1280px everything stacks: title, system, planet card, Background, About.
+ * All the text is on the shared scale in tokens.css (--text-*), whatever the window: content fills the space, not the type size.
  */
 .home-page .page-container {
   container-type: inline-size;
 }
 
 .home-page {
-  --home-fs: clamp(16px, 3cqw, 24px);
-  --home-slot-fs: clamp(16px, 3cqw, 24px);
+  font-size: var(--text-body);
+  line-height: var(--leading);
   --home-gap: 1.6cqw;
 }
 
@@ -21,30 +22,30 @@
   margin: 0;
   color: var(--color-navy);
   font-family: var(--font-heading);
-  font-size: clamp(1.5rem, 2.2cqw, 2.5rem);
-  font-weight: 700;
+  font-size: var(--text-title);
+  font-weight: var(--title-weight);
   letter-spacing: -0.02em;
   line-height: 1.15;
   text-wrap: balance;
 }
 
 .home-panel {
-  container-type: inline-size;
-  padding: clamp(12px, 1.2cqw, 20px) clamp(20px, 2.2cqw, 36px);
+  padding: var(--card-pad);
 }
 
 .home-panel-title {
   margin: 0;
-  font-size: calc(var(--home-fs) * 1.3);
-  line-height: 1.2;
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+  line-height: 1.3;
 }
 
 .home-panel p,
 .home-row-text,
 .home-row-label {
   margin: 0;
-  font-size: var(--home-fs);
-  line-height: 1.55;
+  font-size: var(--text-card);
+  line-height: var(--leading);
 }
 
 .home-panel p,
@@ -52,26 +53,27 @@
   color: var(--color-text-secondary);
 }
 
-.home-info-background {
-  --home-fs: clamp(16px, 3cqw, 22px);
+/* A planet's text keeps to about 75 characters a line however wide its card is. */
+.home-slot p {
+  max-width: 36em;
 }
 
-.home-info-site {
-  --home-fs: clamp(16px, 3cqw, 22px);
+.home-compact {
+  display: none;
 }
 
+/* A text card: its heading, then label | text rows with a hairline between them; the rows share the card's height equally. */
 .home-info {
   display: flex;
   flex-direction: column;
-  gap: 0.4em;
+  gap: var(--space-2);
   min-width: 0;
 }
 
-/* About this site: a narrow label column and the text, rows that share the card's height, a hairline between them. */
 .home-rows {
-  display: grid;
+  display: flex;
   flex: 1 1 auto;
-  grid-template-rows: var(--rows);
+  flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -79,10 +81,11 @@
 
 .home-row {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: 21% minmax(0, 1fr);
-  column-gap: 0.75rem;
+  column-gap: var(--space-3);
   align-items: center;
-  min-height: 0;
+  padding-block: var(--space-1);
 }
 
 .home-row + .home-row {
@@ -91,18 +94,17 @@
 
 .home-row-label {
   color: var(--color-text);
-  font-weight: 700;
+  font-weight: var(--label-weight);
 }
 
 /* The chosen planet's card: its name and the link on one line, then its text. */
 .home-slot {
-  --home-fs: var(--home-slot-fs);
   min-width: 0;
 }
 
 .home-panel-content {
   display: grid;
-  gap: 0.45em;
+  gap: var(--space-2);
   animation: home-panel-in 0.25s ease-out;
 }
 
@@ -110,13 +112,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-3);
 }
 
 .home-panel-link {
   flex: none;
   border-radius: 999px;
-  padding-block: 0.4em;
+  padding-block: var(--space-1);
+  font-size: var(--text-small);
 }
 
 @keyframes home-panel-in {
@@ -167,19 +170,31 @@
 }
 
 @media (max-width: 1279px) {
-  .home-rows {
-    grid-template-rows: none;
-    gap: 0.5rem;
-  }
-
-  .home-row {
-    padding-block: 0.4rem;
-  }
-
   /* Stacked, a card is padded in so a line stays near 75 characters however wide the window. */
   .home-info,
   .home-slot {
-    padding-inline: max(24px, calc((100cqw - 40rem) / 2));
+    padding-inline: max(var(--card-pad), calc((100cqw - 40rem) / 2));
+  }
+}
+
+/* A window under 880px tall (from 1280px wide): the compact cut of the text, and no Stack row, so the page fits without scrolling. The
+   type stays on the same scale. */
+@media (min-width: 1280px) and (max-height: 879px) {
+  .home-full {
+    display: none;
+  }
+
+  .home-compact {
+    display: inline;
+  }
+
+  .home-row-full-only {
+    display: none;
+  }
+
+  /* ...and rows that are not padded beyond what the page can spare. */
+  .home-row {
+    padding-block: 2px;
   }
 }
 
@@ -188,8 +203,8 @@
     --home-footer: 2.9rem;
     /* The room the right column has: the window less the nav, the page's gap above, its 24px below and the footer. */
     --home-avail: calc(100vh - 74.1px - clamp(1.25rem, 2vw, 2rem) - 1.5rem - var(--home-footer));
-    /* The tallest of the three planet cards, as measured (the card itself is as tall as its own text). */
-    --home-card-est: 14.5rem;
+    /* The tallest of the three planet cards, as measured by check:layout (the card is as tall as its own text). */
+    --home-card-est: 13.4rem;
     /* 32% of Wc (49:32) at most; at least 26.2% so the picture stays 40% of Wc wide. */
     --home-sys-h: max(26.2cqw, min(32cqw, calc(var(--home-avail) - var(--home-gap) - var(--home-card-est))));
     padding-bottom: 1.5rem;
@@ -210,25 +225,6 @@
     min-width: 0;
   }
 
-  /* The left column is a size container (it takes the height the right column gives the row, and asks for none of its own), so the
-     cards' type is sized from that height: cqh is 1% of the left column's height. */
-  .home-left {
-    container-type: size;
-  }
-
-  /* The title's size is 2.2% of Wc: the left column is 49% of it. */
-  .home-title {
-    font-size: clamp(1.5rem, 4.5cqw, 2.5rem);
-  }
-
-  .home-info-background {
-    --home-fs: clamp(16px, 3.46cqh, 24px);
-  }
-
-  .home-info-site {
-    --home-fs: clamp(16px, 2.9cqh, 24px);
-  }
-
   .home-title,
   .home-system,
   .home-slot,
@@ -236,13 +232,16 @@
     order: 0;
   }
 
+  /* The system is its height by the window rule; if the left column is taller than the right, it grows (to 32% of Wc) until the
+     bottoms match. */
   .home-system {
     display: flex;
-    flex: none;
+    flex: 1 1 var(--home-sys-h);
     justify-content: center;
     width: auto;
+    min-height: var(--home-sys-h);
     max-width: none;
-    height: var(--home-sys-h);
+    max-height: 32cqw;
   }
 
   .home-system .solar {
@@ -251,13 +250,12 @@
     height: 100%;
   }
 
-  /* The Background card is as tall as its text; the About card has the rest of the column. */
-  .home-info-background {
+  .home-slot {
     flex: none;
   }
 
-  .home-info-site {
-    flex: 1 1 0;
-    min-height: 0;
+  /* The cards share what is left of the left column's height by their rows, and each row takes an equal share. */
+  .home-info {
+    flex: var(--rows) 1 auto;
   }
 }
