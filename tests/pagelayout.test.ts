@@ -41,8 +41,8 @@ test('the panel is clamp(300px, 24vw, 420px) and the gutter clamp(16px, 2.2vw, 4
   // The page, its header and the tool share one gutter and one cap (tokens.css).
   assert.match(src('styles/tokens.css'), /--wide-gutter: clamp\(16px, 2\.2vw, 48px\)/)
   assert.match(src('styles/tokens.css'), /--wide-width: 2500px/)
-  assert.match(src('pages/SatelliteTool.css'), /--sat-gutter: var\(--wide-gutter\)/)
-  assert.match(src('pages/SatelliteTool.css'), /max-width: var\(--wide-width\)/)
+  // ...and so does every page: one container (index.css) with those two tokens.
+  assert.match(src('index.css'), /\.page-container \{[^}]*max-width: var\(--wide-width\)[^}]*padding: 0 var\(--wide-gutter\)/s)
   assert.equal(STACK_BREAKPOINT_PX, 900)
   assert.match(css, /@media \(min-width: 641px\) and \(min-height: 501px\) and \(max-width: 900px\)/)
 })

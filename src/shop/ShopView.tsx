@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import PageHeader from '../components/PageHeader'
 import { EXAMPLE_REQUESTS, LIMITATIONS_NOTICE, NO_RESULTS_MESSAGE, SHOP_TITLE } from './copy.ts'
 import { requestChips } from './chips.ts'
 import { limitText, isLimit, usageLine } from './limits.ts'
@@ -168,106 +169,110 @@ export default function ShopView(props: ShopViewProps) {
   const usage = usageLine(props.meta.usage, counts ? { searchCount: counts.search_count, shopAgainsUsed: counts.shop_agains_used } : null)
 
   return (
-    <main className="page container shop">
-      <p className="eyebrow">Project · Personal shopping assistant</p>
-      <h1 className="shop-title">{SHOP_TITLE}</h1>
-      <p className="shop-lede">Describe what you want to buy in plain words. It searches Google Shopping, ranks the matches and shows them here.</p>
+    <main className="page">
+      <div className="page-container shop">
+        <PageHeader
+          eyebrow="Project · Personal shopping assistant"
+          title={SHOP_TITLE}
+          lead="Describe what you want to buy in plain words. It searches Google Shopping, ranks the matches and shows them here."
+        />
 
-      {props.meta.maintenance && (
-        <div className="shop-banner" role="alert">
-          <p>{limitText({ message: '', retryAfterS: null, resetsAt: null, code: 'maintenance', limit: null })}</p>
-        </div>
-      )}
-
-      <form className="shop-form" onSubmit={submit}>
-        <label className="shop-label" htmlFor={inputId}>
-          What are you looking for?
-        </label>
-        <div className="shop-form-row">
-          <input
-            id={inputId}
-            className="shop-input"
-            type="text"
-            value={value}
-            maxLength={300}
-            autoComplete="off"
-            placeholder="modern couch under $1000"
-            onChange={(e) => onChange(e.target.value)}
-          />
-          <button type="submit" className="btn btn-primary shop-submit" disabled={running || blocked || !value.trim()}>
-            {running ? 'Searching…' : 'Search'}
-          </button>
-        </div>
-        <ul className="chip-list shop-examples" aria-label="Example requests">
-          {EXAMPLE_REQUESTS.map((text) => (
-            <li key={text}>
-              <button type="button" className="chip shop-chip" disabled={running || blocked} onClick={() => onExample(text)}>
-                {text}
-              </button>
-            </li>
-          ))}
-        </ul>
-        {usage && (
-          <p className="shop-usage" aria-label="Your usage this visit">
-            {usage}
-          </p>
-        )}
-      </form>
-
-      <section className="shop-output" aria-label="Results">
-        {state.status === 'idle' && (
-          <p className="shop-empty" role="status">
-            {state.restoring ? 'Restoring your last search…' : 'Type a request or pick an example to see results here.'}
-          </p>
+        {props.meta.maintenance && (
+          <div className="shop-banner" role="alert">
+            <p>{limitText({ message: '', retryAfterS: null, resetsAt: null, code: 'maintenance', limit: null })}</p>
+          </div>
         )}
 
-        {state.status === 'running' && (
-          <div className="shop-progress">
-            <p className="shop-progress-head" role="status" aria-live="polite">
-              <span className="shop-spinner" aria-hidden="true" />
-              <span>
-                {state.slow
-                  ? 'Still working. This one is taking longer than usual…'
-                  : state.kind === 'shop_again'
-                    ? `Finding batch ${state.batch} for “${state.request}”…`
-                    : `Searching for “${state.request}”…`}
-              </span>
-              <Elapsed since={state.startedAt} />
+        <form className="shop-form" onSubmit={submit}>
+          <label className="shop-label" htmlFor={inputId}>
+            What are you looking for?
+          </label>
+          <div className="shop-form-row">
+            <input
+              id={inputId}
+              className="shop-input"
+              type="text"
+              value={value}
+              maxLength={300}
+              autoComplete="off"
+              placeholder="modern couch under $1000"
+              onChange={(e) => onChange(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary shop-submit" disabled={running || blocked || !value.trim()}>
+              {running ? 'Searching…' : 'Search'}
+            </button>
+          </div>
+          <ul className="chip-list shop-examples" aria-label="Example requests">
+            {EXAMPLE_REQUESTS.map((text) => (
+              <li key={text}>
+                <button type="button" className="chip shop-chip" disabled={running || blocked} onClick={() => onExample(text)}>
+                  {text}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {usage && (
+            <p className="shop-usage" aria-label="Your usage this visit">
+              {usage}
             </p>
-            {state.steps.length > 0 && (
-              <ol className="shop-steps">
-                {state.steps.map((step) => (
-                  <li key={step.id} className={`shop-step is-${step.state}`} aria-current={step.state === 'active' ? 'step' : undefined}>
-                    <span className="shop-step-mark" aria-hidden="true">
-                      {step.state === 'done' ? '✓' : step.state === 'skipped' ? '–' : step.state === 'active' ? '●' : '○'}
-                    </span>
-                    <span>{stepSummary(step)}</span>
-                    <span className="visually-hidden"> — {step.state}</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        )}
+          )}
+        </form>
 
-        {state.status === 'error' && (
-          <div className="shop-error" role="alert">
-            <p>{limitText(state)}</p>
-            {state.retryAfterS !== null && <p className="shop-card-meta">You can try again in about {state.retryAfterS} s.</p>}
-            {state.request && !isLimit(state) && (
-              <button type="button" className="btn btn-secondary" onClick={onRetry}>
-                Try again
-              </button>
-            )}
-          </div>
-        )}
+        <section className="shop-output" aria-label="Results">
+          {state.status === 'idle' && (
+            <p className="shop-empty" role="status">
+              {state.restoring ? 'Restoring your last search…' : 'Type a request or pick an example to see results here.'}
+            </p>
+          )}
 
-        {state.status === 'done' && <Results state={state} props={props} />}
-      </section>
+          {state.status === 'running' && (
+            <div className="shop-progress">
+              <p className="shop-progress-head" role="status" aria-live="polite">
+                <span className="shop-spinner" aria-hidden="true" />
+                <span>
+                  {state.slow
+                    ? 'Still working. This one is taking longer than usual…'
+                    : state.kind === 'shop_again'
+                      ? `Finding batch ${state.batch} for “${state.request}”…`
+                      : `Searching for “${state.request}”…`}
+                </span>
+                <Elapsed since={state.startedAt} />
+              </p>
+              {state.steps.length > 0 && (
+                <ol className="shop-steps">
+                  {state.steps.map((step) => (
+                    <li key={step.id} className={`shop-step is-${step.state}`} aria-current={step.state === 'active' ? 'step' : undefined}>
+                      <span className="shop-step-mark" aria-hidden="true">
+                        {step.state === 'done' ? '✓' : step.state === 'skipped' ? '–' : step.state === 'active' ? '●' : '○'}
+                      </span>
+                      <span>{stepSummary(step)}</span>
+                      <span className="visually-hidden"> — {step.state}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
 
-      <aside className="shop-about" aria-label="About this tool">
-        <p>{LIMITATIONS_NOTICE}</p>
-      </aside>
+          {state.status === 'error' && (
+            <div className="shop-error" role="alert">
+              <p>{limitText(state)}</p>
+              {state.retryAfterS !== null && <p className="shop-card-meta">You can try again in about {state.retryAfterS} s.</p>}
+              {state.request && !isLimit(state) && (
+                <button type="button" className="btn btn-secondary" onClick={onRetry}>
+                  Try again
+                </button>
+              )}
+            </div>
+          )}
+
+          {state.status === 'done' && <Results state={state} props={props} />}
+        </section>
+
+        <aside className="shop-about" aria-label="About this tool">
+          <p>{LIMITATIONS_NOTICE}</p>
+        </aside>
+      </div>
     </main>
   )
 }

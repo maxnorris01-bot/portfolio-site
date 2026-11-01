@@ -63,14 +63,14 @@ test('every attribution and licence statement is still there, in full, in the Da
 
 test('the page: the tool first, then Conjunction screening, Pipeline, For context, Data and credits; the credits line sits with the map in compact view too', () => {
   const page = src('pages/SatelliteTool.tsx')
-  const order = ['className="sat-wide"', 'id="sat-screening"', 'id="sat-pipeline"', 'className="sat-context-slot"', 'id="sat-credits"']
+  const order = ['className="page-container"', 'id="sat-screening"', 'id="sat-pipeline"', 'className="sat-context-slot"', 'id="sat-credits"']
   const at = order.map((s) => page.indexOf(s))
   assert.ok(at.every((i) => i > 0), 'a section is missing')
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'sections are out of order')
   assert.match(page, /Conjunction screening/)
   assert.match(page, /Data and credits/)
   // The tool's name and intro come from one place (data/satelliteTool.ts) and are what the page, the Home card and the Resume show.
-  assert.match(page, /<h1 className="sat-title">\{satelliteTool\.name\}<\/h1>/)
+  assert.match(page, /title=\{satelliteTool\.name\}/)
   assert.match(page, /satelliteTool\.intro\[0\]/)
   assert.match(page, /satelliteTool\.intro\[1\]/)
   assert.match(page, /usePageMeta\(satelliteTool\.pageTitle, satelliteTool\.pageDescription\)/)
