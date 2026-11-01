@@ -111,6 +111,7 @@
 }
 
 .resume-job-bullets {
+  max-width: var(--measure-text);
   margin: 0.75rem 0 0;
   padding-left: 1.2rem;
   color: var(--color-text-secondary);
@@ -130,8 +131,18 @@
 }
 
 .resume-project-card p {
+  max-width: var(--measure-text);
   margin-bottom: 1rem;
   color: var(--color-text-secondary);
+}
+
+/* A wide window: experience beside the projects instead of one long column. */
+@media (min-width: 1280px) {
+  .resume-main {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 32rem);
+    column-gap: clamp(2rem, 4vw, 4rem);
+    align-items: start;
+  }
 }
 
 @media (max-width: 760px) {

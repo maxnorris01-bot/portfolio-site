@@ -44,11 +44,12 @@ a {
   outline-offset: 3px;
 }
 
-.container {
+/* The one page container: nav, header, content and footer all use it, so their edges line up. */
+.page-container {
   width: 100%;
-  max-width: var(--content-width);
+  max-width: var(--wide-width);
   margin: 0 auto;
-  padding: 0 var(--gutter);
+  padding: 0 var(--wide-gutter);
 }
 
 .eyebrow {
@@ -153,7 +154,8 @@ a.card:hover {
 }
 
 .page {
-  padding: clamp(2.5rem, 6vw, 5rem) 0;
+  /* A short gap under the site header (about 24-32px), more room at the foot. */
+  padding: clamp(1.25rem, 2vw, 2rem) 0 clamp(2rem, 5vw, 4rem);
 }
 
 /* Which build is live: a quiet line at the very bottom of every page. */
@@ -162,4 +164,16 @@ a.card:hover {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+}
+
+/* Printing keeps the layout it had before the wide page (the Resume is printed): the old container width and gutters, and the old gap above the page. */
+@media print {
+  .page {
+    padding: clamp(2.5rem, 6vw, 5rem) 0;
+  }
+
+  .page-container {
+    max-width: 1120px;
+    padding-inline: clamp(16px, 4vw, 40px);
+  }
 }

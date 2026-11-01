@@ -20,9 +20,10 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   --radius: 6px;
-  --content-width: 1120px;
-  --gutter: clamp(16px, 4vw, 40px);
-  /* The satellite tool page's width: its header and its content share them. */
+  /* The page width, for every page (nav, header, content, footer): the side gutters scale with the window up to a cap. */
   --wide-width: 2500px;
   --wide-gutter: clamp(16px, 2.2vw, 48px);
+  /* The longest a line of running text gets in the wide page: a lead under a title, and body paragraphs. */
+  --measure-lead: 70ch;
+  --measure-text: 90ch;
 }

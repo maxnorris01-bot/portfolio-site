@@ -1,45 +1,7 @@
-/* The page: the header, the tool and every section below it share one wide
-   container (gutters scale with the window, capped on very large monitors);
-   running text inside keeps a readable line length. */
+/* The page uses the shared container and header (index.css, PageHeader.css); this file holds what is the tool's own. */
 .sat-page {
-  --sat-gutter: var(--wide-gutter);
   /* The longest a line of running text gets inside a full-width section. */
-  --sat-measure: 90ch;
-  /* The gap under the site header: about 24-32px, not the 100px of other pages. */
-  padding: clamp(1.25rem, 2vw, 2rem) 0 clamp(2rem, 5vw, 4rem);
-}
-
-.sat-wide {
-  width: 100%;
-  max-width: var(--wide-width);
-  margin: 0 auto;
-  padding: 0 var(--sat-gutter);
-}
-
-/* A compact tool header: title, tags and the GitHub button on one line where
-   they fit, then the eyebrow and the two-sentence description. */
-.sat-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.9rem clamp(1.5rem, 3vw, 3rem);
-  align-items: start;
-  margin-bottom: clamp(0.6rem, 1vw, 0.9rem);
-}
-
-.sat-header-main {
-  min-width: 0;
-}
-
-/* Wide enough: the title block on the left, the latest run's numbers on the
-   right, GitHub at the top right. Narrower, the numbers sit under the intro. */
-@media (min-width: 1100px) {
-  .sat-header {
-    grid-template-columns: minmax(0, 1fr) minmax(0, clamp(32rem, 50%, 58rem));
-  }
-}
-
-.sat-header-side {
-  min-width: 0;
+  --sat-measure: var(--measure-text);
 }
 
 .sat-side-top {
@@ -98,21 +60,6 @@
   padding: 0.55rem 0.8rem;
 }
 
-.sat-title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 1rem;
-  margin: 0;
-}
-
-.sat-title {
-  margin: 0;
-  font-size: clamp(1.45rem, 2.1vw, 2rem);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
 .sat-tech {
   flex: 1 1 auto;
   margin: 0;
@@ -126,26 +73,6 @@
   flex: none;
   padding: 0.35em 0.9em;
   font-size: 0.85rem;
-}
-
-.sat-sub-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.1rem 1.25rem;
-  margin-top: 0.3rem;
-}
-
-.sat-sub-row .eyebrow {
-  margin: 0;
-  font-size: 0.72rem;
-}
-
-.sat-lede {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.98rem;
-  line-height: 1.45;
 }
 
 /* The tool: the map and its controls; its own sizing lives in SatelliteGlobe.css. */
@@ -239,7 +166,7 @@
 }
 
 /* The page's first text section follows the tool closely. */
-.sat-wide + .sat-wide > .sat-section:first-child {
+.page-container + .page-container > .sat-section:first-child {
   margin-top: clamp(1.75rem, 3.5vw, 3rem);
 }
 
@@ -545,14 +472,6 @@
 
 /* Phone: a short title block, so the map comes straight after it. */
 @media (max-width: 640px) {
-  .sat-sub-row .eyebrow {
-    font-size: 0.68rem;
-  }
-
-  .sat-title {
-    font-size: 1.4rem;
-  }
-
   .sat-github {
     margin-left: 0;
   }
@@ -564,16 +483,6 @@
     width: 100%;
     gap: 0.35rem;
   }
-
-  .sat-lede {
-    font-size: 0.9rem;
-  }
-}
-
-/* The build line at the foot of the page shares the page's wide edges. */
-.sat-page ~ .site-footer {
-  max-width: var(--wide-width);
-  padding-inline: var(--sat-gutter, var(--wide-gutter));
 }
 
 /* Full-width sections, readable text: cards and the step row span the width,

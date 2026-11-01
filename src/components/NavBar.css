@@ -13,12 +13,6 @@
   padding-bottom: 1.1rem;
 }
 
-.nav-inner.is-wide {
-  max-width: var(--wide-width);
-  padding-right: var(--wide-gutter);
-  padding-left: var(--wide-gutter);
-}
-
 .nav-wordmark {
   font-family: var(--font-heading);
   font-size: 1.1rem;

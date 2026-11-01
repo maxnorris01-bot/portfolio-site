@@ -5,6 +5,7 @@ import type { DatasetKey, FocusRequest } from '../globe/types'
 import { satelliteTool } from '../data/satelliteTool'
 import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
 import ConjunctionsMenu from '../components/ConjunctionsMenu'
+import PageHeader from '../components/PageHeader'
 import { closestRows } from '../globe/conjunctions'
 import { usePageMeta } from '../hooks/usePageMeta'
 import './SatelliteTool.css'
@@ -157,28 +158,28 @@ export default function SatelliteTool() {
 
   return (
     <main className="page sat-page">
-      <div className="sat-wide">
-        <header className="sat-header">
-          <div className="sat-header-main">
-            <div className="sat-title-row">
-              <h1 className="sat-title">{satelliteTool.name}</h1>
-              <ul className="chip-list sat-tech" aria-label="Tech stack">
-                {satelliteTool.techStack.map((t) => (
-                  <li key={t} className="chip">
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="sat-sub-row">
-              <p className="eyebrow">Project · Applied AI &amp; data engineering</p>
-              <p className="sat-lede">
-                <span>{satelliteTool.intro[0]}</span> <span>{satelliteTool.intro[1]}</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="sat-header-side">
+      <div className="page-container">
+        <PageHeader
+          className="sat-header"
+          fullLead
+          title={satelliteTool.name}
+          titleMeta={
+            <ul className="chip-list sat-tech" aria-label="Tech stack">
+              {satelliteTool.techStack.map((t) => (
+                <li key={t} className="chip">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          }
+          eyebrow={<>Project · Applied AI &amp; data engineering</>}
+          lead={
+            <>
+              <span>{satelliteTool.intro[0]}</span> <span>{satelliteTool.intro[1]}</span>
+            </>
+          }
+          aside={
+            <>
             <div className="sat-side-top">
               <h2 id="sat-screening" className="sat-side-title">
                 Conjunction screening
@@ -235,8 +236,10 @@ export default function SatelliteTool() {
                 )}
               </section>
             </div>
-          </div>
-        </header>
+        
+            </>
+          }
+        />
 
         <section ref={globeRef} className="sat-tool" aria-labelledby="sat-globe">
           <h2 id="sat-globe" className="visually-hidden">
@@ -292,7 +295,7 @@ export default function SatelliteTool() {
         </section>
       </div>
 
-      <div className="sat-wide">
+      <div className="page-container">
         <section className="sat-section" aria-labelledby="sat-pipeline">
           <h2 id="sat-pipeline" className="section-title">
             Pipeline
