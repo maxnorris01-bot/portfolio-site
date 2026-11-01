@@ -2,14 +2,13 @@ import { useState } from 'react'
 import { HomeInfoCard, HomePlanetSlot } from '../components/HomePanel'
 import PageHeader from '../components/PageHeader'
 import SolarSystem from '../components/SolarSystem'
-import { toggle } from '../components/solarmodel'
-import { HOME_CREDENTIALS, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../content/home'
+import { HOME_CREDENTIALS, HOME_DEFAULT_PLANET, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../content/home'
 import './Home.css'
 
 export default function Home() {
-  // Nothing is chosen at first; choosing the chosen planet again lets go of it.
-  const [selected, setSelected] = useState<PlanetId | null>(null)
-  const panel = HOME_PLANETS.find((p) => p.id === selected) ?? null
+  // A planet is chosen from the start, so the strip is never empty; choosing the chosen one again does nothing.
+  const [selected, setSelected] = useState<PlanetId>(HOME_DEFAULT_PLANET)
+  const panel = HOME_PLANETS.find((p) => p.id === selected) ?? HOME_PLANETS[0]
 
   return (
     <main className="page home-page">
@@ -27,19 +26,19 @@ export default function Home() {
           }
         />
 
-        {/* In reading order: Background and Site Info, the system, then the planet's strip. From 900px the system and the two cards are
-            one row of the same height (set from the window's height, so the strip below fits on screen), and the strip runs under them. */}
-        <div className="home-stage">
+        {/* In reading order: the two cards, the system, then the planet's strip. From 1280px, row 1 is the system (49% of the content width)
+            beside the cards (49%), 2% apart and 32% of the width tall; the strip is full width under it. */}
+        <div className="home-grid">
           <div className="home-info-col">
             {HOME_INFO.map((p) => (
               <HomeInfoCard key={p.id} panel={p} />
             ))}
           </div>
           <div className="home-system">
-            <SolarSystem selected={selected} onSelect={(id) => setSelected((cur) => toggle(cur, id))} />
+            <SolarSystem selected={selected} onSelect={setSelected} />
           </div>
           <div className="home-cell-slot">
-            <HomePlanetSlot panel={panel} />
+            <HomePlanetSlot panel={panel} all={HOME_PLANETS} />
           </div>
         </div>
       </div>

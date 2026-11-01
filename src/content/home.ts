@@ -1,6 +1,6 @@
-// The Home page's words, in one place. The Background text is the page's intro as it was.
-// DRAFT: the Site Info, SatPOV, ShopAI and Résumé texts below are first drafts, written from the README and the pages, for the owner to edit.
-// Background and Site Info are always on the page; the planets (SatPOV, ShopAI, Résumé) each open a card under them.
+// The Home page's words, in one place.
+// DRAFT: the Background and About this site texts (supplied by the owner's layout spec; the 1,700+ tests figure is theirs), and the SatPOV, ShopAI and Résumé texts (from the README and the pages), are first drafts for the owner to edit.
+// Background and About this site are always on the page; the planets (SatPOV, ShopAI, Résumé) each fill the strip under them.
 
 export const HOME_TITLE = 'Aerospace engineering, now pointed at data'
 export const HOME_CREDENTIALS = ['DoD Secret Clearance', 'Physics — Cal State Northridge']
@@ -14,14 +14,20 @@ type PanelText = {
   paragraphs: string[]
 }
 
-/** Always on the page, in this order. */
-export type InfoPanel = PanelText & { id: InfoPanelId }
+/** A line of text, and a shorter version of it for windows too short for the full one (see Home.css). */
+export type Copy = { text: string; short?: string }
+
+/** A short list item with a bold lead-in. */
+export type Bullet = { lead: string } & Copy
+
+/** Always on the page, in this order: a paragraph, or bullets. */
+export type InfoPanel = { id: InfoPanelId; label: string; paragraphs?: Copy[]; bullets?: Bullet[] }
 
 /** One card per planet: its text and a button-styled link to its page. */
 export type PlanetPanel = PanelText & { id: PlanetId; link: { to: string; text: string } }
 
-/** Shown in the planet slot until a planet is chosen (and again when it is chosen a second time). */
-export const HOME_HINT = 'Select a planet to explore the site.'
+/** The planet chosen when the page opens, so the strip is never empty. */
+export const HOME_DEFAULT_PLANET: PlanetId = 'satpov'
 export const HOME_SLOT_LABEL = 'Explore the site'
 
 export const HOME_INFO: InfoPanel[] = [
@@ -29,16 +35,32 @@ export const HOME_INFO: InfoPanel[] = [
     id: 'background',
     label: 'Background',
     paragraphs: [
-      "I spent 10+ years at Northrop Grumman and Joby Aviation making sure aircraft and spacecraft hit their mass, balance, and inertia targets, work that lives or dies on careful data handling and physics you can defend. Now I'm pointing that same rigor at applied AI and data engineering: building pipelines that are fast, transparent about their assumptions, and grounded in the real physics of the problem.",
+      {
+        text: 'Aerospace mass-properties engineer with 10+ years at Northrop Grumman and Joby Aviation, now building applied AI and data pipelines that are fast, transparent about their assumptions, and grounded in real physics.',
+        short: 'Aerospace mass-properties engineer, 10+ years at Northrop Grumman and Joby Aviation, now building applied AI and data pipelines grounded in real physics.',
+      },
     ],
   },
   {
+    // The spec's closing stack line ("Vite, React 19 and TypeScript on Vercel; three.js for the satellite view.") did not fit the card at 1440x900 and is left out.
     id: 'site',
-    label: 'Site Info',
-    paragraphs: [
-      'This site is a portfolio of applied AI and data projects. It has two working tools and my Résumé.',
-      'Select a planet in the solar system to explore each part of the site.',
-      'The site is built with Vite, React 19 and TypeScript, and deployed on Vercel from git. The satellite view is drawn with three.js. The ShopAI backend is a Python service on Fly with a Postgres database.',
+    label: 'About this site',
+    bullets: [
+      {
+        lead: 'Purpose:',
+        text: 'a working portfolio of applied AI and data projects. Every tool here runs live; none of it is a mock-up.',
+        short: 'a working portfolio of applied AI and data projects; every tool here runs live.',
+      },
+      {
+        lead: 'Backend:',
+        text: 'ShopAI runs on a Python service (Fly.io) with Postgres, reachable only through this site. Spending is capped per session, per visitor and per day, and the service has 1,700+ automated tests and a locked evaluation set.',
+        short: 'ShopAI runs on a Python service (Fly.io) with Postgres, reachable only through this site, with spending caps and 1,700+ automated tests.',
+      },
+      {
+        lead: 'What it shows:',
+        text: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment, and the physics background to sanity-check results.',
+        short: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment.',
+      },
     ],
   },
 ]

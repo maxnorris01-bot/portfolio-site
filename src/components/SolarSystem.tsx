@@ -9,7 +9,7 @@ export type { PlanetId }
  * buttons, with a label that follows them, nudged aside or below so labels do not overlap); the rest are decoration. The planets stand still while the pointer is
  * over the picture or a planet has keyboard focus, while the tab is hidden, and always under reduced motion.
  */
-export default function SolarSystem({ selected, onSelect }: { selected: PlanetId | null; onSelect: (id: PlanetId) => void }) {
+export default function SolarSystem({ selected, onSelect }: { selected: PlanetId; onSelect: (id: PlanetId) => void }) {
   const svgRef = useRef<SVGSVGElement>(null)
   const refs = useRef(new Map<string, SVGGElement>())
   const texts = useRef(new Map<string, SVGTextElement>())

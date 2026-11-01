@@ -17,45 +17,85 @@
 }
 
 .home-panel {
-  padding: clamp(1.25rem, 2.5vw, 2rem);
-}
-
-.home-panel-content {
-  display: grid;
-  align-content: start;
-  gap: 0.9rem;
-  animation: home-panel-in 0.25s ease-out;
-}
-
-/* Always-visible cards do not fade in. */
-.home-panel-content.is-still {
-  animation: none;
-}
-
-.home-hint {
-  color: var(--color-text-muted);
+  padding: 1rem 1.5rem;
 }
 
 .home-panel-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.25rem;
+  line-height: 1.2;
 }
 
-.home-panel-content p {
-  margin: 0;
-  color: var(--color-text-secondary);
-  line-height: 1.6;
-}
-
-.home-panel-link {
-  justify-self: start;
-  margin-top: 0.4rem;
-}
-
-.home-slot-text {
+.home-info {
   display: grid;
-  gap: 0.35rem;
+  align-content: start;
+  gap: 0.5rem;
   min-width: 0;
+}
+
+/* Text is 16px or more with a line-height of 1.5, whatever the window: it is never shrunk to fit. Lines stay about 45 to 78
+   characters (36rem is about 78 of this font). */
+.home-panel p,
+.home-bullets {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.home-short {
+  display: none;
+}
+
+.home-bullets {
+  display: grid;
+  gap: 0.5rem;
+  padding-left: 1.1rem;
+}
+
+.home-bullets strong {
+  color: var(--color-text);
+}
+
+/* The strip: the heading with the first sentence, the second sentence, the link. */
+.home-slot {
+  display: grid;
+}
+
+.home-slot > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.home-slot-sizer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.home-slot-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+  align-content: center;
+}
+
+.home-zone {
+  display: grid;
+  align-content: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 34rem;
+}
+
+.home-slot .home-panel-link {
+  justify-self: start;
+  margin-top: 0.5rem;
+}
+
+.home-panel-content {
+  animation: home-panel-in 0.25s ease-out;
 }
 
 @keyframes home-panel-in {
@@ -70,25 +110,11 @@
   }
 }
 
-/* Phone: one column in reading order (Background, Site Info, the system, the planet's card). From 900px: one row, the system on
-   the left and the two cards on the right, exactly the same height H; under it the planet's strip. H comes from the window's
-   height, so the nav, the header, that row and the strip all fit on screen without scrolling (the page scrolls only when the
-   window is too short for H's minimum). */
-.home-page {
-  /* The window height taken by what is not the row: the nav (74px), the gap under it, the header (one line plus its margin),
-     the gap above the row, the gap under it, the strip and a little room at the foot. */
-  --home-strip-h: 9rem;
-  --home-chrome: calc(74.1px + clamp(1.25rem, 2vw, 2rem) + 28px + clamp(0.6rem, 1vw, 0.9rem) + clamp(0.75rem, 2vw, 1.5rem) + 0.9rem + var(--home-strip-h) + 0.75rem);
-  /* Never taller than the picture was before (570px), and never so short that it stops being a good picture. */
-  --home-h: clamp(340px, calc(100vh - var(--home-chrome)), 570px);
-  --home-aspect: calc(412 / 336);
-}
-
-.home-stage {
+/* Below 1280px: one column in reading order (the two cards, the system, the strip as a card). */
+.home-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
-  margin-top: clamp(0.75rem, 2vw, 1.5rem);
 }
 
 .home-info-col {
@@ -107,19 +133,42 @@
   min-width: 0;
 }
 
-@media (min-width: 900px) {
+/*
+ * From 1280px the layout is proportional (narrower windows get the stacked layout: at 16px the text does not fit cards that small). to the content width Wc (cqw below is 1% of it, the page container being a size
+ * container), measured from the owner's mockup:
+ *   row 1 is R = 32% of Wc tall: the system is a box 49% wide (its aspect, 418:273, is 49:32), the two cards a box 49% wide,
+ *   2% between them; the cards are 32% : 4% : 64% of R (heights 1 : gap : 2), the same top and bottom as the system;
+ *   the strip is 1.6% below row 1, as wide as the two together, and 8.8% tall at least (it is as tall as its tallest text).
+ * R is also at most the room the window has left under the nav, the title and above the strip (--home-room); when that binds,
+ * the system shrinks to R x its aspect and the cards take the width it frees: wider, not taller.
+ */
+.home-page .page-container {
+  container-type: inline-size;
+}
+
+.home-page .page-header {
+  margin-bottom: 2.4cqw;
+}
+
+@media (min-width: 1280px) {
   .home-page {
+    --home-aspect: calc(418 / 273);
+    /* Nav, the gap under it, the title row, 2.4% under the title, 1.6% above the strip, the strip, a little at the foot. */
+    --home-strip-est: 10.5rem;
+    --home-room: calc(100vh - 74.1px - clamp(1.25rem, 2vw, 2rem) - 36px - 2.4cqw - 1.6cqw - var(--home-strip-est) - 1rem);
+    --home-r: max(300px, min(32cqw, var(--home-room)));
+    --home-card-gap: calc(var(--home-r) * 0.04);
     padding-bottom: 1rem;
   }
 
-  .home-stage {
-    grid-template-columns: calc(var(--home-h) * var(--home-aspect)) minmax(0, 1fr);
-    grid-template-rows: minmax(var(--home-h), auto) auto;
+  .home-grid {
+    grid-template-columns: min(49cqw, calc(var(--home-r) * var(--home-aspect))) minmax(0, 1fr);
+    grid-template-rows: minmax(var(--home-r), auto) auto;
     grid-template-areas:
       'system info'
       'slot slot';
-    column-gap: clamp(1rem, 2.2vw, 2rem);
-    row-gap: 0.9rem;
+    column-gap: 2cqw;
+    row-gap: 1.6cqw;
     align-items: stretch;
   }
 
@@ -132,75 +181,47 @@
     grid-area: info;
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: var(--home-card-gap);
   }
 
-  /* The cards share the row's height between them. Their type grows with the window's height (a short window gets the smallest
-     size that still reads well, a tall one a larger one), so the text fills the row rather than leaving it empty. */
+  /* The cards are 1 : 2 of what is left of the row after the 4% gap (so 32% : 4% : 64% of it). Their sizes are set outright
+     rather than by flex-grow, because a flex-basis of 0 still includes the padding and would skew the 1 : 2. */
   .home-info {
-    --home-fs: clamp(13.4px, calc(13.4px + (100vh - 720px) * 0.0211), 19px);
-    flex: 1 1 auto;
-    padding: 0.7rem 1rem;
+    flex: 0 0 calc((100% - var(--home-card-gap)) / 3);
+    min-height: 0;
   }
 
-  .home-info .home-panel-content {
-    gap: 0.45em;
-    font-size: var(--home-fs);
-  }
-
-  .home-info .home-panel-title {
-    font-size: 1.2em;
-  }
-
-  .home-info .home-panel-content p {
-    font-size: 1em;
-    line-height: 1.42;
+  .home-info + .home-info {
+    flex-basis: calc((100% - var(--home-card-gap)) * 2 / 3);
   }
 
   .home-cell-slot {
     grid-area: slot;
   }
 
-  /* The strip keeps its height whether or not a planet is chosen, so choosing never moves anything. */
   .home-slot {
-    min-height: var(--home-strip-h);
-    padding: 0.8rem 1.25rem;
-  }
-
-  .home-slot {
-    display: grid;
-    align-items: center;
+    min-height: 8.8cqw;
+    padding: 1rem 1.5rem;
   }
 
   .home-slot-content {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     column-gap: 1.5rem;
-    align-items: center;
-    align-content: center;
-  }
-
-  .home-slot-content .home-panel-title {
-    font-size: 1.05rem;
-  }
-
-  .home-slot-content p {
-    font-size: 0.88rem;
-    line-height: 1.42;
   }
 
   .home-slot .home-panel-link {
-    margin: 0;
+    justify-self: end;
+    margin-top: 0;
   }
 }
 
-@media (min-width: 900px) and (max-width: 1099px) {
-  /* A narrower strip wraps its text onto more lines. */
-  .home-page {
-    --home-strip-h: 10.25rem;
+/* A window too short for the full text (the row is then cut down to what is left of the window) or too narrow (the cards' 1 : 2 heights shrink with the width): the shorter text, never a smaller type. */
+@media (min-width: 1280px) and (max-height: 820px), (min-width: 1280px) and (max-width: 1359px) {
+  .home-full {
+    display: none;
   }
 
-  /* ...and the cards, in a narrower column, take a smaller type so they still fit the row. */
-  .home-info {
-    --home-fs: clamp(12.4px, calc(12.4px + (100vh - 720px) * 0.0211), 19px);
+  .home-short {
+    display: inline;
   }
 }

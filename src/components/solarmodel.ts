@@ -7,8 +7,12 @@ export const CX = 200
 export const CY = 200
 export const TILT = -18
 
-/** The drawing's box (SVG units): it starts at the leftmost orbit line, so the picture lines up with the text above it. */
-export const VIEW = { x: -6, y: 26, w: 412, h: 336 }
+/**
+ * The drawing's box (SVG units), tight round the outermost orbit (x from -4.8 to 404.8, y from 64.9 to 335.1) with about a
+ * unit of room: the picture fills its box and its left edge lines up with the text above it. Its aspect, 418:273 = 1.531,
+ * is the 49:32 of the page layout (a box 49% of the content width wide and 32% tall).
+ */
+export const VIEW = { x: -8, y: 63.5, w: 418, h: 273 }
 
 /** Tilted elliptical orbits (SVG units). */
 export const ORBITS = [
@@ -40,9 +44,6 @@ export const BODIES: Body[] = [
   { key: 'shopai', orbit: 3, phase: 75, period: 118, select: { id: 'shopai', label: 'ShopAI' } },
   { key: 'resume', orbit: 0, phase: 140, period: 52, select: { id: 'resume', label: 'Résumé' } },
 ]
-
-/** Choosing the chosen planet again lets go of it (and the card goes back to the hint). */
-export const toggle = (current: PlanetId | null, id: PlanetId): PlanetId | null => (current === id ? null : id)
 
 export const CHOSEN = BODIES.filter((b) => b.select)
 
@@ -115,7 +116,8 @@ export function layoutLabels(items: LabelInput[], was: number[], order: number[]
     let slot = current
     if (free(0, current === 0 ? 0 : 5)) slot = 0
     else if (!free(current)) slot = LABEL_SLOTS.findIndex((_, k) => free(k))
-    if (slot < 0) slot = current
+    // Nowhere free: still somewhere inside the drawing's box (where it is if that fits), even if it touches another label.
+    if (slot < 0) slot = fits(current) ? current : Math.max(0, LABEL_SLOTS.findIndex((_, k) => fits(k)))
     placed.push(boxFor(it, dx, slot))
     out[i] = { dx, slot }
   }
