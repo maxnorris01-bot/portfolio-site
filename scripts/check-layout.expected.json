@@ -3,5 +3,10 @@
     "1920x1080 SatPOV | the rows have 17.",
     "1920x1080 ShopAI | the rows have 17.",
     "1920x1080 Résumé | the rows have 17."
-  ]
+  ],
+  "reasons": {
+    "1920x1080 SatPOV | the rows have 17.": "Home at 1920x1080: the system is at its 0.32 Wc maximum and the cards are taller than their text needs; padding is 17.8px, over the 16px allowed",
+    "1920x1080 ShopAI | the rows have 17.": "same as above",
+    "1920x1080 Résumé | the rows have 17.": "same as above"
+  }
 }

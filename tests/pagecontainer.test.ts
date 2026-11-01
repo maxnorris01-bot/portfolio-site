@@ -26,9 +26,9 @@ test('every page with a header uses PageHeader (one h1 each; Home has its own ti
   assert.match(src('pages/Resume.tsx'), /<h1 className="resume-name">Max Norris<\/h1>/)
 })
 
-test('the header is the SatPOV header: its type scale, spacing and two-column breakpoint', () => {
+test('the header: the shared title token, its other type scale, spacing and two-column breakpoint', () => {
   const css = src('components/PageHeader.css')
-  assert.match(css, /\.page-title \{[^}]*font-size: clamp\(1\.45rem, 2\.1vw, 2rem\)[^}]*font-weight: 700[^}]*letter-spacing: -0\.02em/s)
+  assert.match(css, /\.page-title \{[^}]*font-size: var\(--text-title\)[^}]*font-weight: var\(--title-weight\)[^}]*letter-spacing: -0\.02em/s)
   assert.match(css, /\.page-lede \{[^}]*font-size: 0\.98rem[^}]*line-height: 1\.45/s)
   assert.match(css, /margin-bottom: clamp\(0\.6rem, 1vw, 0\.9rem\)/)
   assert.match(css, /@media \(min-width: 1100px\)/)
@@ -54,4 +54,17 @@ test('printing keeps the old container width, gutters and page padding', () => {
   const print = css.slice(css.indexOf('@media print'))
   assert.match(print, /\.page \{\s*padding: clamp\(2\.5rem, 6vw, 5rem\) 0/)
   assert.match(print, /\.page-container \{\s*max-width: 1120px;\s*padding-inline: clamp\(16px, 4vw, 40px\)/)
+})
+
+test('the Résumé and the 404 page are on the shared scale: tokens for the title, text, small text, card padding and block gaps; print keeps its own block', () => {
+  const css = src('pages/Resume.css')
+  assert.match(css, /\.resume-name \{\s*font-size: var\(--text-title\);\s*font-weight: var\(--title-weight\)/)
+  assert.match(css, /\.resume \{\s*font-size: var\(--text-card\)/)
+  assert.match(css, /\.resume-rail \{\s*padding: var\(--card-pad\)/)
+  assert.match(css, /\.resume-main \{[^}]*gap: var\(--space-5\)[^}]*padding: var\(--card-pad\)/s)
+  assert.match(css, /\.resume-job-dates \{[^}]*font-size: var\(--text-small\)/s)
+  assert.doesNotMatch(css, /font-size: [\d.]+rem/)
+  assert.match(src('pages/Resume.tsx'), /page-container is-scaled/)
+  assert.match(src('App.tsx'), /page-container is-scaled/)
+  assert.match(src('index.css'), /\.page-container\.is-scaled \{\s*container-type: inline-size/)
 })

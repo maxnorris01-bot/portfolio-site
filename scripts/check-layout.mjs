@@ -15,6 +15,10 @@
 //   planet card      heading row included: width fill >= 0.85, height fill >= 0.85, 45 to 80 characters a line
 //   system           the picture is at least 0.40 Wc wide (the ratio is printed)
 //   title            one or two lines, not clipped, inside the left column
+//   style mode      (node scripts/check-layout.mjs --style, or as part of the default run; --home runs only the Home checks above)
+//                   for every page and state, at 1280x720, 1440x900, 1920x1080 and 390x844: h1 size and weight, body size, no text under
+//                   14px, card padding, paragraph line lengths (desktop) and no sideways scroll, all against the tokens' computed values;
+//                   one side-by-side table is printed. A page whose `onScale` flag below is false is measured and printed, not asserted.
 // Known, explained misses are listed in scripts/check-layout.expected.json and do not fail the run.
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -28,7 +32,9 @@ const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
 const TARGET = { hFill: 0.85, vFill: 0.8, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4, rowPad: 16 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
 const expected = new Set(JSON.parse(readFileSync(expectedFile, 'utf8')).misses)
+const expectedReasons = JSON.parse(readFileSync(expectedFile, 'utf8')).reasons ?? {}
 const outDir = process.env.CHECK_LAYOUT_OUT
+const MODE = process.argv.includes('--style') ? 'style' : process.argv.includes('--home') ? 'home' : 'all'
 
 // Playwright is not a dependency of this repo: use the one installed here, or the one in PLAYWRIGHT_DIR (a folder whose node_modules has it).
 let chromium
@@ -130,6 +136,128 @@ function measure() {
   return { left, slot, g }
 }
 
+// ---- style mode: every page against the shared tokens ----
+
+// Each page and state: how to open it and where its h1, body text, card shells and paragraphs are. `onScale` is true once the page is on the
+// shared scale (its rules are then asserted); `body` is which token its body text uses.
+const STYLE_PAGES = [
+  { name: 'Home (SatPOV)', path: '/', planet: 'SatPOV', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
+  { name: 'Home (ShopAI)', path: '/', planet: 'ShopAI', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
+  { name: 'Home (Résumé)', path: '/', planet: 'Résumé', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
+  { name: 'Résumé', path: '/resume', ready: '.resume-name', h1: '.resume-name', body: '.resume-job-bullets li', bodyToken: 'card', cards: '.resume-rail, .resume-main, .resume-project-card', paras: '.resume-job-bullets li, .resume-project-card p', onScale: true },
+  { name: 'SatPOV', path: '/satellite-conjunction-screening', ready: '.page-title', wait: 3500, h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.sat-risk-card', paras: '.page-lede, .sat-note', onScale: false },
+  { name: 'SatPOV (credits)', path: '/satellite-conjunction-screening', ready: '#sat-credits', wait: 3500, scroll: '#sat-credits', h1: '.page-title', body: '.sat-credits-body p', bodyToken: 'card', cards: '.globe-history-event', paras: '.sat-credits-body p, .globe-history-lede', onScale: false },
+  { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '.page-lede, .shop-about p', onScale: false },
+  { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.shop-headline', bodyToken: 'body', cards: '.shop-card', paras: '.shop-headline, .shop-card-meta', onScale: false },
+  { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
+]
+
+// Runs in the page. Reads the tokens' computed values from probes inside the page container, then the page's own styles.
+function measureStyle({ h1, body, cards, paras, scroll }) {
+  const px = (v) => parseFloat(v) || 0
+  const vis = (e) => e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'
+  const first = (sel) => (sel ? [...document.querySelectorAll(sel)].find(vis) : null)
+  const host = document.querySelector('main .page-container')
+  const probe = (css, prop) => {
+    const el = document.createElement('div')
+    el.style.cssText = `position:absolute;visibility:hidden;${css}`
+    host.appendChild(el)
+    const v = getComputedStyle(el)[prop]
+    el.remove()
+    return px(v)
+  }
+  const tokens = {
+    title: probe('font-size:var(--text-title)', 'fontSize'),
+    pad: probe('padding:var(--card-pad)', 'paddingLeft'),
+    body: probe('font-size:var(--text-body)', 'fontSize'),
+    card: probe('font-size:var(--text-card)', 'fontSize'),
+    small: probe('font-size:var(--text-small)', 'fontSize'),
+  }
+  const h1El = first(h1), h1cs = h1El ? getComputedStyle(h1El) : null
+  const bodyEl = first(body)
+  // Every piece of text in <main> under 14px (svg text is the Home drawing's labels).
+  const small = new Map()
+  let minFont = Infinity
+  const walker = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const el = n.parentElement
+    if (!n.textContent.trim() || !vis(el) || el.closest('svg, .visually-hidden, script, style')) continue
+    const fs = px(getComputedStyle(el).fontSize)
+    minFont = Math.min(minFont, fs)
+    if (fs < 13.99) { const k = `${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/)[0] : ''}`; small.set(k, Math.round(fs * 100) / 100) }
+  }
+  const pads = [...(cards ? document.querySelectorAll(cards) : [])].filter(vis).map((e) => { const cs = getComputedStyle(e); return { k: `${e.tagName.toLowerCase()}.${String(e.className).trim().split(/\s+/)[0]}`, p: [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft].map(px) } })
+  // Characters per line of each paragraph (every line but its last), from the character boxes.
+  const cpl = []
+  for (const el of paras ? [...document.querySelectorAll(paras)].filter(vis) : []) {
+    const lines = []
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    const range = document.createRange()
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      if (!n.textContent.trim() || !vis(n.parentElement)) continue
+      for (let i = 0; i < n.textContent.length; i++) {
+        range.setStart(n, i); range.setEnd(n, i + 1)
+        const r = range.getClientRects()[0]
+        if (!r) continue
+        const cur = lines[lines.length - 1]
+        if (!cur || Math.abs(r.top - cur.top) > r.height / 2) lines.push({ top: r.top, text: '' })
+        lines[lines.length - 1].text += n.textContent[i]
+      }
+    }
+    lines.slice(0, -1).forEach((l) => cpl.push(l.text.trim().length))
+  }
+  return {
+    h1: h1cs ? { size: px(h1cs.fontSize), weight: h1cs.fontWeight } : null,
+    body: bodyEl ? px(getComputedStyle(bodyEl).fontSize) : null,
+    tokens, minFont, small: [...small], pads, cpl: cpl.length ? [Math.min(...cpl), Math.max(...cpl)] : null,
+    hscroll: document.documentElement.scrollWidth - innerWidth, scaled: host.classList.contains('is-scaled') || !!document.querySelector('.home-page'),
+  }
+}
+
+async function runStyle(browser, base) {
+  const STYLE_SIZES = [[1280, 720], [1440, 900], [1920, 1080], [390, 844]]
+  const rows = []
+  for (const cfg of STYLE_PAGES) {
+    for (const [w, h] of STYLE_SIZES) {
+      const page = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
+      await page.goto(base + cfg.path.slice(1), { waitUntil: 'load' })
+      await page.waitForSelector(cfg.ready, { timeout: 30000 })
+      if (cfg.planet) { await page.locator(`.solar-planet[aria-label="${cfg.planet}"]`).click({ force: true }); await page.mouse.move(2, 2) }
+      await page.waitForTimeout(cfg.wait ?? 500)
+      if (cfg.scroll) { await page.evaluate((s) => document.querySelector(s)?.scrollIntoView(), cfg.scroll); await page.waitForTimeout(300) }
+      const m = await page.evaluate(measureStyle, cfg)
+      if (outDir && w === 1440) await page.screenshot({ path: `${outDir}/style-${cfg.name.replace(/[^A-Za-z0-9]+/g, '-')}-${w}x${h}.png` })
+      await page.context().close()
+      const t = m.tokens, bad = []
+      const desktop = w >= 1280
+      if (!m.h1 || Math.abs(m.h1.size - t.title) > 0.1 || m.h1.weight !== '700') bad.push(`h1 is ${m.h1 ? `${m.h1.size}px/${m.h1.weight}` : 'missing'}, the title token is ${t.title}px/700`)
+      if (cfg.body) {
+        const want = cfg.bodyToken === 'card' ? t.card : t.body
+        if (m.body === null || Math.abs(m.body - want) > 0.5) bad.push(`body text is ${m.body}px, the ${cfg.bodyToken} token is ${want}px`)
+      }
+      if (m.small.length) bad.push(`text under 14px: ${m.small.map(([k, v]) => `${k} ${v}px`).join(', ')}`)
+      for (const c of m.pads) if (c.p.some((v) => Math.abs(v - t.pad) > 0.5)) bad.push(`card padding of ${c.k} is ${c.p.join(' ')}, the card-pad token is ${t.pad}px`)
+      if (desktop && m.cpl && (m.cpl[0] < TARGET.cplMin || m.cpl[1] > TARGET.cplMax)) bad.push(`paragraph lines of ${m.cpl[0]}-${m.cpl[1]} characters (45-80)`)
+      if (m.hscroll > 1) bad.push(`the page scrolls sideways by ${m.hscroll}px`)
+      rows.push({ cfg, w, h, m, bad })
+    }
+  }
+  console.log('\n=== style: every page against the tokens ===')
+  console.log('page'.padEnd(18) + 'window'.padEnd(11) + 'h1 px'.padEnd(10) + 'body px'.padEnd(9) + 'min text'.padEnd(10) + 'card padding'.padEnd(26) + 'chars/line'.padEnd(11) + 'status')
+  for (const { cfg, w, h, m, bad } of rows) {
+    const pad = m.pads.length ? [...new Set(m.pads.map((c) => c.p.every((v) => v === c.p[0]) ? String(+c.p[0].toFixed(1)) : c.p.map((v) => +v.toFixed(1)).join('/')))].join(', ') : '-'
+    console.log(cfg.name.padEnd(18) + `${w}x${h}`.padEnd(11) + String(m.h1 ? +m.h1.size.toFixed(1) : '-').padEnd(10) + String(m.body === null ? '-' : +m.body.toFixed(2)).padEnd(9) + String(+m.minFont.toFixed(1)).padEnd(10) + pad.padEnd(26) + (m.cpl ? `${m.cpl[0]}-${m.cpl[1]}` : '-').padEnd(11) + (bad.length ? (cfg.onScale ? 'MISS' : 'not on the scale yet') : 'ok'))
+    if (!cfg.onScale) continue
+    for (const b of bad) {
+      const key = `${w}x${h} ${cfg.name} | ${b}`
+      const hit = [...expected].find((e) => key.startsWith(e))
+      if (hit) reasonsUsed.add(hit)
+      else misses.push(key)
+    }
+  }
+}
+
+const reasonsUsed = new Set()
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'silent' })
 await server.listen()
 const url = `http://127.0.0.1:${server.httpServer.address().port}/`
@@ -137,7 +265,7 @@ const browser = await chromium.launch({ headless: true, args: ['--use-angle=swif
 const misses = []
 const fmt = (n, d = 3) => n.toFixed(d)
 try {
-  for (const [w, h] of SIZES) {
+  for (const [w, h] of MODE === 'style' ? [] : SIZES) {
     const page = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
     await page.goto(url, { waitUntil: 'load' })
     await page.waitForSelector('.home-slot-live')
@@ -161,7 +289,8 @@ try {
       if (!sideBySide) {
         sideBySide = true
         console.log(`   body text, side by side:  Home ${t.body}px | ${Object.entries(others).map(([k, v]) => `${k} ${v}px`).join(' | ')}`)
-        for (const [k, v] of Object.entries(others)) if (Math.abs(t.body - v) > 1.001) misses.push(`${w}x${h} | Home body ${t.body}px is not within 1px of ${k}'s ${v}px`)
+        // A page's text is the body token or the card token (card text), so the match is to either of Home's.
+        for (const [k, v] of Object.entries(others)) if (Math.abs(t.body - v) > 1.001 && Math.abs(t.card - v) > 1.001) misses.push(`${w}x${h} | ${k}'s text ${v}px is not within 1px of Home's body ${t.body}px or card text ${t.card}px`)
         console.log(`   Home type: body ${t.body} (token ${t.tokens.body}) | card text ${t.card} (token ${t.tokens.card}) | label ${t.label}/${t.labelWeight} (token ${t.tokens.label}) | planet card text ${t.slotText}, name ${t.slotLabel}, button ${t.button} (token ${t.tokens.small}) | title ${t.title}/${t.titleWeight} | line-height ${t.lineHeight.toFixed(2)}`)
       }
       console.log(`-- ${planet}   Wc ${g.Wc.toFixed(0)}  columns ${fmt(g.left)} / ${fmt(g.gutter)} / ${fmt(g.right)}  system ${fmt(g.system)} Wc wide (${g.systemH.toFixed(0)}px tall${g.systemFull ? '' : ', shortened by the window'})  page ${g.scroll}/${g.vh}  title ${g.titleLines} line(s) ${g.titleFs}px  planet card ${g.cardH.toFixed(0)}px  row padding ${g.rowPad.toFixed(1)}px`)
@@ -209,6 +338,7 @@ try {
     }
     await page.context().close()
   }
+  if (MODE !== 'home') await runStyle(browser, url)
 } finally {
   await browser.close()
   await server.close()
@@ -218,4 +348,5 @@ if (misses.length) {
   for (const m of misses) console.error('  ' + m)
   process.exit(1)
 }
+for (const e of reasonsUsed) console.log(`known miss: ${e} (${expectedReasons[e] ?? 'no reason given'})`)
 console.log('\nAll layout targets met (apart from the known misses in scripts/check-layout.expected.json).')

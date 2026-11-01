@@ -41,8 +41,8 @@
 
 .page-title {
   margin: 0;
-  font-size: clamp(1.45rem, 2.1vw, 2rem);
-  font-weight: 700;
+  font-size: var(--text-title);
+  font-weight: var(--title-weight);
   letter-spacing: -0.02em;
 }
 
@@ -71,10 +71,6 @@
 }
 
 @media (max-width: 640px) {
-  .page-title {
-    font-size: 1.4rem;
-  }
-
   .page-sub-row .eyebrow {
     font-size: 0.68rem;
   }

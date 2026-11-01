@@ -158,6 +158,11 @@ a.card:hover {
   padding: clamp(1.25rem, 2vw, 2rem) 0 clamp(2rem, 5vw, 4rem);
 }
 
+/* A page on the shared scale: its container is a size container, so the tokens in cqw (title size, card padding) are fractions of the content width. */
+.page-container.is-scaled {
+  container-type: inline-size;
+}
+
 /* Which build is live: a quiet line at the very bottom of every page. */
 .site-footer {
   padding-bottom: 1.5rem;
