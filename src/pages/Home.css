@@ -2,51 +2,42 @@
   margin-top: 0.6rem;
 }
 
-/* The solar system on the left, the panel on the right; on a phone the system comes first. */
+/* The solar system on the left, its left edge on the header text's; the card beside it, level with its top. On a phone the system comes first. */
 .home-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  align-items: center;
+  align-items: start;
   gap: clamp(1.25rem, 3vw, 3rem);
-  margin-top: clamp(1rem, 3vw, 2.5rem);
+  margin-top: clamp(0.75rem, 2vw, 1.5rem);
 }
 
 @media (min-width: 900px) {
   .home-stage {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   }
 }
 
 .home-system {
   width: 100%;
-  max-width: 36rem;
-  justify-self: center;
+  max-width: 34rem;
+  justify-self: start;
+}
+
+@media (min-width: 900px) {
+  .home-system {
+    max-width: 44rem;
+  }
 }
 
 .home-panel {
   padding: clamp(1.25rem, 2.5vw, 2rem);
 }
 
-.home-panel-stack {
-  display: grid;
-}
-
-/* The same cell holds every panel's text (hidden, only to size the card) and the live one. */
-.home-panel-stack > * {
-  grid-area: 1 / 1;
-  min-width: 0;
-}
-
-.home-panel-sizer {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.home-panel-content,
-.home-panel-sizer {
+.home-panel-content {
   display: grid;
   align-content: start;
   gap: 0.9rem;
+  animation: home-panel-in 0.25s ease-out;
 }
 
 .home-panel-title {
@@ -54,15 +45,15 @@
   font-size: 1.35rem;
 }
 
-.home-panel-content p,
-.home-panel-sizer p {
+.home-panel-content p {
   margin: 0;
   color: var(--color-text-secondary);
   line-height: 1.6;
 }
 
-.home-panel-content {
-  animation: home-panel-in 0.25s ease-out;
+.home-panel-link {
+  justify-self: start;
+  margin-top: 0.4rem;
 }
 
 @keyframes home-panel-in {

@@ -1,17 +1,19 @@
 // The Home page's words, in one place. The Background text is the page's intro as it was.
-// DRAFT: the Site Info text below is a first draft, written from the README and the pages, for the owner to edit.
+// DRAFT: the Site Info, SatPOV, ShopAI and Résumé texts below are first drafts, written from the README and the pages, for the owner to edit.
 
 export const HOME_EYEBROW = 'Aerospace engineer · Applied AI & data'
 export const HOME_TITLE = 'Aerospace engineering, now pointed at data'
 export const HOME_CREDENTIALS = ['DoD Secret Clearance', 'Physics — Cal State Northridge']
 
-export type HomePanelId = 'background' | 'site'
+export type HomePanelId = 'background' | 'site' | 'satpov' | 'shopai' | 'resume'
 
 export type HomePanel = {
   id: HomePanelId
   /** The planet's label and the panel's heading. */
   label: string
   paragraphs: string[]
+  /** A button-styled link to a page; set on the three planets that lead somewhere. */
+  link?: { to: string; text: string }
 }
 
 export const HOME_PANELS: HomePanel[] = [
@@ -30,5 +32,32 @@ export const HOME_PANELS: HomePanel[] = [
       'SatPOV is a satellite point-of-view tool: ride along with any tracked satellite and see what it sees, alongside a daily screening of public tracking data for close approaches. ShopAI is a shopping search: describe a product, rate the results, and use Shop Again to get a new batch based on your ratings.',
       'The site is built with Vite, React 19 and TypeScript, and deployed on Vercel from git. The satellite view is drawn with three.js. The ShopAI backend is a Python service on Fly with a Postgres database.',
     ],
+  },
+  {
+    id: 'satpov',
+    label: 'SatPOV',
+    paragraphs: [
+      "SatPOV, the Satellite Point-of-View Tool, shows the tracked satellites around the Earth on a 3D globe and lets you ride along with any one of them to see what it sees: Earth below, the Sun, Moon and planets, and millions of real stars from ESA's Hipparcos and Gaia catalogues.",
+      'The same page shows a daily screening of public tracking data for close approaches between satellites, which uses real orbital mechanics and makes zero LLM calls.',
+    ],
+    link: { to: '/satellite-conjunction-screening', text: 'Open SatPOV' },
+  },
+  {
+    id: 'shopai',
+    label: 'ShopAI',
+    paragraphs: [
+      'ShopAI is a shopping search. Describe a product in plain words and it searches Google Shopping and ranks the matches with an AI model.',
+      'Rate results with Love, Like or Dislike, add a comment if you like, then press Shop Again for a new batch based on your ratings. Loved and liked items are kept in a Saved list.',
+    ],
+    link: { to: '/shop', text: 'Open ShopAI' },
+  },
+  {
+    id: 'resume',
+    label: 'Résumé',
+    paragraphs: [
+      'My Résumé: Senior Mass Properties Engineer at Joby Aviation and Mass Properties Engineer at Northrop Grumman, a DoD Secret clearance, and a physics degree from Cal State Northridge.',
+      'It also lists my skills (Python, SciPy, SGP4, orbital mechanics, data pipelines and mass properties) and the applied AI project on this site.',
+    ],
+    link: { to: '/resume', text: 'Open Résumé' },
   },
 ]
