@@ -2,19 +2,18 @@
   margin-top: 0.6rem;
 }
 
-/* The solar system on the left, its left edge on the header text's; the card beside it, level with its top. On a phone the system comes first. */
+/* Phone: one column in reading order (Background, Site Info, the system, the planet's card). From 900px the system fills the
+   left column, level with the top of the right one, where Background, Site Info and the planet's card stack. */
 .home-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: clamp(1.25rem, 3vw, 3rem);
+  gap: clamp(1rem, 2vw, 1.5rem);
   margin-top: clamp(0.75rem, 2vw, 1.5rem);
 }
 
-@media (min-width: 900px) {
-  .home-stage {
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  }
+.home-cell {
+  min-width: 0;
 }
 
 .home-system {
@@ -24,8 +23,31 @@
 }
 
 @media (min-width: 900px) {
+  .home-stage {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'system background'
+      'system site'
+      'system slot';
+    grid-template-rows: auto auto 1fr;
+    column-gap: clamp(1.25rem, 3vw, 3rem);
+  }
+
   .home-system {
+    grid-area: system;
     max-width: 44rem;
+  }
+
+  .home-cell-background {
+    grid-area: background;
+  }
+
+  .home-cell-site {
+    grid-area: site;
+  }
+
+  .home-cell-slot {
+    grid-area: slot;
   }
 }
 
@@ -38,6 +60,15 @@
   align-content: start;
   gap: 0.9rem;
   animation: home-panel-in 0.25s ease-out;
+}
+
+/* Always-visible cards do not fade in. */
+.home-panel-content.is-still {
+  animation: none;
+}
+
+.home-hint {
+  color: var(--color-text-muted);
 }
 
 .home-panel-title {

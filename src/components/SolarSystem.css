@@ -41,7 +41,8 @@
   fill: none;
   stroke: var(--color-accent);
   stroke-width: 1;
-  opacity: 0.5;
+  stroke-dasharray: 2.5 2.5;
+  opacity: 0.8;
 }
 
 .solar-flip {
@@ -58,12 +59,6 @@
 
 .solar-flip.is-slot-3 {
   transform: translateY(72px);
-}
-
-/* Planets that lead to a page (their card has an Open link) carry a dashed ring; the others a solid one. */
-.solar-planet.is-go .solar-ring {
-  stroke-dasharray: 2.5 2.5;
-  opacity: 0.8;
 }
 
 .solar-glow {

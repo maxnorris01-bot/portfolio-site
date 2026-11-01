@@ -1,22 +1,44 @@
 import { Link } from 'react-router-dom'
-import type { HomePanel } from '../content/home'
+import { HOME_HINT, HOME_SLOT_LABEL, type InfoPanel, type PlanetPanel } from '../content/home'
 
-/** The Home page's card: the chosen planet's heading and text, and a link to its page when it has one. */
-export default function HomePanelCard({ panel }: { panel: HomePanel }) {
+/** Background or Site Info: plain content, always on the page. */
+export function HomeInfoCard({ panel }: { panel: InfoPanel }) {
+  const titleId = `home-${panel.id}-title`
   return (
-    <section className="card home-panel" aria-labelledby="home-panel-title">
+    <section className="card home-panel home-info" aria-labelledby={titleId}>
+      <div className="home-panel-content is-still">
+        <h2 id={titleId} className="home-panel-title">
+          {panel.label}
+        </h2>
+        {panel.paragraphs.map((t) => (
+          <p key={t}>{t}</p>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * The card for the chosen planet, with a link to its page; a hint while no planet is chosen. A labelled region that
+ * announces its changes politely.
+ */
+export function HomePlanetSlot({ panel }: { panel: PlanetPanel | null }) {
+  return (
+    <section className="card home-panel home-slot" aria-label={HOME_SLOT_LABEL}>
       <div aria-live="polite" aria-atomic="true">
-        <div key={panel.id} className="home-panel-content">
-          <h2 id="home-panel-title" className="home-panel-title">
-            {panel.label}
-          </h2>
-          {panel.paragraphs.map((t) => (
-            <p key={t}>{t}</p>
-          ))}
-          {panel.link && (
-            <Link to={panel.link.to} className="btn btn-primary home-panel-link">
-              {panel.link.text}
-            </Link>
+        <div key={panel?.id ?? 'hint'} className="home-panel-content">
+          {panel ? (
+            <>
+              <h2 className="home-panel-title">{panel.label}</h2>
+              {panel.paragraphs.map((t) => (
+                <p key={t}>{t}</p>
+              ))}
+              <Link to={panel.link.to} className="btn btn-primary home-panel-link">
+                {panel.link.text}
+              </Link>
+            </>
+          ) : (
+            <p className="home-hint">{HOME_HINT}</p>
           )}
         </div>
       </div>

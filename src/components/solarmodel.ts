@@ -1,7 +1,7 @@
 // The solar system's geometry and timing, apart from the drawing (so it can be tested).
-import type { HomePanelId } from '../content/home.ts'
+import type { PlanetId } from '../content/home.ts'
 
-export type PlanetId = HomePanelId
+export type { PlanetId }
 
 export const CX = 200
 export const CY = 200
@@ -25,11 +25,8 @@ export type Body = {
   phase: number
   /** Seconds for one trip round its orbit. */
   period: number
-  /**
-   * Set for the five planets you can choose, in reading order. `go` planets lead to a page (their card has a link),
-   * `info` planets only show text.
-   */
-  select?: { id: PlanetId; label: string; kind: 'info' | 'go' }
+  /** Set for the three planets you can choose, in reading order. */
+  select?: { id: PlanetId; label: string }
 }
 
 export const BODIES: Body[] = [
@@ -37,12 +34,15 @@ export const BODIES: Body[] = [
   { key: 'b', orbit: 2, phase: 105, period: 64 },
   { key: 'c', orbit: 3, phase: 335, period: 70 },
   { key: 'd', orbit: 0, phase: 330, period: 61 },
-  { key: 'background', orbit: 1, phase: 20, period: 76, select: { id: 'background', label: 'Background', kind: 'info' } },
-  { key: 'site', orbit: 3, phase: 215, period: 104, select: { id: 'site', label: 'Site Info', kind: 'info' } },
-  { key: 'satpov', orbit: 2, phase: 290, period: 88, select: { id: 'satpov', label: 'SatPOV', kind: 'go' } },
-  { key: 'shopai', orbit: 3, phase: 75, period: 118, select: { id: 'shopai', label: 'ShopAI', kind: 'go' } },
-  { key: 'resume', orbit: 0, phase: 140, period: 52, select: { id: 'resume', label: 'Résumé', kind: 'go' } },
+  { key: 'e', orbit: 1, phase: 20, period: 76 },
+  { key: 'f', orbit: 3, phase: 215, period: 104 },
+  { key: 'satpov', orbit: 2, phase: 290, period: 88, select: { id: 'satpov', label: 'SatPOV' } },
+  { key: 'shopai', orbit: 3, phase: 75, period: 118, select: { id: 'shopai', label: 'ShopAI' } },
+  { key: 'resume', orbit: 0, phase: 140, period: 52, select: { id: 'resume', label: 'Résumé' } },
 ]
+
+/** Choosing the chosen planet again lets go of it (and the card goes back to the hint). */
+export const toggle = (current: PlanetId | null, id: PlanetId): PlanetId | null => (current === id ? null : id)
 
 export const CHOSEN = BODIES.filter((b) => b.select)
 

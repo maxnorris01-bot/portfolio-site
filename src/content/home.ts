@@ -1,22 +1,31 @@
 // The Home page's words, in one place. The Background text is the page's intro as it was.
 // DRAFT: the Site Info, SatPOV, ShopAI and Résumé texts below are first drafts, written from the README and the pages, for the owner to edit.
+// Background and Site Info are always on the page; the planets (SatPOV, ShopAI, Résumé) each open a card under them.
 
 export const HOME_EYEBROW = 'Aerospace engineer · Applied AI & data'
 export const HOME_TITLE = 'Aerospace engineering, now pointed at data'
 export const HOME_CREDENTIALS = ['DoD Secret Clearance', 'Physics — Cal State Northridge']
 
-export type HomePanelId = 'background' | 'site' | 'satpov' | 'shopai' | 'resume'
+export type InfoPanelId = 'background' | 'site'
+export type PlanetId = 'satpov' | 'shopai' | 'resume'
 
-export type HomePanel = {
-  id: HomePanelId
-  /** The planet's label and the panel's heading. */
+type PanelText = {
+  /** The heading (for a planet, also its label and accessible name). */
   label: string
   paragraphs: string[]
-  /** A button-styled link to a page; set on the three planets that lead somewhere. */
-  link?: { to: string; text: string }
 }
 
-export const HOME_PANELS: HomePanel[] = [
+/** Always on the page, in this order. */
+export type InfoPanel = PanelText & { id: InfoPanelId }
+
+/** One card per planet: its text and a button-styled link to its page. */
+export type PlanetPanel = PanelText & { id: PlanetId; link: { to: string; text: string } }
+
+/** Shown in the planet slot until a planet is chosen (and again when it is chosen a second time). */
+export const HOME_HINT = 'Select a planet to explore the site.'
+export const HOME_SLOT_LABEL = 'Explore the site'
+
+export const HOME_INFO: InfoPanel[] = [
   {
     id: 'background',
     label: 'Background',
@@ -29,10 +38,13 @@ export const HOME_PANELS: HomePanel[] = [
     label: 'Site Info',
     paragraphs: [
       'This site is a portfolio of applied AI and data projects. It has two working tools and my Résumé.',
-      'SatPOV is a satellite point-of-view tool: ride along with any tracked satellite and see what it sees, alongside a daily screening of public tracking data for close approaches. ShopAI is a shopping search: describe a product, rate the results, and use Shop Again to get a new batch based on your ratings.',
+      'Select a planet in the solar system to explore each part of the site.',
       'The site is built with Vite, React 19 and TypeScript, and deployed on Vercel from git. The satellite view is drawn with three.js. The ShopAI backend is a Python service on Fly with a Postgres database.',
     ],
   },
+]
+
+export const HOME_PLANETS: PlanetPanel[] = [
   {
     id: 'satpov',
     label: 'SatPOV',

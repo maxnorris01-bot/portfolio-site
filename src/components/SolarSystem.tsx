@@ -5,11 +5,12 @@ import './SolarSystem.css'
 export type { PlanetId }
 
 /**
- * A small solar system: a sun, tilted orbits and planets that circle slowly. Five planets can be chosen (they are
+ * A small solar system: a sun, tilted orbits and planets that circle slowly. Three planets can be chosen (they are
  * buttons, with a label that follows them, nudged aside or below so labels do not overlap); the rest are decoration. The planets stand still while the pointer is
  * over the picture or a planet has keyboard focus, while the tab is hidden, and always under reduced motion.
  */
-export default function SolarSystem({ selected, onSelect }: { selected: PlanetId; onSelect: (id: PlanetId) => void }) {
+export default function SolarSystem({ selected, onSelect }: { selected: PlanetId | null; onSelect: (id: PlanetId) => void }) {
+  const svgRef = useRef<SVGSVGElement>(null)
   const refs = useRef(new Map<string, SVGGElement>())
   const texts = useRef(new Map<string, SVGTextElement>())
   const flips = useRef(new Map<string, SVGGElement>())
@@ -69,7 +70,7 @@ export default function SolarSystem({ selected, onSelect }: { selected: PlanetId
 
     draw()
     sync()
-    const root = refs.current.get('background')?.ownerSVGElement
+    const root = svgRef.current
     const enter = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return // a touch has no "hover": it would freeze the picture
       flags.hover = true
@@ -118,7 +119,7 @@ export default function SolarSystem({ selected, onSelect }: { selected: PlanetId
   }
 
   return (
-    <svg className="solar" viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} role="group" aria-label="Choose a planet to read about">
+    <svg ref={svgRef} className="solar" viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`} role="group" aria-label="Choose a planet to read about">
       <g aria-hidden="true">
         {ORBITS.map(({ rx, ry }, i) => (
           <ellipse key={i} className="solar-orbit" cx={CX} cy={CY} rx={rx} ry={ry} transform={`rotate(${TILT} ${CX} ${CY})`} />
@@ -133,7 +134,7 @@ export default function SolarSystem({ selected, onSelect }: { selected: PlanetId
               if (el) refs.current.set(b.key, el)
               else refs.current.delete(b.key)
             }}
-            className={`solar-planet${b.select.kind === 'go' ? ' is-go' : ''}${selected === b.select.id ? ' is-selected' : ''}`}
+            className={`solar-planet${selected === b.select.id ? ' is-selected' : ''}`}
             role="button"
             tabIndex={0}
             aria-pressed={selected === b.select.id}
