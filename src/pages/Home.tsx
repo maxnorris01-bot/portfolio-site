@@ -1,54 +1,45 @@
 import { useState } from 'react'
+import { HomeInfoCard, HomePlanetSlot } from '../components/HomePanel'
 import PageHeader from '../components/PageHeader'
-import SolarSystem, { type PlanetId } from '../components/SolarSystem'
-import { HOME_CREDENTIALS, HOME_EYEBROW, HOME_PANELS, HOME_TITLE } from '../content/home'
+import SolarSystem from '../components/SolarSystem'
+import { HOME_CREDENTIALS, HOME_DEFAULT_PLANET, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../content/home'
 import './Home.css'
 
 export default function Home() {
-  const [selected, setSelected] = useState<PlanetId>('background')
-  const panel = HOME_PANELS.find((p) => p.id === selected) ?? HOME_PANELS[0]
+  // A planet is chosen from the start, so the strip is never empty; choosing the chosen one again does nothing.
+  const [selected, setSelected] = useState<PlanetId>(HOME_DEFAULT_PLANET)
+  const panel = HOME_PLANETS.find((p) => p.id === selected) ?? HOME_PLANETS[0]
 
   return (
-    <main className="page">
+    <main className="page home-page">
       <div className="page-container">
-        <PageHeader eyebrow={HOME_EYEBROW} title={HOME_TITLE}>
-          <ul className="chip-list home-credentials" aria-label="Credentials">
-            {HOME_CREDENTIALS.map((c) => (
-              <li key={c} className="chip">
-                {c}
-              </li>
-            ))}
-          </ul>
-        </PageHeader>
+        <PageHeader
+          title={HOME_TITLE}
+          titleMeta={
+            <ul className="chip-list home-tags" aria-label="Credentials">
+              {HOME_CREDENTIALS.map((c) => (
+                <li key={c} className="chip">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          }
+        />
 
-        <div className="home-stage">
+        {/* In reading order: the two cards, the system, then the planet's strip. From 1280px, row 1 is the system (49% of the content width)
+            beside the cards (49%), 2% apart and 32% of the width tall; the strip is full width under it. */}
+        <div className="home-grid">
+          <div className="home-info-col">
+            {HOME_INFO.map((p) => (
+              <HomeInfoCard key={p.id} panel={p} />
+            ))}
+          </div>
           <div className="home-system">
             <SolarSystem selected={selected} onSelect={setSelected} />
           </div>
-
-          <section className="card home-panel" aria-labelledby="home-panel-title">
-            {/* Every panel is laid out, the others hidden, so the card keeps the height of the longest and nothing jumps when the choice changes. */}
-            <div className="home-panel-stack">
-              {HOME_PANELS.map((p) => (
-                <div key={p.id} className="home-panel-sizer" aria-hidden="true">
-                  <h2 className="home-panel-title">{p.label}</h2>
-                  {p.paragraphs.map((t) => (
-                    <p key={t}>{t}</p>
-                  ))}
-                </div>
-              ))}
-              <div className="home-panel-live" aria-live="polite" aria-atomic="true">
-                <div key={panel.id} className="home-panel-content">
-                  <h2 id="home-panel-title" className="home-panel-title">
-                    {panel.label}
-                  </h2>
-                  {panel.paragraphs.map((t) => (
-                    <p key={t}>{t}</p>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
+          <div className="home-cell-slot">
+            <HomePlanetSlot panel={panel} />
+          </div>
         </div>
       </div>
     </main>

@@ -1,64 +1,135 @@
-.home-credentials {
-  margin-top: 0.6rem;
+/* The two tags sit beside the title, as on the SatPOV page. */
+.home-tags {
+  flex: 1 1 auto;
+  margin: 0;
 }
 
-/* The solar system on the left, the panel on the right; on a phone the system comes first. */
-.home-stage {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: center;
-  gap: clamp(1.25rem, 3vw, 3rem);
-  margin-top: clamp(1rem, 3vw, 2.5rem);
+.home-tags .chip {
+  font-size: 0.74rem;
 }
 
-@media (min-width: 900px) {
-  .home-stage {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+@media (max-width: 640px) {
+  .home-tags {
+    order: 3;
+    width: 100%;
+    gap: 0.35rem;
   }
 }
 
-.home-system {
-  width: 100%;
-  max-width: 36rem;
-  justify-self: center;
+/*
+ * Type fits its box. Each card, and each text zone of the strip, is a size container (cqw is 1% of its inner width), and its
+ * text is sized from that width so a line holds about 70 characters and nearly reaches the box's edge: the measure comes from
+ * the type size, never from a narrower column inside a wider box. Never below 16px, and the cap keeps lines at 80 or fewer.
+ */
+.home-page {
+  --home-fs: clamp(16px, 2.7cqw, 22px);
+  --home-strip-fs: clamp(16px, 3cqw, 20px);
 }
 
 .home-panel {
-  padding: clamp(1.25rem, 2.5vw, 2rem);
-}
-
-.home-panel-stack {
-  display: grid;
-}
-
-/* The same cell holds every panel's text (hidden, only to size the card) and the live one. */
-.home-panel-stack > * {
-  grid-area: 1 / 1;
-  min-width: 0;
-}
-
-.home-panel-sizer {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.home-panel-content,
-.home-panel-sizer {
-  display: grid;
-  align-content: start;
-  gap: 0.9rem;
+  container-type: inline-size;
+  padding: 1rem 1.5rem;
 }
 
 .home-panel-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: calc(var(--home-fs) * 1.3);
+  line-height: 1.2;
 }
 
-.home-panel-content p,
-.home-panel-sizer p {
+.home-panel p,
+.home-row-text,
+.home-row-label {
   margin: 0;
+  font-size: var(--home-fs);
+  line-height: 1.45;
+}
+
+.home-panel p,
+.home-row-text {
   color: var(--color-text-secondary);
-  line-height: 1.6;
+}
+
+.home-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* The Background summary is a lead paragraph, a little larger than the rest. */
+.home-panel .home-lead {
+  font-size: min(calc(var(--home-fs) * 1.15), 24px);
+}
+
+.home-mid,
+.home-short {
+  display: none;
+}
+
+/* About this site: a narrow label column and the text, three rows that share the card's height, a hairline between them. */
+.home-rows {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: var(--rows-full);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-row {
+  display: grid;
+  grid-template-columns: 21% minmax(0, 1fr);
+  column-gap: 0.75rem;
+  align-items: center;
+  min-height: 0;
+}
+
+.home-row + .home-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.home-row-label {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+/* The strip: the heading with the first sentence, the second sentence, the link. */
+.home-slot {
+  display: grid;
+}
+
+.home-slot > * {
+  min-width: 0;
+}
+
+.home-slot-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+  align-content: center;
+}
+
+.home-zone {
+  container-type: inline-size;
+  display: grid;
+  align-content: center;
+  gap: 0.35em;
+  min-width: 0;
+}
+
+.home-zone p {
+  font-size: var(--home-strip-fs);
+}
+
+.home-zone .home-panel-title {
+  font-size: calc(var(--home-strip-fs) * 1.15);
+}
+
+.home-slot .home-panel-link {
+  justify-self: start;
+  margin-top: 0.5rem;
 }
 
 .home-panel-content {
@@ -74,5 +145,189 @@
 @media (prefers-reduced-motion: reduce) {
   .home-panel-content {
     animation: none;
+  }
+}
+
+/* Below 1280px: one column in reading order (the two cards, the system, the strip as a card). */
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.home-info-col {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.home-system {
+  width: 100%;
+  max-width: 34rem;
+  justify-self: start;
+}
+
+.home-cell-slot {
+  min-width: 0;
+}
+
+/* Stacked, the About rows are not given a height to share: each is as tall as its text; and the cards, as wide as the page, are
+   padded in so a line stays at about 75 characters (a 40rem text column) however wide the window. */
+@media (max-width: 1279px) {
+  .home-info,
+  .home-slot {
+    padding-inline: max(24px, calc((100cqw - 40rem) / 2));
+  }
+
+  .home-rows {
+    grid-template-rows: none;
+  }
+
+  .home-full,
+  .home-short {
+    display: none;
+  }
+
+  .home-mid {
+    display: inline;
+  }
+}
+
+/*
+ * From 1280px the layout is proportional (narrower windows get the stacked layout: at 16px the text does not fit cards that small)
+ * to the content width Wc (cqw below is 1% of it, the page container being a size container), measured from the owner's mockup:
+ *   row 1 is R = 32% of Wc tall: the system is a box 49% wide (its aspect, 418:273, is 49:32), the two cards a box 49% wide,
+ *   2% between them; the cards are 32% : 4% : 64% of R (heights 1 : gap : 2), the same top and bottom as the system;
+ *   the strip is 1.6% below row 1, as wide as the two together, and 8.8% tall at least (it is as tall as its tallest text).
+ * R is also at most the room the window has left under the nav, the title and above the strip (--home-room); when that binds,
+ * the system shrinks to R x its aspect and the cards take the width it frees: wider, not taller.
+ */
+.home-page .page-container {
+  container-type: inline-size;
+}
+
+.home-page .page-header {
+  margin-bottom: 2.4cqw;
+}
+
+@media (min-width: 1280px) {
+  .home-page {
+    --home-aspect: calc(418 / 273);
+    /* Nav, the gap under it, the title row, 2.4% under the title, 1.6% above the strip, the strip, a little at the foot. */
+    --home-strip-est: 7.8rem;
+    --home-room: calc(100vh - 74.1px - clamp(1.25rem, 2vw, 2rem) - 36px - 2.4cqw - 1.6cqw - var(--home-strip-est) - 1rem);
+    --home-r: max(300px, min(32cqw, var(--home-room)));
+    --home-card-gap: calc(var(--home-r) * 0.04);
+    padding-bottom: 1rem;
+  }
+
+  .home-grid {
+    grid-template-columns: min(49cqw, calc(var(--home-r) * var(--home-aspect))) minmax(0, 1fr);
+    grid-template-rows: minmax(var(--home-r), auto) auto;
+    grid-template-areas:
+      'system info'
+      'slot slot';
+    column-gap: 2cqw;
+    row-gap: 1.6cqw;
+    align-items: stretch;
+  }
+
+  .home-system {
+    grid-area: system;
+    max-width: none;
+  }
+
+  .home-info-col {
+    grid-area: info;
+    display: flex;
+    flex-direction: column;
+    gap: var(--home-card-gap);
+  }
+
+  /* The cards are 1 : 2 of what is left of the row after the 4% gap (so 32% : 4% : 64% of it). Their sizes are set outright
+     rather than by flex-grow, because a flex-basis of 0 still includes the padding and would skew the 1 : 2. */
+  .home-info {
+    flex: 0 0 calc((100% - var(--home-card-gap)) / 3);
+    min-height: 0;
+    padding: clamp(8px, 0.75cqw, 16px) clamp(20px, 2.2cqw, 36px);
+  }
+
+  .home-info + .home-info {
+    flex-basis: calc((100% - var(--home-card-gap)) * 2 / 3);
+  }
+
+  .home-cell-slot {
+    grid-area: slot;
+  }
+
+  .home-slot {
+    padding: clamp(12px, 1.2cqw, 20px) clamp(20px, 2.2cqw, 36px);
+  }
+
+  .home-slot-content {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    column-gap: clamp(2rem, 5.5cqw, 100px);
+  }
+
+  .home-slot .home-panel-link {
+    justify-self: end;
+    margin-top: 0;
+  }
+}
+
+/*
+ * The text is cut to fill its box at the type size the window gives it, in three sizes of window (from 1280px): the full text on a
+ * large one, `mid` on the windows between (1440x900), `short` on a short or narrow one (the row is then cut down to what is left
+ * of the window, or the cards' 1 : 2 heights shrink with the width): the right amount of text, never a smaller type.
+ */
+@media (min-width: 1280px) {
+  .home-full {
+    display: none;
+  }
+
+  .home-mid {
+    display: inline;
+  }
+
+  .home-rows {
+    grid-template-rows: var(--rows-mid);
+  }
+}
+
+@media (min-width: 1700px) and (min-height: 950px) {
+  .home-full {
+    display: inline;
+  }
+
+  .home-mid {
+    display: none;
+  }
+
+  .home-rows {
+    grid-template-rows: var(--rows-full);
+  }
+}
+
+@media (min-width: 1280px) and (max-height: 820px), (min-width: 1280px) and (max-width: 1359px) {
+  .home-full,
+  .home-mid {
+    display: none;
+  }
+
+  .home-short {
+    display: inline;
+  }
+
+  .home-rows {
+    grid-template-rows: var(--rows-short);
+  }
+
+  /* The cards are smaller here: the type is 16px, growing to 17px as the window gets taller from 720px, and the lead a little less large. */
+  .home-page {
+    --home-fs: clamp(16px, calc(16px + (100vh - 720px) * 0.0208), 17px);
+  }
+
+  .home-panel .home-lead {
+    font-size: min(calc(var(--home-fs) * 1.05), 24px);
   }
 }
