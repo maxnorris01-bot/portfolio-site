@@ -17,8 +17,10 @@ test('every page, the nav and the footer use the one page container; the old per
   assert.match(src('App.tsx'), /site-footer page-container/)
 })
 
-test('every page with a header uses PageHeader (one h1 each); the Resume keeps its masthead so printing is unchanged', () => {
-  for (const f of ['App.tsx', 'pages/Home.tsx', 'pages/SatelliteTool.tsx', 'shop/ShopView.tsx']) assert.match(src(f), /<PageHeader/, f)
+test('every page with a header uses PageHeader (one h1 each; Home has its own title block); the Resume keeps its masthead so printing is unchanged', () => {
+  for (const f of ['App.tsx', 'pages/SatelliteTool.tsx', 'shop/ShopView.tsx']) assert.match(src(f), /<PageHeader/, f)
+  // Home keeps its own title block (one visible h1 over the left column), not PageHeader.
+  assert.match(src('pages/Home.tsx'), /<h1 className="home-title">/)
   assert.match(src('components/PageHeader.tsx'), /<h1 className="page-title">/)
   for (const f of pages) assert.equal((src(f).match(/<h1[ >]/g) ?? []).length <= 1, true, f)
   assert.match(src('pages/Resume.tsx'), /<h1 className="resume-name">Max Norris<\/h1>/)
