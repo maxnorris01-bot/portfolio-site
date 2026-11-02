@@ -18,7 +18,9 @@ test('every page, the nav and the footer use the one page container; the old per
 })
 
 test('every page with a header uses PageHeader (one h1 each; Home has its own title block); the Resume keeps its masthead so printing is unchanged', () => {
-  for (const f of ['App.tsx', 'pages/SatelliteTool.tsx', 'shop/ShopView.tsx']) assert.match(src(f), /<PageHeader/, f)
+  for (const f of ['App.tsx', 'shop/ShopView.tsx']) assert.match(src(f), /<PageHeader/, f)
+  // SatPOV lays its title block out as the flat children of its left column, with the same title class.
+  assert.match(src('pages/SatelliteTool.tsx'), /<h1 className="page-title">/)
   // Home keeps its own title block (one visible h1 over the left column), not PageHeader.
   assert.match(src('pages/Home.tsx'), /<h1 className="home-title">/)
   assert.match(src('components/PageHeader.tsx'), /<h1 className="page-title">/)
@@ -91,8 +93,12 @@ test('SatPOV is on the shared scale: small text is the token (12px floor only fo
   assert.match(tool, /--sat-dense: 12px/)
   assert.match(tool, /\.sat-credits-body \{[^}]*font-size: var\(--text-card\)[^}]*column-count: 3/s)
   // Two columns 36 | 3 | 61 from 1280px (32 | 3 | 65 from 1600px); the page layout is a size container only there (a size container holds a fixed child: the CSS full screen).
-  assert.match(tool, /@media \(min-width: 1280px\) \{[^@]*\.sat-layout \{\s*display: grid;\s*grid-template-columns: minmax\(0, 36fr\) minmax\(0, 3fr\) minmax\(0, 61fr\);\s*align-items: stretch;\s*container-type: inline-size/)
-  assert.match(tool, /\.sat-screening \{\s*container-type: inline-size/)
+  assert.match(tool, /@media \(min-width: 1280px\) \{[^@]*\.sat-layout \{\s*display: grid;\s*grid-template-columns: minmax\(0, 36fr\) minmax\(0, 3fr\) minmax\(0, 61fr\);\s*grid-template-rows: minmax\(0, 1fr\) auto;\s*align-items: stretch;\s*container-type: inline-size/)
+  // The left column is one flex column: gaps grow to 32px, the tiles to 1.8x, the Risk rows to 44px, then one flexible gap.
+  assert.match(tool, /\.sat-gap \{\s*flex: 1000 1 0;\s*min-height: var\(--space-2\);\s*max-height: var\(--space-5\)/)
+  assert.match(tool, /\.sat-left \.sat-stats \{\s*flex: 250 1 auto;\s*max-height: calc\(1\.8 \*/)
+  assert.match(tool, /\.sat-left \.sat-risk-card \.sat-risk-row \{\s*flex: 1 1 auto;\s*max-height: 44px/)
+  assert.match(tool, /grid-template-rows: minmax\(0, 1fr\) auto/)
   assert.match(tool, /@media \(min-width: 1600px\) \{\s*\.sat-layout \{\s*grid-template-columns: minmax\(0, 32fr\) minmax\(0, 3fr\) minmax\(0, 65fr\)/)
   assert.match(tool, /min-height: calc\(100svh - 74\.1px - clamp\(1\.25rem, 2vw, 2rem\)\)/)
   assert.match(tool, /\.sat-step \{[^}]*padding: var\(--card-pad\)/s)

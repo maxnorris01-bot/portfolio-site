@@ -131,6 +131,8 @@ interface Props {
   /** Where the page wants "For context: the real record" and the full credits (its own sections below the tool); inline when absent. */
   contextSlot?: HTMLElement | null
   creditsSlot?: HTMLElement | null
+  /** Where the page wants the one-line sources (under the clock row, in the map's column, as a row of its own grid); in place when absent and in full screen. */
+  creditsLineSlot?: HTMLElement | null
 }
 
 export default function SatelliteGlobe({
@@ -145,6 +147,7 @@ export default function SatelliteGlobe({
   conjunctionsControl,
   contextSlot,
   creditsSlot,
+  creditsLineSlot,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -2349,7 +2352,7 @@ export default function SatelliteGlobe({
           </span>
         </p>
       </div>
-      {creditsLine}
+      {creditsLineSlot && !fullscreen.on ? createPortal(creditsLine, creditsLineSlot) : creditsLine}
       </div>
       </div>
       {(() => {

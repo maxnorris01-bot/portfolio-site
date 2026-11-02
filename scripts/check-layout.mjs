@@ -258,8 +258,23 @@ function measureExtra(kind) {
       // Across: where the text is; down: the block of numeral and caption (their line boxes).
       tileDx = Math.max(tileDx, Math.abs((t.l + t.r) / 2 - (r.l + r.r) / 2)); tileDy = Math.max(tileDy, Math.abs((top + bottom) / 2 - (r.t + r.b) / 2))
     }
+    // The left column's spare height S and where it went: the gaps (above their 8px floor), the tiles and the Risk card (above their
+    // natural heights), the one flexible gap.
+    const gapsAbs = [...document.querySelectorAll('.sat-gap:not(.sat-gap-flex)')].map((e) => R(e).h)
+    const gapSum = gapsAbs.reduce((a, v) => a + v, 0), gapBase = gapsAbs.length * 8
+    const flexGap = R(document.querySelector('.sat-gap-flex')).h
+    const tile = document.querySelector('.sat-stat'), tcs = getComputedStyle(tile), tr = R(tile)
+    const tileNatural = px(tcs.paddingTop) + px(tcs.paddingBottom) + px(tcs.borderTopWidth) + px(tcs.borderBottomWidth) + [...tile.children].reduce((a, k) => a + R(k).h, 0) + px(tcs.rowGap)
+    const card = document.querySelector('.sat-risk-card'), crs = getComputedStyle(card), cr = R(card)
+    const rowEls = [...card.querySelectorAll('.sat-risk-row')]
+    const rowNat = Math.max(...[...rowEls[0].children].map((k) => R(k).h))
+    const cardNatural = px(crs.paddingTop) + px(crs.paddingBottom) + px(crs.borderTopWidth) + px(crs.borderBottomWidth) + rowEls.length * rowNat + (rowEls.length - 1) * 4
+    const rowH = R(rowEls[0]).h
+    const S = (gapSum - gapBase) + (tr.h - tileNatural) + (cr.h - cardNatural) + flexGap
+    const spare = { S, gaps: gapSum - gapBase, gapEach: (gapSum - gapBase) / gapsAbs.length + 8, tiles: tr.h - tileNatural, tileRatio: tr.h / tileNatural, risk: cr.h - cardNatural, rowH, flexGap, tilePad: (px(tcs.paddingTop) + px(tcs.paddingBottom)) / tr.h, riskPad: (px(crs.paddingTop) + px(crs.paddingBottom)) / cr.h }
+    const lastText = (() => { const notes = [...document.querySelectorAll('.sat-left .sat-note')]; return textBox(notes[notes.length - 1]).b })()
     const pipe = document.querySelector('#sat-pipeline').getBoundingClientRect()
-    return { ...headerBlock(), Wc, left: L.w / Wc, gutter: (Rt.l - L.r) / Wc, right: Rt.w / Wc, boxDiff: L.b - Rt.b, leftBottom: leftText.b, creditsBottom: credits.b, mapW: stage.w / Wc, mapH: stage.h, mapInside: stage.r <= Rt.r + 0.5 && stage.l >= Rt.l - 0.5, controlsTop: modebar.t, numeral: px(getComputedStyle(dd[0]).fontSize), oneLine, tileDx, tileDy, page: doc.scrollHeight, vh: innerHeight, barBottom: bar.b, overlap: L.r > Rt.l + 0.5, pipeTop: pipe.top + scrollY, creditsGap: credits.t - bar.b, creditsW: credits.w, mapWpx: stage.w, creditsLeftOk: Math.abs(credits.l - stage.l) <= 1 }
+    return { ...headerBlock(), spare, lastText, Wc, left: L.w / Wc, gutter: (Rt.l - L.r) / Wc, right: Rt.w / Wc, boxDiff: L.b - Rt.b, leftBottom: leftText.b, creditsBottom: credits.b, mapW: stage.w / Wc, mapH: stage.h, mapInside: stage.r <= Rt.r + 0.5 && stage.l >= Rt.l - 0.5, controlsTop: modebar.t, numeral: px(getComputedStyle(dd[0]).fontSize), oneLine, tileDx, tileDy, page: doc.scrollHeight, vh: innerHeight, barBottom: bar.b, overlap: L.r > Rt.l + 0.5, pipeTop: pipe.top + scrollY, creditsGap: credits.t - bar.b, creditsW: credits.w, mapWpx: stage.w, creditsLeftOk: Math.abs(credits.l - stage.l) <= 1 }
   }
   if (kind === 'shopIdle' || kind === 'shopResults' || kind === 'shopFresh') {
     const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
@@ -323,6 +338,11 @@ async function runStyle(browser, base) {
         if (x.numeral < 22) bad.push(`the numerals are ${x.numeral.toFixed(1)}px (22px wanted)`)
         if (x.tileDx > 2 || x.tileDy > 2) bad.push(`tile content is ${x.tileDx.toFixed(1)}px / ${x.tileDy.toFixed(1)}px off the tile's centre`)
         if (x.overlap) bad.push('the columns overlap')
+        if (Math.abs(x.lastText - x.barBottom) > 2) bad.push(`the left column's last line ends ${(x.lastText - x.barBottom).toFixed(1)}px from the clock bar's bottom`)
+        if (x.spare.tileRatio > 1.8 + 0.02) bad.push(`the Latest run tiles are ${x.spare.tileRatio.toFixed(2)}x their natural height (1.8x allowed)`)
+        if (x.spare.rowH > 44.5) bad.push(`a Risk row is ${x.spare.rowH.toFixed(0)}px (44px allowed)`)
+        if (x.spare.tilePad > 0.45 || x.spare.riskPad > 0.45) bad.push('a tile or card has more than 45% vertical padding')
+        if ((w === 1920 || w === 2000) && x.spare.flexGap > 160.5) bad.push(`the flexible gap is ${x.spare.flexGap.toFixed(0)}px (160px allowed)`)
         if (x.pipeTop < x.vh - 0.5) bad.push(`the Pipeline heading starts at ${x.pipeTop.toFixed(0)}px, above the window's bottom edge (${x.vh}px)`)
         if (x.creditsGap < 0 || x.creditsGap > 8 + 0.5 + 8 || Math.abs(x.creditsW - x.mapWpx) > 1 || !x.creditsLeftOk) bad.push(`the sources line is ${x.creditsGap.toFixed(1)}px under the clock bar and ${x.creditsW.toFixed(0)}px wide (the map is ${x.mapWpx.toFixed(0)}px)`)
         if (creditsTop !== null && (creditsTop < -2 || creditsTop > x.vh * 0.5)) bad.push(`the Data and credits link leaves the credits at ${creditsTop.toFixed(0)}px from the window's top`)
@@ -364,7 +384,7 @@ async function runStyle(browser, base) {
   for (const { cfg, w, h, x } of rows) {
     if (!x || w < 1100) continue
     const tag = `${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}`
-    if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | Pipeline top ${x.pipeTop.toFixed(0)} (window ${x.vh}) | tile centre off ${x.tileDx.toFixed(1)}/${x.tileDy.toFixed(1)}px | numerals ${x.numeral.toFixed(1)}px | sources line ${x.creditsGap.toFixed(0)}px under the bar, ${x.creditsW.toFixed(0)}px wide | left content ends ${(x.creditsBottom - x.leftBottom).toFixed(0)}px before the right's | bar bottom ${x.barBottom.toFixed(0)}`)
+    if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | Pipeline top ${x.pipeTop.toFixed(0)} (window ${x.vh}) | tile centre off ${x.tileDx.toFixed(1)}/${x.tileDy.toFixed(1)}px | numerals ${x.numeral.toFixed(1)}px | S ${x.spare.S.toFixed(0)}px = gaps ${x.spare.gaps.toFixed(0)} (${x.spare.gapEach.toFixed(0)} each) + tiles ${x.spare.tiles.toFixed(0)} (${x.spare.tileRatio.toFixed(2)}x) + risk card ${x.spare.risk.toFixed(0)} (rows ${x.spare.rowH.toFixed(0)}px) + flexible gap ${x.spare.flexGap.toFixed(0)} | left last line ${(x.lastText - x.barBottom).toFixed(0)}px from the clock bar | sources line ${x.creditsGap.toFixed(0)}px under the bar, ${x.creditsW.toFixed(0)}px wide | bar bottom ${x.barBottom.toFixed(0)}`)
     else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines (${x.ledeW.toFixed(0)}px, search row ${x.rowW.toFixed(0)}px), Guardrails rows ${x.guardRows} | ${x.stages} tiles${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
     else if (cfg.extra === 'shopFresh') console.log(`${tag}Guardrails rows on a first load: ${x.guardRows}`)
     else if (cfg.extra === 'shopResults') console.log(`${tag}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)

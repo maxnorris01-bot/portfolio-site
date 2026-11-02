@@ -14,24 +14,45 @@
 }
 
 /* The page: stacked under 1280px (title block and stats, the GitHub link, then the map). From 1280px two columns: 36% | 3% | 61% of the
-   content width up to 1599px, 32% | 3% | 65% from 1600px. Left: the title block and the stats, with up to 24px of extra air between
-   the sections when the column is the shorter. Right: the GitHub link, the controls row, the map, the clock bar and the sources
-   line. The top block is at least as tall as the window, so the Pipeline starts below the fold; the map takes the spare height. */
+   content width up to 1599px, 32% | 3% | 65% from 1600px. Left: the title block and the stats, as tall as the map and the clock bar
+   (the sources line hangs below the clock bar, on the right only). Right: the GitHub link, the controls row, the map and the clock bar. */
 .sat-left {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* The numerals follow the width of this column: 6.2% of 36% (or 32%) of the page width, a size container's cqw (the layout's). */
+  --text-stat: clamp(1.75rem, 4vw, 2.75rem);
 }
 
-.sat-left .sat-header {
-  margin-bottom: 0;
+.sat-left .page-title {
+  margin: 0 0 0.4rem;
 }
 
-/* The air between the left column's sections: at least 16px, growing equally up to 24px each; any more is left at the bottom. */
+.sat-left .sat-chips {
+  flex: none;
+}
+
+.sat-left .page-lede {
+  max-width: 34em;
+  margin: 0;
+}
+
+.sat-left .sat-eyebrow {
+  margin: 0;
+}
+
+/* The air between the left column's parts: 16px at least (8px between the label rows), growing equally up to 32px each when the
+   column is shorter than the map; the tiles and the Risk card then grow (below), and the rest goes to the one flexible gap. */
 .sat-gap {
+  flex: 1000 1 0;
+  min-height: var(--space-2);
+  max-height: var(--space-5);
+}
+
+.sat-gap-flex {
   flex: 1 1 0;
-  min-height: var(--space-3);
-  max-height: var(--space-4);
+  min-height: 0;
+  max-height: none;
 }
 
 .sat-right {
@@ -46,19 +67,23 @@
   margin: var(--space-3) 0 var(--space-2);
 }
 
-/* The stats: a hairline under the title block, then the heading and the Latest run tiles; Risk breakdown follows as its own section. */
-.sat-screening {
-  container-type: inline-size;
+.sat-credits-line {
+  margin-top: var(--space-2);
+}
+
+.sat-credits-line .globe-credits {
+  margin: 0;
+}
+
+/* The stats: a hairline over the heading, then Latest run and Risk breakdown. */
+.sat-screening-title {
+  margin: 0;
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
 
-.sat-screening .sat-side-title {
-  margin-bottom: var(--space-2);
-}
-
 .sat-left .section-title {
-  margin-bottom: var(--space-1);
+  margin: 0 0 var(--space-1);
   font-size: var(--text-small);
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -66,11 +91,15 @@
   color: var(--color-text-muted);
 }
 
+/* The tiles grow (up to 1.8 times their natural height) with their content centred on both axes. Natural: padding and borders
+   (0.8rem + 2px), the numeral's line (1.1 em), the gap and the caption's line (14px at 1.6). */
 .sat-left .sat-stats {
+  flex: 250 1 auto;
+  max-height: calc(1.8 * (0.8rem + 2px + 1.1 * var(--text-stat) + 0.1rem + 22.4px));
   gap: var(--space-2);
+  margin: 0;
 }
 
-/* A tile's numeral and caption are centred, on both axes. */
 .sat-left .sat-stat {
   align-items: center;
   justify-content: center;
@@ -79,7 +108,6 @@
   text-align: center;
 }
 
-/* The numerals follow the width of this column (the stats' own size container), and never wrap. */
 .sat-left .sat-stat dd {
   font-size: var(--text-stat);
   letter-spacing: -0.065em;
@@ -91,14 +119,29 @@
   white-space: normal;
 }
 
-.sat-left section > .sat-note {
+.sat-left .sat-note {
   margin: var(--space-1) 0 0;
   font-size: var(--sat-dense);
   line-height: 1.3;
 }
 
+/* The Risk card grows too: its rows up to 44px, equally spaced, the content centred in the card. */
 .sat-left .sat-risk-card {
+  flex: 250 1 auto;
+  max-height: calc(3 * 44px + 2 * var(--space-1) + 1.1rem + 2px);
   padding: 0.55rem 0.8rem;
+}
+
+.sat-left .sat-risk-card .sat-risk-bars {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sat-left .sat-risk-card .sat-risk-row {
+  flex: 1 1 auto;
+  max-height: 44px;
 }
 
 @media (min-width: 1280px) {
@@ -107,18 +150,28 @@
   .sat-layout {
     display: grid;
     grid-template-columns: minmax(0, 36fr) minmax(0, 3fr) minmax(0, 61fr);
+    grid-template-rows: minmax(0, 1fr) auto;
     align-items: stretch;
     container-type: inline-size;
     /* The window less the nav (74.1px) and the gap above the page: the Pipeline heading starts at or below the window's bottom edge. */
     min-height: calc(100svh - 74.1px - clamp(1.25rem, 2vw, 2rem));
   }
 
+  /* Row 1 is the title's top to the clock bar's bottom, for both columns; row 2 is the sources line, under the map only. */
   .sat-left {
     grid-column: 1;
+    grid-row: 1;
+    --text-stat: clamp(1.75rem, 2.23cqw, 2.75rem);
   }
 
   .sat-right {
     grid-column: 3;
+    grid-row: 1;
+  }
+
+  .sat-credits-line {
+    grid-column: 3;
+    grid-row: 2;
   }
 
   /* As tall as the title (its line) and the gap to the chips, so the controls row starts where the chips row does. */
@@ -132,6 +185,10 @@
 @media (min-width: 1600px) {
   .sat-layout {
     grid-template-columns: minmax(0, 32fr) minmax(0, 3fr) minmax(0, 65fr);
+  }
+
+  .sat-left {
+    --text-stat: clamp(1.75rem, 1.98cqw, 2.75rem);
   }
 }
 
@@ -184,46 +241,6 @@
 
 .sat-context-slot:not(:empty) {
   margin-top: clamp(2.5rem, 6vw, 4rem);
-}
-
-/* Latest run beside Risk breakdown. Both columns share four rows (title,
-   error, tiles/card, note) through subgrid, so the risk card is exactly as
-   tall as the tiles and both notes start on the same line, at any width
-   where the columns sit side by side. */
-.sat-overview {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  grid-template-rows: repeat(4, auto);
-  column-gap: 2rem;
-}
-
-.sat-overview > section {
-  display: grid;
-  grid-row: span 4;
-  grid-template-rows: subgrid;
-}
-
-.sat-overview > section > .section-title {
-  grid-row: 1;
-}
-
-.sat-overview > section > .sat-error {
-  grid-row: 2;
-}
-
-.sat-overview > section > .sat-stats,
-.sat-overview > section > .card {
-  grid-row: 3;
-}
-
-.sat-overview > section > .sat-note {
-  grid-row: 4;
-  margin-top: 0.9rem;
-}
-
-.sat-overview .section-title {
-  font-size: var(--text-label);
-  margin-bottom: 0.9rem;
 }
 
 .sat-risk-placeholder {
