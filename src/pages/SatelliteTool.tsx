@@ -295,7 +295,7 @@ export default function SatelliteTool() {
         </section>
       </div>
 
-      <div className="page-container">
+      <div className="page-container is-scaled">
         <section className="sat-section" aria-labelledby="sat-pipeline">
           <h2 id="sat-pipeline" className="section-title">
             Pipeline

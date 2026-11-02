@@ -90,12 +90,31 @@ Home body 16px against the other pages' body text: Résumé 17, SatPOV 15.68, Sh
 - **1920x1080 row padding is 17.8px, over the 16px the brief allows.** The system is already at its 0.32 Wc maximum and the cards are
   taller than their text needs at the 18px card size. It is listed in `scripts/check-layout.expected.json` and reported, not hidden.
 
-## Follow-ups (not changed in this PR)
+## Rolled out to the other pages (PRs #52, #53 and the SatPOV PR)
 
-Résumé, SatPOV and ShopAI were not touched. To bring them onto the scale:
+Résumé, 404, ShopAI and SatPOV are now on the tokens; `npm run check:layout` (style mode) asserts it at 1280x720, 1440x900, 1920x1080 and 390x844. The Phase 1 tables above are the "before". Final values, as measured:
 
-- **Résumé**: body 17 -> `--text-card`/`--text-body`; h1 fixed 32px -> `--text-title`; small 13.6 mono -> `--text-small`; card padding 24 -> `--card-pad`; block gap 40px -> `--space-5`.
-- **SatPOV**: body 15.68 -> `--text-body`; tool-panel text 10.88-12.8px -> `--text-small` (14px is the floor); buttons 13.6 -> 14; credits body 12.8 -> `--text-card`; card padding 8.8/12.8 and 17.6/20 -> `--card-pad`; cut the 83-110 chars/line to 80 or fewer.
-- **ShopAI**: body 15.68 -> `--text-body`; small 12.8-13.6 -> `--text-small`; result card labels 15.68 -> `--text-label`; title -> `--text-title`; block gap 16px -> `--space-3`.
-- **404**: title -> `--text-title`.
-- Use `container-type: inline-size` on `.page-container` for each page that adopts `--text-title` and `--card-pad`, because both use `cqw`.
+| Page | h1 | body | smallest text | card padding | chars/line (desktop) |
+|---|---|---|---|---|---|
+| Home | 28-36 / 700 | 16 body, 17-18 card | 14 | 26.9-32 | 46-79 |
+| Résumé | 28-36 / 700 | 17-18 (card token) | 14 | 26.9-32 | 49-60 |
+| ShopAI idle / results | 28-36 / 700 | 16 | 14 | 26.9-32 (results) | 55-74 |
+| SatPOV | 28-36 / 700 | 16 | 12 (listed below), the rest 14 | 8.8/12.8 header cards (listed below) | 69-76 |
+| SatPOV Data and credits | 28-36 / 700 | 17-18 | 12 (credits line under the map) | 26.9-32 | 59-74 (41-53 at 1440) |
+| 404 | 28-36 / 700 | - | 15.2 | - | - |
+
+What changed per page is in each PR. Shared pieces: `.page-title` and `.page-lede` (16px, 34em) in `PageHeader.css`; the eyebrow is 14px; `.page-container.is-scaled` makes a page's container a size container so the `cqw` tokens work (SatPOV puts it on the header and on the credits container, not on the container that holds the map, because a size container would hold the full-screen map's `position: fixed`). The Résumé card background stays `#f6f6f3` on purpose.
+
+### Exceptions (all in `scripts/check-layout.expected.json`, with reasons)
+
+- **Home 1920x1080 row padding** 17.8px (limit 16): the system is at its maximum height.
+- **SatPOV text under 14px:** the 12px floor (`--sat-dense`) is used for the header's Latest run / Risk breakdown notes (`.sat-note`) and the one-line credits under the map (`.globe-credits`); at 14px they push the clock bar below the fold at 1440x900. Labels drawn over the Sky view (rings, bodies, constellations, selected) also keep 12px so they do not collide; they are only on screen in the Sky view. Every other control and readout, including buttons (13.6 -> 14), is 14px.
+- **SatPOV header cards** (Latest run tiles, Risk breakdown) keep their compact padding: at `--card-pad` (30px) the header grows about 50px and the controls bar and clock fall below the fold at 1440x900, where the map is already at its 420px floor.
+- **SatPOV credits at 1440x900:** one ragged line of 41 characters in a three-column list (the columns average 55).
+- **SatPOV at 1280x720** already did not fit the window (the map is at its 420px floor); it is about 55px taller now (credits line bottom 940 vs 882).
+- Not checkable here: the Satellite (POV) view and anything that needs the live run data; the run data does not load in the headless check, so those panels were converted by the same rule (14px, no change to the viewer) but not measured.
+
+### Left for later
+
+- SatPOV's tool panel could drop the 12px floor if the header were made shorter (for example the Latest run notes moved into a tooltip); that is a layout change, so it was not done.
+- The `h2` section headings (Résumé 24px, ShopAI Saved 18px, SatPOV 18px) are not a token; the scale has no `h2` role.

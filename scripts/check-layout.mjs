@@ -145,8 +145,8 @@ const STYLE_PAGES = [
   { name: 'Home (ShopAI)', path: '/', planet: 'ShopAI', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
   { name: 'Home (Résumé)', path: '/', planet: 'Résumé', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
   { name: 'Résumé', path: '/resume', ready: '.resume-name', h1: '.resume-name', body: '.resume-job-bullets li', bodyToken: 'card', cards: '.resume-rail, .resume-main, .resume-project-card', paras: '.resume-job-bullets li, .resume-project-card p', onScale: true },
-  { name: 'SatPOV', path: '/satellite-conjunction-screening', ready: '.page-title', wait: 3500, h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.sat-risk-card', paras: '.page-lede, .sat-note', onScale: false },
-  { name: 'SatPOV (credits)', path: '/satellite-conjunction-screening', ready: '#sat-credits', wait: 3500, scroll: '#sat-credits', h1: '.page-title', body: '.sat-credits-body p', bodyToken: 'card', cards: '.globe-history-event', paras: '.sat-credits-body p, .globe-history-lede', onScale: false },
+  { name: 'SatPOV', path: '/satellite-conjunction-screening', ready: '.page-title', wait: 3500, h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.sat-risk-card', paras: '.page-lede', onScale: true },
+  { name: 'SatPOV (credits)', path: '/satellite-conjunction-screening', ready: '#sat-credits', wait: 3500, scroll: '#sat-credits', h1: '.page-title', body: '.sat-credits-body p', bodyToken: 'card', cards: '.sat-step, .globe-history-event', paras: '.sat-credits-body p, .sat-credits-body li, .globe-history-event p, .globe-history-lede', onScale: true },
   { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '.page-lede, .shop-about p', onScale: true },
   { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.page-lede, .shop-about p, .shop-short', onScale: true },
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
@@ -158,17 +158,19 @@ function measureStyle({ h1, body, cards, paras, scroll }) {
   const vis = (e) => e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'
   const first = (sel) => (sel ? [...document.querySelectorAll(sel)].find(vis) : null)
   const host = document.querySelector('main .page-container')
-  const probe = (css, prop) => {
+  // The tokens' computed values, probed inside the element they apply to (cqw is relative to its nearest size container).
+  const probe = (css, prop, at) => {
     const el = document.createElement('div')
     el.style.cssText = `position:absolute;visibility:hidden;${css}`
-    host.appendChild(el)
+    ;(at ?? host).appendChild(el)
     const v = getComputedStyle(el)[prop]
     el.remove()
     return px(v)
   }
+  const h1Probe = first(h1)
   const tokens = {
-    title: probe('font-size:var(--text-title)', 'fontSize'),
-    pad: probe('padding:var(--card-pad)', 'paddingLeft'),
+    title: probe('font-size:var(--text-title)', 'fontSize', h1Probe?.parentElement),
+    pad: probe('padding:var(--card-pad)', 'paddingLeft', first(cards)?.parentElement),
     body: probe('font-size:var(--text-body)', 'fontSize'),
     card: probe('font-size:var(--text-card)', 'fontSize'),
     small: probe('font-size:var(--text-small)', 'fontSize'),
@@ -246,7 +248,7 @@ async function runStyle(browser, base) {
   console.log('page'.padEnd(18) + 'window'.padEnd(11) + 'h1 px'.padEnd(10) + 'body px'.padEnd(9) + 'min text'.padEnd(10) + 'card padding'.padEnd(26) + 'chars/line'.padEnd(11) + 'status')
   for (const { cfg, w, h, m, bad } of rows) {
     const pad = m.pads.length ? [...new Set(m.pads.map((c) => c.p.every((v) => v === c.p[0]) ? String(+c.p[0].toFixed(1)) : c.p.map((v) => +v.toFixed(1)).join('/')))].join(', ') : '-'
-    console.log(cfg.name.padEnd(18) + `${w}x${h}`.padEnd(11) + String(m.h1 ? +m.h1.size.toFixed(1) : '-').padEnd(10) + String(m.body === null ? '-' : +m.body.toFixed(2)).padEnd(9) + String(+m.minFont.toFixed(1)).padEnd(10) + pad.padEnd(26) + (m.cpl ? `${m.cpl[0]}-${m.cpl[1]}` : '-').padEnd(11) + (bad.length ? (cfg.onScale ? 'MISS' : 'not on the scale yet') : 'ok'))
+    console.log(cfg.name.padEnd(18) + `${w}x${h}`.padEnd(11) + String(m.h1 ? +m.h1.size.toFixed(1) : '-').padEnd(10) + String(m.body === null ? '-' : +m.body.toFixed(2)).padEnd(9) + String(+m.minFont.toFixed(1)).padEnd(10) + pad.padEnd(26) + (m.cpl ? `${m.cpl[0]}-${m.cpl[1]}` : '-').padEnd(11) + (bad.length ? (cfg.onScale ? (bad.every((b) => [...expected].some((e) => `${w}x${h} ${cfg.name} | ${b}`.startsWith(e))) ? 'known miss' : 'MISS') : 'not on the scale yet') : 'ok'))
     if (!cfg.onScale) continue
     for (const b of bad) {
       const key = `${w}x${h} ${cfg.name} | ${b}`

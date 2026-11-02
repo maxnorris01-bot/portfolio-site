@@ -61,17 +61,11 @@
 .page-lede {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 0.98rem;
-  line-height: 1.45;
+  font-size: var(--text-body);
+  line-height: var(--leading);
 }
 
-/* A lead is prose: keep its lines readable in a wide window (the tool header opts out). */
-.page-header:not(.is-lead-full) .page-lede {
-  max-width: var(--measure-lead);
-}
-
-@media (max-width: 640px) {
-  .page-lede {
-    font-size: 0.9rem;
-  }
+/* A lead is prose: its lines stay under 80 characters in any window (34em is about 70 characters). */
+.page-header .page-lede {
+  max-width: 34em;
 }

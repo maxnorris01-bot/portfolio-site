@@ -5,12 +5,6 @@
   line-height: var(--leading);
 }
 
-.shop .page-header:not(.is-lead-full) .page-lede {
-  max-width: 36em;
-  font-size: var(--text-body);
-  line-height: var(--leading);
-}
-
 .shop .chip {
   font-size: var(--text-small);
 }

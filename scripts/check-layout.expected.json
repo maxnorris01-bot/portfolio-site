@@ -2,11 +2,37 @@
   "misses": [
     "1920x1080 SatPOV | the rows have 17.",
     "1920x1080 ShopAI | the rows have 17.",
-    "1920x1080 Résumé | the rows have 17."
+    "1920x1080 Résumé | the rows have 17.",
+    "1280x720 SatPOV | text under 14px",
+    "1280x720 SatPOV (credits) | text under 14px",
+    "1440x900 SatPOV | text under 14px",
+    "1440x900 SatPOV (credits) | text under 14px",
+    "1440x900 SatPOV | card padding of div.card",
+    "1920x1080 SatPOV | text under 14px",
+    "1920x1080 SatPOV (credits) | text under 14px",
+    "1920x1080 SatPOV | card padding of div.card",
+    "390x844 SatPOV | text under 14px",
+    "390x844 SatPOV (credits) | text under 14px",
+    "390x844 SatPOV | card padding of div.card",
+    "1280x720 SatPOV | card padding of div.card",
+    "1440x900 SatPOV (credits) | paragraph lines of"
   ],
   "reasons": {
     "1920x1080 SatPOV | the rows have 17.": "Home at 1920x1080: the system is at its 0.32 Wc maximum and the cards are taller than their text needs; padding is 17.8px, over the 16px allowed",
     "1920x1080 ShopAI | the rows have 17.": "same as above",
-    "1920x1080 Résumé | the rows have 17.": "same as above"
+    "1920x1080 Résumé | the rows have 17.": "same as above",
+    "1280x720 SatPOV | text under 14px": "Dense readouts that share a 1440x900 view with the 3D globe at the 12px floor: the header's Latest run / Risk breakdown notes (.sat-note) and the one-line credits under the globe (.globe-credits) would push the clock bar below the fold at 14px. Every other control and readout is 14px.",
+    "1280x720 SatPOV (credits) | text under 14px": "Dense readouts that share a 1440x900 view with the 3D globe at the 12px floor: the header's Latest run / Risk breakdown notes (.sat-note) and the one-line credits under the globe (.globe-credits) would push the clock bar below the fold at 14px. Every other control and readout is 14px.",
+    "1440x900 SatPOV | text under 14px": "Dense readouts that share a 1440x900 view with the 3D globe at the 12px floor: the header's Latest run / Risk breakdown notes (.sat-note) and the one-line credits under the globe (.globe-credits) would push the clock bar below the fold at 14px. Every other control and readout is 14px.",
+    "1440x900 SatPOV (credits) | text under 14px": "Dense readouts that share a 1440x900 view with the 3D globe at the 12px floor: the header's Latest run / Risk breakdown notes (.sat-note) and the one-line credits under the globe (.globe-credits) would push the clock bar below the fold at 14px. Every other control and readout is 14px.",
+    "1440x900 SatPOV | card padding of div.card": "The header's Latest run tiles and Risk breakdown card keep their compact padding (8.8px / 12.8px): at --card-pad (30px) the header grows by about 50px and the controls bar and clock fall below the fold at 1440x900 (the globe is already at its 420px floor).",
+    "1920x1080 SatPOV | text under 14px": "Dense readouts that share a 1440x900 view with the 3D globe at the 12px floor: the header's Latest run / Risk breakdown notes (.sat-note) and the one-line credits under the globe (.globe-credits) would push the clock bar below the fold at 14px. Every other control and readout is 14px.",
+    "1920x1080 SatPOV (credits) | text under 14px": "Dense readouts that share a 1440x900 view with the 3D globe at the 12px floor: the header's Latest run / Risk breakdown notes (.sat-note) and the one-line credits under the globe (.globe-credits) would push the clock bar below the fold at 14px. Every other control and readout is 14px.",
+    "1920x1080 SatPOV | card padding of div.card": "The header's Latest run tiles and Risk breakdown card keep their compact padding (8.8px / 12.8px): at --card-pad (30px) the header grows by about 50px and the controls bar and clock fall below the fold at 1440x900 (the globe is already at its 420px floor).",
+    "390x844 SatPOV | text under 14px": "Dense readouts that share a 1440x900 view with the 3D globe at the 12px floor: the header's Latest run / Risk breakdown notes (.sat-note) and the one-line credits under the globe (.globe-credits) would push the clock bar below the fold at 14px. Every other control and readout is 14px.",
+    "390x844 SatPOV (credits) | text under 14px": "Dense readouts that share a 1440x900 view with the 3D globe at the 12px floor: the header's Latest run / Risk breakdown notes (.sat-note) and the one-line credits under the globe (.globe-credits) would push the clock bar below the fold at 14px. Every other control and readout is 14px.",
+    "390x844 SatPOV | card padding of div.card": "The header's Latest run tiles and Risk breakdown card keep their compact padding (8.8px / 12.8px): at --card-pad (30px) the header grows by about 50px and the controls bar and clock fall below the fold at 1440x900 (the globe is already at its 420px floor).",
+    "1280x720 SatPOV | card padding of div.card": "same as the other sizes: the header's Latest run / Risk breakdown cards keep compact padding so the tool stays in view",
+    "1440x900 SatPOV (credits) | paragraph lines of": "the credits are a three-column list at this width: one ragged line in a 427px column is 41 characters (the columns average 55)"
   }
 }

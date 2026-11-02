@@ -29,13 +29,12 @@ test('every page with a header uses PageHeader (one h1 each; Home has its own ti
 test('the header: the shared title token, its other type scale, spacing and two-column breakpoint', () => {
   const css = src('components/PageHeader.css')
   assert.match(css, /\.page-title \{[^}]*font-size: var\(--text-title\)[^}]*font-weight: var\(--title-weight\)[^}]*letter-spacing: -0\.02em/s)
-  assert.match(css, /\.page-lede \{[^}]*font-size: 0\.98rem[^}]*line-height: 1\.45/s)
   assert.match(css, /margin-bottom: clamp\(0\.6rem, 1vw, 0\.9rem\)/)
   assert.match(css, /@media \(min-width: 1100px\)/)
   assert.match(css, /clamp\(32rem, 50%, 58rem\)/)
   // Prose keeps a reading width: the lead is capped except where a page opts out.
-  assert.match(css, /\.page-header:not\(\.is-lead-full\) \.page-lede \{\s*max-width: var\(--measure-lead\)/)
-  assert.match(src('styles/tokens.css'), /--measure-lead: 70ch/)
+  assert.match(css, /\.page-lede \{[^}]*font-size: var\(--text-body\)[^}]*line-height: var\(--leading\)/s)
+  assert.match(css, /\.page-header \.page-lede \{\s*max-width: 34em/)
   assert.match(src('styles/tokens.css'), /--measure-text: 90ch/)
 })
 
@@ -79,4 +78,18 @@ test('the shop page is on the shared scale: body and small text, card headings, 
   assert.match(css, /\.shop-about \{\s*max-width: 32em/)
   assert.doesNotMatch(css, /font-size: 0\.\d+rem/)
   assert.match(src('shop/ShopView.tsx'), /page-container is-scaled shop/)
+})
+
+test('SatPOV is on the shared scale: small text is the token (12px floor only for the listed dense readouts), credits in columns, the header and credits are size containers', () => {
+  const tool = src('pages/SatelliteTool.css')
+  const globe = src('components/SatelliteGlobe.css')
+  for (const css of [tool, globe, src('components/ConjunctionsMenu.css')]) assert.doesNotMatch(css, /font-size: 0\.(?:[0-7]\d*|8[0-6]\d*)rem/, 'no sub-14px sizes written out')
+  assert.match(tool, /--sat-dense: 12px/)
+  assert.match(tool, /\.sat-credits-body \{[^}]*font-size: var\(--text-card\)[^}]*column-width: 25em/s)
+  assert.match(tool, /\.sat-header \{\s*container-type: inline-size/)
+  assert.match(tool, /\.sat-step \{[^}]*padding: var\(--card-pad\)/s)
+  assert.match(globe, /\.globe-history-event \{[^}]*padding: var\(--card-pad\)/s)
+  assert.match(src('pages/SatelliteTool.tsx'), /page-container is-scaled/)
+  // Not on the page container that holds the map: a size container would hold the full-screen map's fixed position.
+  assert.doesNotMatch(src('pages/SatelliteTool.tsx'), /page-container is-scaled">\s*<PageHeader/)
 })

@@ -1,5 +1,7 @@
 /* The page uses the shared container and header (index.css, PageHeader.css); this file holds what is the tool's own. */
 .sat-page {
+  /* Tool controls and readouts: the small token; labels drawn over the sky and the 3D view keep a 12px floor (they must not collide). */
+  --sat-dense: 12px;
   /* The longest a line of running text gets inside a full-width section. */
   --sat-measure: var(--measure-text);
 }
@@ -15,7 +17,7 @@
 .sat-side-title {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: 1.05rem;
+  font-size: var(--text-label);
   font-weight: 600;
 }
 
@@ -26,7 +28,7 @@
 
 .sat-header .sat-overview .section-title {
   margin-bottom: 0.4rem;
-  font-size: 0.78rem;
+  font-size: var(--text-small);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -47,17 +49,23 @@
 }
 
 .sat-header .sat-stat dt {
-  font-size: 0.74rem;
+  font-size: var(--text-small);
+  white-space: normal;
 }
 
 .sat-header .sat-overview > section > .sat-note {
   margin-top: 0.3rem;
-  font-size: 0.68rem;
+  font-size: var(--sat-dense);
   line-height: 1.3;
 }
 
 .sat-header .sat-risk-card {
   padding: 0.55rem 0.8rem;
+}
+
+/* The header is a size container so the title and card padding (cqw) are fractions of the page width. */
+.sat-header {
+  container-type: inline-size;
 }
 
 .sat-tech {
@@ -66,13 +74,13 @@
 }
 
 .sat-tech .chip {
-  font-size: 0.74rem;
+  font-size: var(--text-small);
 }
 
 .sat-github {
   flex: none;
   padding: 0.35em 0.9em;
-  font-size: 0.85rem;
+  font-size: var(--text-small);
 }
 
 /* The tool: the map and its controls; its own sizing lives in SatelliteGlobe.css. */
@@ -83,15 +91,22 @@
 /* "Data and credits": the footnote that sat under the map, every credit in
    full, and the sources line. */
 .sat-credits-body {
-  display: grid;
-  gap: 0.6rem;
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
+  font-size: var(--text-card);
+  /* Set in columns about 25em wide (55 to 75 characters a line), as many as fit, instead of lines over 130 characters long. */
+  column-width: 25em;
+  column-gap: var(--space-5);
 }
 
 .sat-credits-body p,
 .sat-credits-body ul {
-  margin: 0;
+  margin: 0 0 var(--space-3);
+}
+
+.sat-credits-body p,
+.sat-credits-body li {
+  break-inside: avoid;
+  text-wrap: pretty;
 }
 
 .sat-context-slot:not(:empty) {
@@ -134,7 +149,7 @@
 }
 
 .sat-overview .section-title {
-  font-size: 1.2rem;
+  font-size: var(--text-label);
   margin-bottom: 0.9rem;
 }
 
@@ -218,7 +233,7 @@
 .sat-risk-label,
 .sat-risk-count {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: var(--text-small);
   font-weight: 500;
 }
 
@@ -257,7 +272,7 @@
   border-left: 3px solid var(--color-accent);
   background: var(--color-bg);
   color: var(--color-text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--text-body);
 }
 
 .sat-callout strong {
@@ -316,7 +331,7 @@
   background: transparent;
   color: var(--color-text-secondary);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--text-small);
   cursor: pointer;
 }
 
@@ -347,7 +362,7 @@
 
 .sat-step {
   position: relative;
-  padding: 1.25rem;
+  padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-top: 3px solid var(--color-navy);
   border-radius: var(--radius);
@@ -367,19 +382,19 @@
 
 .sat-step-num {
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--text-small);
   font-weight: 600;
   color: var(--color-accent);
 }
 
 .sat-step h3 {
   margin: 0.35rem 0 0.4rem;
-  font-size: 1.1rem;
+  font-size: var(--text-label);
 }
 
 .sat-step p {
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
+  font-size: var(--text-body);
   line-height: 1.5;
 }
 
@@ -387,7 +402,7 @@
   margin-top: 1.25rem;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: var(--text-small);
 }
 
 @media (max-width: 900px) {
@@ -424,7 +439,7 @@
   }
 
   .sat-stat dt {
-    font-size: 0.7rem;
+    font-size: var(--text-small);
     line-height: 1.25;
     white-space: normal;
   }
@@ -447,7 +462,7 @@
   }
 
   .sat-stat dt {
-    font-size: 0.82rem;
+    font-size: var(--text-small);
     line-height: calc(0.9rem * 1.6); /* keep the tile height unchanged */
   }
 
