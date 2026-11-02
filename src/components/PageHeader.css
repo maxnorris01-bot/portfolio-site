@@ -55,7 +55,7 @@
 
 .page-sub-row .eyebrow {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: var(--text-small);
 }
 
 .page-lede {
@@ -71,10 +71,6 @@
 }
 
 @media (max-width: 640px) {
-  .page-sub-row .eyebrow {
-    font-size: 0.68rem;
-  }
-
   .page-lede {
     font-size: 0.9rem;
   }

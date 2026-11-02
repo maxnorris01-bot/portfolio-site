@@ -170,7 +170,7 @@ export default function ShopView(props: ShopViewProps) {
 
   return (
     <main className="page">
-      <div className="page-container shop">
+      <div className="page-container is-scaled shop">
         <PageHeader
           eyebrow="Project · Personal shopping assistant"
           title={SHOP_TITLE}

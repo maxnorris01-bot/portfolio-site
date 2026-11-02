@@ -68,3 +68,15 @@ test('the Résumé and the 404 page are on the shared scale: tokens for the titl
   assert.match(src('App.tsx'), /page-container is-scaled/)
   assert.match(src('index.css'), /\.page-container\.is-scaled \{\s*container-type: inline-size/)
 })
+
+test('the shop page is on the shared scale: body and small text, card headings, card padding on the shell (the picture still bleeds), idle copy under 80 characters a line', () => {
+  const css = src('pages/Shop.css')
+  assert.match(css, /\.shop \{\s*font-size: var\(--text-body\)/)
+  assert.match(css, /\.shop-card \{[^}]*padding: var\(--card-pad\)/s)
+  assert.match(css, /\.shop-thumb \{\s*[^}]*margin: calc\(-1 \* var\(--card-pad\)\) calc\(-1 \* var\(--card-pad\)\) 0/s)
+  assert.match(css, /\.shop-card-title \{[^}]*font-size: var\(--text-label\)/s)
+  assert.match(css, /\.shop-grid \{[^}]*gap: var\(--space-3\)/s)
+  assert.match(css, /\.shop-about \{\s*max-width: 32em/)
+  assert.doesNotMatch(css, /font-size: 0\.\d+rem/)
+  assert.match(src('shop/ShopView.tsx'), /page-container is-scaled shop/)
+})

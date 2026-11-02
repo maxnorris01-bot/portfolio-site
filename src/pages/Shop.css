@@ -1,3 +1,20 @@
+/* The shop page on the shared scale (docs/style-audit.md): body 16px, small text 14px, card headings 18px, card padding from --card-pad,
+   blocks on the --space steps. Lines of running text stay under 80 characters. */
+.shop {
+  font-size: var(--text-body);
+  line-height: var(--leading);
+}
+
+.shop .page-header:not(.is-lead-full) .page-lede {
+  max-width: 36em;
+  font-size: var(--text-body);
+  line-height: var(--leading);
+}
+
+.shop .chip {
+  font-size: var(--text-small);
+}
+
 .shop .visually-hidden {
   position: absolute;
   width: 1px;
@@ -11,7 +28,7 @@
   display: grid;
   gap: 0.75rem;
   max-width: 48rem;
-  margin-top: 1.75rem;
+  margin-top: var(--space-5);
 }
 
 .shop-label {
@@ -61,7 +78,7 @@
 }
 
 .shop-output {
-  margin-top: 2.25rem;
+  margin-top: var(--space-5);
   min-height: 8rem;
 }
 
@@ -85,7 +102,7 @@
 .shop-timer {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: var(--text-small);
 }
 
 .shop-spinner {
@@ -135,9 +152,9 @@
 
 .shop-error {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
   justify-items: start;
-  padding: 1rem 1.25rem;
+  padding: var(--card-pad);
   border: 1px solid var(--color-accent);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -145,7 +162,7 @@
 
 .shop-count {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: var(--text-small);
   color: var(--color-text-muted);
 }
 
@@ -153,22 +170,22 @@
 .shop-short {
   margin-top: 0.4rem;
   color: var(--color-text-secondary);
-  font-size: 0.92rem;
+  font-size: var(--text-small);
 }
 
 .shop-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
-  margin: 1.25rem 0 0;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
   padding: 0;
   list-style: none;
 }
 
-/* One card per row on a phone; as many columns as fit at about 14.5rem each, never more than six. */
+/* One card per row on a phone; as many columns as fit at about 16rem each, never more than six. */
 @media (min-width: 520px) {
   .shop-grid {
-    grid-template-columns: repeat(auto-fill, minmax(max(14.5rem, calc((100% - 5rem) / 6)), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(max(16rem, calc((100% - 5rem) / 6)), 1fr));
   }
 }
 
@@ -177,12 +194,15 @@
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
 }
 
 .shop-thumb {
+  /* The card shell has the padding; the picture still runs edge to edge across the top. */
+  margin: calc(-1 * var(--card-pad)) calc(-1 * var(--card-pad)) 0;
   aspect-ratio: 1 / 1;
   background: var(--color-bg);
 }
@@ -201,23 +221,23 @@
   height: 100%;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--text-small);
 }
 
 .shop-card-body {
   display: grid;
   flex: 1;
   align-content: start;
-  gap: 0.3rem;
-  padding: 0.9rem 1rem 1rem;
+  gap: var(--space-1);
+  padding: var(--space-3) 0 0;
 }
 
 .shop-card-title {
   display: -webkit-box;
   overflow: hidden;
   font-family: var(--font-body);
-  font-size: 0.98rem;
-  font-weight: 600;
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
   line-height: 1.3;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -231,7 +251,7 @@
 
 .shop-card-meta {
   color: var(--color-text-secondary);
-  font-size: 0.85rem;
+  font-size: var(--text-small);
   overflow-wrap: anywhere;
 }
 
@@ -239,17 +259,55 @@
   justify-self: start;
   margin-top: 0.5rem;
   padding: 0.45em 0.9em;
-  font-size: 0.85rem;
+  font-size: var(--text-small);
 }
 
 .shop-about {
-  max-width: var(--measure-text);
-  margin-top: 3rem;
-  padding-top: 1.25rem;
+  max-width: 32em;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  font-size: 0.8rem;
-  line-height: 1.5;
+  font-size: var(--text-small);
+  line-height: var(--leading);
+}
+
+/* A wide window: the form on the left and the note about the tool beside it, so the page is not empty on the right. */
+@media (min-width: 1100px) {
+  .shop {
+    display: grid;
+    grid-template-columns: minmax(0, 48rem) minmax(0, 1fr);
+    grid-template-areas:
+      'head head'
+      'banner banner'
+      'form about'
+      'out out';
+    column-gap: var(--space-6);
+  }
+
+  .shop > .page-header {
+    grid-area: head;
+  }
+
+  .shop > .shop-banner {
+    grid-area: banner;
+  }
+
+  .shop > .shop-form {
+    grid-area: form;
+  }
+
+  .shop > .shop-output {
+    grid-area: out;
+  }
+
+  .shop > .shop-about {
+    grid-area: about;
+    align-self: start;
+    margin-top: var(--space-5);
+    padding-top: 0;
+    border-top: 0;
+  }
 }
 
 @media (max-width: 480px) {
@@ -279,14 +337,15 @@
 }
 
 .shop-rate-btn {
-  flex: 1;
+  flex: 1 1 auto;
+  white-space: nowrap;
   padding: 0.4em 0.3em;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
   color: var(--color-text-secondary);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-small);
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -330,7 +389,7 @@
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--text-small);
 }
 
 .shop-comment-input:focus-visible {
@@ -341,7 +400,7 @@
   min-height: 1.1em;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--text-small);
 }
 
 .shop-save.is-failed {
@@ -362,10 +421,10 @@
 /* Shop Again and refine */
 .shop-again {
   display: grid;
-  gap: 0.6rem;
+  gap: var(--space-3);
   max-width: 48rem;
-  margin-top: 2rem;
-  padding: 1.1rem 1.25rem;
+  margin-top: var(--space-5);
+  padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -377,8 +436,8 @@
 }
 
 .shop-banner {
-  margin-bottom: 1rem;
-  padding: 0.8rem 1rem;
+  margin-bottom: var(--space-3);
+  padding: var(--card-pad);
   border: 1px solid var(--color-accent);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -394,7 +453,7 @@
   margin-bottom: 0.3rem;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--text-small);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -424,13 +483,13 @@
 .shop-usage {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--text-small);
 }
 
 /* Saved panel */
 .shop-saved {
-  margin-top: 2.5rem;
-  padding-top: 1.25rem;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
   border-top: 1px solid var(--color-border);
 }
 
@@ -442,13 +501,13 @@
 }
 
 .shop-saved-heading {
-  font-size: 1.3rem;
+  font-size: var(--text-label);
 }
 
 .shop-saved-total {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: var(--text-small);
   font-weight: 500;
 }
 
@@ -465,7 +524,7 @@
   background: var(--color-surface);
   color: var(--color-text-secondary);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: var(--text-small);
   font-weight: 600;
   cursor: pointer;
 }
@@ -479,7 +538,7 @@
 .shop-saved-list {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.8rem;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -494,8 +553,8 @@
 .shop-saved-card {
   display: grid;
   grid-template-columns: 6rem minmax(0, 1fr);
-  gap: 0.9rem;
-  padding: 0.8rem;
+  gap: var(--space-3);
+  padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -517,8 +576,8 @@
   display: -webkit-box;
   overflow: hidden;
   font-family: var(--font-body);
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
   line-height: 1.3;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
