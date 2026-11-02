@@ -131,6 +131,8 @@ interface Props {
   /** Where the page wants "For context: the real record" and the full credits (its own sections below the tool); inline when absent. */
   contextSlot?: HTMLElement | null
   creditsSlot?: HTMLElement | null
+  /** Where the page wants the one-line credits under the map (across its columns); in place under the clock row when absent and in full screen. */
+  creditsLineSlot?: HTMLElement | null
 }
 
 export default function SatelliteGlobe({
@@ -145,6 +147,7 @@ export default function SatelliteGlobe({
   conjunctionsControl,
   contextSlot,
   creditsSlot,
+  creditsLineSlot,
 }: Props) {
   const stageRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -1180,6 +1183,21 @@ export default function SatelliteGlobe({
     skyBody: !!selectedBody,
     spaceSelection: !!(spaceStar || gaiaStar || spaceConstellation || spaceBody),
   })
+
+  const creditsLine = (
+    <p className="globe-credits">
+      {SHORT_CREDITS.join(' · ')} ·{' '}
+      <a
+        href={`#${CREDITS_ID}`}
+        onClick={() => {
+          // From full screen the link first leaves it, then the page jumps to the credits.
+          if (fsRef.current.on) dispatchFs({ type: 'exit' })
+        }}
+      >
+        Data and credits
+      </a>
+    </p>
+  )
 
   return (
     <div ref={rootRef} className={`globe${fullscreen.on ? ' is-fullscreen' : ''}${compact ? ' is-compact' : ''}${phone ? ' is-phone' : ''}`}>
@@ -2334,18 +2352,7 @@ export default function SatelliteGlobe({
           </span>
         </p>
       </div>
-      <p className="globe-credits">
-        {SHORT_CREDITS.join(' · ')} ·{' '}
-        <a
-          href={`#${CREDITS_ID}`}
-          onClick={() => {
-            // From full screen the link first leaves it, then the page jumps to the credits.
-            if (fsRef.current.on) dispatchFs({ type: 'exit' })
-          }}
-        >
-          Data and credits
-        </a>
-      </p>
+      {creditsLineSlot && !fullscreen.on ? createPortal(creditsLine, creditsLineSlot) : creditsLine}
       </div>
       </div>
       {(() => {

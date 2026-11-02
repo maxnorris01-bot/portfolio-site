@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import type { ComponentType } from 'react'
 import { fixtureNoResults, fixtureStates, fixtureItems } from '../src/shop/fixtures.ts'
-import { ABOUT_ROWS, ABOUT_TITLE, LIMITATIONS_NOTICE } from '../src/shop/copy.ts'
+import { ABOUT_ROWS, ABOUT_TITLE, GUARDRAILS_NOTE, LIMITATIONS_NOTICE, PIPELINE_NOTE, PIPELINE_STAGES, SHOP_CHIPS, SHOP_DESCRIPTION, SHOP_TITLE } from '../src/shop/copy.ts'
 import type { ShopViewProps } from '../src/shop/viewprops.ts'
 import { closeServer, loadModule, render } from './helpers/ssr.ts'
 
@@ -47,10 +47,21 @@ test('empty state: a labelled form, example chips, the limitations notice, no re
   assert.match(html, /modern couch under \$1000/)
   assert.match(html, /boho curtains/)
   assert.match(html, /Type a request or pick an example/)
-  // The notice is a card of label | text rows; its words are the notice's, in four pieces.
-  assert.ok(html.includes(`>${ABOUT_TITLE}</h2>`))
-  for (const r of ABOUT_ROWS) assert.ok(html.includes(`<strong class="shop-about-label">${r.label}</strong><span class="shop-about-text">${escaped(r.text)}</span>`), r.label)
+  // The header: the title, the tech chips, the project label and the description (the same block as SatPOV's); then the pipeline, with its notes.
+  assert.equal(SHOP_TITLE, 'ShopAI Tool')
+  assert.match(html, /<h1 class="page-title">ShopAI Tool<\/h1>/)
+  for (const c of SHOP_CHIPS) assert.ok(html.includes(`<li class="chip">${c}</li>`), c)
+  assert.ok(SHOP_CHIPS.length <= 6)
+  assert.ok(html.includes(escaped(SHOP_DESCRIPTION)))
+  assert.ok(SHOP_DESCRIPTION.length >= 280 && SHOP_DESCRIPTION.length <= 380)
+  assert.ok(html.includes('>Search pipeline</h2>'))
+  assert.equal(html.match(/class="card shop-stage"/g)?.length, PIPELINE_STAGES.length)
+  for (const s of PIPELINE_STAGES) assert.ok(html.includes(`<h4>${s.name}</h4><p>${s.caption}</p>`), s.name)
+  // The caveats are the old About note, in its own words, in two places (under the tiles and under the guardrails).
+  assert.ok(html.includes(escaped(PIPELINE_NOTE)) && html.includes(escaped(GUARDRAILS_NOTE)))
   assert.equal(`${ABOUT_TITLE}. ${ABOUT_ROWS.map((r) => r.text).join(' ')}`, LIMITATIONS_NOTICE)
+  assert.equal(`${PIPELINE_NOTE} ${GUARDRAILS_NOTE}`, LIMITATIONS_NOTICE.slice(ABOUT_TITLE.length + 2))
+  assert.doesNotMatch(html, /shop-about/)
   assert.doesNotMatch(html, /shop-grid/)
 })
 
@@ -286,6 +297,15 @@ test('Saved panel: the Liked tab, the empty states, and the Show/Hide toggle wit
   const hidden = await view('saved', { savedOpen: false })
   assert.match(hidden, /aria-expanded="false"[^>]*>Show<\/button>/)
   assert.match(hidden, /<div id="[^"]+-body" hidden="">/)
+})
+
+test('guardrails: what the service reports for the visit (searches and Shop Agains allowed, the daily reset); never a dollar amount; none without usage data', async () => {
+  const withUsage = await view('empty', { meta: { usage: { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-02T17:00:00Z' }, blocked: { search: false, again: false }, maintenance: false } })
+  assert.match(withUsage, /<dt>Searches per visit<\/dt><dd>8<\/dd>/)
+  assert.match(withUsage, /<dt>Shop Agains per visit<\/dt><dd>25<\/dd>/)
+  assert.match(withUsage, /<dt>Daily limit resets<\/dt><dd>[^<]+<\/dd>/)
+  assert.doesNotMatch(withUsage, /\$0\.|usd/i)
+  assert.doesNotMatch(await view('savedempty'), /shop-guard-card/)
 })
 
 test('usage line: searches, Shop Agains and the daily reset; never a dollar amount', async () => {

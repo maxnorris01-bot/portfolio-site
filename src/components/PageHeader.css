@@ -69,3 +69,18 @@
 .page-header .page-lede {
   max-width: 34em;
 }
+
+/* A header with tech chips: the title, then the chips on their own row (one block width at every window size). */
+.page-header.has-chips .page-title-row {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.page-chips {
+  margin: 0;
+}
+
+.page-chips .chip {
+  font-size: var(--text-small);
+  line-height: var(--leading);
+}

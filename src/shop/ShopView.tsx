@@ -1,8 +1,21 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import PageHeader from '../components/PageHeader'
-import { ABOUT_ROWS, ABOUT_TITLE, EXAMPLE_REQUESTS, NO_RESULTS_MESSAGE, SHOP_TITLE } from './copy.ts'
+import {
+  EXAMPLE_REQUESTS,
+  GUARDRAILS_LABEL,
+  GUARDRAILS_NOTE,
+  NO_RESULTS_MESSAGE,
+  PIPELINE_LABEL,
+  PIPELINE_NOTE,
+  PIPELINE_STAGES,
+  PIPELINE_TITLE,
+  SHOP_CHIPS,
+  SHOP_DESCRIPTION,
+  SHOP_EYEBROW,
+  SHOP_TITLE,
+} from './copy.ts'
 import { requestChips } from './chips.ts'
-import { limitText, isLimit, usageLine } from './limits.ts'
+import { limitText, isLimit, localTime, usageLine } from './limits.ts'
 import { openResolved } from './open.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
@@ -172,9 +185,19 @@ export default function ShopView(props: ShopViewProps) {
     <main className="page">
       <div className="page-container is-scaled shop">
         <PageHeader
-          eyebrow="Project · Personal shopping assistant"
+          className="has-chips"
+          eyebrow={SHOP_EYEBROW}
           title={SHOP_TITLE}
-          lead="Describe what you want to buy in plain words. It searches Google Shopping, ranks the matches and shows them here."
+          titleMeta={
+            <ul className="chip-list page-chips" aria-label="Tech stack">
+              {SHOP_CHIPS.map((c) => (
+                <li key={c} className="chip">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          }
+          lead={SHOP_DESCRIPTION}
         />
 
         {props.meta.maintenance && (
@@ -218,7 +241,7 @@ export default function ShopView(props: ShopViewProps) {
           )}
         </form>
 
-        <section className={`shop-output${state.status === 'done' ? ' is-results' : ''}`} aria-label="Results">
+        <section className="shop-output" aria-label="Results">
           {state.status === 'idle' && (
             <p className="shop-empty" role="status">
               {state.restoring ? 'Restoring your last search…' : 'Type a request or pick an example to see results here.'}
@@ -269,21 +292,58 @@ export default function ShopView(props: ShopViewProps) {
           {state.status === 'done' && <Results state={state} props={props} />}
         </section>
 
-        <aside className="card shop-about" aria-labelledby={`${inputId}-about`}>
-          <h2 id={`${inputId}-about`} className="shop-about-title">
-            {ABOUT_TITLE}
-          </h2>
-          <ul className="shop-about-rows">
-            {ABOUT_ROWS.map((r) => (
-              <li key={r.label} className="shop-about-row">
-                <strong className="shop-about-label">{r.label}</strong>
-                <span className="shop-about-text">{r.text}</span>
-              </li>
-            ))}
-          </ul>
-        </aside>
+        <SearchPipeline usage={props.meta.usage} />
       </div>
     </main>
+  )
+}
+
+/**
+ * How a search works, as a row of stage tiles, then the guardrails (what the service reports for this visit: searches and Shop Agains
+ * allowed, when the day's limit resets) beside the caveats. Never a dollar amount.
+ */
+function SearchPipeline({ usage }: { usage: ShopViewProps['meta']['usage'] }) {
+  const reset = localTime(usage?.resetsAt)
+  const rows = usage
+    ? [
+        { label: 'Searches per visit', value: String(usage.maxSearches) },
+        { label: 'Shop Agains per visit', value: String(usage.maxShopAgains) },
+        ...(reset ? [{ label: 'Daily limit resets', value: reset }] : []),
+      ]
+    : []
+  return (
+    <section className="shop-pipeline" aria-labelledby="shop-pipeline-title">
+      <h2 id="shop-pipeline-title" className="shop-pipeline-title">
+        {PIPELINE_TITLE}
+      </h2>
+      <h3 className="shop-caps">{PIPELINE_LABEL}</h3>
+      <ol className="shop-stages">
+        {PIPELINE_STAGES.map((s, i) => (
+          <li key={s.name} className="card shop-stage">
+            <span className="shop-stage-num">{String(i + 1).padStart(2, '0')}</span>
+            <h4>{s.name}</h4>
+            <p>{s.caption}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="shop-pipeline-foot">
+        <div className="shop-guardrails">
+          <h3 className="shop-caps">{GUARDRAILS_LABEL}</h3>
+          {rows.length > 0 && (
+            <dl className="card shop-guard-card">
+              {rows.map((r) => (
+                <div key={r.label} className="shop-guard-row">
+                  <dt>{r.label}</dt>
+                  <dd>{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          <p className="shop-pipeline-note">{GUARDRAILS_NOTE}</p>
+        </div>
+        <p className="shop-pipeline-note">{PIPELINE_NOTE}</p>
+      </div>
+    </section>
   )
 }
 

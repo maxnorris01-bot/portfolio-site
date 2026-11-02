@@ -21,7 +21,6 @@
 .shop-form {
   display: grid;
   gap: 0.75rem;
-  max-width: 48rem;
   margin-top: var(--space-5);
 }
 
@@ -72,8 +71,8 @@
 }
 
 .shop-output {
-  margin-top: var(--space-5);
-  min-height: 8rem;
+  margin-top: var(--space-4);
+  min-height: 0;
 }
 
 .shop-empty {
@@ -256,106 +255,145 @@
   font-size: var(--text-small);
 }
 
-/* The About card: the Home "About this site" card's pattern, label | text rows with hairlines. Stacked (under 1100px) it comes last. */
-.shop-about {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-6);
-  padding: var(--card-pad);
+/* The search pipeline (modelled on the SatPOV stats): a heading, a small label, the stage tiles with arrows between them, the caveats
+   in mono under them, then the guardrails card with its note. */
+.shop-pipeline {
+  margin-top: var(--space-5);
 }
 
-.shop-about-title {
-  margin: 0;
+.shop-pipeline-title {
+  margin: 0 0 var(--space-2);
   font-size: var(--text-label);
   font-weight: var(--label-weight);
   line-height: 1.3;
 }
 
-.shop-about-rows {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
+.shop-caps {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shop-stages {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-5);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.shop-about-row {
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-columns: minmax(6.5rem, 21%) minmax(0, 1fr);
-  column-gap: var(--space-3);
-  align-items: center;
-  padding-block: var(--space-1);
+.shop-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* The compact variant of the card padding: --space-3 above and below, --card-pad at the sides. */
+  padding: var(--space-3) var(--card-pad);
+}
+
+.shop-stage-num {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.shop-stage h4 {
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+}
+
+.shop-stage p {
+  margin: 0;
+  color: var(--color-text-secondary);
   font-size: var(--text-card);
   line-height: var(--leading);
 }
 
-.shop-about-row + .shop-about-row {
-  border-top: 1px solid var(--color-border);
+.shop-stage:not(:last-child)::after {
+  position: absolute;
+  top: 50%;
+  right: calc(-1 * var(--space-5) / 2);
+  color: var(--color-accent);
+  content: '→';
+  font-family: var(--font-mono);
+  transform: translate(50%, -50%);
 }
 
-.shop-about-label {
-  color: var(--color-text);
-  font-weight: var(--label-weight);
+.shop-pipeline-note {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--sat-dense, 12px);
+  line-height: 1.4;
 }
 
-.shop-about-text {
-  max-width: 36em;
-  color: var(--color-text-secondary);
+.shop-pipeline-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 39fr) minmax(0, 3fr) minmax(0, 58fr);
+  align-items: start;
+  margin-top: var(--space-3);
 }
 
-/* A very wide window: the label column is wider so the 36em text still fills the card. */
-@media (min-width: 2200px) {
-  .shop-about-row {
-    grid-template-columns: 30% minmax(0, 1fr);
-  }
+.shop-guardrails {
+  grid-column: 1;
 }
 
-/* From 1100px: Home's grid, two columns of 49% with 2% between (the content width is this container's, so the gap is a plain percentage).
-   Left: the title block, the form and, until there are results, the status line. Right: the About card, from the title's top to the
-   bottom of the left column. The results grid then runs the full width below both. (Home starts at 1280px; the shop's left column
-   is narrower in content, so it starts earlier, as the brief asked.) */
-@media (min-width: 1100px) {
-  .shop {
-    display: grid;
+.shop-pipeline-foot > .shop-pipeline-note {
+  grid-column: 3;
+  margin: 0;
+}
+
+.shop-guard-card {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+}
+
+.shop-guard-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+}
+
+.shop-guard-row dt {
+  font-weight: 500;
+}
+
+.shop-guard-row dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Below 1100px the stage tiles stack two by two, then one in a row on a phone; the arrows go. */
+@media (max-width: 1099px) {
+  .shop-stages {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'head about'
-      'banner about'
-      'form about'
-      'out about'
-      'wide wide';
-    column-gap: 2%;
+    gap: var(--space-3);
   }
 
-  .shop > .page-header {
-    grid-area: head;
+  .shop-stage::after {
+    display: none;
   }
 
-  .shop > .shop-banner {
-    grid-area: banner;
+  .shop-pipeline-foot {
+    display: block;
   }
+}
 
-  .shop > .shop-form {
-    grid-area: form;
-    max-width: none;
-  }
-
-  .shop > .shop-output {
-    grid-area: out;
-    min-height: 0;
-  }
-
-  .shop > .shop-output.is-results {
-    grid-area: wide;
-  }
-
-  .shop > .shop-about {
-    grid-area: about;
-    margin-top: 0;
+@media (max-width: 520px) {
+  .shop-stages {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

@@ -147,8 +147,8 @@ const STYLE_PAGES = [
   { name: 'Résumé', path: '/resume', ready: '.resume-name', h1: '.resume-name', body: '.resume-job-bullets li', bodyToken: 'card', cards: '.resume-rail, .resume-main, .resume-project-card', paras: '.resume-job-bullets li, .resume-project-card p', onScale: true },
   { name: 'SatPOV', path: '/satellite-conjunction-screening', ready: '.page-title', wait: 3500, h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.sat-risk-card', paras: '.page-lede', extra: 'sat', onScale: true },
   { name: 'SatPOV (credits)', path: '/satellite-conjunction-screening', ready: '#sat-credits', wait: 3500, scroll: '#sat-credits', h1: '.page-title', body: '.sat-credits-body p', bodyToken: 'card', cards: '.sat-step, .globe-history-event', paras: '.sat-credits-body p, .sat-credits-body li, .globe-history-event p, .globe-history-lede', onScale: true },
-  { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-about', paras: '.page-lede, .shop-about-text', extra: 'shopIdle', onScale: true },
-  { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again, .shop-about', paras: '.page-lede, .shop-about-text, .shop-short', extra: 'shopResults', onScale: true },
+  { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '.page-lede', extra: 'shopIdle', onScale: true },
+  { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.page-lede, .shop-short', extra: 'shopResults', onScale: true },
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
 ]
 
@@ -209,7 +209,7 @@ function measureStyle({ h1, body, cards, paras, scroll }) {
     lines.slice(0, -1).forEach((l) => cpl.push(l.text.trim().length))
   }
   return {
-    h1: h1cs ? { size: px(h1cs.fontSize), weight: h1cs.fontWeight } : null,
+    h1: h1cs ? { size: px(h1cs.fontSize), weight: h1cs.fontWeight, family: h1cs.fontFamily, color: h1cs.color } : null,
     body: bodyEl ? px(getComputedStyle(bodyEl).fontSize) : null,
     tokens, minFont, small: [...small], pads, cpl: cpl.length ? [Math.min(...cpl), Math.max(...cpl)] : null,
     hscroll: document.documentElement.scrollWidth - innerWidth, scaled: host.classList.contains('is-scaled') || !!document.querySelector('.home-page'),
@@ -232,38 +232,43 @@ function measureExtra(kind) {
     return { l, r, t, b }
   }
   const doc = document.documentElement
+  // The header block shared by SatPOV and ShopAI: the chips (height, gap) and the description (lines).
+  const headerBlock = () => {
+    const chips = [...document.querySelectorAll('main .page-chips .chip')].map(R)
+    const lede = document.querySelector('main .page-lede')
+    let lines = 0, lastTop = -1
+    const w = document.createTreeWalker(lede, NodeFilter.SHOW_TEXT), rg = document.createRange()
+    for (let n = w.nextNode(); n; n = w.nextNode()) for (let i = 0; i < n.textContent.length; i++) { rg.setStart(n, i); rg.setEnd(n, i + 1); const q = rg.getClientRects()[0]; if (q && Math.abs(q.top - lastTop) > q.height / 2) { lines++; lastTop = q.top } }
+    return { chipH: chips[0].h, chipGap: chips[1].l - chips[0].r, chipCount: chips.length, ledeLines: lines, chipsTop: chips[0].t }
+  }
   if (kind === 'sat') {
-    const hd = document.querySelector('.sat-header'), main = hd.querySelector('.page-header-main'), aside = hd.querySelector('.page-header-aside')
-    const tb = textBox(main)
-    let right = tb.r
-    for (const e of main.querySelectorAll('.chip')) right = Math.max(right, e.getBoundingClientRect().right)
-    const Wc = hd.getBoundingClientRect().width, a = R(aside)
-    const dd = [...hd.querySelectorAll('.sat-stat dd')]
-    return { Wc, headerH: R(hd).h, gapPct: (a.l - right) / Wc, bottomDiff: a.b - tb.b, asideBottom: a.b, numeral: px(getComputedStyle(dd[0]).fontSize), ddOverflow: dd.some((e) => e.scrollWidth > e.clientWidth + 1), clock: R(document.querySelector('.globe-timebar')).t, vw: innerWidth }
+    const lay = document.querySelector('.sat-layout'), L = R(document.querySelector('.sat-left')), Rt = R(document.querySelector('.sat-right'))
+    const Wc = R(lay).w, stage = R(document.querySelector('.globe-stage')), bar = R(document.querySelector('.globe-timebar'))
+    const leftText = textBox(document.querySelector('.sat-left'))
+    const dd = [...document.querySelectorAll('.sat-stat dd')]
+    const oneLine = dd.every((e) => { const rg = document.createRange(); rg.selectNodeContents(e); const tops = new Set([...rg.getClientRects()].map((q) => Math.round(q.top))); return tops.size === 1 && e.scrollWidth <= e.clientWidth + 1 })
+    const modebar = R(document.querySelector('.globe-modebar'))
+    return { ...headerBlock(), Wc, left: L.w / Wc, gutter: (Rt.l - L.r) / Wc, right: Rt.w / Wc, leftBottom: leftText.b, rightBottom: bar.b, boxDiff: L.b - Rt.b, mapW: stage.w / Wc, mapH: stage.h, controlsTop: modebar.t, numeral: px(getComputedStyle(dd[0]).fontSize), oneLine, page: doc.scrollHeight, vh: innerHeight, barBottom: bar.b, overlap: L.r > Rt.l + 0.5, tilesInside: [...document.querySelectorAll('.sat-stat')].every((e) => e.scrollWidth <= e.clientWidth + 1) }
   }
   if (kind === 'shopIdle' || kind === 'shopResults') {
     const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
     const Wc = sh.getBoundingClientRect().width - px(cs.paddingLeft) - px(cs.paddingRight)
-    const form = R(document.querySelector('.shop-form')), card = document.querySelector('.shop-about'), cr = R(card), out = document.querySelector('.shop-output')
-    const input = R(document.querySelector('.shop-input'))
-    const chips = [...document.querySelectorAll('.shop-examples .chip')].map(R)
-    const ccs = getComputedStyle(card)
-    const inner = { l: cr.l + px(ccs.borderLeftWidth) + px(ccs.paddingLeft), r: cr.r - px(ccs.borderRightWidth) - px(ccs.paddingRight), t: cr.t + px(ccs.borderTopWidth) + px(ccs.paddingTop), b: cr.b - px(ccs.borderBottomWidth) - px(ccs.paddingBottom) }
-    const tb = textBox(card)
-    let rowPad = 0
-    for (const row of card.querySelectorAll('.shop-about-row')) { const t = textBox(row); rowPad = Math.max(rowPad, (R(row).h - (t.b - t.t)) / 2) }
-    const grid = document.querySelector('.shop-grid')
-    const o = R(out)
-    return { Wc, left: form.w / Wc, gutter: (cr.l - form.r) / Wc, right: cr.w / Wc, leftBottom: o.b, rightBottom: cr.b, topDiff: cr.t - R(document.querySelector('.page-title')).t, hFill: (tb.r - inner.l) / (inner.r - inner.l), vFill: (tb.b - tb.t) / (inner.b - inner.t), rowPad,
-      inputInside: input.r <= form.r + 1 && input.l >= form.l - 1, chipsInside: chips.every((q) => q.r <= form.r + 1), page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked: getComputedStyle(sh).display !== 'grid' }
+    const stages = [...document.querySelectorAll('.shop-stage')]
+    // A tile clips when something inside it reaches past its edge (the arrow between tiles is drawn outside on purpose).
+    const clipped = stages.some((e) => { const b = e.getBoundingClientRect(); return [...e.children].some((k) => { const q = k.getBoundingClientRect(); return q.right > b.right + 0.5 || q.bottom > b.bottom + 0.5 || k.scrollWidth > k.clientWidth + 1 }) })
+    const sr = stages.map(R), grid = document.querySelector('.shop-results .shop-grid') ?? document.querySelector('.shop-grid')
+    const gcard = document.querySelector('.shop-guard-card')
+    let guard = null
+    if (gcard) {
+      const gr = R(gcard), gcs = getComputedStyle(gcard), t = textBox(gcard)
+      const inner = { l: gr.l + px(gcs.borderLeftWidth) + px(gcs.paddingLeft), r: gr.r - px(gcs.borderRightWidth) - px(gcs.paddingRight), t: gr.t + px(gcs.borderTopWidth) + px(gcs.paddingTop), b: gr.b - px(gcs.borderBottomWidth) - px(gcs.paddingBottom) }
+      guard = { hFill: (t.r - t.l) / (inner.r - inner.l), vFill: (t.b - t.t) / (inner.b - inner.t), widthPct: gr.w / Wc }
+    }
+    const tileFill = stages.map((e) => { const r = R(e), s = getComputedStyle(e), t = textBox(e); return { h: (t.r - t.l) / (r.w - px(s.paddingLeft) - px(s.paddingRight)), v: (t.b - t.t) / (r.h - px(s.paddingTop) - px(s.paddingBottom)) } })
+    const input = R(document.querySelector('.shop-input')), form = R(document.querySelector('.shop-form'))
+    return { ...headerBlock(), Wc, stages: stages.length, stagesRow: new Set(sr.map((q) => Math.round(q.t))).size === 1, clipped, guard, tileFillMin: Math.min(...tileFill.map((q) => q.h)), tileFillV: Math.min(...tileFill.map((q) => q.v)), inputW: input.w / Wc, formW: form.w / Wc, page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked2x2: new Set(sr.map((q) => Math.round(q.l))).size }
   }
   return null
-}
-
-// Header heights and clock-bar position of the SatPOV page before the header rework (main plus PR 54), at each window size.
-const HEADER_BEFORE = {
-  '1280x720': { headerH: 265, clock: 845 }, '1366x768': { headerH: 224, clock: 807 }, '1440x900': { headerH: 224, clock: 809 },
-  '1920x1080': { headerH: 233, clock: 975 }, '2000x1100': { headerH: 233, clock: 995 }, '2560x1440': { headerH: 202, clock: 1335 },
 }
 
 async function runStyle(browser, base) {
@@ -293,36 +298,52 @@ async function runStyle(browser, base) {
       for (const c of m.pads) if (c.p.some((v) => Math.abs(v - t.pad) > 0.5)) bad.push(`card padding of ${c.k} is ${c.p.join(' ')}, the card-pad token is ${t.pad}px`)
       if (desktop && m.cpl && (m.cpl[0] < TARGET.cplMin || m.cpl[1] > TARGET.cplMax)) bad.push(`paragraph lines of ${m.cpl[0]}-${m.cpl[1]} characters (45-80)`)
       if (m.hscroll > 1) bad.push(`the page scrolls sideways by ${m.hscroll}px`)
-      if (x && cfg.extra === 'sat' && w >= 1100) {
-        const oldNumeral = Math.min(23.2, Math.max(16.8, 0.015 * w)) // the numerals before: clamp(1.05rem, 1.5vw, 1.45rem)
-        if (x.gapPct > 0.04) bad.push(`the title block and the stats panel are ${(x.gapPct * 100).toFixed(1)}% of the width apart (4% allowed)`)
-        if (Math.abs(x.bottomDiff) > 4) bad.push(`the stats panel's bottom is ${x.bottomDiff.toFixed(1)}px from the title block's (4px allowed)`)
-        if (x.numeral < Math.max(28, 1.5 * oldNumeral) - 0.1) bad.push(`the numerals are ${x.numeral.toFixed(1)}px (28px, and 1.5x the old ${oldNumeral.toFixed(1)}px, wanted)`)
-        if (x.ddOverflow) bad.push('a numeral overflows its tile')
-        const base = HEADER_BEFORE[`${w}x${h}`]
-        if (base && w <= 1440 && x.headerH > base.headerH + 2) bad.push(`the header is ${x.headerH.toFixed(0)}px tall, it was ${base.headerH}px`)
-        if (base && w === 1440 && Math.abs(x.clock - base.clock) > 1) bad.push(`the clock bar is at ${x.clock.toFixed(0)}px, it was at ${base.clock}px`)
+      if (x && cfg.extra === 'sat' && w >= 1280) {
+        if (Math.abs(x.left - 0.39) > 0.015 || Math.abs(x.gutter - 0.03) > 0.015 || Math.abs(x.right - 0.58) > 0.015) bad.push(`columns are ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} of the width (39 / 3 / 58 wanted)`)
+        if (Math.abs(x.leftBottom - x.rightBottom) > 2) bad.push(`the columns end ${(x.leftBottom - x.rightBottom).toFixed(1)}px apart (the left's last line to the clock bar's bottom)`)
+        if (Math.abs(x.chipsTop - x.controlsTop) > 2) bad.push(`the chips row and the controls row are ${(x.chipsTop - x.controlsTop).toFixed(1)}px apart`)
+        if (x.mapW < 0.52 || x.mapH < 420 - 0.5) bad.push(`the map is ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px (52% and 420px wanted)`)
+        if (!x.oneLine || !x.tilesInside) bad.push('a numeral wraps or overflows its tile')
+        if (x.overlap) bad.push('the columns overlap')
+        if (w >= 1440 && x.barBottom > x.vh + 0.5) bad.push(`the clock bar's bottom is at ${x.barBottom.toFixed(0)}px, below the ${x.vh}px window`)
       }
       if (x && cfg.extra === 'shopIdle' && w >= 1100) {
-        if (Math.abs(x.left - 0.49) > 0.01 || Math.abs(x.gutter - 0.02) > 0.01 || Math.abs(x.right - 0.49) > 0.01) bad.push(`columns are ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} of the width (49 / 2 / 49 wanted)`)
-        if (Math.abs(x.leftBottom - x.rightBottom) > 2) bad.push(`the columns' bottoms differ by ${(x.leftBottom - x.rightBottom).toFixed(1)}px`)
-        if (Math.abs(x.topDiff) > 2) bad.push(`the About card's top is ${x.topDiff.toFixed(1)}px from the title's`)
-        if (x.hFill < TARGET.hFill) bad.push(`About card hFill ${x.hFill.toFixed(2)} < ${TARGET.hFill}`)
-        if (x.vFill < TARGET.vFill) bad.push(`About card vFill ${x.vFill.toFixed(2)} < ${TARGET.vFill}`)
-        if (x.rowPad > TARGET.rowPad + 0.5) bad.push(`the About rows have ${x.rowPad.toFixed(1)}px above and below their text (${TARGET.rowPad}px allowed)`)
-        if (!x.inputInside || !x.chipsInside) bad.push('the input or the chips are outside the left column')
-        if (w <= 1920 && x.page > x.vh) bad.push(`the page scrolls (${x.page}/${x.vh})`)
+        if (x.stages < 3 || x.stages > 5) bad.push(`${x.stages} pipeline tiles (3 to 5 wanted)`)
+        if (!x.stagesRow) bad.push('the pipeline tiles are not in one row')
+        if (x.clipped) bad.push('a pipeline tile clips its text')
+        if (x.guard && (x.guard.hFill < TARGET.hFill || x.guard.vFill < TARGET.hFill)) bad.push(`Guardrails card fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)} (more than 15% dead space)`)
+        if (x.formW < 0.97 || x.inputW < 0.85) bad.push(`the form is ${(x.formW * 100).toFixed(0)}% and the input ${(x.inputW * 100).toFixed(0)}% of the content width`)
+        if (x.ledeLines < 4 || x.ledeLines > 6) bad.push(`the description is ${x.ledeLines} lines (5 +- 1 wanted)`)
+        if (w >= 1440 && x.page > x.vh + 0.5) bad.push(`the idle page is ${x.page}px tall in a ${x.vh}px window`)
+      }
+      if (x && cfg.extra === 'shopIdle' && w < 1100 && x.stages) {
+        if (w > 520 && x.stacked2x2 !== 2) bad.push('the pipeline tiles are not two by two')
+        if (w <= 520 && x.stacked2x2 !== 1) bad.push('the pipeline tiles are not one column')
+        if (x.clipped) bad.push('a pipeline tile clips its text')
       }
       if (x && cfg.extra === 'shopResults' && w >= 1100 && x.gridW !== null && Math.abs(x.gridW - x.gridWanted) > 2) bad.push(`the results grid is ${x.gridW.toFixed(0)}px wide, the content is ${x.gridWanted.toFixed(0)}px`)
       rows.push({ cfg, w, h, m, x, bad })
     }
   }
+  // ShopAI against SatPOV, window by window: the title's computed style, the chips and the description.
+  const sat = (w, h) => rows.find((r) => r.cfg.name === 'SatPOV' && r.w === w && r.h === h)
+  for (const r of rows) {
+    if (!r.cfg.name.startsWith('ShopAI')) continue
+    const s = sat(r.w, r.h)
+    if (!s || !r.m.h1 || !s.m.h1) continue
+    const a = r.m.h1, b = s.m.h1
+    if (a.family !== b.family || a.weight !== b.weight || a.color !== b.color || Math.abs(a.size - b.size) > 0.1) r.bad.push(`the title (${a.size}px ${a.weight}) differs from SatPOV's (${b.size}px ${b.weight})`)
+    if (r.x && s.x && r.w >= 1100) {
+      if (Math.abs(r.x.chipH - s.x.chipH) > 0.5 || Math.abs(r.x.chipGap - s.x.chipGap) > 0.5) r.bad.push(`the chips (${r.x.chipH}px high, ${r.x.chipGap}px apart) differ from SatPOV's (${s.x.chipH}px, ${s.x.chipGap}px)`)
+    }
+  }
   console.log('\n=== style: page-specific layout ===')
   for (const { cfg, w, h, x } of rows) {
     if (!x || w < 1100) continue
-    if (cfg.extra === 'sat') console.log(`${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}gap ${(x.gapPct * 100).toFixed(1)}% of Wc | stats bottom ${x.bottomDiff >= 0 ? '+' : ''}${x.bottomDiff.toFixed(0)}px | numerals ${x.numeral.toFixed(1)}px | header ${x.headerH.toFixed(0)}px | clock bar ${x.clock.toFixed(0)}px`)
-    else if (cfg.extra === 'shopIdle') console.log(`${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | bottoms ${(x.leftBottom - x.rightBottom).toFixed(0)}px | top ${x.topDiff.toFixed(0)}px | card fill ${x.hFill.toFixed(2)} x ${x.vFill.toFixed(2)} | row pad ${x.rowPad.toFixed(1)}px | page ${x.page}/${x.vh}`)
-    else if (cfg.extra === 'shopResults') console.log(`${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)
+    const tag = `${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}`
+    if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | ends ${(x.leftBottom - x.rightBottom).toFixed(0)}px apart | chips vs controls ${(x.chipsTop - x.controlsTop).toFixed(0)}px | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | numerals ${x.numeral.toFixed(1)}px ${x.oneLine ? 'on one line' : 'WRAP'} | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines | ${x.stages} tiles${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopResults') console.log(`${tag}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)
   }
   console.log('\n=== style: every page against the tokens ===')
   console.log('page'.padEnd(18) + 'window'.padEnd(11) + 'h1 px'.padEnd(10) + 'body px'.padEnd(9) + 'min text'.padEnd(10) + 'card padding'.padEnd(26) + 'chars/line'.padEnd(11) + 'status')

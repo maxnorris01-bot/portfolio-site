@@ -2351,3 +2351,46 @@ html.globe-fs-lock body {
 .globe-pov-hide-today {
   margin-top: 0.1rem;
 }
+
+/* The page's two-column layout (SatelliteTool.css, from 1280px): the map fills what is left of the right column, between the controls row
+   and the clock row, with a floor of 420px; the controls row sits 22px above it. Full screen is untouched. */
+@media (min-width: 1280px) {
+  .sat-tool {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .sat-tool > .globe:not(.is-fullscreen) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .sat-tool .globe:not(.is-fullscreen) .globe-layout {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: clamp(16px, 1.2cqw, 28px);
+    min-height: 0;
+  }
+
+  .sat-tool .globe:not(.is-fullscreen) .globe-main {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .sat-tool .globe:not(.is-fullscreen) .globe-stage {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 420px;
+  }
+
+  .sat-tool .globe:not(.is-fullscreen) .globe-modebar {
+    justify-content: space-between;
+  }
+}
