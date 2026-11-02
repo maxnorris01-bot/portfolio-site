@@ -41,8 +41,8 @@
 
 .page-title {
   margin: 0;
-  font-size: clamp(1.45rem, 2.1vw, 2rem);
-  font-weight: 700;
+  font-size: var(--text-title);
+  font-weight: var(--title-weight);
   letter-spacing: -0.02em;
 }
 
@@ -55,31 +55,32 @@
 
 .page-sub-row .eyebrow {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: var(--text-small);
 }
 
 .page-lede {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 0.98rem;
-  line-height: 1.45;
+  font-size: var(--text-body);
+  line-height: var(--leading);
 }
 
-/* A lead is prose: keep its lines readable in a wide window (the tool header opts out). */
-.page-header:not(.is-lead-full) .page-lede {
-  max-width: var(--measure-lead);
+/* A lead is prose: its lines stay under 80 characters in any window (34em is about 70 characters). */
+.page-header .page-lede {
+  max-width: 34em;
 }
 
-@media (max-width: 640px) {
-  .page-title {
-    font-size: 1.4rem;
-  }
+/* A header with tech chips: the title, then the chips on their own row (one block width at every window size). */
+.page-header.has-chips .page-title-row {
+  flex-direction: column;
+  align-items: flex-start;
+}
 
-  .page-sub-row .eyebrow {
-    font-size: 0.68rem;
-  }
+.page-chips {
+  margin: 0;
+}
 
-  .page-lede {
-    font-size: 0.9rem;
-  }
+.page-chips .chip {
+  font-size: var(--text-small);
+  line-height: var(--leading);
 }

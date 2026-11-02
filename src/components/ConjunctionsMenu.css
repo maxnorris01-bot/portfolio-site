@@ -16,7 +16,7 @@
   background: var(--color-surface);
   color: var(--color-text-secondary);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--text-small);
   cursor: pointer;
 }
 
@@ -48,7 +48,7 @@
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 28px rgb(0 0 0 / 0.35);
   color: #e8ecf4;
-  font-size: 0.82rem;
+  font-size: var(--text-small);
 }
 
 .conj-menu-pop[hidden] {
@@ -58,7 +58,7 @@
 .conj-menu-head {
   margin: 0 0 0.4rem;
   color: #a3acbd;
-  font-size: 0.7rem;
+  font-size: var(--text-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -122,7 +122,7 @@
 .conj-menu-time {
   grid-column: 2;
   color: #a3acbd;
-  font-size: 0.74rem;
+  font-size: var(--text-small);
   text-align: right;
   white-space: nowrap;
 }

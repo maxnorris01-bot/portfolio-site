@@ -15,6 +15,10 @@
 //   planet card      heading row included: width fill >= 0.85, height fill >= 0.85, 45 to 80 characters a line
 //   system           the picture is at least 0.40 Wc wide (the ratio is printed)
 //   title            one or two lines, not clipped, inside the left column
+//   style mode      (node scripts/check-layout.mjs --style, or as part of the default run; --home runs only the Home checks above)
+//                   for every page and state, at 1280x720, 1440x900, 1920x1080 and 390x844: h1 size and weight, body size, no text under
+//                   14px, card padding, paragraph line lengths (desktop) and no sideways scroll, all against the tokens' computed values;
+//                   one side-by-side table is printed. A page whose `onScale` flag below is false is measured and printed, not asserted.
 // Known, explained misses are listed in scripts/check-layout.expected.json and do not fail the run.
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -28,7 +32,9 @@ const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
 const TARGET = { hFill: 0.85, vFill: 0.8, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4, rowPad: 16 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
 const expected = new Set(JSON.parse(readFileSync(expectedFile, 'utf8')).misses)
+const expectedReasons = JSON.parse(readFileSync(expectedFile, 'utf8')).reasons ?? {}
 const outDir = process.env.CHECK_LAYOUT_OUT
+const MODE = process.argv.includes('--style') ? 'style' : process.argv.includes('--home') ? 'home' : 'all'
 
 // Playwright is not a dependency of this repo: use the one installed here, or the one in PLAYWRIGHT_DIR (a folder whose node_modules has it).
 let chromium
@@ -130,6 +136,275 @@ function measure() {
   return { left, slot, g }
 }
 
+// ---- style mode: every page against the shared tokens ----
+
+// Each page and state: how to open it and where its h1, body text, card shells and paragraphs are. `onScale` is true once the page is on the
+// shared scale (its rules are then asserted); `body` is which token its body text uses.
+const STYLE_PAGES = [
+  { name: 'Home (SatPOV)', path: '/', planet: 'SatPOV', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
+  { name: 'Home (ShopAI)', path: '/', planet: 'ShopAI', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
+  { name: 'Home (Résumé)', path: '/', planet: 'Résumé', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
+  { name: 'Résumé', path: '/resume', ready: '.resume-name', h1: '.resume-name', body: '.resume-job-bullets li', bodyToken: 'card', cards: '.resume-rail, .resume-main, .resume-project-card', paras: '.resume-job-bullets li, .resume-project-card p', onScale: true },
+  { name: 'SatPOV', path: '/satellite-conjunction-screening', ready: '.page-title', wait: 3500, h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.sat-risk-card', paras: '.page-lede', extra: 'sat', onScale: true },
+  { name: 'SatPOV (credits)', path: '/satellite-conjunction-screening', ready: '#sat-credits', wait: 3500, scroll: '#sat-credits', h1: '.page-title', body: '.sat-credits-body p', bodyToken: 'card', cards: '.sat-step, .globe-history-event', paras: '.sat-credits-body p, .sat-credits-body li, .globe-history-event p, .globe-history-lede', onScale: true },
+  { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopIdle', onScale: true },
+  { name: 'ShopAI (first load)', path: '/shop?fixture=savedempty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopFresh', onScale: true },
+  { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.shop-short', extra: 'shopResults', onScale: true },
+  { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
+]
+
+// Runs in the page. Reads the tokens' computed values from probes inside the page container, then the page's own styles.
+function measureStyle({ h1, body, cards, paras, scroll }) {
+  const px = (v) => parseFloat(v) || 0
+  const vis = (e) => e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'
+  const first = (sel) => (sel ? [...document.querySelectorAll(sel)].find(vis) : null)
+  const host = document.querySelector('main .page-container')
+  // The tokens' computed values, probed inside the element they apply to (cqw is relative to its nearest size container).
+  const probe = (css, prop, at) => {
+    const el = document.createElement('div')
+    el.style.cssText = `position:absolute;visibility:hidden;${css}`
+    ;(at ?? host).appendChild(el)
+    const v = getComputedStyle(el)[prop]
+    el.remove()
+    return px(v)
+  }
+  const h1Probe = first(h1)
+  const tokens = {
+    title: probe('font-size:var(--text-title)', 'fontSize', h1Probe?.parentElement),
+    pad: probe('padding:var(--card-pad)', 'paddingLeft', first(cards)?.parentElement),
+    body: probe('font-size:var(--text-body)', 'fontSize'),
+    card: probe('font-size:var(--text-card)', 'fontSize'),
+    small: probe('font-size:var(--text-small)', 'fontSize'),
+  }
+  const h1El = first(h1), h1cs = h1El ? getComputedStyle(h1El) : null
+  const bodyEl = first(body)
+  // Every piece of text in <main> under 14px (svg text is the Home drawing's labels).
+  const small = new Map()
+  let minFont = Infinity
+  const walker = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const el = n.parentElement
+    if (!n.textContent.trim() || !vis(el) || el.closest('svg, .visually-hidden, script, style')) continue
+    const fs = px(getComputedStyle(el).fontSize)
+    minFont = Math.min(minFont, fs)
+    if (fs < 13.99) { const k = `${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/)[0] : ''}`; small.set(k, Math.round(fs * 100) / 100) }
+  }
+  const pads = [...(cards ? document.querySelectorAll(cards) : [])].filter(vis).map((e) => { const cs = getComputedStyle(e); return { k: `${e.tagName.toLowerCase()}.${String(e.className).trim().split(/\s+/)[0]}`, p: [cs.paddingTop, cs.paddingRight, cs.paddingBottom, cs.paddingLeft].map(px) } })
+  // Characters per line of each paragraph (every line but its last), from the character boxes.
+  const cpl = []
+  for (const el of paras ? [...document.querySelectorAll(paras)].filter(vis) : []) {
+    const lines = []
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    const range = document.createRange()
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      if (!n.textContent.trim() || !vis(n.parentElement)) continue
+      for (let i = 0; i < n.textContent.length; i++) {
+        range.setStart(n, i); range.setEnd(n, i + 1)
+        const r = range.getClientRects()[0]
+        if (!r) continue
+        const cur = lines[lines.length - 1]
+        if (!cur || Math.abs(r.top - cur.top) > r.height / 2) lines.push({ top: r.top, text: '' })
+        lines[lines.length - 1].text += n.textContent[i]
+      }
+    }
+    lines.slice(0, -1).forEach((l) => cpl.push(l.text.trim().length))
+  }
+  return {
+    h1: h1cs ? { size: px(h1cs.fontSize), weight: h1cs.fontWeight, family: h1cs.fontFamily, color: h1cs.color } : null,
+    body: bodyEl ? px(getComputedStyle(bodyEl).fontSize) : null,
+    tokens, minFont, small: [...small], pads, cpl: cpl.length ? [Math.min(...cpl), Math.max(...cpl)] : null,
+    hscroll: document.documentElement.scrollWidth - innerWidth, scaled: host.classList.contains('is-scaled') || !!document.querySelector('.home-page'),
+  }
+}
+
+
+// Runs in the page: the layout measurements that belong to one page (SatPOV's header, the shop's two columns).
+function measureExtra(kind) {
+  const px = (v) => parseFloat(v) || 0
+  const R = (e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height } }
+  const textBox = (root) => {
+    let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), rg = document.createRange()
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      if (!n.textContent.trim() || n.parentElement.getClientRects().length === 0) continue
+      rg.selectNodeContents(n)
+      for (const q of rg.getClientRects()) { l = Math.min(l, q.left); r = Math.max(r, q.right); t = Math.min(t, q.top); b = Math.max(b, q.bottom) }
+    }
+    return { l, r, t, b }
+  }
+  const doc = document.documentElement
+  // The header block shared by SatPOV and ShopAI: the chips (height, gap) and the description (lines).
+  const headerBlock = () => {
+    const chips = [...document.querySelectorAll('main .page-chips .chip')].map(R)
+    const lede = document.querySelector('main .page-lede')
+    let lines = 0, lastTop = -1
+    const w = document.createTreeWalker(lede, NodeFilter.SHOW_TEXT), rg = document.createRange()
+    for (let n = w.nextNode(); n; n = w.nextNode()) for (let i = 0; i < n.textContent.length; i++) { rg.setStart(n, i); rg.setEnd(n, i + 1); const q = rg.getClientRects()[0]; if (q && Math.abs(q.top - lastTop) > q.height / 2) { lines++; lastTop = q.top } }
+    return { chipH: chips[0].h, chipGap: chips[1].l - chips[0].r, chipCount: chips.length, ledeLines: lines, chipsTop: chips[0].t }
+  }
+  if (kind === 'sat') {
+    const lay = document.querySelector('.sat-layout'), leftEl = document.querySelector('.sat-left'), L = R(leftEl), Rt = R(document.querySelector('.sat-right'))
+    const Wc = R(lay).w, stage = R(document.querySelector('.globe-stage')), bar = R(document.querySelector('.globe-timebar'))
+    const leftText = textBox(leftEl)
+    const dd = [...document.querySelectorAll('.sat-stat dd')]
+    const oneLine = dd.every((e) => { const rg = document.createRange(); rg.selectNodeContents(e); const tops = new Set([...rg.getClientRects()].map((q) => Math.round(q.top))); return tops.size === 1 && e.scrollWidth <= e.clientWidth + 1 })
+    const modebar = R(document.querySelector('.globe-modebar'))
+    const credits = R(document.querySelector('.globe-credits'))
+    // How far the content of each tile is from the tile's centre, on both axes.
+    let tileDx = 0, tileDy = 0
+    for (const e of document.querySelectorAll('.sat-stat')) {
+      const r = R(e), t = textBox(e), kids = [...e.children].map(R)
+      const top = Math.min(...kids.map((q) => q.t)), bottom = Math.max(...kids.map((q) => q.b))
+      // Across: where the text is; down: the block of numeral and caption (their line boxes).
+      tileDx = Math.max(tileDx, Math.abs((t.l + t.r) / 2 - (r.l + r.r) / 2)); tileDy = Math.max(tileDy, Math.abs((top + bottom) / 2 - (r.t + r.b) / 2))
+    }
+    // The left column's spare height S and where it went: the gaps (above their 8px floor), the tiles and the Risk card (above their
+    // natural heights), the one flexible gap.
+    const gapsAbs = [...document.querySelectorAll('.sat-gap:not(.sat-gap-flex)')].map((e) => R(e).h)
+    const gapSum = gapsAbs.reduce((a, v) => a + v, 0), gapBase = gapsAbs.length * 8
+    const flexGap = R(document.querySelector('.sat-gap-flex')).h
+    const tile = document.querySelector('.sat-stat'), tcs = getComputedStyle(tile), tr = R(tile)
+    const tileNatural = px(tcs.paddingTop) + px(tcs.paddingBottom) + px(tcs.borderTopWidth) + px(tcs.borderBottomWidth) + [...tile.children].reduce((a, k) => a + R(k).h, 0) + px(tcs.rowGap)
+    const card = document.querySelector('.sat-risk-card'), crs = getComputedStyle(card), cr = R(card)
+    const rowEls = [...card.querySelectorAll('.sat-risk-row')]
+    const rowNat = Math.max(...[...rowEls[0].children].map((k) => R(k).h))
+    const cardNatural = px(crs.paddingTop) + px(crs.paddingBottom) + px(crs.borderTopWidth) + px(crs.borderBottomWidth) + rowEls.length * rowNat + (rowEls.length - 1) * 4
+    const rowH = R(rowEls[0]).h
+    const S = (gapSum - gapBase) + (tr.h - tileNatural) + (cr.h - cardNatural) + flexGap
+    const spare = { S, gaps: gapSum - gapBase, gapEach: (gapSum - gapBase) / gapsAbs.length + 8, tiles: tr.h - tileNatural, tileRatio: tr.h / tileNatural, risk: cr.h - cardNatural, rowH, flexGap, tilePad: (px(tcs.paddingTop) + px(tcs.paddingBottom)) / tr.h, riskPad: (px(crs.paddingTop) + px(crs.paddingBottom)) / cr.h }
+    const lastText = (() => { const notes = [...document.querySelectorAll('.sat-left .sat-note')]; return textBox(notes[notes.length - 1]).b })()
+    const pipe = document.querySelector('#sat-pipeline').getBoundingClientRect()
+    return { ...headerBlock(), spare, lastText, Wc, left: L.w / Wc, gutter: (Rt.l - L.r) / Wc, right: Rt.w / Wc, boxDiff: L.b - Rt.b, leftBottom: leftText.b, creditsBottom: credits.b, mapW: stage.w / Wc, mapH: stage.h, mapInside: stage.r <= Rt.r + 0.5 && stage.l >= Rt.l - 0.5, controlsTop: modebar.t, numeral: px(getComputedStyle(dd[0]).fontSize), oneLine, tileDx, tileDy, page: doc.scrollHeight, vh: innerHeight, barBottom: bar.b, overlap: L.r > Rt.l + 0.5, pipeTop: pipe.top + scrollY, creditsGap: credits.t - bar.b, creditsW: credits.w, mapWpx: stage.w, creditsLeftOk: Math.abs(credits.l - stage.l) <= 1 }
+  }
+  if (kind === 'shopIdle' || kind === 'shopResults' || kind === 'shopFresh') {
+    const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
+    const Wc = sh.getBoundingClientRect().width - px(cs.paddingLeft) - px(cs.paddingRight)
+    const stages = [...document.querySelectorAll('.shop-stage')]
+    // A tile clips when something inside it reaches past its edge (the arrow between tiles is drawn outside on purpose).
+    const clipped = stages.some((e) => { const b = e.getBoundingClientRect(); return [...e.children].some((k) => { const q = k.getBoundingClientRect(); return q.right > b.right + 0.5 || q.bottom > b.bottom + 0.5 || k.scrollWidth > k.clientWidth + 1 }) })
+    const sr = stages.map(R), grid = document.querySelector('.shop-results .shop-grid') ?? document.querySelector('.shop-grid')
+    const gcard = document.querySelector('.shop-guard-card')
+    let guard = null
+    if (gcard) {
+      const gr = R(gcard), gcs = getComputedStyle(gcard), t = textBox(gcard)
+      const inner = { l: gr.l + px(gcs.borderLeftWidth) + px(gcs.paddingLeft), r: gr.r - px(gcs.borderRightWidth) - px(gcs.paddingRight), t: gr.t + px(gcs.borderTopWidth) + px(gcs.paddingTop), b: gr.b - px(gcs.borderBottomWidth) - px(gcs.paddingBottom) }
+      guard = { hFill: (t.r - t.l) / (inner.r - inner.l), vFill: (t.b - t.t) / (inner.b - inner.t), widthPct: gr.w / Wc }
+    }
+    const tileFill = stages.map((e) => { const r = R(e), s = getComputedStyle(e), t = textBox(e); return { h: (t.r - t.l) / (r.w - px(s.paddingLeft) - px(s.paddingRight)), v: (t.b - t.t) / (r.h - px(s.paddingTop) - px(s.paddingBottom)) } })
+    const input = R(document.querySelector('.shop-input')), form = R(document.querySelector('.shop-form')), lede = R(document.querySelector('main .page-lede')), row = R(document.querySelector('.shop-form-row'))
+    return { ...headerBlock(), Wc, stages: stages.length, stagesRow: new Set(sr.map((q) => Math.round(q.t))).size === 1, clipped, guard, tileFillMin: Math.min(...tileFill.map((q) => q.h)), tileFillV: Math.min(...tileFill.map((q) => q.v)), inputW: input.w / Wc, formW: form.w / Wc, ledeW: lede.w, rowW: row.w, ledeLeft: lede.l - row.l, guardRows: document.querySelectorAll('.shop-guard-row').length, page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked2x2: new Set(sr.map((q) => Math.round(q.l))).size }
+  }
+  return null
+}
+
+async function runStyle(browser, base) {
+  const STYLE_SIZES = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080], [2000, 1100], [2560, 1440], [390, 844]]
+  const rows = []
+  for (const cfg of STYLE_PAGES) {
+    for (const [w, h] of STYLE_SIZES) {
+      const page = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
+      await page.goto(base + cfg.path.slice(1), { waitUntil: 'load' })
+      await page.waitForSelector(cfg.ready, { timeout: 30000 })
+      if (cfg.planet) { await page.locator(`.solar-planet[aria-label="${cfg.planet}"]`).click({ force: true }); await page.mouse.move(2, 2) }
+      await page.waitForTimeout(cfg.wait ?? 500)
+      if (cfg.scroll) { await page.evaluate((s) => document.querySelector(s)?.scrollIntoView(), cfg.scroll); await page.waitForTimeout(300) }
+      if (cfg.extra === 'sat') await page.waitForSelector('.sat-risk-card', { timeout: 20000 }).catch(() => {})
+      const m = await page.evaluate(measureStyle, cfg)
+      const x = cfg.extra ? await page.evaluate(measureExtra, cfg.extra) : null
+      // The sources line's "Data and credits" link must still take the page to the credits.
+      let creditsTop = null
+      if (cfg.extra === 'sat' && w >= 1280) { await page.click('.globe-credits a'); await page.waitForTimeout(1500); creditsTop = await page.evaluate(() => { const t = document.querySelector('#sat-credits').getBoundingClientRect().top; const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2; return atEnd && t > 0 ? 0 : t }) } // (a page already scrolled to its end cannot bring the credits higher)
+      if (outDir && w === 1440) await page.screenshot({ path: `${outDir}/style-${cfg.name.replace(/[^A-Za-z0-9]+/g, '-')}-${w}x${h}.png` })
+      await page.context().close()
+      const t = m.tokens, bad = []
+      const desktop = w >= 1280
+      if (!m.h1 || Math.abs(m.h1.size - t.title) > 0.1 || m.h1.weight !== '700') bad.push(`h1 is ${m.h1 ? `${m.h1.size}px/${m.h1.weight}` : 'missing'}, the title token is ${t.title}px/700`)
+      if (cfg.body) {
+        const want = cfg.bodyToken === 'card' ? t.card : t.body
+        if (m.body === null || Math.abs(m.body - want) > 0.5) bad.push(`body text is ${m.body}px, the ${cfg.bodyToken} token is ${want}px`)
+      }
+      if (m.small.length) bad.push(`text under 14px: ${m.small.map(([k, v]) => `${k} ${v}px`).join(', ')}`)
+      for (const c of m.pads) if (c.p.some((v) => Math.abs(v - t.pad) > 0.5)) bad.push(`card padding of ${c.k} is ${c.p.join(' ')}, the card-pad token is ${t.pad}px`)
+      if (desktop && m.cpl && (m.cpl[0] < TARGET.cplMin || m.cpl[1] > TARGET.cplMax)) bad.push(`paragraph lines of ${m.cpl[0]}-${m.cpl[1]} characters (45-80)`)
+      if (m.hscroll > 1) bad.push(`the page scrolls sideways by ${m.hscroll}px`)
+      if (x && cfg.extra === 'sat' && w >= 1280) {
+        const want = w >= 1600 ? [0.32, 0.03, 0.65] : [0.36, 0.03, 0.61]
+        if (Math.abs(x.left - want[0]) > 0.015 || Math.abs(x.gutter - want[1]) > 0.015 || Math.abs(x.right - want[2]) > 0.015) bad.push(`columns are ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} of the width (${want.join(' / ')} wanted)`)
+        if (Math.abs(x.boxDiff) > 2) bad.push(`the columns' bottoms differ by ${x.boxDiff.toFixed(1)}px`)
+        if (Math.abs(x.chipsTop - x.controlsTop) > 2) bad.push(`the chips row and the controls row are ${(x.chipsTop - x.controlsTop).toFixed(1)}px apart`)
+        if (x.mapW < 0.6 || x.mapH < 420 - 0.5) bad.push(`the map is ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px (60% and 420px wanted)`)
+        if (!x.mapInside) bad.push('the map overflows its column')
+        if (!x.oneLine) bad.push('a numeral wraps or overflows its tile')
+        if (x.numeral < 22) bad.push(`the numerals are ${x.numeral.toFixed(1)}px (22px wanted)`)
+        if (x.tileDx > 2 || x.tileDy > 2) bad.push(`tile content is ${x.tileDx.toFixed(1)}px / ${x.tileDy.toFixed(1)}px off the tile's centre`)
+        if (x.overlap) bad.push('the columns overlap')
+        if (Math.abs(x.lastText - x.barBottom) > 2) bad.push(`the left column's last line ends ${(x.lastText - x.barBottom).toFixed(1)}px from the clock bar's bottom`)
+        if (x.spare.tileRatio > 1.8 + 0.02) bad.push(`the Latest run tiles are ${x.spare.tileRatio.toFixed(2)}x their natural height (1.8x allowed)`)
+        if (x.spare.rowH > 44.5) bad.push(`a Risk row is ${x.spare.rowH.toFixed(0)}px (44px allowed)`)
+        if (x.spare.tilePad > 0.45 || x.spare.riskPad > 0.45) bad.push('a tile or card has more than 45% vertical padding')
+        if ((w === 1920 || w === 2000) && x.spare.flexGap > 160.5) bad.push(`the flexible gap is ${x.spare.flexGap.toFixed(0)}px (160px allowed)`)
+        if (x.pipeTop < x.vh - 0.5) bad.push(`the Pipeline heading starts at ${x.pipeTop.toFixed(0)}px, above the window's bottom edge (${x.vh}px)`)
+        if (x.creditsGap < 0 || x.creditsGap > 8 + 0.5 + 8 || Math.abs(x.creditsW - x.mapWpx) > 1 || !x.creditsLeftOk) bad.push(`the sources line is ${x.creditsGap.toFixed(1)}px under the clock bar and ${x.creditsW.toFixed(0)}px wide (the map is ${x.mapWpx.toFixed(0)}px)`)
+        if (creditsTop !== null && (creditsTop < -2 || creditsTop > x.vh * 0.5)) bad.push(`the Data and credits link leaves the credits at ${creditsTop.toFixed(0)}px from the window's top`)
+        if (w >= 1440 && x.barBottom > x.vh + 0.5) bad.push(`the clock bar's bottom is at ${x.barBottom.toFixed(0)}px, below the ${x.vh}px window`)
+      }
+      if (x && cfg.extra === 'shopIdle' && w >= 1100) {
+        if (x.stages < 3 || x.stages > 5) bad.push(`${x.stages} pipeline tiles (3 to 5 wanted)`)
+        if (!x.stagesRow) bad.push('the pipeline tiles are not in one row')
+        if (x.clipped) bad.push('a pipeline tile clips its text')
+        if (x.guard && (x.guard.hFill < TARGET.hFill || x.guard.vFill < TARGET.hFill)) bad.push(`Guardrails card fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)} (more than 15% dead space)`)
+        if (x.formW < 0.97 || x.inputW < 0.85) bad.push(`the form is ${(x.formW * 100).toFixed(0)}% and the input ${(x.inputW * 100).toFixed(0)}% of the content width`)
+        if (Math.abs(x.ledeW - x.rowW) > 1 || Math.abs(x.ledeLeft) > 1) bad.push(`the description is ${x.ledeW.toFixed(0)}px wide and the search row ${x.rowW.toFixed(0)}px`)
+        if (x.guardRows < 3) bad.push(`Guardrails shows ${x.guardRows} rows`)
+        if (w >= 1440 && x.page > x.vh + 0.5) bad.push(`the idle page is ${x.page}px tall in a ${x.vh}px window`)
+      }
+      if (x && cfg.extra === 'shopFresh' && x.guardRows < 3) bad.push(`Guardrails shows ${x.guardRows} rows on a first load`)
+      if (x && cfg.extra === 'shopIdle' && w < 1100 && x.stages) {
+        if (w > 520 && x.stacked2x2 !== 2) bad.push('the pipeline tiles are not two by two')
+        if (w <= 520 && x.stacked2x2 !== 1) bad.push('the pipeline tiles are not one column')
+        if (x.clipped) bad.push('a pipeline tile clips its text')
+      }
+      if (x && cfg.extra === 'shopResults' && w >= 1100 && x.gridW !== null && Math.abs(x.gridW - x.gridWanted) > 2) bad.push(`the results grid is ${x.gridW.toFixed(0)}px wide, the content is ${x.gridWanted.toFixed(0)}px`)
+      rows.push({ cfg, w, h, m, x, bad })
+    }
+  }
+  // ShopAI against SatPOV, window by window: the title's computed style, the chips and the description.
+  const sat = (w, h) => rows.find((r) => r.cfg.name === 'SatPOV' && r.w === w && r.h === h)
+  for (const r of rows) {
+    if (!r.cfg.name.startsWith('ShopAI')) continue
+    const s = sat(r.w, r.h)
+    if (!s || !r.m.h1 || !s.m.h1) continue
+    const a = r.m.h1, b = s.m.h1
+    if (a.family !== b.family || a.weight !== b.weight || a.color !== b.color || Math.abs(a.size - b.size) > 0.1) r.bad.push(`the title (${a.size}px ${a.weight}) differs from SatPOV's (${b.size}px ${b.weight})`)
+    if (r.x && s.x && r.w >= 1100) {
+      if (Math.abs(r.x.chipH - s.x.chipH) > 0.5 || Math.abs(r.x.chipGap - s.x.chipGap) > 0.5) r.bad.push(`the chips (${r.x.chipH}px high, ${r.x.chipGap}px apart) differ from SatPOV's (${s.x.chipH}px, ${s.x.chipGap}px)`)
+    }
+  }
+  console.log('\n=== style: page-specific layout ===')
+  for (const { cfg, w, h, x } of rows) {
+    if (!x || w < 1100) continue
+    const tag = `${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}`
+    if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | Pipeline top ${x.pipeTop.toFixed(0)} (window ${x.vh}) | tile centre off ${x.tileDx.toFixed(1)}/${x.tileDy.toFixed(1)}px | numerals ${x.numeral.toFixed(1)}px | S ${x.spare.S.toFixed(0)}px = gaps ${x.spare.gaps.toFixed(0)} (${x.spare.gapEach.toFixed(0)} each) + tiles ${x.spare.tiles.toFixed(0)} (${x.spare.tileRatio.toFixed(2)}x) + risk card ${x.spare.risk.toFixed(0)} (rows ${x.spare.rowH.toFixed(0)}px) + flexible gap ${x.spare.flexGap.toFixed(0)} | left last line ${(x.lastText - x.barBottom).toFixed(0)}px from the clock bar | sources line ${x.creditsGap.toFixed(0)}px under the bar, ${x.creditsW.toFixed(0)}px wide | bar bottom ${x.barBottom.toFixed(0)}`)
+    else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines (${x.ledeW.toFixed(0)}px, search row ${x.rowW.toFixed(0)}px), Guardrails rows ${x.guardRows} | ${x.stages} tiles${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopFresh') console.log(`${tag}Guardrails rows on a first load: ${x.guardRows}`)
+    else if (cfg.extra === 'shopResults') console.log(`${tag}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)
+  }
+  console.log('\n=== style: every page against the tokens ===')
+  console.log('page'.padEnd(18) + 'window'.padEnd(11) + 'h1 px'.padEnd(10) + 'body px'.padEnd(9) + 'min text'.padEnd(10) + 'card padding'.padEnd(26) + 'chars/line'.padEnd(11) + 'status')
+  for (const { cfg, w, h, m, bad } of rows) {
+    const pad = m.pads.length ? [...new Set(m.pads.map((c) => c.p.every((v) => v === c.p[0]) ? String(+c.p[0].toFixed(1)) : c.p.map((v) => +v.toFixed(1)).join('/')))].join(', ') : '-'
+    console.log(cfg.name.padEnd(18) + `${w}x${h}`.padEnd(11) + String(m.h1 ? +m.h1.size.toFixed(1) : '-').padEnd(10) + String(m.body === null ? '-' : +m.body.toFixed(2)).padEnd(9) + String(+m.minFont.toFixed(1)).padEnd(10) + pad.padEnd(26) + (m.cpl ? `${m.cpl[0]}-${m.cpl[1]}` : '-').padEnd(11) + (bad.length ? (cfg.onScale ? (bad.every((b) => [...expected].some((e) => `${w}x${h} ${cfg.name} | ${b}`.startsWith(e))) ? 'known miss' : 'MISS') : 'not on the scale yet') : 'ok'))
+    if (!cfg.onScale) continue
+    for (const b of bad) {
+      const key = `${w}x${h} ${cfg.name} | ${b}`
+      const hit = [...expected].find((e) => key.startsWith(e))
+      if (hit) reasonsUsed.add(hit)
+      else misses.push(key)
+    }
+  }
+}
+
+const reasonsUsed = new Set()
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'silent' })
 await server.listen()
 const url = `http://127.0.0.1:${server.httpServer.address().port}/`
@@ -137,7 +412,7 @@ const browser = await chromium.launch({ headless: true, args: ['--use-angle=swif
 const misses = []
 const fmt = (n, d = 3) => n.toFixed(d)
 try {
-  for (const [w, h] of SIZES) {
+  for (const [w, h] of MODE === 'style' ? [] : SIZES) {
     const page = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
     await page.goto(url, { waitUntil: 'load' })
     await page.waitForSelector('.home-slot-live')
@@ -161,7 +436,8 @@ try {
       if (!sideBySide) {
         sideBySide = true
         console.log(`   body text, side by side:  Home ${t.body}px | ${Object.entries(others).map(([k, v]) => `${k} ${v}px`).join(' | ')}`)
-        for (const [k, v] of Object.entries(others)) if (Math.abs(t.body - v) > 1.001) misses.push(`${w}x${h} | Home body ${t.body}px is not within 1px of ${k}'s ${v}px`)
+        // A page's text is the body token or the card token (card text), so the match is to either of Home's.
+        for (const [k, v] of Object.entries(others)) if (Math.abs(t.body - v) > 1.001 && Math.abs(t.card - v) > 1.001) misses.push(`${w}x${h} | ${k}'s text ${v}px is not within 1px of Home's body ${t.body}px or card text ${t.card}px`)
         console.log(`   Home type: body ${t.body} (token ${t.tokens.body}) | card text ${t.card} (token ${t.tokens.card}) | label ${t.label}/${t.labelWeight} (token ${t.tokens.label}) | planet card text ${t.slotText}, name ${t.slotLabel}, button ${t.button} (token ${t.tokens.small}) | title ${t.title}/${t.titleWeight} | line-height ${t.lineHeight.toFixed(2)}`)
       }
       console.log(`-- ${planet}   Wc ${g.Wc.toFixed(0)}  columns ${fmt(g.left)} / ${fmt(g.gutter)} / ${fmt(g.right)}  system ${fmt(g.system)} Wc wide (${g.systemH.toFixed(0)}px tall${g.systemFull ? '' : ', shortened by the window'})  page ${g.scroll}/${g.vh}  title ${g.titleLines} line(s) ${g.titleFs}px  planet card ${g.cardH.toFixed(0)}px  row padding ${g.rowPad.toFixed(1)}px`)
@@ -209,6 +485,7 @@ try {
     }
     await page.context().close()
   }
+  if (MODE !== 'home') await runStyle(browser, url)
 } finally {
   await browser.close()
   await server.close()
@@ -218,4 +495,5 @@ if (misses.length) {
   for (const m of misses) console.error('  ' + m)
   process.exit(1)
 }
+for (const e of reasonsUsed) console.log(`known miss: ${e} (${expectedReasons[e] ?? 'no reason given'})`)
 console.log('\nAll layout targets met (apart from the known misses in scripts/check-layout.expected.json).')

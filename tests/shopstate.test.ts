@@ -44,6 +44,6 @@ test('only http(s) links are opened', () => {
 })
 
 test('the limitations notice is the agreed text', () => {
-  assert.ok(LIMITATIONS_NOTICE.startsWith('About this tool. Shop Mode is a personal portfolio project, not a store and not for profit.'))
+  assert.ok(LIMITATIONS_NOTICE.startsWith('About this tool. ShopAI is a personal portfolio project, not a store and not for profit.'))
   assert.ok(LIMITATIONS_NOTICE.endsWith('No account details or payment information are collected.'))
 })

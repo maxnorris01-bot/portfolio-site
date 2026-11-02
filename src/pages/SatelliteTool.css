@@ -1,78 +1,201 @@
 /* The page uses the shared container and header (index.css, PageHeader.css); this file holds what is the tool's own. */
 .sat-page {
+  /* Tool controls and readouts: the small token; labels drawn over the sky and the 3D view keep a 12px floor (they must not collide). */
+  --sat-dense: 12px;
   /* The longest a line of running text gets inside a full-width section. */
   --sat-measure: var(--measure-text);
-}
-
-.sat-side-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.35rem;
 }
 
 .sat-side-title {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: 1.05rem;
+  font-size: var(--text-label);
   font-weight: 600;
 }
 
-/* The numbers, condensed for the header. */
-.sat-header .sat-overview {
-  column-gap: 1rem;
+/* The page: stacked under 1280px (title block and stats, the GitHub link, then the map). From 1280px two columns: 36% | 3% | 61% of the
+   content width up to 1599px, 32% | 3% | 65% from 1600px. Left: the title block and the stats, as tall as the map and the clock bar
+   (the sources line hangs below the clock bar, on the right only). Right: the GitHub link, the controls row, the map and the clock bar. */
+.sat-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* The numerals follow the width of this column: 6.2% of 36% (or 32%) of the page width, a size container's cqw (the layout's). */
+  --text-stat: clamp(1.75rem, 4vw, 2.75rem);
 }
 
-.sat-header .sat-overview .section-title {
-  margin-bottom: 0.4rem;
-  font-size: 0.78rem;
+.sat-left .page-title {
+  margin: 0 0 0.4rem;
+}
+
+.sat-left .sat-chips {
+  flex: none;
+}
+
+.sat-left .page-lede {
+  max-width: 34em;
+  margin: 0;
+}
+
+.sat-left .sat-eyebrow {
+  margin: 0;
+}
+
+/* The air between the left column's parts: 16px at least (8px between the label rows), growing equally up to 32px each when the
+   column is shorter than the map; the tiles and the Risk card then grow (below), and the rest goes to the one flexible gap. */
+.sat-gap {
+  flex: 1000 1 0;
+  min-height: var(--space-2);
+  max-height: var(--space-5);
+}
+
+.sat-gap-flex {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+}
+
+.sat-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sat-github-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.sat-credits-line {
+  margin-top: var(--space-2);
+}
+
+.sat-credits-line .globe-credits {
+  margin: 0;
+}
+
+/* The stats: a hairline over the heading, then Latest run and Risk breakdown. */
+.sat-screening-title {
+  margin: 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.sat-left .section-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-small);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
-.sat-header .sat-stats {
-  gap: 0.5rem;
-}
-
-.sat-header .sat-stat {
-  padding: 0.4rem 0.65rem;
-  gap: 0.1rem;
-}
-
-.sat-header .sat-stat dd {
-  font-size: clamp(1.05rem, 1.5vw, 1.45rem);
-}
-
-.sat-header .sat-stat dt {
-  font-size: 0.74rem;
-}
-
-.sat-header .sat-overview > section > .sat-note {
-  margin-top: 0.3rem;
-  font-size: 0.68rem;
-  line-height: 1.3;
-}
-
-.sat-header .sat-risk-card {
-  padding: 0.55rem 0.8rem;
-}
-
-.sat-tech {
-  flex: 1 1 auto;
+/* The tiles grow (up to 1.8 times their natural height) with their content centred on both axes. Natural: padding and borders
+   (0.8rem + 2px), the numeral's line (1.1 em), the gap and the caption's line (14px at 1.6). */
+.sat-left .sat-stats {
+  flex: 250 1 auto;
+  max-height: calc(1.8 * (0.8rem + 2px + 1.1 * var(--text-stat) + 0.1rem + 22.4px));
+  gap: var(--space-2);
   margin: 0;
 }
 
-.sat-tech .chip {
-  font-size: 0.74rem;
+.sat-left .sat-stat {
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.4rem 0.25rem 0.4rem 0.3rem;
+  text-align: center;
+}
+
+.sat-left .sat-stat dd {
+  font-size: var(--text-stat);
+  letter-spacing: -0.065em;
+  white-space: nowrap;
+}
+
+.sat-left .sat-stat dt {
+  font-size: var(--text-small);
+  white-space: normal;
+}
+
+.sat-left .sat-note {
+  margin: var(--space-1) 0 0;
+  font-size: var(--sat-dense);
+  line-height: 1.3;
+}
+
+/* The Risk card grows too: its rows up to 44px, equally spaced, the content centred in the card. */
+.sat-left .sat-risk-card {
+  flex: 250 1 auto;
+  max-height: calc(3 * 44px + 2 * var(--space-1) + 1.1rem + 2px);
+  padding: 0.55rem 0.8rem;
+}
+
+.sat-left .sat-risk-card .sat-risk-bars {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sat-left .sat-risk-card .sat-risk-row {
+  flex: 1 1 auto;
+  max-height: 44px;
+}
+
+@media (min-width: 1280px) {
+  /* A size container, so the title and card padding (cqw) are fractions of the page width. Not below 1280px: a size container holds
+     a fixed-position child, and the CSS full-screen map (the fallback where the browser has no Fullscreen API) must be able to leave it. */
+  .sat-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 36fr) minmax(0, 3fr) minmax(0, 61fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: stretch;
+    container-type: inline-size;
+    /* The window less the nav (74.1px) and the gap above the page: the Pipeline heading starts at or below the window's bottom edge. */
+    min-height: calc(100svh - 74.1px - clamp(1.25rem, 2vw, 2rem));
+  }
+
+  /* Row 1 is the title's top to the clock bar's bottom, for both columns; row 2 is the sources line, under the map only. */
+  .sat-left {
+    grid-column: 1;
+    grid-row: 1;
+    --text-stat: clamp(1.75rem, 2.23cqw, 2.75rem);
+  }
+
+  .sat-right {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .sat-credits-line {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  /* As tall as the title (its line) and the gap to the chips, so the controls row starts where the chips row does. */
+  .sat-github-row {
+    align-items: center;
+    height: calc(var(--text-title) * 1.15 + 0.4rem);
+    margin: 0;
+  }
+}
+
+@media (min-width: 1600px) {
+  .sat-layout {
+    grid-template-columns: minmax(0, 32fr) minmax(0, 3fr) minmax(0, 65fr);
+  }
+
+  .sat-left {
+    --text-stat: clamp(1.75rem, 1.98cqw, 2.75rem);
+  }
 }
 
 .sat-github {
   flex: none;
   padding: 0.35em 0.9em;
-  font-size: 0.85rem;
+  font-size: var(--text-small);
 }
 
 /* The tool: the map and its controls; its own sizing lives in SatelliteGlobe.css. */
@@ -83,59 +206,41 @@
 /* "Data and credits": the footnote that sat under the map, every credit in
    full, and the sources line. */
 .sat-credits-body {
-  display: grid;
-  gap: 0.6rem;
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
+  font-size: var(--text-card);
+  /* Set in columns so no line is over 80 characters: two up to 1700px wide, three beyond; the block stops growing once a column
+     would be wider than that (about 75 characters), instead of lines over 130 characters long. */
+  column-count: 3;
+  column-gap: var(--space-5);
+  max-width: 114em;
+}
+
+@media (max-width: 1699px) {
+  .sat-credits-body {
+    column-count: 2;
+    max-width: 70em;
+  }
+}
+
+@media (max-width: 760px) {
+  .sat-credits-body {
+    column-count: 1;
+  }
 }
 
 .sat-credits-body p,
 .sat-credits-body ul {
-  margin: 0;
+  margin: 0 0 var(--space-3);
+}
+
+.sat-credits-body p,
+.sat-credits-body li {
+  break-inside: avoid;
+  text-wrap: pretty;
 }
 
 .sat-context-slot:not(:empty) {
   margin-top: clamp(2.5rem, 6vw, 4rem);
-}
-
-/* Latest run beside Risk breakdown. Both columns share four rows (title,
-   error, tiles/card, note) through subgrid, so the risk card is exactly as
-   tall as the tiles and both notes start on the same line, at any width
-   where the columns sit side by side. */
-.sat-overview {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  grid-template-rows: repeat(4, auto);
-  column-gap: 2rem;
-}
-
-.sat-overview > section {
-  display: grid;
-  grid-row: span 4;
-  grid-template-rows: subgrid;
-}
-
-.sat-overview > section > .section-title {
-  grid-row: 1;
-}
-
-.sat-overview > section > .sat-error {
-  grid-row: 2;
-}
-
-.sat-overview > section > .sat-stats,
-.sat-overview > section > .card {
-  grid-row: 3;
-}
-
-.sat-overview > section > .sat-note {
-  grid-row: 4;
-  margin-top: 0.9rem;
-}
-
-.sat-overview .section-title {
-  font-size: 1.2rem;
-  margin-bottom: 0.9rem;
 }
 
 .sat-risk-placeholder {
@@ -218,7 +323,7 @@
 .sat-risk-label,
 .sat-risk-count {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: var(--text-small);
   font-weight: 500;
 }
 
@@ -257,7 +362,7 @@
   border-left: 3px solid var(--color-accent);
   background: var(--color-bg);
   color: var(--color-text-secondary);
-  font-size: 0.95rem;
+  font-size: var(--text-body);
 }
 
 .sat-callout strong {
@@ -316,7 +421,7 @@
   background: transparent;
   color: var(--color-text-secondary);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--text-small);
   cursor: pointer;
 }
 
@@ -347,7 +452,7 @@
 
 .sat-step {
   position: relative;
-  padding: 1.25rem;
+  padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-top: 3px solid var(--color-navy);
   border-radius: var(--radius);
@@ -367,19 +472,19 @@
 
 .sat-step-num {
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--text-small);
   font-weight: 600;
   color: var(--color-accent);
 }
 
 .sat-step h3 {
   margin: 0.35rem 0 0.4rem;
-  font-size: 1.1rem;
+  font-size: var(--text-label);
 }
 
 .sat-step p {
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
+  font-size: var(--text-body);
   line-height: 1.5;
 }
 
@@ -387,7 +492,7 @@
   margin-top: 1.25rem;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: var(--text-small);
 }
 
 @media (max-width: 900px) {
@@ -424,7 +529,7 @@
   }
 
   .sat-stat dt {
-    font-size: 0.7rem;
+    font-size: var(--text-small);
     line-height: 1.25;
     white-space: normal;
   }
@@ -447,7 +552,7 @@
   }
 
   .sat-stat dt {
-    font-size: 0.82rem;
+    font-size: var(--text-small);
     line-height: calc(0.9rem * 1.6); /* keep the tile height unchanged */
   }
 

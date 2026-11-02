@@ -21,7 +21,7 @@ export function localTime(iso: string | null | undefined, timeZone?: string): st
 export function limitText(info: LimitInfo, timeZone?: string): string {
   const reset = localTime(info.resetsAt, timeZone)
   const resets = reset ? ` It resets at ${reset}.` : ''
-  if (info.code === 'maintenance') return 'Shop Mode is paused right now. Please try again later.'
+  if (info.code === 'maintenance') return 'ShopAI is paused right now. Please try again later.'
   if (info.code === 'cap_reached') {
     switch (info.limit) {
       case 'searches':
@@ -75,6 +75,19 @@ export function usageLine(usage: UsageInfo | null, counts: { searchCount?: numbe
   const reset = localTime(usage.resetsAt, timeZone)
   if (reset) parts.push(`Daily limit resets at ${reset}`)
   return parts.join(' · ')
+}
+
+/**
+ * What the guardrails card shows when the service has not reported this visit's limits (a fresh visit has no session yet, and
+ * GET /auth/session sends no usage block until it has one): the service's own defaults (room-redesign-agent, app/shop/thresholds.py:
+ * 8 searches and 25 Shop Agains per session; the daily limit resets at the next UTC midnight, app/shop/caps.py). A deployment can
+ * set other values, in which case the reported ones replace these as soon as there is a visit. No dollar amounts, ever.
+ */
+export const DEFAULT_MAX_SEARCHES = 8
+export const DEFAULT_MAX_SHOP_AGAINS = 25
+export function defaultUsage(now: Date = new Date()): UsageInfo {
+  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+  return { maxSearches: DEFAULT_MAX_SEARCHES, maxShopAgains: DEFAULT_MAX_SHOP_AGAINS, resetsAt: midnight.toISOString() }
 }
 
 /** The usage block of GET /auth/session, reduced to what the page shows; null when absent or not understood. */

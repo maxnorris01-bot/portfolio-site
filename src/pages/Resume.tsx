@@ -38,7 +38,7 @@ const experience = [
 export default function Resume() {
   return (
     <main className="page">
-      <div className="page-container">
+      <div className="page-container is-scaled">
         <article className="resume">
           <aside className="resume-rail">
             <h1 className="resume-name">Max Norris</h1>

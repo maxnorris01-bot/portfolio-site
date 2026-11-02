@@ -1,8 +1,21 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import PageHeader from '../components/PageHeader'
-import { EXAMPLE_REQUESTS, LIMITATIONS_NOTICE, NO_RESULTS_MESSAGE, SHOP_TITLE } from './copy.ts'
+import {
+  EXAMPLE_REQUESTS,
+  GUARDRAILS_LABEL,
+  GUARDRAILS_NOTE,
+  NO_RESULTS_MESSAGE,
+  PIPELINE_LABEL,
+  PIPELINE_NOTE,
+  PIPELINE_STAGES,
+  PIPELINE_TITLE,
+  SHOP_CHIPS,
+  SHOP_DESCRIPTION,
+  SHOP_EYEBROW,
+  SHOP_TITLE,
+} from './copy.ts'
 import { requestChips } from './chips.ts'
-import { limitText, isLimit, usageLine } from './limits.ts'
+import { defaultUsage, limitText, isLimit, localTime, usageLine } from './limits.ts'
 import { openResolved } from './open.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
@@ -170,11 +183,21 @@ export default function ShopView(props: ShopViewProps) {
 
   return (
     <main className="page">
-      <div className="page-container shop">
+      <div className="page-container is-scaled shop">
         <PageHeader
-          eyebrow="Project · Personal shopping assistant"
+          className="has-chips"
+          eyebrow={SHOP_EYEBROW}
           title={SHOP_TITLE}
-          lead="Describe what you want to buy in plain words. It searches Google Shopping, ranks the matches and shows them here."
+          titleMeta={
+            <ul className="chip-list page-chips" aria-label="Tech stack">
+              {SHOP_CHIPS.map((c) => (
+                <li key={c} className="chip">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          }
+          lead={SHOP_DESCRIPTION}
         />
 
         {props.meta.maintenance && (
@@ -269,11 +292,56 @@ export default function ShopView(props: ShopViewProps) {
           {state.status === 'done' && <Results state={state} props={props} />}
         </section>
 
-        <aside className="shop-about" aria-label="About this tool">
-          <p>{LIMITATIONS_NOTICE}</p>
-        </aside>
+        <SearchPipeline usage={props.meta.usage} />
       </div>
     </main>
+  )
+}
+
+/**
+ * How a search works, as a row of stage tiles, then the guardrails (what the service reports for this visit: searches and Shop Agains
+ * allowed, when the day's limit resets) beside the caveats. Never a dollar amount.
+ */
+function SearchPipeline({ usage }: { usage: ShopViewProps['meta']['usage'] }) {
+  // The service's figures for this visit when it has reported them, otherwise its defaults (limits.ts): the card always has its rows.
+  const u = usage ?? defaultUsage()
+  const reset = localTime(u.resetsAt)
+  const rows = [
+    { label: 'Searches per visit', value: String(u.maxSearches) },
+    { label: 'Shop Agains per visit', value: String(u.maxShopAgains) },
+    ...(reset ? [{ label: 'Daily limit resets', value: reset }] : []),
+  ]
+  return (
+    <section className="shop-pipeline" aria-labelledby="shop-pipeline-title">
+      <h2 id="shop-pipeline-title" className="shop-pipeline-title">
+        {PIPELINE_TITLE}
+      </h2>
+      <h3 className="shop-caps">{PIPELINE_LABEL}</h3>
+      <ol className="shop-stages">
+        {PIPELINE_STAGES.map((s, i) => (
+          <li key={s.name} className="card shop-stage">
+            <span className="shop-stage-num">{String(i + 1).padStart(2, '0')}</span>
+            <h4>{s.name}</h4>
+            <p>{s.caption}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="shop-pipeline-foot">
+        <div className="shop-guardrails">
+          <h3 className="shop-caps">{GUARDRAILS_LABEL}</h3>
+          <dl className="card shop-guard-card">
+            {rows.map((r) => (
+              <div key={r.label} className="shop-guard-row">
+                <dt>{r.label}</dt>
+                <dd>{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="shop-pipeline-note">{GUARDRAILS_NOTE}</p>
+        </div>
+        <p className="shop-pipeline-note">{PIPELINE_NOTE}</p>
+      </div>
+    </section>
   )
 }
 

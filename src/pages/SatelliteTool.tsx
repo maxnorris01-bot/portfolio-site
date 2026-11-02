@@ -5,7 +5,6 @@ import type { DatasetKey, FocusRequest } from '../globe/types'
 import { satelliteTool } from '../data/satelliteTool'
 import { useSatelliteSummary } from '../hooks/useSatelliteSummary'
 import ConjunctionsMenu from '../components/ConjunctionsMenu'
-import PageHeader from '../components/PageHeader'
 import { closestRows } from '../globe/conjunctions'
 import { usePageMeta } from '../hooks/usePageMeta'
 import './SatelliteTool.css'
@@ -139,6 +138,8 @@ export default function SatelliteTool() {
   // Where the globe puts "For context: the real record" and the full credits: sections of this page, below the tool.
   const [contextEl, setContextEl] = useState<HTMLDivElement | null>(null)
   const [creditsEl, setCreditsEl] = useState<HTMLDivElement | null>(null)
+  // The one-line sources under the clock bar: a row of the page's grid, in the map's column.
+  const [creditsLineEl, setCreditsLineEl] = useState<HTMLDivElement | null>(null)
   const exitFocus = useCallback(() => setFocus(null), [])
 
   const replay = (n: NearMiss) => {
@@ -159,143 +160,132 @@ export default function SatelliteTool() {
   return (
     <main className="page sat-page">
       <div className="page-container">
-        <PageHeader
-          className="sat-header"
-          fullLead
-          title={satelliteTool.name}
-          titleMeta={
-            <ul className="chip-list sat-tech" aria-label="Tech stack">
+        <div className="sat-layout">
+          <div className="sat-left">
+            <h1 className="page-title">{satelliteTool.name}</h1>
+            <ul className="chip-list page-chips sat-chips" aria-label="Tech stack">
               {satelliteTool.techStack.map((t) => (
                 <li key={t} className="chip">
                   {t}
                 </li>
               ))}
             </ul>
-          }
-          eyebrow={<>Project · Applied AI &amp; data engineering</>}
-          lead={
-            <>
+            <div className="sat-gap" aria-hidden="true" />
+            <p className="eyebrow sat-eyebrow">Project · Applied AI &amp; data engineering</p>
+            <div className="sat-gap" aria-hidden="true" />
+            <p className="page-lede sat-lede">
               <span>{satelliteTool.intro[0]}</span> <span>{satelliteTool.intro[1]}</span>
-            </>
-          }
-          aside={
-            <>
-            <div className="sat-side-top">
-              <h2 id="sat-screening" className="sat-side-title">
-                Conjunction screening
-              </h2>
-              <a
-                href={satelliteTool.repoUrl}
-                className="btn btn-secondary sat-github"
-                target="_blank"
-                rel="noreferrer"
-              >
+            </p>
+            {/* The one flexible gap: whatever height is still spare once the other gaps and the tiles are at their caps. */}
+            <div className="sat-gap sat-gap-flex" aria-hidden="true" />
+            <div className="sat-gap" aria-hidden="true" />
+            <h2 id="sat-screening" className="sat-side-title sat-screening-title">
+              Conjunction screening
+            </h2>
+            <div className="sat-gap" aria-hidden="true" />
+            <h3 id="sat-results" className="section-title">
+              Latest run
+            </h3>
+            {state.status === 'error' && (
+              <div className="sat-callout sat-error" role="alert">
+                <p>The latest screening results couldn&apos;t be loaded right now.</p>
+                <button type="button" className="btn btn-secondary" onClick={retry}>
+                  Try again
+                </button>
+              </div>
+            )}
+            <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`} aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
+              {statsFor(summary).map(({ value, label }) => (
+                <div key={label} className="card sat-stat">
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {summary && (
+              <p className="sat-note">
+                Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging passes under {summary.threshold_km} km. Closest approach is the nearest pass
+                involving an active satellite. Runs daily on Fly.io.
+              </p>
+            )}
+            <div className="sat-gap" aria-hidden="true" />
+            <h3 id="sat-risk" className="section-title">
+              Risk breakdown
+            </h3>
+            {summary ? (
+              <RiskBreakdown summary={summary} />
+            ) : (
+              <div className="card sat-risk-placeholder">{state.status === 'error' ? '—' : 'Loading…'}</div>
+            )}
+          </div>
+
+          <div className="sat-right">
+            <div className="sat-github-row">
+              <a href={satelliteTool.repoUrl} className="btn btn-secondary sat-github" target="_blank" rel="noreferrer">
                 View on GitHub ↗
               </a>
             </div>
-            <div className="sat-overview">
-              <section aria-labelledby="sat-results" aria-busy={state.status === 'loading'}>
-                <h3 id="sat-results" className="section-title">
-                  Latest run
-                </h3>
-                {state.status === 'error' && (
-                  <div className="sat-callout sat-error" role="alert">
-                    <p>The latest screening results couldn&apos;t be loaded right now.</p>
-                    <button type="button" className="btn btn-secondary" onClick={retry}>
-                      Try again
-                    </button>
-                  </div>
-                )}
-                <dl className={`sat-stats${state.status === 'loading' ? ' is-loading' : ''}`}>
-                  {statsFor(summary).map(({ value, label }) => (
-                    <div key={label} className="card sat-stat">
-                      <dt>{label}</dt>
-                      <dd>{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-                {summary && (
-                  <p className="sat-note">
-                    Screened {utc(summary.generated_at_utc)} over the following 24 hours, flagging
-                    passes under {summary.threshold_km} km. Closest approach is the nearest pass
-                    involving an active satellite. Runs daily on Fly.io.
-                  </p>
-                )}
-              </section>
 
-              <section aria-labelledby="sat-risk">
-                <h3 id="sat-risk" className="section-title">
-                  Risk breakdown
-                </h3>
-                {summary ? (
-                  <RiskBreakdown summary={summary} />
-                ) : (
-                  <div className="card sat-risk-placeholder">
-                    {state.status === 'error' ? '—' : 'Loading…'}
+            <section ref={globeRef} className="sat-tool" aria-labelledby="sat-globe">
+              <h2 id="sat-globe" className="visually-hidden">
+                Every tracked object
+              </h2>
+              <Suspense fallback={<div className="sat-globe-fallback">Loading the globe…</div>}>
+                <SatelliteGlobe
+                  focus={focus}
+                  onExitFocus={exitFocus}
+                  onDatasetChange={setGlobeDataset}
+                  conjunctionsFlagged={summary?.conjunctions_flagged}
+                  viewMode={viewMode}
+                  onCanPovChange={setCanPov}
+                  onViewRequest={requestView}
+                  conjunctionsControl={
+                    <ConjunctionsMenu
+                      rows={shownSummary ? closestRows(shownSummary) : null}
+                      failed={shownState.status === 'error'}
+                      selectedKey={focus?.key ?? null}
+                      keyOf={nearMissKey}
+                      onSelect={replay}
+                    />
+                  }
+                  contextSlot={contextEl}
+                  creditsSlot={creditsEl}
+              creditsLineSlot={creditsLineEl}
+                  modeSwitch={
+          <div className="sat-view-toggle" role="group" aria-label="View">
+                    {(['globe', 'sky', 'pov'] as const).map((m) => {
+                      // Satellite stays focusable (aria-disabled) so its hint can be read.
+                      const unavailable = m === 'pov' && !canPov && viewMode !== 'pov'
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          aria-pressed={viewMode === m}
+                          aria-disabled={unavailable || undefined}
+                          aria-describedby={unavailable ? 'sat-view-pov-hint' : undefined}
+                          title={unavailable ? 'Select a satellite first' : undefined}
+                          onClick={() => !unavailable && switchView(m)}
+                        >
+                          {m === 'globe' ? 'Globe' : m === 'sky' ? 'Sky' : 'Satellite'}
+                        </button>
+                      )
+                    })}
+                    <span id="sat-view-pov-hint" className="visually-hidden">
+                      Select a satellite first
+                    </span>
                   </div>
-                )}
-              </section>
-            </div>
         
-            </>
-          }
-        />
-
-        <section ref={globeRef} className="sat-tool" aria-labelledby="sat-globe">
-          <h2 id="sat-globe" className="visually-hidden">
-            Every tracked object
-          </h2>
-          <Suspense fallback={<div className="sat-globe-fallback">Loading the globe…</div>}>
-            <SatelliteGlobe
-              focus={focus}
-              onExitFocus={exitFocus}
-              onDatasetChange={setGlobeDataset}
-              conjunctionsFlagged={summary?.conjunctions_flagged}
-              viewMode={viewMode}
-              onCanPovChange={setCanPov}
-              onViewRequest={requestView}
-              conjunctionsControl={
-                <ConjunctionsMenu
-                  rows={shownSummary ? closestRows(shownSummary) : null}
-                  failed={shownState.status === 'error'}
-                  selectedKey={focus?.key ?? null}
-                  keyOf={nearMissKey}
-                  onSelect={replay}
+                  }
                 />
-              }
-              contextSlot={contextEl}
-              creditsSlot={creditsEl}
-              modeSwitch={
-      <div className="sat-view-toggle" role="group" aria-label="View">
-                {(['globe', 'sky', 'pov'] as const).map((m) => {
-                  // Satellite stays focusable (aria-disabled) so its hint can be read.
-                  const unavailable = m === 'pov' && !canPov && viewMode !== 'pov'
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      aria-pressed={viewMode === m}
-                      aria-disabled={unavailable || undefined}
-                      aria-describedby={unavailable ? 'sat-view-pov-hint' : undefined}
-                      title={unavailable ? 'Select a satellite first' : undefined}
-                      onClick={() => !unavailable && switchView(m)}
-                    >
-                      {m === 'globe' ? 'Globe' : m === 'sky' ? 'Sky' : 'Satellite'}
-                    </button>
-                  )
-                })}
-                <span id="sat-view-pov-hint" className="visually-hidden">
-                  Select a satellite first
-                </span>
-              </div>
-        
-              }
-            />
-          </Suspense>
-        </section>
+              </Suspense>
+            </section>
+          </div>
+
+          <div ref={setCreditsLineEl} className="sat-credits-line" />
+        </div>
       </div>
 
-      <div className="page-container">
+      <div className="page-container is-scaled">
         <section className="sat-section" aria-labelledby="sat-pipeline">
           <h2 id="sat-pipeline" className="section-title">
             Pipeline

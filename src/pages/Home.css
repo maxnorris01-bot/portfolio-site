@@ -53,6 +53,11 @@
   color: var(--color-text-secondary);
 }
 
+/* A row's text keeps to about 75 characters a line however wide the card is (the same measure as a planet's text). */
+.home-row-text {
+  max-width: 36em;
+}
+
 /* A planet's text keeps to about 75 characters a line however wide its card is. */
 .home-slot p {
   max-width: 36em;

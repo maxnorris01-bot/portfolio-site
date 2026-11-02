@@ -20,7 +20,7 @@ function ScrollToTop() {
 function NotFound() {
   return (
     <main className="page">
-      <div className="page-container">
+      <div className="page-container is-scaled">
         <PageHeader title="Page not found">
           <Link to="/" className="btn btn-secondary not-found-back">
             Back home

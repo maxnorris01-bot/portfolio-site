@@ -55,6 +55,7 @@ except the Résumé (`#f6f6f3`). Gap between stacked blocks: Home 22px, ShopAI 1
 | `--text-small` | 14px | captions, buttons, notes |
 | `--text-label` | 18px, weight `--label-weight` 600 | card headings and row labels |
 | `--text-title` | `clamp(1.75rem, 2cqw, 2.25rem)`, weight 700 | the page title (cqw: 1% of the content width) |
+| `--text-stat` | `clamp(1.75rem, 6.2cqw, 2.75rem)` | the big numerals of a stat tile (mono); cqw is the width of the stats' own column (SatPOV's left column) |
 | `--leading` | 1.55 | line height for text |
 | `--space-1`...`--space-6` | 4, 8, 16, 24, 32, 48px | spacing scale |
 | `--card-pad` | `clamp(20px, 2.2cqw, 32px)` | card padding, all sides |
@@ -90,12 +91,68 @@ Home body 16px against the other pages' body text: Résumé 17, SatPOV 15.68, Sh
 - **1920x1080 row padding is 17.8px, over the 16px the brief allows.** The system is already at its 0.32 Wc maximum and the cards are
   taller than their text needs at the 18px card size. It is listed in `scripts/check-layout.expected.json` and reported, not hidden.
 
-## Follow-ups (not changed in this PR)
+## Rolled out to the other pages (PRs #52, #53 and the SatPOV PR)
 
-Résumé, SatPOV and ShopAI were not touched. To bring them onto the scale:
+Résumé, 404, ShopAI and SatPOV are now on the tokens; `npm run check:layout` (style mode) asserts it at 1280x720, 1440x900, 1920x1080 and 390x844. The Phase 1 tables above are the "before". Final values, as measured:
 
-- **Résumé**: body 17 -> `--text-card`/`--text-body`; h1 fixed 32px -> `--text-title`; small 13.6 mono -> `--text-small`; card padding 24 -> `--card-pad`; block gap 40px -> `--space-5`.
-- **SatPOV**: body 15.68 -> `--text-body`; tool-panel text 10.88-12.8px -> `--text-small` (14px is the floor); buttons 13.6 -> 14; credits body 12.8 -> `--text-card`; card padding 8.8/12.8 and 17.6/20 -> `--card-pad`; cut the 83-110 chars/line to 80 or fewer.
-- **ShopAI**: body 15.68 -> `--text-body`; small 12.8-13.6 -> `--text-small`; result card labels 15.68 -> `--text-label`; title -> `--text-title`; block gap 16px -> `--space-3`.
-- **404**: title -> `--text-title`.
-- Use `container-type: inline-size` on `.page-container` for each page that adopts `--text-title` and `--card-pad`, because both use `cqw`.
+| Page | h1 | body | smallest text | card padding | chars/line (desktop) |
+|---|---|---|---|---|---|
+| Home | 28-36 / 700 | 16 body, 17-18 card | 14 | 26.9-32 | 46-79 |
+| Résumé | 28-36 / 700 | 17-18 (card token) | 14 | 26.9-32 | 49-60 |
+| ShopAI idle / results | 28-36 / 700 | 16 | 14 | 26.9-32 (results) | 55-74 |
+| SatPOV | 28-36 / 700 | 16 | 12 (listed below), the rest 14 | 8.8/12.8 header cards (listed below) | 69-76 |
+| SatPOV Data and credits | 28-36 / 700 | 17-18 | 12 (credits line under the map) | 26.9-32 | 59-74 (41-53 at 1440) |
+| 404 | 28-36 / 700 | - | 15.2 | - | - |
+
+What changed per page is in each PR. Shared pieces: `.page-title` and `.page-lede` (16px, 34em) in `PageHeader.css`; the eyebrow is 14px; `.page-container.is-scaled` makes a page's container a size container so the `cqw` tokens work (SatPOV puts it on the header and on the credits container, not on the container that holds the map, because a size container would hold the full-screen map's `position: fixed`). The Résumé card background stays `#f6f6f3` on purpose.
+
+### Exceptions (all in `scripts/check-layout.expected.json`, with reasons)
+
+- **Home 1920x1080 row padding** 17.8px (limit 16): the system is at its maximum height.
+- **SatPOV text under 14px:** the 12px floor (`--sat-dense`) is used for the header's Latest run / Risk breakdown notes (`.sat-note`) and the one-line credits under the map (`.globe-credits`); at 14px they push the clock bar below the fold at 1440x900. Labels drawn over the Sky view (rings, bodies, constellations, selected) also keep 12px so they do not collide; they are only on screen in the Sky view. Every other control and readout, including buttons (13.6 -> 14), is 14px.
+- **SatPOV header cards** (Latest run tiles, Risk breakdown) keep their compact padding: at `--card-pad` (30px) the header grows about 50px and the controls bar and clock fall below the fold at 1440x900, where the map is already at its 420px floor.
+- **SatPOV credits at 1440x900:** one ragged line of 41 characters in a three-column list (the columns average 55).
+- **SatPOV at 1280x720** already did not fit the window (the map is at its 420px floor); it is about 55px taller now (credits line bottom 940 vs 882).
+- Not checkable here: the Satellite (POV) view and anything that needs the live run data; the run data does not load in the headless check, so those panels were converted by the same rule (14px, no change to the viewer) but not measured.
+
+### Left for later
+
+- SatPOV's tool panel could drop the 12px floor if the header were made shorter (for example the Latest run notes moved into a tooltip); that is a layout change, so it was not done.
+- The `h2` section headings (Résumé 24px, ShopAI Saved 18px, SatPOV 18px) are not a token; the scale has no `h2` role.
+
+## Fixes after the rollout (SatPOV header, ShopAI grid)
+
+- **New token `--text-stat`** = `clamp(1.75rem, 2.4cqw, 2.75rem)`. The first value tried, `2.2cqw`, gave only 1.40x the old numerals at 1440 wide (the brief wanted 1.5x), so it is `2.4cqw` (33px at 1440, 29px at 1280, 44px from about 1900).
+- **SatPOV header** (from 1100px): the title block is as wide as its content (up to 46% of the header, 44% under 1300px), and the stats panel starts one gap (`clamp(24px, 2.2cqw, 48px)`) after it and takes the rest. The panel is as tall as the title block (the stat tiles stretch), so the header is the same height as before at 1280, 1366 and 1440 and the clock bar did not move at 1440x900. Risk breakdown is 40% of the panel. The title row is now a column (title, then the chips) so the block has one width at every size. Tile padding is slightly tighter and the numerals' letter-spacing is -0.065em so "0.02 km" stays on one line at 1366-1440; at 1280 the same text wraps at the space only if it must.
+- **ShopAI** (from 1100px): Home's grid, two 49% columns with 2% between. Left: title block, form (input fills the column), chips, usage and status lines. Right: a white About card (`--card-pad`, heading in `--text-label`, label | text rows with hairlines in `--text-card`, text at most 36em) whose top is the title's top. The words are the old notice split in four (`ABOUT_ROWS` in `src/shop/copy.ts`; `LIMITATIONS_NOTICE` is built from them and unchanged). With results, the grid runs the full width below. The shop starts at 1100px, not 1280 like Home, as the brief asked; its left column holds only the form, so it is not squeezed.
+- **Other windows**: the style check now also runs at 1366x768, 2000x1100 and 2560x1440. That showed lines over 80 characters on Home's cards at 2000 and 2560 (rows now stop at 36em) and in the SatPOV credits (now two columns up to 1700px wide, three beyond, capped so a column is about 75 characters).
+- **Exceptions** are the ones listed above, now at the extra sizes. The 1440x900 credits exception is gone.
+- **Globe "Couldn't load the latest run" on a preview**: not a code bug. The globe fetches the objects file straight from the public bucket (`https://satellite-conjunction-screening.fly.storage.tigris.dev/objects/current.json`, `src/globe/data.ts`), a cross-origin request, and the bucket answers `Access-Control-Allow-Origin` only for the allowed origins (`http://localhost:5173` yes; a `*.vercel.app` preview origin and `https://example.com` get none), so the browser blocks it. The stat tiles use the same-origin `/api/satellite/summary` function, which fetches on the server, so they load. Same cause in the headless checks: `http://127.0.0.1:<port>` fails, `http://localhost:5173` loads the globe.
+
+## Round 2: SatPOV two columns, ShopAI header and pipeline
+
+- **`--text-stat` changed** to `clamp(1.75rem, 6.2cqw, 2.75rem)`: it now follows the width of the stats' own column (the SatPOV left column, a size container), so "0.02 km" always fits one line (29.6px at 1280, 33px at 1440, 44px from about 1700).
+- **SatPOV, from 1280px:** `.sat-layout` is a grid of 39% | 3% | 58% of the content width. Left: title, chips, project label, description, a hairline, then Conjunction screening (tiles, note, Risk breakdown, note). Right: a title-height row with View on GitHub (right), the controls row (starts where the chips row does), the map 22px (1.2% of the width) below it, and the clock bar attached; the map takes whatever height the left column needs (floor 420px). The one-line credits sit under both columns (the globe hands that line to the page through `creditsLineSlot`; in full screen it stays in the map). Below 1280px the page stacks as before: title block, stats, GitHub link, controls, map. The layout is a size container (for the `cqw` tokens) only from 1280px, because a size container holds a fixed child and the CSS full-screen map (the fallback where there is no Fullscreen API) must be able to leave it.
+- **Compact** is unchanged in meaning: it hides the panel of filters over the map (the button then reads Controls), and the map keeps its column. It never hid the header.
+- **ShopAI:** title "ShopAI Tool" in the same `.page-title` as SatPOV (the computed family, size, weight and colour were already identical on this branch; the check now compares them window by window); the chips and the description use one shared set of classes (`.page-chips`, `.has-chips` in `PageHeader.css`) so their height and gap equal SatPOV's. The About card is gone: a Search pipeline section sits under the form (five stage tiles with arrows, two by two under 1100px, one column under 520px), with the old About note split into the notes under the tiles and under the guardrails card (same words). Results: the grid directly under the form, the pipeline below it.
+- **Guardrails** show what the service reports for the visit: searches and Shop Agains allowed per visit and when the day's limit resets. The brief asked for spend figures ($0.50 per session, $1.00 per visitor per day); the shop deliberately never shows dollar amounts (`UsageInfo` drops them, and `shoplimits`/`shopview` tests assert it), and the API does not report them, so they are not shown. Rows appear only when the service has reported usage.
+- **Exceptions added:** the pipeline notes are the 12px mono floor like SatPOV's tile notes; the idle ShopAI page at 1440x900 is about 1091px tall (the header block 223px + form 160px + the pipeline 385px against the 760px a 1440x900 window leaves), so Guardrails and its notes are below the fold; at 1920x1080 and larger it fits.
+
+## Round 3: SatPOV proportions and fold, ShopAI description and Guardrails
+
+- **SatPOV columns:** 36% | 3% | 61% of the content width from 1280 to 1599px, 32% | 3% | 65% from 1600px. The map takes the whole right column (61-65% of the width). The numerals still follow the left column's width (28px at 1280, 30.7 at 1440, 36-38 at 1920-2000, 44 at 2560) and stay on one line.
+- **Pipeline below the fold:** the top block (`.sat-layout`) is at least `100svh - 74.1px - the page's top padding`, so the Pipeline heading starts at or below the window's bottom edge at every desktop size (948 in a 900px window, 1128 in 1080, 1148 in 1100, 1488 in 1440). The map grows with the column (up to 80vh); anything left over sits below the sources line.
+- **Sources line** is directly under the clock bar, in the map's column, 8px below it and as wide as the map (it may wrap to two lines); its "Data and credits" link still scrolls to the credits (the check clicks it). It keeps the 12px floor exception.
+- **Left column:** the sections (title block, Conjunction screening, Risk breakdown) get 16px of air between them, growing equally up to 24px when the column is the shorter; the rest is left at the bottom (about 128px at 1440x900, 355px at 1920x1080, 722px at 2560x1440). Both columns' boxes end together; their content ends differ by that much.
+- **Stat tiles:** numeral and caption centred, on both axes.
+- **ShopAI:** the description runs the full content width (as wide as the search row; exempt from the 45-80 characters rule, "Max asked for full-width description": about 2 lines, 150+ characters a line at 1440 and 200+ at 2000). All visible "Shop Mode" text is "ShopAI" (the copy, the maintenance banner and the connection errors; code names and routes unchanged).
+- **Guardrails always shows its rows.** The cause: `usageFrom` only keeps a usage block when `GET /auth/session` says `authenticated: true`, and a fresh visit has no session, so the card had no data and rendered no rows. It now falls back to the service's own defaults (`DEFAULT_MAX_SEARCHES` 8, `DEFAULT_MAX_SHOP_AGAINS` 25, the next UTC midnight for the daily reset, in `src/shop/limits.ts`, taken from room-redesign-agent's `thresholds.py` and `caps.py`) and uses the reported figures as soon as there are some. Never a dollar amount.
+- **Still open:** the idle ShopAI page is about 1016px tall at 1440x900 (see the exceptions).
+
+## Round 4: SatPOV left column as tall as the map
+
+- The page grid has two rows from 1280px: row 1 runs from the title's top to the bottom of the clock bar for both columns; row 2 is the sources line, under the map only (the globe hands the line to the page, `creditsLineSlot`). So the left column's height is the map's, and the map keeps the height it had.
+- The left column is one flex column of flat children (title, chips, eyebrow, description, Conjunction screening, Latest run, Risk breakdown) with spacer elements between them. Spare height goes (roughly in this order, as flex weights with caps): the gaps grow equally from 8px up to 32px; the Latest run tiles grow to at most 1.8x their natural height and the Risk card to rows of at most 44px, content centred; the rest is one flexible gap between the description and the hairline, so the Conjunction block is anchored to the bottom and its Risk note ends level with the clock bar (within 1px at every size). The gap between the title and the chips does not grow (the controls row on the right is aligned to the chips row).
+- Measured (S = spare height): 1280x720 and 1366x768 none (the left column is the taller); 1440x900 S 117px = gaps 103 + tiles 7 + Risk card 7; 1920x1080 S 343px = gaps 120 + tiles 63 (1.8x) + Risk 77 (rows 44px) + flexible gap 83; 2000x1100 S 362px = 120 + 64 + 77 + flexible gap 100; 2560x1440 S 727px = 120 + 70 + 77 + flexible gap 460.
+- The numerals are now sized from the page width in the left column's share (`--text-stat` is set on `.sat-left`: 2.23cqw from 1280, 1.98cqw from 1600, 4vw stacked), because the left column no longer has a size container of its own.
+- The flexible gap at 2560x1440 is 460px, the one place it is large; the description is capped at 34em (about 70 characters), so it does not fill the wide column.
