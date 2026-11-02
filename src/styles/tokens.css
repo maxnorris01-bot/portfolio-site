@@ -37,6 +37,7 @@
   --text-small: 14px;
   --text-label: 18px; /* a card's heading (h3 level), weight 600 */
   --text-title: clamp(1.75rem, 2cqw, 2.25rem); /* a page's h1 */
+  --text-stat: clamp(1.75rem, 2.4cqw, 2.75rem); /* the big numerals of a stat tile (mono) */
   --leading: 1.55;
   --title-weight: 700;
   --label-weight: 600;

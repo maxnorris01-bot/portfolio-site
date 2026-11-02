@@ -55,6 +55,7 @@ except the Résumé (`#f6f6f3`). Gap between stacked blocks: Home 22px, ShopAI 1
 | `--text-small` | 14px | captions, buttons, notes |
 | `--text-label` | 18px, weight `--label-weight` 600 | card headings and row labels |
 | `--text-title` | `clamp(1.75rem, 2cqw, 2.25rem)`, weight 700 | the page title (cqw: 1% of the content width) |
+| `--text-stat` | `clamp(1.75rem, 2.4cqw, 2.75rem)` | the big numerals of a stat tile (mono): SatPOV's Latest run tiles |
 | `--leading` | 1.55 | line height for text |
 | `--space-1`...`--space-6` | 4, 8, 16, 24, 32, 48px | spacing scale |
 | `--card-pad` | `clamp(20px, 2.2cqw, 32px)` | card padding, all sides |
@@ -118,3 +119,12 @@ What changed per page is in each PR. Shared pieces: `.page-title` and `.page-led
 
 - SatPOV's tool panel could drop the 12px floor if the header were made shorter (for example the Latest run notes moved into a tooltip); that is a layout change, so it was not done.
 - The `h2` section headings (Résumé 24px, ShopAI Saved 18px, SatPOV 18px) are not a token; the scale has no `h2` role.
+
+## Fixes after the rollout (SatPOV header, ShopAI grid)
+
+- **New token `--text-stat`** = `clamp(1.75rem, 2.4cqw, 2.75rem)`. The first value tried, `2.2cqw`, gave only 1.40x the old numerals at 1440 wide (the brief wanted 1.5x), so it is `2.4cqw` (33px at 1440, 29px at 1280, 44px from about 1900).
+- **SatPOV header** (from 1100px): the title block is as wide as its content (up to 46% of the header, 44% under 1300px), and the stats panel starts one gap (`clamp(24px, 2.2cqw, 48px)`) after it and takes the rest. The panel is as tall as the title block (the stat tiles stretch), so the header is the same height as before at 1280, 1366 and 1440 and the clock bar did not move at 1440x900. Risk breakdown is 40% of the panel. The title row is now a column (title, then the chips) so the block has one width at every size. Tile padding is slightly tighter and the numerals' letter-spacing is -0.065em so "0.02 km" stays on one line at 1366-1440; at 1280 the same text wraps at the space only if it must.
+- **ShopAI** (from 1100px): Home's grid, two 49% columns with 2% between. Left: title block, form (input fills the column), chips, usage and status lines. Right: a white About card (`--card-pad`, heading in `--text-label`, label | text rows with hairlines in `--text-card`, text at most 36em) whose top is the title's top. The words are the old notice split in four (`ABOUT_ROWS` in `src/shop/copy.ts`; `LIMITATIONS_NOTICE` is built from them and unchanged). With results, the grid runs the full width below. The shop starts at 1100px, not 1280 like Home, as the brief asked; its left column holds only the form, so it is not squeezed.
+- **Other windows**: the style check now also runs at 1366x768, 2000x1100 and 2560x1440. That showed lines over 80 characters on Home's cards at 2000 and 2560 (rows now stop at 36em) and in the SatPOV credits (now two columns up to 1700px wide, three beyond, capped so a column is about 75 characters).
+- **Exceptions** are the ones listed above, now at the extra sizes. The 1440x900 credits exception is gone.
+- **Globe "Couldn't load the latest run" on a preview**: not a code bug. The globe fetches the objects file straight from the public bucket (`https://satellite-conjunction-screening.fly.storage.tigris.dev/objects/current.json`, `src/globe/data.ts`), a cross-origin request, and the bucket answers `Access-Control-Allow-Origin` only for the allowed origins (`http://localhost:5173` yes; a `*.vercel.app` preview origin and `https://example.com` get none), so the browser blocks it. The stat tiles use the same-origin `/api/satellite/summary` function, which fetches on the server, so they load. Same cause in the headless checks: `http://127.0.0.1:<port>` fails, `http://localhost:5173` loads the globe.

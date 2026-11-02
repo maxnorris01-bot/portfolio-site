@@ -145,10 +145,10 @@ const STYLE_PAGES = [
   { name: 'Home (ShopAI)', path: '/', planet: 'ShopAI', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
   { name: 'Home (Résumé)', path: '/', planet: 'Résumé', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
   { name: 'Résumé', path: '/resume', ready: '.resume-name', h1: '.resume-name', body: '.resume-job-bullets li', bodyToken: 'card', cards: '.resume-rail, .resume-main, .resume-project-card', paras: '.resume-job-bullets li, .resume-project-card p', onScale: true },
-  { name: 'SatPOV', path: '/satellite-conjunction-screening', ready: '.page-title', wait: 3500, h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.sat-risk-card', paras: '.page-lede', onScale: true },
+  { name: 'SatPOV', path: '/satellite-conjunction-screening', ready: '.page-title', wait: 3500, h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.sat-risk-card', paras: '.page-lede', extra: 'sat', onScale: true },
   { name: 'SatPOV (credits)', path: '/satellite-conjunction-screening', ready: '#sat-credits', wait: 3500, scroll: '#sat-credits', h1: '.page-title', body: '.sat-credits-body p', bodyToken: 'card', cards: '.sat-step, .globe-history-event', paras: '.sat-credits-body p, .sat-credits-body li, .globe-history-event p, .globe-history-lede', onScale: true },
-  { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '.page-lede, .shop-about p', onScale: true },
-  { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.page-lede, .shop-about p, .shop-short', onScale: true },
+  { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-about', paras: '.page-lede, .shop-about-text', extra: 'shopIdle', onScale: true },
+  { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again, .shop-about', paras: '.page-lede, .shop-about-text, .shop-short', extra: 'shopResults', onScale: true },
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
 ]
 
@@ -216,8 +216,58 @@ function measureStyle({ h1, body, cards, paras, scroll }) {
   }
 }
 
+
+// Runs in the page: the layout measurements that belong to one page (SatPOV's header, the shop's two columns).
+function measureExtra(kind) {
+  const px = (v) => parseFloat(v) || 0
+  const R = (e) => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height } }
+  const textBox = (root) => {
+    let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), rg = document.createRange()
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      if (!n.textContent.trim() || n.parentElement.getClientRects().length === 0) continue
+      rg.selectNodeContents(n)
+      for (const q of rg.getClientRects()) { l = Math.min(l, q.left); r = Math.max(r, q.right); t = Math.min(t, q.top); b = Math.max(b, q.bottom) }
+    }
+    return { l, r, t, b }
+  }
+  const doc = document.documentElement
+  if (kind === 'sat') {
+    const hd = document.querySelector('.sat-header'), main = hd.querySelector('.page-header-main'), aside = hd.querySelector('.page-header-aside')
+    const tb = textBox(main)
+    let right = tb.r
+    for (const e of main.querySelectorAll('.chip')) right = Math.max(right, e.getBoundingClientRect().right)
+    const Wc = hd.getBoundingClientRect().width, a = R(aside)
+    const dd = [...hd.querySelectorAll('.sat-stat dd')]
+    return { Wc, headerH: R(hd).h, gapPct: (a.l - right) / Wc, bottomDiff: a.b - tb.b, asideBottom: a.b, numeral: px(getComputedStyle(dd[0]).fontSize), ddOverflow: dd.some((e) => e.scrollWidth > e.clientWidth + 1), clock: R(document.querySelector('.globe-timebar')).t, vw: innerWidth }
+  }
+  if (kind === 'shopIdle' || kind === 'shopResults') {
+    const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
+    const Wc = sh.getBoundingClientRect().width - px(cs.paddingLeft) - px(cs.paddingRight)
+    const form = R(document.querySelector('.shop-form')), card = document.querySelector('.shop-about'), cr = R(card), out = document.querySelector('.shop-output')
+    const input = R(document.querySelector('.shop-input'))
+    const chips = [...document.querySelectorAll('.shop-examples .chip')].map(R)
+    const ccs = getComputedStyle(card)
+    const inner = { l: cr.l + px(ccs.borderLeftWidth) + px(ccs.paddingLeft), r: cr.r - px(ccs.borderRightWidth) - px(ccs.paddingRight), t: cr.t + px(ccs.borderTopWidth) + px(ccs.paddingTop), b: cr.b - px(ccs.borderBottomWidth) - px(ccs.paddingBottom) }
+    const tb = textBox(card)
+    let rowPad = 0
+    for (const row of card.querySelectorAll('.shop-about-row')) { const t = textBox(row); rowPad = Math.max(rowPad, (R(row).h - (t.b - t.t)) / 2) }
+    const grid = document.querySelector('.shop-grid')
+    const o = R(out)
+    return { Wc, left: form.w / Wc, gutter: (cr.l - form.r) / Wc, right: cr.w / Wc, leftBottom: o.b, rightBottom: cr.b, topDiff: cr.t - R(document.querySelector('.page-title')).t, hFill: (tb.r - inner.l) / (inner.r - inner.l), vFill: (tb.b - tb.t) / (inner.b - inner.t), rowPad,
+      inputInside: input.r <= form.r + 1 && input.l >= form.l - 1, chipsInside: chips.every((q) => q.r <= form.r + 1), page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked: getComputedStyle(sh).display !== 'grid' }
+  }
+  return null
+}
+
+// Header heights and clock-bar position of the SatPOV page before the header rework (main plus PR 54), at each window size.
+const HEADER_BEFORE = {
+  '1280x720': { headerH: 265, clock: 845 }, '1366x768': { headerH: 224, clock: 807 }, '1440x900': { headerH: 224, clock: 809 },
+  '1920x1080': { headerH: 233, clock: 975 }, '2000x1100': { headerH: 233, clock: 995 }, '2560x1440': { headerH: 202, clock: 1335 },
+}
+
 async function runStyle(browser, base) {
-  const STYLE_SIZES = [[1280, 720], [1440, 900], [1920, 1080], [390, 844]]
+  const STYLE_SIZES = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080], [2000, 1100], [2560, 1440], [390, 844]]
   const rows = []
   for (const cfg of STYLE_PAGES) {
     for (const [w, h] of STYLE_SIZES) {
@@ -227,7 +277,9 @@ async function runStyle(browser, base) {
       if (cfg.planet) { await page.locator(`.solar-planet[aria-label="${cfg.planet}"]`).click({ force: true }); await page.mouse.move(2, 2) }
       await page.waitForTimeout(cfg.wait ?? 500)
       if (cfg.scroll) { await page.evaluate((s) => document.querySelector(s)?.scrollIntoView(), cfg.scroll); await page.waitForTimeout(300) }
+      if (cfg.extra === 'sat') await page.waitForSelector('.sat-risk-card', { timeout: 20000 }).catch(() => {})
       const m = await page.evaluate(measureStyle, cfg)
+      const x = cfg.extra ? await page.evaluate(measureExtra, cfg.extra) : null
       if (outDir && w === 1440) await page.screenshot({ path: `${outDir}/style-${cfg.name.replace(/[^A-Za-z0-9]+/g, '-')}-${w}x${h}.png` })
       await page.context().close()
       const t = m.tokens, bad = []
@@ -241,8 +293,36 @@ async function runStyle(browser, base) {
       for (const c of m.pads) if (c.p.some((v) => Math.abs(v - t.pad) > 0.5)) bad.push(`card padding of ${c.k} is ${c.p.join(' ')}, the card-pad token is ${t.pad}px`)
       if (desktop && m.cpl && (m.cpl[0] < TARGET.cplMin || m.cpl[1] > TARGET.cplMax)) bad.push(`paragraph lines of ${m.cpl[0]}-${m.cpl[1]} characters (45-80)`)
       if (m.hscroll > 1) bad.push(`the page scrolls sideways by ${m.hscroll}px`)
-      rows.push({ cfg, w, h, m, bad })
+      if (x && cfg.extra === 'sat' && w >= 1100) {
+        const oldNumeral = Math.min(23.2, Math.max(16.8, 0.015 * w)) // the numerals before: clamp(1.05rem, 1.5vw, 1.45rem)
+        if (x.gapPct > 0.04) bad.push(`the title block and the stats panel are ${(x.gapPct * 100).toFixed(1)}% of the width apart (4% allowed)`)
+        if (Math.abs(x.bottomDiff) > 4) bad.push(`the stats panel's bottom is ${x.bottomDiff.toFixed(1)}px from the title block's (4px allowed)`)
+        if (x.numeral < Math.max(28, 1.5 * oldNumeral) - 0.1) bad.push(`the numerals are ${x.numeral.toFixed(1)}px (28px, and 1.5x the old ${oldNumeral.toFixed(1)}px, wanted)`)
+        if (x.ddOverflow) bad.push('a numeral overflows its tile')
+        const base = HEADER_BEFORE[`${w}x${h}`]
+        if (base && w <= 1440 && x.headerH > base.headerH + 2) bad.push(`the header is ${x.headerH.toFixed(0)}px tall, it was ${base.headerH}px`)
+        if (base && w === 1440 && Math.abs(x.clock - base.clock) > 1) bad.push(`the clock bar is at ${x.clock.toFixed(0)}px, it was at ${base.clock}px`)
+      }
+      if (x && cfg.extra === 'shopIdle' && w >= 1100) {
+        if (Math.abs(x.left - 0.49) > 0.01 || Math.abs(x.gutter - 0.02) > 0.01 || Math.abs(x.right - 0.49) > 0.01) bad.push(`columns are ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} of the width (49 / 2 / 49 wanted)`)
+        if (Math.abs(x.leftBottom - x.rightBottom) > 2) bad.push(`the columns' bottoms differ by ${(x.leftBottom - x.rightBottom).toFixed(1)}px`)
+        if (Math.abs(x.topDiff) > 2) bad.push(`the About card's top is ${x.topDiff.toFixed(1)}px from the title's`)
+        if (x.hFill < TARGET.hFill) bad.push(`About card hFill ${x.hFill.toFixed(2)} < ${TARGET.hFill}`)
+        if (x.vFill < TARGET.vFill) bad.push(`About card vFill ${x.vFill.toFixed(2)} < ${TARGET.vFill}`)
+        if (x.rowPad > TARGET.rowPad + 0.5) bad.push(`the About rows have ${x.rowPad.toFixed(1)}px above and below their text (${TARGET.rowPad}px allowed)`)
+        if (!x.inputInside || !x.chipsInside) bad.push('the input or the chips are outside the left column')
+        if (w <= 1920 && x.page > x.vh) bad.push(`the page scrolls (${x.page}/${x.vh})`)
+      }
+      if (x && cfg.extra === 'shopResults' && w >= 1100 && x.gridW !== null && Math.abs(x.gridW - x.gridWanted) > 2) bad.push(`the results grid is ${x.gridW.toFixed(0)}px wide, the content is ${x.gridWanted.toFixed(0)}px`)
+      rows.push({ cfg, w, h, m, x, bad })
     }
+  }
+  console.log('\n=== style: page-specific layout ===')
+  for (const { cfg, w, h, x } of rows) {
+    if (!x || w < 1100) continue
+    if (cfg.extra === 'sat') console.log(`${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}gap ${(x.gapPct * 100).toFixed(1)}% of Wc | stats bottom ${x.bottomDiff >= 0 ? '+' : ''}${x.bottomDiff.toFixed(0)}px | numerals ${x.numeral.toFixed(1)}px | header ${x.headerH.toFixed(0)}px | clock bar ${x.clock.toFixed(0)}px`)
+    else if (cfg.extra === 'shopIdle') console.log(`${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | bottoms ${(x.leftBottom - x.rightBottom).toFixed(0)}px | top ${x.topDiff.toFixed(0)}px | card fill ${x.hFill.toFixed(2)} x ${x.vFill.toFixed(2)} | row pad ${x.rowPad.toFixed(1)}px | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopResults') console.log(`${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)
   }
   console.log('\n=== style: every page against the tokens ===')
   console.log('page'.padEnd(18) + 'window'.padEnd(11) + 'h1 px'.padEnd(10) + 'body px'.padEnd(9) + 'min text'.padEnd(10) + 'card padding'.padEnd(26) + 'chars/line'.padEnd(11) + 'status')

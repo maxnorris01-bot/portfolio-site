@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import PageHeader from '../components/PageHeader'
-import { EXAMPLE_REQUESTS, LIMITATIONS_NOTICE, NO_RESULTS_MESSAGE, SHOP_TITLE } from './copy.ts'
+import { ABOUT_ROWS, ABOUT_TITLE, EXAMPLE_REQUESTS, NO_RESULTS_MESSAGE, SHOP_TITLE } from './copy.ts'
 import { requestChips } from './chips.ts'
 import { limitText, isLimit, usageLine } from './limits.ts'
 import { openResolved } from './open.ts'
@@ -218,7 +218,7 @@ export default function ShopView(props: ShopViewProps) {
           )}
         </form>
 
-        <section className="shop-output" aria-label="Results">
+        <section className={`shop-output${state.status === 'done' ? ' is-results' : ''}`} aria-label="Results">
           {state.status === 'idle' && (
             <p className="shop-empty" role="status">
               {state.restoring ? 'Restoring your last search…' : 'Type a request or pick an example to see results here.'}
@@ -269,8 +269,18 @@ export default function ShopView(props: ShopViewProps) {
           {state.status === 'done' && <Results state={state} props={props} />}
         </section>
 
-        <aside className="shop-about" aria-label="About this tool">
-          <p>{LIMITATIONS_NOTICE}</p>
+        <aside className="card shop-about" aria-labelledby={`${inputId}-about`}>
+          <h2 id={`${inputId}-about`} className="shop-about-title">
+            {ABOUT_TITLE}
+          </h2>
+          <ul className="shop-about-rows">
+            {ABOUT_ROWS.map((r) => (
+              <li key={r.label} className="shop-about-row">
+                <strong className="shop-about-label">{r.label}</strong>
+                <span className="shop-about-text">{r.text}</span>
+              </li>
+            ))}
+          </ul>
         </aside>
       </div>
     </main>

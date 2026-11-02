@@ -387,7 +387,8 @@ test('alignment: the system is centred in its column and the left column\'s bott
 
 test('SatPOV "Data and credits" runs the full width; "For context" keeps its reading width', () => {
   const css = src('pages/SatelliteTool.css')
-  assert.doesNotMatch(css.slice(css.indexOf('.sat-credits-body {'), css.indexOf('}', css.indexOf('.sat-credits-body {'))), /max-width/)
+  // Full width in columns: the block only stops growing at three 75-character columns (114em), so no line is over 80 characters.
+  assert.match(css.slice(css.indexOf('.sat-credits-body {'), css.indexOf('}', css.indexOf('.sat-credits-body {'))), /column-count: 3;[^}]*max-width: 114em/s)
   assert.doesNotMatch(css, /\.sat-page \.globe-footnote/)
   assert.match(css, /\.sat-page \.globe-history-lede,\s*\.sat-page \.globe-history-sources \{\s*max-width: var\(--sat-measure\)/)
 })

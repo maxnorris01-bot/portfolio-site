@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import type { ComponentType } from 'react'
 import { fixtureNoResults, fixtureStates, fixtureItems } from '../src/shop/fixtures.ts'
-import { LIMITATIONS_NOTICE } from '../src/shop/copy.ts'
+import { ABOUT_ROWS, ABOUT_TITLE, LIMITATIONS_NOTICE } from '../src/shop/copy.ts'
 import type { ShopViewProps } from '../src/shop/viewprops.ts'
 import { closeServer, loadModule, render } from './helpers/ssr.ts'
 
@@ -47,7 +47,10 @@ test('empty state: a labelled form, example chips, the limitations notice, no re
   assert.match(html, /modern couch under \$1000/)
   assert.match(html, /boho curtains/)
   assert.match(html, /Type a request or pick an example/)
-  assert.ok(html.includes(escaped(LIMITATIONS_NOTICE)))
+  // The notice is a card of label | text rows; its words are the notice's, in four pieces.
+  assert.ok(html.includes(`>${ABOUT_TITLE}</h2>`))
+  for (const r of ABOUT_ROWS) assert.ok(html.includes(`<strong class="shop-about-label">${r.label}</strong><span class="shop-about-text">${escaped(r.text)}</span>`), r.label)
+  assert.equal(`${ABOUT_TITLE}. ${ABOUT_ROWS.map((r) => r.text).join(' ')}`, LIMITATIONS_NOTICE)
   assert.doesNotMatch(html, /shop-grid/)
 })
 
