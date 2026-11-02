@@ -38,7 +38,15 @@
     "2560x1440 ShopAI (results) | text under 14px",
     "390x844 ShopAI (idle) | text under 14px",
     "390x844 ShopAI (results) | text under 14px",
-    "1440x900 ShopAI (idle) | the idle page is"
+    "1440x900 ShopAI (idle) | the idle page is",
+    "1280x720 ShopAI (first load) | text under 14px",
+    "1366x768 ShopAI (first load) | text under 14px",
+    "1440x900 ShopAI (first load) | text under 14px",
+    "1920x1080 ShopAI (first load) | text under 14px",
+    "2000x1100 ShopAI (first load) | text under 14px",
+    "2560x1440 ShopAI (first load) | text under 14px",
+    "390x844 ShopAI (first load) | text under 14px",
+    "ShopAI description lines"
   ],
   "reasons": {
     "1920x1080 SatPOV | the rows have 17.": "Home at 1920x1080: the system is at its 0.32 Wc maximum and the cards are taller than their text needs; padding is 17.8px, over the 16px allowed",
@@ -79,6 +87,14 @@
     "2560x1440 ShopAI (results) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
     "390x844 ShopAI (idle) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
     "390x844 ShopAI (results) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
-    "1440x900 ShopAI (idle) | the idle page is": "Header block (223px, as SatPOV's) + form (160px) + the pipeline (385px) is taller than the 760px a 1440x900 window leaves: the page is about 1091px. The form, the tiles and the status line are on screen; Guardrails and its notes are below the fold. See docs/style-audit.md."
+    "1440x900 ShopAI (idle) | the idle page is": "Header block (223px, as SatPOV's) + form (160px) + the pipeline (about 385px) is taller than the 760px a 1440x900 window leaves: the page is about 1016px. The form, the tiles and the status line are on screen; Guardrails and its notes are below the fold. See docs/style-audit.md.",
+    "1280x720 ShopAI (first load) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
+    "1366x768 ShopAI (first load) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
+    "1440x900 ShopAI (first load) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
+    "1920x1080 ShopAI (first load) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
+    "2000x1100 ShopAI (first load) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
+    "2560x1440 ShopAI (first load) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
+    "390x844 ShopAI (first load) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
+    "ShopAI description lines": "Max asked for full-width description: the ShopAI description is exempt from the 45 to 80 characters rule (it runs the full content width: 150+ characters a line at 1440, 200+ at 2000); the check measures that it is as wide as the search row instead."
   }
 }

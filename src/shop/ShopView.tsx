@@ -15,7 +15,7 @@ import {
   SHOP_TITLE,
 } from './copy.ts'
 import { requestChips } from './chips.ts'
-import { limitText, isLimit, localTime, usageLine } from './limits.ts'
+import { defaultUsage, limitText, isLimit, localTime, usageLine } from './limits.ts'
 import { openResolved } from './open.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
@@ -303,14 +303,14 @@ export default function ShopView(props: ShopViewProps) {
  * allowed, when the day's limit resets) beside the caveats. Never a dollar amount.
  */
 function SearchPipeline({ usage }: { usage: ShopViewProps['meta']['usage'] }) {
-  const reset = localTime(usage?.resetsAt)
-  const rows = usage
-    ? [
-        { label: 'Searches per visit', value: String(usage.maxSearches) },
-        { label: 'Shop Agains per visit', value: String(usage.maxShopAgains) },
-        ...(reset ? [{ label: 'Daily limit resets', value: reset }] : []),
-      ]
-    : []
+  // The service's figures for this visit when it has reported them, otherwise its defaults (limits.ts): the card always has its rows.
+  const u = usage ?? defaultUsage()
+  const reset = localTime(u.resetsAt)
+  const rows = [
+    { label: 'Searches per visit', value: String(u.maxSearches) },
+    { label: 'Shop Agains per visit', value: String(u.maxShopAgains) },
+    ...(reset ? [{ label: 'Daily limit resets', value: reset }] : []),
+  ]
   return (
     <section className="shop-pipeline" aria-labelledby="shop-pipeline-title">
       <h2 id="shop-pipeline-title" className="shop-pipeline-title">
@@ -329,16 +329,14 @@ function SearchPipeline({ usage }: { usage: ShopViewProps['meta']['usage'] }) {
       <div className="shop-pipeline-foot">
         <div className="shop-guardrails">
           <h3 className="shop-caps">{GUARDRAILS_LABEL}</h3>
-          {rows.length > 0 && (
-            <dl className="card shop-guard-card">
-              {rows.map((r) => (
-                <div key={r.label} className="shop-guard-row">
-                  <dt>{r.label}</dt>
-                  <dd>{r.value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
+          <dl className="card shop-guard-card">
+            {rows.map((r) => (
+              <div key={r.label} className="shop-guard-row">
+                <dt>{r.label}</dt>
+                <dd>{r.value}</dd>
+              </div>
+            ))}
+          </dl>
           <p className="shop-pipeline-note">{GUARDRAILS_NOTE}</p>
         </div>
         <p className="shop-pipeline-note">{PIPELINE_NOTE}</p>

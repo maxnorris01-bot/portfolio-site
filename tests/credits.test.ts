@@ -85,8 +85,8 @@ test('the page: the tool first, then Conjunction screening, Pipeline, For contex
   const tsx = src('components/SatelliteGlobe.tsx')
   assert.match(tsx, /createPortal\(history, contextSlot\)/)
   assert.match(tsx, /createPortal\(footnote, creditsSlot\)/)
-  // The line is drawn after the clock row, and the page may take it out to sit under both columns (a portal), except in full screen.
-  assert.ok(tsx.indexOf('{creditsLineSlot && !fullscreen.on ? createPortal(creditsLine, creditsLineSlot) : creditsLine}') > tsx.indexOf('className="globe-timebar"'))
+  // The line is drawn directly under the clock row (in the map's column).
+  assert.ok(tsx.indexOf('      {creditsLine}\n') > tsx.indexOf('className="globe-timebar"'))
   assert.match(tsx, /<p className="globe-credits">/)
   assert.match(tsx, /href=\{`#\$\{CREDITS_ID\}`\}/)
   // The sources line moved with the credits.

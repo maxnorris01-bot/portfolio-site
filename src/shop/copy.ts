@@ -3,7 +3,7 @@ export const ABOUT_TITLE = 'About this tool'
 
 /** The caveats under the pipeline tiles (what it is, the data, the rankings) and the note under the guardrails (access): the old About note, in its own words. */
 export const ABOUT_ROWS = [
-  { label: 'What it is', text: 'Shop Mode is a personal portfolio project, not a store and not for profit.' },
+  { label: 'What it is', text: 'ShopAI is a personal portfolio project, not a store and not for profit.' },
   {
     label: 'Data',
     text: 'Product results come from Google Shopping through a search API; names, prices and images belong to the stores and can be out of date or wrong, so check the store before you buy.',

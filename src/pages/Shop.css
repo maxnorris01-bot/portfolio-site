@@ -9,6 +9,11 @@
   font-size: var(--text-small);
 }
 
+/* The description runs the full content width, as wide as the search row (Max asked for it; lines are long on a wide window). */
+.shop .page-header .page-lede {
+  max-width: none;
+}
+
 .shop .visually-hidden {
   position: absolute;
   width: 1px;

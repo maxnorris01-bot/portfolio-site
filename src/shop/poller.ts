@@ -50,7 +50,7 @@ export class JobPoller {
       } catch (e) {
         if (run !== this.run || isAbort(e)) return
         this.stop()
-        return h.onError(e instanceof ShopError ? e : new ShopError('network', 'Lost contact with Shop Mode. Please try again.'))
+        return h.onError(e instanceof ShopError ? e : new ShopError('network', 'Lost contact with ShopAI. Please try again.'))
       }
       const waited = Date.now() - began
       if (waited >= GIVE_UP_AFTER_MS) {

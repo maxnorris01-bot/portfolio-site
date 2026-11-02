@@ -2384,10 +2384,17 @@ html.globe-fs-lock body {
     min-height: 0;
   }
 
+  /* The map grows with the column up to 80% of the window; what is left over goes below the sources line. */
   .sat-tool .globe:not(.is-fullscreen) .globe-stage {
     flex: 1 1 auto;
     height: auto;
     min-height: 420px;
+    max-height: 80vh;
+  }
+
+  /* The sources line sits under the clock bar, in the map's column. */
+  .sat-tool .globe:not(.is-fullscreen) .globe-credits {
+    margin: var(--space-2) 0 0;
   }
 
   .sat-tool .globe:not(.is-fullscreen) .globe-modebar {

@@ -13,9 +13,10 @@
   font-weight: 600;
 }
 
-/* The page: stacked under 1280px (title block and stats, the GitHub link, then the map). From 1280px two columns on the Home grid's
-   idea, 39% | 3% | 58% of the content width: the title block and the stats on the left; the GitHub link, the controls row, the map
-   and the clock bar on the right. Both columns end at the same edge; the map takes the height the left column needs. */
+/* The page: stacked under 1280px (title block and stats, the GitHub link, then the map). From 1280px two columns: 36% | 3% | 61% of the
+   content width up to 1599px, 32% | 3% | 65% from 1600px. Left: the title block and the stats, with up to 24px of extra air between
+   the sections when the column is the shorter. Right: the GitHub link, the controls row, the map, the clock bar and the sources
+   line. The top block is at least as tall as the window, so the Pipeline starts below the fold; the map takes the spare height. */
 .sat-left {
   display: flex;
   flex-direction: column;
@@ -23,7 +24,14 @@
 }
 
 .sat-left .sat-header {
-  margin-bottom: var(--space-3);
+  margin-bottom: 0;
+}
+
+/* The air between the left column's sections: at least 16px, growing equally up to 24px each; any more is left at the bottom. */
+.sat-gap {
+  flex: 1 1 0;
+  min-height: var(--space-3);
+  max-height: var(--space-4);
 }
 
 .sat-right {
@@ -38,19 +46,9 @@
   margin: var(--space-3) 0 var(--space-2);
 }
 
-.sat-credits-line {
-  margin-top: var(--space-1);
-}
-
-.sat-credits-line .globe-credits {
-  margin: 0;
-}
-
-/* The stats: a hairline under the title block, then the sections one under the other. */
+/* The stats: a hairline under the title block, then the heading and the Latest run tiles; Risk breakdown follows as its own section. */
 .sat-screening {
   container-type: inline-size;
-  /* margin-top: auto: when the right column is the taller, the spare height goes above the hairline so both columns end together. */
-  margin-top: auto;
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
@@ -59,19 +57,7 @@
   margin-bottom: var(--space-2);
 }
 
-.sat-screening .sat-overview {
-  display: block;
-}
-
-.sat-screening .sat-overview > section {
-  display: block;
-}
-
-.sat-screening .sat-overview > section + section {
-  margin-top: var(--space-3);
-}
-
-.sat-screening .sat-overview .section-title {
+.sat-left .section-title {
   margin-bottom: var(--space-1);
   font-size: var(--text-small);
   font-weight: 600;
@@ -80,34 +66,38 @@
   color: var(--color-text-muted);
 }
 
-.sat-screening .sat-stats {
+.sat-left .sat-stats {
   gap: var(--space-2);
 }
 
-.sat-screening .sat-stat {
-  padding: 0.4rem 0.25rem 0.4rem 0.3rem;
+/* A tile's numeral and caption are centred, on both axes. */
+.sat-left .sat-stat {
+  align-items: center;
+  justify-content: center;
   gap: 0.1rem;
+  padding: 0.4rem 0.25rem 0.4rem 0.3rem;
+  text-align: center;
 }
 
 /* The numerals follow the width of this column (the stats' own size container), and never wrap. */
-.sat-screening .sat-stat dd {
+.sat-left .sat-stat dd {
   font-size: var(--text-stat);
   letter-spacing: -0.065em;
   white-space: nowrap;
 }
 
-.sat-screening .sat-stat dt {
+.sat-left .sat-stat dt {
   font-size: var(--text-small);
   white-space: normal;
 }
 
-.sat-screening .sat-overview > section > .sat-note {
+.sat-left section > .sat-note {
   margin: var(--space-1) 0 0;
   font-size: var(--sat-dense);
   line-height: 1.3;
 }
 
-.sat-screening .sat-risk-card {
+.sat-left .sat-risk-card {
   padding: 0.55rem 0.8rem;
 }
 
@@ -116,9 +106,11 @@
      a fixed-position child, and the CSS full-screen map (the fallback where the browser has no Fullscreen API) must be able to leave it. */
   .sat-layout {
     display: grid;
-    grid-template-columns: minmax(0, 39fr) minmax(0, 3fr) minmax(0, 58fr);
+    grid-template-columns: minmax(0, 36fr) minmax(0, 3fr) minmax(0, 61fr);
     align-items: stretch;
     container-type: inline-size;
+    /* The window less the nav (74.1px) and the gap above the page: the Pipeline heading starts at or below the window's bottom edge. */
+    min-height: calc(100svh - 74.1px - clamp(1.25rem, 2vw, 2rem));
   }
 
   .sat-left {
@@ -129,15 +121,17 @@
     grid-column: 3;
   }
 
-  .sat-credits-line {
-    grid-column: 1 / -1;
-  }
-
   /* As tall as the title (its line) and the gap to the chips, so the controls row starts where the chips row does. */
   .sat-github-row {
     align-items: center;
     height: calc(var(--text-title) * 1.15 + 0.4rem);
     margin: 0;
+  }
+}
+
+@media (min-width: 1600px) {
+  .sat-layout {
+    grid-template-columns: minmax(0, 32fr) minmax(0, 3fr) minmax(0, 65fr);
   }
 }
 

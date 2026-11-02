@@ -147,8 +147,9 @@ const STYLE_PAGES = [
   { name: 'Résumé', path: '/resume', ready: '.resume-name', h1: '.resume-name', body: '.resume-job-bullets li', bodyToken: 'card', cards: '.resume-rail, .resume-main, .resume-project-card', paras: '.resume-job-bullets li, .resume-project-card p', onScale: true },
   { name: 'SatPOV', path: '/satellite-conjunction-screening', ready: '.page-title', wait: 3500, h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.sat-risk-card', paras: '.page-lede', extra: 'sat', onScale: true },
   { name: 'SatPOV (credits)', path: '/satellite-conjunction-screening', ready: '#sat-credits', wait: 3500, scroll: '#sat-credits', h1: '.page-title', body: '.sat-credits-body p', bodyToken: 'card', cards: '.sat-step, .globe-history-event', paras: '.sat-credits-body p, .sat-credits-body li, .globe-history-event p, .globe-history-lede', onScale: true },
-  { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '.page-lede', extra: 'shopIdle', onScale: true },
-  { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.page-lede, .shop-short', extra: 'shopResults', onScale: true },
+  { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopIdle', onScale: true },
+  { name: 'ShopAI (first load)', path: '/shop?fixture=savedempty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopFresh', onScale: true },
+  { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.shop-short', extra: 'shopResults', onScale: true },
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
 ]
 
@@ -242,15 +243,25 @@ function measureExtra(kind) {
     return { chipH: chips[0].h, chipGap: chips[1].l - chips[0].r, chipCount: chips.length, ledeLines: lines, chipsTop: chips[0].t }
   }
   if (kind === 'sat') {
-    const lay = document.querySelector('.sat-layout'), L = R(document.querySelector('.sat-left')), Rt = R(document.querySelector('.sat-right'))
+    const lay = document.querySelector('.sat-layout'), leftEl = document.querySelector('.sat-left'), L = R(leftEl), Rt = R(document.querySelector('.sat-right'))
     const Wc = R(lay).w, stage = R(document.querySelector('.globe-stage')), bar = R(document.querySelector('.globe-timebar'))
-    const leftText = textBox(document.querySelector('.sat-left'))
+    const leftText = textBox(leftEl)
     const dd = [...document.querySelectorAll('.sat-stat dd')]
     const oneLine = dd.every((e) => { const rg = document.createRange(); rg.selectNodeContents(e); const tops = new Set([...rg.getClientRects()].map((q) => Math.round(q.top))); return tops.size === 1 && e.scrollWidth <= e.clientWidth + 1 })
     const modebar = R(document.querySelector('.globe-modebar'))
-    return { ...headerBlock(), Wc, left: L.w / Wc, gutter: (Rt.l - L.r) / Wc, right: Rt.w / Wc, leftBottom: leftText.b, rightBottom: bar.b, boxDiff: L.b - Rt.b, mapW: stage.w / Wc, mapH: stage.h, controlsTop: modebar.t, numeral: px(getComputedStyle(dd[0]).fontSize), oneLine, page: doc.scrollHeight, vh: innerHeight, barBottom: bar.b, overlap: L.r > Rt.l + 0.5, tilesInside: [...document.querySelectorAll('.sat-stat')].every((e) => e.scrollWidth <= e.clientWidth + 1) }
+    const credits = R(document.querySelector('.globe-credits'))
+    // How far the content of each tile is from the tile's centre, on both axes.
+    let tileDx = 0, tileDy = 0
+    for (const e of document.querySelectorAll('.sat-stat')) {
+      const r = R(e), t = textBox(e), kids = [...e.children].map(R)
+      const top = Math.min(...kids.map((q) => q.t)), bottom = Math.max(...kids.map((q) => q.b))
+      // Across: where the text is; down: the block of numeral and caption (their line boxes).
+      tileDx = Math.max(tileDx, Math.abs((t.l + t.r) / 2 - (r.l + r.r) / 2)); tileDy = Math.max(tileDy, Math.abs((top + bottom) / 2 - (r.t + r.b) / 2))
+    }
+    const pipe = document.querySelector('#sat-pipeline').getBoundingClientRect()
+    return { ...headerBlock(), Wc, left: L.w / Wc, gutter: (Rt.l - L.r) / Wc, right: Rt.w / Wc, boxDiff: L.b - Rt.b, leftBottom: leftText.b, creditsBottom: credits.b, mapW: stage.w / Wc, mapH: stage.h, mapInside: stage.r <= Rt.r + 0.5 && stage.l >= Rt.l - 0.5, controlsTop: modebar.t, numeral: px(getComputedStyle(dd[0]).fontSize), oneLine, tileDx, tileDy, page: doc.scrollHeight, vh: innerHeight, barBottom: bar.b, overlap: L.r > Rt.l + 0.5, pipeTop: pipe.top + scrollY, creditsGap: credits.t - bar.b, creditsW: credits.w, mapWpx: stage.w, creditsLeftOk: Math.abs(credits.l - stage.l) <= 1 }
   }
-  if (kind === 'shopIdle' || kind === 'shopResults') {
+  if (kind === 'shopIdle' || kind === 'shopResults' || kind === 'shopFresh') {
     const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
     const Wc = sh.getBoundingClientRect().width - px(cs.paddingLeft) - px(cs.paddingRight)
     const stages = [...document.querySelectorAll('.shop-stage')]
@@ -265,8 +276,8 @@ function measureExtra(kind) {
       guard = { hFill: (t.r - t.l) / (inner.r - inner.l), vFill: (t.b - t.t) / (inner.b - inner.t), widthPct: gr.w / Wc }
     }
     const tileFill = stages.map((e) => { const r = R(e), s = getComputedStyle(e), t = textBox(e); return { h: (t.r - t.l) / (r.w - px(s.paddingLeft) - px(s.paddingRight)), v: (t.b - t.t) / (r.h - px(s.paddingTop) - px(s.paddingBottom)) } })
-    const input = R(document.querySelector('.shop-input')), form = R(document.querySelector('.shop-form'))
-    return { ...headerBlock(), Wc, stages: stages.length, stagesRow: new Set(sr.map((q) => Math.round(q.t))).size === 1, clipped, guard, tileFillMin: Math.min(...tileFill.map((q) => q.h)), tileFillV: Math.min(...tileFill.map((q) => q.v)), inputW: input.w / Wc, formW: form.w / Wc, page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked2x2: new Set(sr.map((q) => Math.round(q.l))).size }
+    const input = R(document.querySelector('.shop-input')), form = R(document.querySelector('.shop-form')), lede = R(document.querySelector('main .page-lede')), row = R(document.querySelector('.shop-form-row'))
+    return { ...headerBlock(), Wc, stages: stages.length, stagesRow: new Set(sr.map((q) => Math.round(q.t))).size === 1, clipped, guard, tileFillMin: Math.min(...tileFill.map((q) => q.h)), tileFillV: Math.min(...tileFill.map((q) => q.v)), inputW: input.w / Wc, formW: form.w / Wc, ledeW: lede.w, rowW: row.w, ledeLeft: lede.l - row.l, guardRows: document.querySelectorAll('.shop-guard-row').length, page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked2x2: new Set(sr.map((q) => Math.round(q.l))).size }
   }
   return null
 }
@@ -285,6 +296,9 @@ async function runStyle(browser, base) {
       if (cfg.extra === 'sat') await page.waitForSelector('.sat-risk-card', { timeout: 20000 }).catch(() => {})
       const m = await page.evaluate(measureStyle, cfg)
       const x = cfg.extra ? await page.evaluate(measureExtra, cfg.extra) : null
+      // The sources line's "Data and credits" link must still take the page to the credits.
+      let creditsTop = null
+      if (cfg.extra === 'sat' && w >= 1280) { await page.click('.globe-credits a'); await page.waitForTimeout(1500); creditsTop = await page.evaluate(() => { const t = document.querySelector('#sat-credits').getBoundingClientRect().top; const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2; return atEnd && t > 0 ? 0 : t }) } // (a page already scrolled to its end cannot bring the credits higher)
       if (outDir && w === 1440) await page.screenshot({ path: `${outDir}/style-${cfg.name.replace(/[^A-Za-z0-9]+/g, '-')}-${w}x${h}.png` })
       await page.context().close()
       const t = m.tokens, bad = []
@@ -299,12 +313,19 @@ async function runStyle(browser, base) {
       if (desktop && m.cpl && (m.cpl[0] < TARGET.cplMin || m.cpl[1] > TARGET.cplMax)) bad.push(`paragraph lines of ${m.cpl[0]}-${m.cpl[1]} characters (45-80)`)
       if (m.hscroll > 1) bad.push(`the page scrolls sideways by ${m.hscroll}px`)
       if (x && cfg.extra === 'sat' && w >= 1280) {
-        if (Math.abs(x.left - 0.39) > 0.015 || Math.abs(x.gutter - 0.03) > 0.015 || Math.abs(x.right - 0.58) > 0.015) bad.push(`columns are ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} of the width (39 / 3 / 58 wanted)`)
-        if (Math.abs(x.leftBottom - x.rightBottom) > 2) bad.push(`the columns end ${(x.leftBottom - x.rightBottom).toFixed(1)}px apart (the left's last line to the clock bar's bottom)`)
+        const want = w >= 1600 ? [0.32, 0.03, 0.65] : [0.36, 0.03, 0.61]
+        if (Math.abs(x.left - want[0]) > 0.015 || Math.abs(x.gutter - want[1]) > 0.015 || Math.abs(x.right - want[2]) > 0.015) bad.push(`columns are ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} of the width (${want.join(' / ')} wanted)`)
+        if (Math.abs(x.boxDiff) > 2) bad.push(`the columns' bottoms differ by ${x.boxDiff.toFixed(1)}px`)
         if (Math.abs(x.chipsTop - x.controlsTop) > 2) bad.push(`the chips row and the controls row are ${(x.chipsTop - x.controlsTop).toFixed(1)}px apart`)
-        if (x.mapW < 0.52 || x.mapH < 420 - 0.5) bad.push(`the map is ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px (52% and 420px wanted)`)
-        if (!x.oneLine || !x.tilesInside) bad.push('a numeral wraps or overflows its tile')
+        if (x.mapW < 0.6 || x.mapH < 420 - 0.5) bad.push(`the map is ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px (60% and 420px wanted)`)
+        if (!x.mapInside) bad.push('the map overflows its column')
+        if (!x.oneLine) bad.push('a numeral wraps or overflows its tile')
+        if (x.numeral < 22) bad.push(`the numerals are ${x.numeral.toFixed(1)}px (22px wanted)`)
+        if (x.tileDx > 2 || x.tileDy > 2) bad.push(`tile content is ${x.tileDx.toFixed(1)}px / ${x.tileDy.toFixed(1)}px off the tile's centre`)
         if (x.overlap) bad.push('the columns overlap')
+        if (x.pipeTop < x.vh - 0.5) bad.push(`the Pipeline heading starts at ${x.pipeTop.toFixed(0)}px, above the window's bottom edge (${x.vh}px)`)
+        if (x.creditsGap < 0 || x.creditsGap > 8 + 0.5 + 8 || Math.abs(x.creditsW - x.mapWpx) > 1 || !x.creditsLeftOk) bad.push(`the sources line is ${x.creditsGap.toFixed(1)}px under the clock bar and ${x.creditsW.toFixed(0)}px wide (the map is ${x.mapWpx.toFixed(0)}px)`)
+        if (creditsTop !== null && (creditsTop < -2 || creditsTop > x.vh * 0.5)) bad.push(`the Data and credits link leaves the credits at ${creditsTop.toFixed(0)}px from the window's top`)
         if (w >= 1440 && x.barBottom > x.vh + 0.5) bad.push(`the clock bar's bottom is at ${x.barBottom.toFixed(0)}px, below the ${x.vh}px window`)
       }
       if (x && cfg.extra === 'shopIdle' && w >= 1100) {
@@ -313,9 +334,11 @@ async function runStyle(browser, base) {
         if (x.clipped) bad.push('a pipeline tile clips its text')
         if (x.guard && (x.guard.hFill < TARGET.hFill || x.guard.vFill < TARGET.hFill)) bad.push(`Guardrails card fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)} (more than 15% dead space)`)
         if (x.formW < 0.97 || x.inputW < 0.85) bad.push(`the form is ${(x.formW * 100).toFixed(0)}% and the input ${(x.inputW * 100).toFixed(0)}% of the content width`)
-        if (x.ledeLines < 4 || x.ledeLines > 6) bad.push(`the description is ${x.ledeLines} lines (5 +- 1 wanted)`)
+        if (Math.abs(x.ledeW - x.rowW) > 1 || Math.abs(x.ledeLeft) > 1) bad.push(`the description is ${x.ledeW.toFixed(0)}px wide and the search row ${x.rowW.toFixed(0)}px`)
+        if (x.guardRows < 3) bad.push(`Guardrails shows ${x.guardRows} rows`)
         if (w >= 1440 && x.page > x.vh + 0.5) bad.push(`the idle page is ${x.page}px tall in a ${x.vh}px window`)
       }
+      if (x && cfg.extra === 'shopFresh' && x.guardRows < 3) bad.push(`Guardrails shows ${x.guardRows} rows on a first load`)
       if (x && cfg.extra === 'shopIdle' && w < 1100 && x.stages) {
         if (w > 520 && x.stacked2x2 !== 2) bad.push('the pipeline tiles are not two by two')
         if (w <= 520 && x.stacked2x2 !== 1) bad.push('the pipeline tiles are not one column')
@@ -341,8 +364,9 @@ async function runStyle(browser, base) {
   for (const { cfg, w, h, x } of rows) {
     if (!x || w < 1100) continue
     const tag = `${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}`
-    if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | ends ${(x.leftBottom - x.rightBottom).toFixed(0)}px apart | chips vs controls ${(x.chipsTop - x.controlsTop).toFixed(0)}px | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | numerals ${x.numeral.toFixed(1)}px ${x.oneLine ? 'on one line' : 'WRAP'} | page ${x.page}/${x.vh}`)
-    else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines | ${x.stages} tiles${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
+    if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | Pipeline top ${x.pipeTop.toFixed(0)} (window ${x.vh}) | tile centre off ${x.tileDx.toFixed(1)}/${x.tileDy.toFixed(1)}px | numerals ${x.numeral.toFixed(1)}px | sources line ${x.creditsGap.toFixed(0)}px under the bar, ${x.creditsW.toFixed(0)}px wide | left content ends ${(x.creditsBottom - x.leftBottom).toFixed(0)}px before the right's | bar bottom ${x.barBottom.toFixed(0)}`)
+    else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines (${x.ledeW.toFixed(0)}px, search row ${x.rowW.toFixed(0)}px), Guardrails rows ${x.guardRows} | ${x.stages} tiles${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopFresh') console.log(`${tag}Guardrails rows on a first load: ${x.guardRows}`)
     else if (cfg.extra === 'shopResults') console.log(`${tag}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)
   }
   console.log('\n=== style: every page against the tokens ===')

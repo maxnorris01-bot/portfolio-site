@@ -24,7 +24,7 @@ test('each limit type has its own sentence; the server text is only the fallback
   assert.equal(limitText(info('cap_reached', 'ip_day', { resetsAt: RESET }), 'America/Los_Angeles'), 'You have reached your limit for today. It resets at 5:00 PM.')
   assert.equal(limitText(info('cap_reached', 'global_day', { resetsAt: RESET }), 'America/Los_Angeles'), 'The site has reached its limit for today. It resets at 5:00 PM.')
   assert.equal(limitText(info('cap_reached', 'global_day')), 'The site has reached its limit for today.')
-  assert.equal(limitText(info('maintenance')), 'Shop Mode is paused right now. Please try again later.')
+  assert.equal(limitText(info('maintenance')), 'ShopAI is paused right now. Please try again later.')
   assert.equal(limitText(info('cap_reached', 'something_new')), 'The server says no.')
   assert.equal(limitText(info('rate_limited')), 'The server says no.')
   assert.equal(limitText(info('bad_request')), 'The server says no.')

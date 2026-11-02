@@ -299,13 +299,18 @@ test('Saved panel: the Liked tab, the empty states, and the Show/Hide toggle wit
   assert.match(hidden, /<div id="[^"]+-body" hidden="">/)
 })
 
-test('guardrails: what the service reports for the visit (searches and Shop Agains allowed, the daily reset); never a dollar amount; none without usage data', async () => {
+test('guardrails: what the service reports for the visit (searches and Shop Agains allowed, the daily reset), else its defaults; never a dollar amount', async () => {
   const withUsage = await view('empty', { meta: { usage: { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-02T17:00:00Z' }, blocked: { search: false, again: false }, maintenance: false } })
   assert.match(withUsage, /<dt>Searches per visit<\/dt><dd>8<\/dd>/)
   assert.match(withUsage, /<dt>Shop Agains per visit<\/dt><dd>25<\/dd>/)
   assert.match(withUsage, /<dt>Daily limit resets<\/dt><dd>[^<]+<\/dd>/)
   assert.doesNotMatch(withUsage, /\$0\.|usd/i)
-  assert.doesNotMatch(await view('savedempty'), /shop-guard-card/)
+  // A fresh visit has no usage block: the card still has its rows, from the service's defaults (limits.ts).
+  const fresh = await view('savedempty')
+  assert.match(fresh, /<dt>Searches per visit<\/dt><dd>8<\/dd>/)
+  assert.match(fresh, /<dt>Shop Agains per visit<\/dt><dd>25<\/dd>/)
+  assert.match(fresh, /<dt>Daily limit resets<\/dt>/)
+  assert.doesNotMatch(fresh, /\$0\.|usd/i)
 })
 
 test('usage line: searches, Shop Agains and the daily reset; never a dollar amount', async () => {
@@ -327,7 +332,7 @@ test('limit reached: the friendly sentence with the reset time, and the Search, 
 
 test('maintenance: a paused notice and no way to start a search', async () => {
   const html = await view('maintenance')
-  assert.match(html, /Shop Mode is paused right now\. Please try again later\./)
+  assert.match(html, /ShopAI is paused right now\. Please try again later\./)
   assert.match(html, /<button type="submit" class="btn btn-primary shop-submit" disabled="">Search/)
 })
 

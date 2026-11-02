@@ -30,7 +30,7 @@ const GENERIC: Record<number, [ShopErrorCode, string]> = {
   403: ['forbidden', 'That request was refused.'],
   404: ['not_found', 'That could not be found.'],
   429: ['rate_limited', 'Too many requests right now. Please wait a moment and try again.'],
-  503: ['maintenance', 'Shop Mode is paused for now. Please try again later.'],
+  503: ['maintenance', 'ShopAI is paused for now. Please try again later.'],
 }
 
 const CODES: readonly string[] = [
@@ -81,7 +81,7 @@ export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)
       })
     } catch (e) {
       if (isAbort(e) || o.signal?.aborted) throw e
-      throw new ShopError('network', 'Could not reach Shop Mode. Check your connection and try again.')
+      throw new ShopError('network', 'Could not reach ShopAI. Check your connection and try again.')
     }
     const json: unknown = await res.json().catch(() => null)
     if (!res.ok) throw errorFromResponse(res.status, json, res.headers.get('Retry-After'))

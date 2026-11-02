@@ -90,9 +90,11 @@ test('SatPOV is on the shared scale: small text is the token (12px floor only fo
   for (const css of [tool, globe, src('components/ConjunctionsMenu.css')]) assert.doesNotMatch(css, /font-size: 0\.(?:[0-7]\d*|8[0-6]\d*)rem/, 'no sub-14px sizes written out')
   assert.match(tool, /--sat-dense: 12px/)
   assert.match(tool, /\.sat-credits-body \{[^}]*font-size: var\(--text-card\)[^}]*column-count: 3/s)
-  // Two columns 39 | 3 | 58 from 1280px; the page layout is a size container only there (a size container holds a fixed child: the CSS full screen).
-  assert.match(tool, /@media \(min-width: 1280px\) \{[^@]*\.sat-layout \{\s*display: grid;\s*grid-template-columns: minmax\(0, 39fr\) minmax\(0, 3fr\) minmax\(0, 58fr\);\s*align-items: stretch;\s*container-type: inline-size/)
+  // Two columns 36 | 3 | 61 from 1280px (32 | 3 | 65 from 1600px); the page layout is a size container only there (a size container holds a fixed child: the CSS full screen).
+  assert.match(tool, /@media \(min-width: 1280px\) \{[^@]*\.sat-layout \{\s*display: grid;\s*grid-template-columns: minmax\(0, 36fr\) minmax\(0, 3fr\) minmax\(0, 61fr\);\s*align-items: stretch;\s*container-type: inline-size/)
   assert.match(tool, /\.sat-screening \{\s*container-type: inline-size/)
+  assert.match(tool, /@media \(min-width: 1600px\) \{\s*\.sat-layout \{\s*grid-template-columns: minmax\(0, 32fr\) minmax\(0, 3fr\) minmax\(0, 65fr\)/)
+  assert.match(tool, /min-height: calc\(100svh - 74\.1px - clamp\(1\.25rem, 2vw, 2rem\)\)/)
   assert.match(tool, /\.sat-step \{[^}]*padding: var\(--card-pad\)/s)
   assert.match(globe, /\.globe-history-event \{[^}]*padding: var\(--card-pad\)/s)
   assert.match(src('pages/SatelliteTool.tsx'), /page-container is-scaled/)
