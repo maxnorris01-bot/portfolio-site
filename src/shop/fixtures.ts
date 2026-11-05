@@ -1,8 +1,9 @@
 // Invented products for tests and the dev-only /shop?fixture=... states. No real stores or image hosts.
 import type { RatingsState } from './ratings.ts'
 import type { ShopMeta } from './controller.ts'
+import type { ClarifyUi } from './clarify.ts'
 import type { Banner, ShopState } from './state.ts'
-import type { SessionView, ShopItem } from './types.ts'
+import type { Clarify, ClarifyQuestion, SessionView, ShopItem } from './types.ts'
 
 const art = (fill: string) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" fill="${fill}"/><rect x="20" y="50" width="80" height="35" rx="6" fill="#ffffff" fill-opacity=".7"/></svg>`)}`
@@ -174,6 +175,43 @@ const savedRatings: RatingsState = {
   'old-2': rated('like'),
 }
 
+// Stage Q2: the clarifying questions, in the exact shape of the backend contract (room-redesign-agent PR #39), with invented pictures.
+const deadline = { idle_grace_s: 6, max_wait_s: 40, waiting: false, seconds_left: null, shown_s_ago: 3.2 }
+const opt = (label: string, value: string, fill: string | null) => ({ label, value, picture_url: fill ? art(fill) : null })
+export const fixtureQuestions: ClarifyQuestion[] = [
+  { id: 'q_color', text: 'Which colour do you like?', kind: 'choice', dimension: 'color', options: [opt('Cream', 'cream', '#e8dfd0'), opt('Walnut or brown', 'walnut', '#8a6a4f'), opt('Navy', 'navy', '#3c5a87'), opt('Sage green with a longer label', 'green', '#9fb0a0')] },
+  { id: 'q_material', text: 'What should it be made of?', kind: 'choice', dimension: 'material', options: [opt('Boucle', 'boucle', '#d9c3a5'), opt('Velvet', 'velvet', '#6a3c5a'), opt('Leather', 'leather', null)] },
+  { id: 'q_shape', text: 'Which shape do you want?', kind: 'choice', dimension: 'shape', options: [opt('Curved', 'curved', '#c9b79c'), opt('Straight', 'straight', '#b08a5a')] },
+  { id: 'q_style', text: 'Which look do you prefer?', kind: 'choice', dimension: 'style', options: [opt('Modern', 'modern', '#9aa5b5'), opt('Mid-century', 'mid-century', '#a67c52'), opt('Traditional', 'traditional', '#7a5c4a')] },
+  { id: 'q_size', text: 'How big should it be?', kind: 'size_range', dimension: 'size', options: [opt('Under 70 in', 'under 70 in', null), opt('70 to 85 in', '70 to 85 in', null), opt('Over 85 in', 'over 85 in', null)] },
+]
+type ClarifyOpts = { state?: Clarify['state']; pictures?: 'pending' | 'done'; text?: boolean; answers?: Clarify['answers']; submitted?: boolean; applied?: boolean }
+/** A clarify object as the server sends it; `text` strips every picture (the first poll), `pictures: 'pending'` keeps the areas reserved. */
+export const makeClarify = (o: ClarifyOpts = {}): Clarify => {
+  const state = o.state ?? 'ready'
+  const questions = state === 'ready' ? fixtureQuestions.map((q) => ({ ...q, options: q.options.map((x) => (o.text ? { ...x, picture_url: null } : x)) })) : []
+  return {
+    state,
+    questions,
+    pictures_state: o.pictures ?? 'done',
+    no_preference_value: 'no_preference',
+    answers: o.answers ?? [],
+    submitted: o.submitted ?? false,
+    applied: o.applied ?? false,
+    deadline: { ...deadline, waiting: state === 'ready' && !o.applied },
+  }
+}
+const askUi = (o: ClarifyOpts = {}, selected: ClarifyUi['selected'] = {}): ClarifyUi => ({ server: makeClarify(o), selected, submitted: o.submitted ?? false, note: null })
+const asking = (clarify: ClarifyUi): ShopState => ({ status: 'running', request: 'modern couch under $1000', kind: 'search', batch: 1, prev: null, phase: 'ranking', startedAt: Date.now() - 6_000, slow: false, steps: steps(['done', 'done', 'active', 'skipped']), clarify })
+const answeredView: SessionView = {
+  ...fixtureView,
+  clarify_answers: [
+    { id: 'answer:q_color', question: 'Which colour do you like?', label: 'Walnut or brown', dimension: 'color' },
+    { id: 'answer:q_material', question: 'What should it be made of?', label: 'Boucle', dimension: 'material' },
+    { id: 'answer:q_shape', question: 'Which shape do you want?', label: 'Curved', dimension: 'shape' },
+  ],
+}
+
 const limitUsage = { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-01T00:00:00+00:00' }
 const limitView: SessionView = { ...fixtureView, search_count: 9, shop_agains_used: 1, shop_agains_cap: 25 }
 
@@ -205,6 +243,16 @@ export const fixtureStates: Record<string, ShopState> = {
     code: 'cap_reached',
     limit: 'shop_agains',
   }),
+  // Stage Q2: the clarifying questions
+  askpending: asking(askUi({ state: 'pending', pictures: 'pending' })),
+  asktext: asking(askUi({ pictures: 'pending', text: true })),
+  askpics: asking(askUi()),
+  askpartial: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_style', option_value: 'no_preference' }] }, { q_material: 'boucle' })),
+  asksubmitted: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_material', option_value: 'boucle' }], submitted: true })),
+  askclosed: asking(askUi({ applied: true, answers: [{ question_id: 'q_color', option_value: 'walnut' }] })),
+  askskipped: asking(askUi({ state: 'skipped' })),
+  askfailed: asking(askUi({ state: 'failed' })),
+  askchips: done(answeredView, 1),
   // Part 3
   saved: done(savedView, 1, savedRatings),
   savedempty: done({ ...fixtureView, saved: [] }, 1, {}),

@@ -1,6 +1,9 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import PageHeader from '../components/PageHeader'
+import ClarifyPanel from './ClarifyPanel.tsx'
+import { panelVisible } from './clarify.ts'
 import {
+  CLARIFY_CHIP_PREFIX,
   EXAMPLE_REQUESTS,
   GUARDRAILS_LABEL,
   GUARDRAILS_NOTE,
@@ -274,6 +277,16 @@ export default function ShopView(props: ShopViewProps) {
                   ))}
                 </ol>
               )}
+              {state.kind === 'search' && (
+                <>
+                  <p className="visually-hidden" role="status" aria-live="polite">
+                    {panelVisible(state.clarify) ? `${state.clarify.server.questions.length} quick questions are ready below. They are optional.` : ''}
+                  </p>
+                  {panelVisible(state.clarify) && (
+                    <ClarifyPanel ui={state.clarify} onAnswer={props.onAnswer} onSubmit={props.onSubmitAnswers} onRetry={props.onRetryAnswers} />
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -363,7 +376,8 @@ function emptyMessage(search: Extract<ShopState, { status: 'done' }>['view']['se
 function Chips({ state, props }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps }) {
   const asked = requestChips(state.view.search?.query)
   const refine = state.view.refine ?? []
-  if (asked.length === 0 && refine.length === 0) return null
+  const chose = state.view.clarify_answers ?? []
+  if (asked.length === 0 && refine.length === 0 && chose.length === 0) return null
   return (
     <div className="shop-chips">
       {asked.length > 0 && (
@@ -378,6 +392,21 @@ function Chips({ state, props }: { state: Extract<ShopState, { status: 'done' }>
                     ×
                   </button>
                 )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {chose.length > 0 && (
+        <div>
+          <p className="shop-chips-title">{CLARIFY_CHIP_PREFIX}</p>
+          <ul className="chip-list" aria-label={CLARIFY_CHIP_PREFIX}>
+            {chose.map((c) => (
+              <li key={c.id} className="chip shop-understood" title={c.question}>
+                {c.label}
+                <button type="button" className="shop-chip-x" aria-label={`Remove ${c.label} (${c.question})`} onClick={() => props.onRemoveRefine(c.id)}>
+                  ×
+                </button>
               </li>
             ))}
           </ul>

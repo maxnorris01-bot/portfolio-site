@@ -27,6 +27,10 @@ export type ShopViewProps = {
   onToggleSaved: () => void
   savedTab: 'love' | 'like'
   onSavedTab: (tab: 'love' | 'like') => void
+  /** Stage Q2: choose (or clear, with null) an option for a clarifying question; press Show results; retry a failed post. */
+  onAnswer: (questionId: string, value: string | null) => void
+  onSubmitAnswers: () => void
+  onRetryAnswers: () => void
   /** Look up a result's store link (for Open). */
   onResolve: (id: string) => Promise<string | null>
 }

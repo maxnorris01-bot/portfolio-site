@@ -284,9 +284,12 @@
 }
 
 .shop-stages {
+  /* Six stages (Request, Search, Ask, Tag, Rank, Results): one row from 1600px, two rows of three from 1100px (a row of six would squeeze
+     the tile text under what the type tokens allow), two across below that. */
+  --stage-gap: var(--space-4);
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-5);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--stage-gap);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -321,10 +324,10 @@
   line-height: var(--leading);
 }
 
-.shop-stage:not(:last-child)::after {
+.shop-stage:not(:last-child):not(:nth-child(3n))::after {
   position: absolute;
   top: 50%;
-  right: calc(-1 * var(--space-5) / 2);
+  right: calc(-1 * var(--stage-gap) / 2);
   color: var(--color-accent);
   content: '→';
   font-family: var(--font-mono);
@@ -380,11 +383,27 @@
   font-weight: 600;
 }
 
+@media (min-width: 1600px) {
+  .shop-stages {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .shop-stage:nth-child(3n):not(:last-child)::after {
+    position: absolute;
+    top: 50%;
+    right: calc(-1 * var(--stage-gap) / 2);
+    color: var(--color-accent);
+    content: '→';
+    font-family: var(--font-mono);
+    transform: translate(50%, -50%);
+  }
+}
+
 /* Below 1100px the stage tiles stack two by two, then one in a row on a phone; the arrows go. */
 @media (max-width: 1099px) {
   .shop-stages {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-3);
+    --stage-gap: var(--space-3);
   }
 
   .shop-stage::after {

@@ -32,12 +32,13 @@ export const SHOP_EYEBROW = 'Project · Personal shopping assistant'
 export const SHOP_DESCRIPTION =
   'Describe what you want to buy in plain words. The tool searches Google Shopping, has an AI model rank the matches against your request, and shows the best ones here with their price, store and a link. Rate results, then press Shop Again for a new batch that follows your ratings. It runs live, with spending caps per visit and per day.'
 
-/** The search pipeline, as the service runs it (its own progress steps are Searching, Tagging, Ranking). DRAFT captions. */
+/** The search pipeline, as the service runs it (its own progress steps are Searching, Tagging, Ranking; Ask is the optional clarifying questions). DRAFT captions. */
 export const PIPELINE_TITLE = 'Search pipeline'
 export const PIPELINE_LABEL = 'How a search works'
 export const PIPELINE_STAGES = [
   { name: 'Request', caption: 'A small AI model reads your words into a search.' },
   { name: 'Search', caption: 'Google Shopping is queried for candidates.' },
+  { name: 'Ask', caption: 'Up to five quick questions come from the first results, with a photo for each choice.' },
   { name: 'Tag', caption: 'Each candidate is tagged for colour, material and shape.' },
   { name: 'Rank', caption: 'An AI model ranks the candidates against your request.' },
   { name: 'Results', caption: 'Top matches with price, store and a link.' },
@@ -53,3 +54,16 @@ export const PIPELINE_NOTE = ABOUT_ROWS.slice(0, 3)
   .map((r) => r.text)
   .join(' ')
 export const GUARDRAILS_NOTE = ABOUT_ROWS[3].text
+
+/** The clarifying questions (stage Q2). DRAFT. */
+export const CLARIFY_TITLE = 'A few quick questions'
+export const CLARIFY_SUB = 'Optional. Your results keep loading while you answer.'
+export const CLARIFY_SUBMIT = 'Show results'
+export const CLARIFY_NO_PREFERENCE = 'No preference'
+export const CLARIFY_CHIP_PREFIX = 'You chose'
+/** Quiet notes under the panel. DRAFT. */
+export const CLARIFY_SUBMITTED = 'Thanks. Your results are on the way.'
+export const CLARIFY_CLOSED = 'Results are already on the way.'
+export const CLARIFY_FAILED = 'Could not save that answer. Try again, or skip it.'
+export const CLARIFY_LIMIT = 'That is as many answers as one search takes. Your choices stay here but are not sent.'
+export const CLARIFY_RETRY = 'Try again'

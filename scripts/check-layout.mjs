@@ -29,6 +29,7 @@ const ALL = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080]]
 // CHECK_SIZES=1440x900,1920x1080 limits the run to some sizes.
 const SIZES = process.env.CHECK_SIZES ? ALL.filter(([w, h]) => process.env.CHECK_SIZES.split(',').includes(`${w}x${h}`)) : ALL
 const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
+const QUESTION_TILE_MIN = 96 // the narrowest an option tile may be (measured: see the PR)
 const TARGET = { hFill: 0.85, vFill: 0.8, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4, rowPad: 16 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
 const expected = new Set(JSON.parse(readFileSync(expectedFile, 'utf8')).misses)
@@ -150,6 +151,8 @@ const STYLE_PAGES = [
   { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopIdle', onScale: true },
   { name: 'ShopAI (first load)', path: '/shop?fixture=savedempty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopFresh', onScale: true },
   { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.shop-short', extra: 'shopResults', onScale: true },
+  { name: 'ShopAI (questions)', path: '/shop?fixture=askpics', ready: '.clarify-q', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-q', paras: '', extra: 'shopAsk', onScale: true },
+  { name: 'ShopAI (questions, text)', path: '/shop?fixture=asktext', ready: '.clarify-q', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-q', paras: '', extra: 'shopAsk', onScale: true },
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
 ]
 
@@ -276,6 +279,29 @@ function measureExtra(kind) {
     const pipe = document.querySelector('#sat-pipeline').getBoundingClientRect()
     return { ...headerBlock(), spare, lastText, Wc, left: L.w / Wc, gutter: (Rt.l - L.r) / Wc, right: Rt.w / Wc, boxDiff: L.b - Rt.b, leftBottom: leftText.b, creditsBottom: credits.b, mapW: stage.w / Wc, mapH: stage.h, mapInside: stage.r <= Rt.r + 0.5 && stage.l >= Rt.l - 0.5, controlsTop: modebar.t, numeral: px(getComputedStyle(dd[0]).fontSize), oneLine, tileDx, tileDy, page: doc.scrollHeight, vh: innerHeight, barBottom: bar.b, overlap: L.r > Rt.l + 0.5, pipeTop: pipe.top + scrollY, creditsGap: credits.t - bar.b, creditsW: credits.w, mapWpx: stage.w, creditsLeftOk: Math.abs(credits.l - stage.l) <= 1 }
   }
+  if (kind === 'shopAsk') {
+    // The clarifying questions panel: inside the container, no overflow, tiles wide enough, text at the tokens, pictures 4:3 and contained.
+    const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
+    const cont = { l: sh.getBoundingClientRect().left + px(cs.paddingLeft), r: sh.getBoundingClientRect().right - px(cs.paddingRight) }
+    const Wc = cont.r - cont.l
+    const panel = document.querySelector('.clarify'), pr = R(panel)
+    const cards = [...document.querySelectorAll('.clarify-q')], tiles = [...document.querySelectorAll('.clarify-tile')], pics = [...document.querySelectorAll('.clarify-pic')]
+    const labelFs = tiles.map((t) => px(getComputedStyle(t.querySelector('.clarify-label')).fontSize))
+    const over = [...panel.querySelectorAll('*')].filter((e) => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== 'hidden' && e.clientWidth > 0).map((e) => e.className || e.tagName)
+    const imgs = [...document.querySelectorAll('.clarify-pic img')]
+    const fitOk = imgs.every((i) => getComputedStyle(i).objectFit === 'contain')
+    const heading = px(getComputedStyle(document.querySelector('.clarify-q-title')).fontSize), head2 = px(getComputedStyle(document.querySelector('.clarify-title')).fontSize)
+    const probe = (css, prop) => { const el = document.createElement('div'); el.style.cssText = `position:absolute;visibility:hidden;${css}`; sh.appendChild(el); const v = px(getComputedStyle(el)[prop]); el.remove(); return v }
+    const doc = document.documentElement
+    const progress = document.querySelector('.shop-steps')
+    return {
+      Wc, panelL: pr.l - cont.l, panelR: cont.r - pr.r, panelW: pr.w / Wc, cards: cards.length, cols: new Set(cards.map((c) => Math.round(R(c).l))).size,
+      tileMin: tiles.length ? Math.min(...tiles.map((t) => R(t).w)) : 0, tiles: tiles.length, labelMin: Math.min(...labelFs), labelWant: probe('font-size:var(--text-card)', 'fontSize'),
+      headWant: probe('font-size:var(--text-label)', 'fontSize'), heading, head2, padWant: probe('padding:var(--card-pad)', 'paddingLeft'),
+      picRatio: pics.length ? pics.map((p) => R(p).w / R(p).h) : [], fitOk, over, page: doc.scrollHeight, vh: innerHeight, hscroll: doc.scrollWidth - innerWidth,
+      stepsAbove: progress ? R(progress).b <= pr.t + 0.5 : false, panelTop: pr.t + scrollY, panelBottom: pr.b + scrollY,
+    }
+  }
   if (kind === 'shopIdle' || kind === 'shopResults' || kind === 'shopFresh') {
     const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
     const Wc = sh.getBoundingClientRect().width - px(cs.paddingLeft) - px(cs.paddingRight)
@@ -292,7 +318,9 @@ function measureExtra(kind) {
     }
     const tileFill = stages.map((e) => { const r = R(e), s = getComputedStyle(e), t = textBox(e); return { h: (t.r - t.l) / (r.w - px(s.paddingLeft) - px(s.paddingRight)), v: (t.b - t.t) / (r.h - px(s.paddingTop) - px(s.paddingBottom)) } })
     const input = R(document.querySelector('.shop-input')), form = R(document.querySelector('.shop-form')), lede = R(document.querySelector('main .page-lede')), row = R(document.querySelector('.shop-form-row'))
-    return { ...headerBlock(), Wc, stages: stages.length, stagesRow: new Set(sr.map((q) => Math.round(q.t))).size === 1, clipped, guard, tileFillMin: Math.min(...tileFill.map((q) => q.h)), tileFillV: Math.min(...tileFill.map((q) => q.v)), inputW: input.w / Wc, formW: form.w / Wc, ledeW: lede.w, rowW: row.w, ledeLeft: lede.l - row.l, guardRows: document.querySelectorAll('.shop-guard-row').length, page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked2x2: new Set(sr.map((q) => Math.round(q.l))).size }
+    const stageText = Math.min(...stages.map((e) => { const q = getComputedStyle(e); return e.getBoundingClientRect().width - px(q.paddingLeft) - px(q.paddingRight) - px(q.borderLeftWidth) - px(q.borderRightWidth) }))
+    const stageFont = Math.min(...stages.map((e) => px(getComputedStyle(e.querySelector('p')).fontSize)))
+    return { ...headerBlock(), Wc, stageText, stageFont, stageRows: new Set(sr.map((q) => Math.round(q.t))).size, stages: stages.length, stagesRow: new Set(sr.map((q) => Math.round(q.t))).size === 1, clipped, guard, tileFillMin: Math.min(...tileFill.map((q) => q.h)), tileFillV: Math.min(...tileFill.map((q) => q.v)), inputW: input.w / Wc, formW: form.w / Wc, ledeW: lede.w, rowW: row.w, ledeLeft: lede.l - row.l, guardRows: document.querySelectorAll('.shop-guard-row').length, page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked2x2: new Set(sr.map((q) => Math.round(q.l))).size }
   }
   return null
 }
@@ -349,8 +377,11 @@ async function runStyle(browser, base) {
         if (w >= 1440 && x.barBottom > x.vh + 0.5) bad.push(`the clock bar's bottom is at ${x.barBottom.toFixed(0)}px, below the ${x.vh}px window`)
       }
       if (x && cfg.extra === 'shopIdle' && w >= 1100) {
-        if (x.stages < 3 || x.stages > 5) bad.push(`${x.stages} pipeline tiles (3 to 5 wanted)`)
-        if (!x.stagesRow) bad.push('the pipeline tiles are not in one row')
+        if (x.stages !== 6) bad.push(`${x.stages} pipeline tiles (6 wanted: Request, Search, Ask, Tag, Rank, Results)`)
+        if (w >= 1600 && !x.stagesRow) bad.push('the six pipeline tiles are not in one row from 1600px')
+        if (w < 1600 && x.stageRows !== 2) bad.push(`the pipeline tiles are in ${x.stageRows} rows (two rows of three from 1100px to 1599px)`)
+        if (x.stageText < 150) bad.push(`pipeline tile text is ${x.stageText.toFixed(0)}px wide (150px wanted)`)
+        if (x.stageFont < 16.99) bad.push(`pipeline tile text is ${x.stageFont}px (the card token, 17px, wanted)`)
         if (x.clipped) bad.push('a pipeline tile clips its text')
         if (x.guard && (x.guard.hFill < TARGET.hFill || x.guard.vFill < TARGET.hFill)) bad.push(`Guardrails card fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)} (more than 15% dead space)`)
         if (x.formW < 0.97 || x.inputW < 0.85) bad.push(`the form is ${(x.formW * 100).toFixed(0)}% and the input ${(x.inputW * 100).toFixed(0)}% of the content width`)
@@ -358,9 +389,23 @@ async function runStyle(browser, base) {
         if (x.guardRows < 3) bad.push(`Guardrails shows ${x.guardRows} rows`)
         if (w >= 1440 && x.page > x.vh + 0.5) bad.push(`the idle page is ${x.page}px tall in a ${x.vh}px window`)
       }
+      if (x && cfg.extra === 'shopAsk') {
+        if (x.panelL < -0.5 || x.panelR < -0.5) bad.push(`the questions panel leaves the container by ${Math.min(x.panelL, x.panelR).toFixed(1)}px`)
+        if (x.panelW < 0.995) bad.push(`the questions panel is ${(x.panelW * 100).toFixed(1)}% of the content width`)
+        if (x.cards !== 5) bad.push(`${x.cards} question cards (5 in the fixture)`)
+        const wantCols = w >= 1800 ? 5 : w >= 1100 ? 3 : w >= 600 ? 2 : 1
+        if (x.cols !== wantCols) bad.push(`${x.cols} cards per row (${wantCols} wanted at ${w}px)`)
+        if (x.tileMin < QUESTION_TILE_MIN) bad.push(`an option tile is ${x.tileMin.toFixed(0)}px wide (${QUESTION_TILE_MIN}px wanted)`)
+        if (Math.abs(x.labelMin - x.labelWant) > 0.5) bad.push(`tile labels are ${x.labelMin}px, the card token is ${x.labelWant}px`)
+        if (Math.abs(x.heading - x.headWant) > 0.5 || Math.abs(x.head2 - x.headWant) > 0.5) bad.push(`question headings are ${x.heading}px / ${x.head2}px, the label token is ${x.headWant}px`)
+        if (x.picRatio.some((r) => Math.abs(r - 4 / 3) > 0.02)) bad.push('a picture area is not 4:3')
+        if (!x.fitOk) bad.push('a picture is not object-fit: contain')
+        if (x.over.length) bad.push(`content overflows inside the panel: ${x.over.slice(0, 3).join(', ')}`)
+        if (!x.stepsAbove) bad.push('the progress steps are not above the questions')
+      }
       if (x && cfg.extra === 'shopFresh' && x.guardRows < 3) bad.push(`Guardrails shows ${x.guardRows} rows on a first load`)
       if (x && cfg.extra === 'shopIdle' && w < 1100 && x.stages) {
-        if (w > 520 && x.stacked2x2 !== 2) bad.push('the pipeline tiles are not two by two')
+        if (w > 520 && x.stacked2x2 !== 2) bad.push('the pipeline tiles are not two across')
         if (w <= 520 && x.stacked2x2 !== 1) bad.push('the pipeline tiles are not one column')
         if (x.clipped) bad.push('a pipeline tile clips its text')
       }
@@ -385,7 +430,8 @@ async function runStyle(browser, base) {
     if (!x || w < 1100) continue
     const tag = `${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}`
     if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | Pipeline top ${x.pipeTop.toFixed(0)} (window ${x.vh}) | tile centre off ${x.tileDx.toFixed(1)}/${x.tileDy.toFixed(1)}px | numerals ${x.numeral.toFixed(1)}px | S ${x.spare.S.toFixed(0)}px = gaps ${x.spare.gaps.toFixed(0)} (${x.spare.gapEach.toFixed(0)} each) + tiles ${x.spare.tiles.toFixed(0)} (${x.spare.tileRatio.toFixed(2)}x) + risk card ${x.spare.risk.toFixed(0)} (rows ${x.spare.rowH.toFixed(0)}px) + flexible gap ${x.spare.flexGap.toFixed(0)} | left last line ${(x.lastText - x.barBottom).toFixed(0)}px from the clock bar | sources line ${x.creditsGap.toFixed(0)}px under the bar, ${x.creditsW.toFixed(0)}px wide | bar bottom ${x.barBottom.toFixed(0)}`)
-    else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines (${x.ledeW.toFixed(0)}px, search row ${x.rowW.toFixed(0)}px), Guardrails rows ${x.guardRows} | ${x.stages} tiles${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines (${x.ledeW.toFixed(0)}px, search row ${x.rowW.toFixed(0)}px), Guardrails rows ${x.guardRows} | ${x.stages} tiles in ${x.stageRows} row(s), text ${x.stageText.toFixed(0)}px wide ${x.stageFont}px${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopAsk') console.log(`${tag}questions panel ${(x.panelW * 100).toFixed(1)}% wide, ${x.cards} cards in ${x.cols} columns, ${x.tiles} tiles >= ${x.tileMin.toFixed(0)}px, labels ${x.labelMin}px, headings ${x.heading}px | panel ${x.panelTop.toFixed(0)}-${x.panelBottom.toFixed(0)} | page ${x.page} / window ${x.vh}${x.hscroll > 1 ? ` | SCROLLS SIDEWAYS ${x.hscroll}px` : ''}`)
     else if (cfg.extra === 'shopFresh') console.log(`${tag}Guardrails rows on a first load: ${x.guardRows}`)
     else if (cfg.extra === 'shopResults') console.log(`${tag}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)
   }

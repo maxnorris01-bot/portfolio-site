@@ -7,6 +7,7 @@ import { readSavedOpen, writeSavedOpen } from '../shop/saved'
 import { useShopSearch } from '../shop/useShopSearch'
 import type { FixtureBundle } from '../shop/fixtures'
 import './Shop.css'
+import '../shop/ClarifyPanel.css'
 
 /** Development only: /shop?fixture=<name> shows canned states (see src/shop/fixtures.ts), no network. */
 function useFixture(): FixtureBundle | null {
@@ -60,6 +61,9 @@ export default function Shop() {
       }}
       savedTab={fixture?.savedTab ?? savedTab}
       onSavedTab={setSavedTab}
+      onAnswer={shop.selectAnswer}
+      onSubmitAnswers={() => void shop.submitAnswers()}
+      onRetryAnswers={() => void shop.retryAnswers()}
       onResolve={shop.resolveLink}
     />
   )
