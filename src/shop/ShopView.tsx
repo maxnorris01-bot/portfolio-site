@@ -1,9 +1,11 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import PageHeader from '../components/PageHeader'
+import { useScrolledSince } from './autoscroll.ts'
 import ClarifyPanel from './ClarifyPanel.tsx'
 import { panelVisible } from './clarify.ts'
 import {
   CLARIFY_CHIP_PREFIX,
+  clarifyReady,
   EXAMPLE_REQUESTS,
   GUARDRAILS_LABEL,
   GUARDRAILS_NOTE,
@@ -176,6 +178,7 @@ export default function ShopView(props: ShopViewProps) {
   const { state, value, onChange, onSubmit, onExample, onRetry } = props
   const inputId = useId()
   const running = state.status === 'running'
+  const scrolled = useScrolledSince(state.status === 'running' ? state.startedAt : null)
   const blocked = props.meta.blocked.search
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -280,10 +283,10 @@ export default function ShopView(props: ShopViewProps) {
               {state.kind === 'search' && (
                 <>
                   <p className="visually-hidden" role="status" aria-live="polite">
-                    {panelVisible(state.clarify) ? `${state.clarify.server.questions.length} quick questions are ready below. They are optional.` : ''}
+                    {panelVisible(state.clarify) ? clarifyReady(state.clarify.server.questions.length) : ''}
                   </p>
                   {panelVisible(state.clarify) && (
-                    <ClarifyPanel ui={state.clarify} onAnswer={props.onAnswer} onSubmit={props.onSubmitAnswers} onRetry={props.onRetryAnswers} />
+                    <ClarifyPanel ui={state.clarify} scrolled={scrolled} onAnswer={props.onAnswer} onSubmit={props.onSubmitAnswers} onRetry={props.onRetryAnswers} />
                   )}
                 </>
               )}

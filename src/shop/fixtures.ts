@@ -185,11 +185,17 @@ export const fixtureQuestions: ClarifyQuestion[] = [
   { id: 'q_style', text: 'Which look do you prefer?', kind: 'choice', dimension: 'style', options: [opt('Modern', 'modern', '#9aa5b5'), opt('Mid-century', 'mid-century', '#a67c52'), opt('Traditional', 'traditional', '#7a5c4a')] },
   { id: 'q_size', text: 'How big should it be?', kind: 'size_range', dimension: 'size', options: [opt('Under 70 in', 'under 70 in', null), opt('70 to 85 in', '70 to 85 in', null), opt('Over 85 in', 'over 85 in', null)] },
 ]
-type ClarifyOpts = { state?: Clarify['state']; pictures?: 'pending' | 'done'; text?: boolean; answers?: Clarify['answers']; submitted?: boolean; applied?: boolean }
+/** Picture options with one text-only option among them, then a question with only two options. */
+const mixedQuestions: ClarifyQuestion[] = [
+  { id: 'q_material', text: 'What should it be made of?', kind: 'choice', dimension: 'material', options: [opt('Boucle', 'boucle', '#d9c3a5'), opt('Velvet', 'velvet', '#6a3c5a'), opt('Leather', 'leather', null), opt('Linen', 'linen', '#b9ad96')] },
+  { id: 'q_shape', text: 'Which shape do you want?', kind: 'choice', dimension: 'shape', options: [opt('Curved', 'curved', '#c9b79c'), opt('Straight', 'straight', '#b08a5a')] },
+]
+type ClarifyOpts = { mixed?: boolean; state?: Clarify['state']; pictures?: 'pending' | 'done'; text?: boolean; answers?: Clarify['answers']; submitted?: boolean; applied?: boolean }
 /** A clarify object as the server sends it; `text` strips every picture (the first poll), `pictures: 'pending'` keeps the areas reserved. */
 export const makeClarify = (o: ClarifyOpts = {}): Clarify => {
   const state = o.state ?? 'ready'
-  const questions = state === 'ready' ? fixtureQuestions.map((q) => ({ ...q, options: q.options.map((x) => (o.text ? { ...x, picture_url: null } : x)) })) : []
+  const base = o.mixed ? mixedQuestions : fixtureQuestions
+  const questions = state === 'ready' ? base.map((q) => ({ ...q, options: q.options.map((x) => (o.text ? { ...x, picture_url: null } : x)) })) : []
   return {
     state,
     questions,
@@ -247,7 +253,8 @@ export const fixtureStates: Record<string, ShopState> = {
   askpending: asking(askUi({ state: 'pending', pictures: 'pending' })),
   asktext: asking(askUi({ pictures: 'pending', text: true })),
   askpics: asking(askUi()),
-  askpartial: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_style', option_value: 'no_preference' }] }, { q_material: 'boucle' })),
+  askpartial: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_material', option_value: 'no_preference' }] })),
+  askmixed: asking(askUi({ mixed: true })),
   asksubmitted: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_material', option_value: 'boucle' }], submitted: true })),
   askclosed: asking(askUi({ applied: true, answers: [{ question_id: 'q_color', option_value: 'walnut' }] })),
   askskipped: asking(askUi({ state: 'skipped' })),

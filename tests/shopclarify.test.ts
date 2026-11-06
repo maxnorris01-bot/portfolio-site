@@ -2,7 +2,24 @@ import assert from 'node:assert/strict'
 import { after, afterEach, beforeEach, mock, test } from 'node:test'
 import type { ComponentType } from 'react'
 import { createShopClient } from '../src/shop/api.ts'
-import { answersToPost, chosen, clarifyReduce, expectsPicture, NO_PREFERENCE, panelLocked, panelVisible, type ClarifyUi } from '../src/shop/clarify.ts'
+import {
+  ADVANCE_MS,
+  answersToPost,
+  choiceOutcome,
+  chosen,
+  clampStep,
+  clarifyReduce,
+  expectsPicture,
+  firstUnanswered,
+  nextStep,
+  NO_PREFERENCE,
+  panelLocked,
+  panelVisible,
+  roveTo,
+  SCROLL_BOTTOM_MARGIN,
+  shouldAutoScroll,
+  type ClarifyUi,
+} from '../src/shop/clarify.ts'
 import { ANSWER_DEBOUNCE_MS, ShopController } from '../src/shop/controller.ts'
 import {
   CLARIFY_CHIP_PREFIX,
@@ -13,6 +30,8 @@ import {
   CLARIFY_SUBMIT,
   CLARIFY_TITLE,
   PIPELINE_STAGES,
+  STEP_LABELS,
+  stepLabel,
 } from '../src/shop/copy.ts'
 import { fixtureBundles, fixtureStates, fixtureView, makeClarify } from '../src/shop/fixtures.ts'
 import { JobPoller, PICTURE_TAIL_POLLS, type PollHandlers } from '../src/shop/poller.ts'
@@ -367,44 +386,153 @@ test('view: questions pending, skipped and failed show nothing new (the steps st
   }
 })
 
-test('view: the ready panel has the heading, the sub-line, a card per question, the steps above it and the Show results button', async () => {
-  const html = await view('asktext')
+test('view: the ready panel shows ONE question: heading, sub-line, "1 of 5", five dots, the steps above, Show results; no Back on question 1', async () => {
+  const html = await view('askpics')
   assert.ok(html.includes(`>${CLARIFY_TITLE}</h2>`))
   assert.ok(html.includes(CLARIFY_SUB))
-  assert.equal(html.match(/class="card clarify-q"/g)?.length, 5)
-  assert.ok(html.indexOf('shop-steps') < html.indexOf('class="clarify'), 'the progress steps stay above the questions')
+  assert.equal(html.match(/class="clarify-q-title"/g)?.length, 1, 'one question at a time')
+  assert.ok(html.includes('Which colour do you like?') && !html.includes('What should it be made of?'))
+  assert.match(html, /<span class="clarify-count">1 of 5<\/span>|<span class="clarify-count">1<!-- --> of <!-- -->5<\/span>/)
+  assert.equal(html.match(/class="clarify-dot[^"]*" aria-label="Question \d of 5"/g)?.length, 5)
+  assert.ok(html.includes('aria-label="Question 2 of 5"'))
+  assert.equal(html.match(/aria-current="step"/g)?.length, 1 + 0 + (html.match(/shop-step is-active/g)?.length ?? 0), 'one current dot (plus the active progress step)')
+  assert.ok(html.indexOf('shop-steps') < html.indexOf('class="card clarify'), 'the progress steps stay above the questions')
+  assert.match(html, /class="clarify-back is-hidden" disabled=""/)
   assert.match(html, new RegExp(`<button type="button" class="btn btn-primary clarify-submit">${CLARIFY_SUBMIT}</button>`))
   assert.equal(CLARIFY_SUBMIT, 'Show results')
   assert.equal(CLARIFY_NO_PREFERENCE, 'No preference')
-  assert.equal(html.match(new RegExp(`>${CLARIFY_NO_PREFERENCE}</button>`, 'g'))?.length, 5, 'a No preference chip per question')
+  assert.equal(html.match(new RegExp(`>${CLARIFY_NO_PREFERENCE}</button>`, 'g'))?.length, 1, 'one No preference chip (for the visible question)')
+  assert.ok(!html.includes('clarify-grid') && !html.includes('clarify-q"'), 'the grid of cards is gone')
 })
 
-test('view: while pictures are pending every tile reserves its picture area and none has an image; when done only picture tiles do', async () => {
+test('view: pending pictures show a quiet skeleton with the label below and no image; done shows pictures, and a null picture becomes a text tile', async () => {
   const pending = await view('asktext')
-  assert.equal(pending.match(/class="clarify-pic"/g)?.length, 15, 'all 15 options reserve the area')
-  assert.ok(!/<img[^>]*clarify|clarify-pic"[^>]*><img/.test(pending))
+  assert.equal(pending.match(/class="clarify-pic is-pending"/g)?.length, 4)
+  assert.ok(!pending.includes('<img'))
+  assert.equal(pending.match(/<span class="clarify-label">/g)?.length, 4, 'labels below the picture area')
   const done = await view('askpics')
   const imgs = done.match(/<img src="data:image\/svg\+xml[^"]*" alt="[^"]+"/g) ?? []
-  assert.equal(imgs.length, 11, 'the eleven options with a picture show it')
-  assert.equal(done.match(/class="clarify-tile has-pic/g)?.length, 11)
-  assert.equal(done.match(/class="clarify-tile(?: is-on)?"/g)?.length, 4, 'text-only tiles are compact (no picture area)')
+  assert.equal(imgs.length, 4)
   assert.ok(done.includes('alt="Cream"'), 'the alt text is the option label')
-  assert.doesNotMatch(done, /loading="lazy"[^>]*clarify|clarify[^>]*loading="lazy"/)
-  assert.doesNotMatch(done.slice(done.indexOf('class="clarify')), /loading="lazy"/, 'pictures are visible at once: no lazy loading')
+  assert.ok(!done.includes('is-text'))
+  const mixed = await view('askmixed')
+  assert.equal((mixed.match(/<img src="data:image/g) ?? []).length, 3, 'three picture options')
+  assert.match(mixed, /<span class="clarify-pic is-text"><span class="clarify-label">Leather<\/span><\/span>/, 'the text-only option puts its label inside the picture area')
+  assert.doesNotMatch(mixed.slice(mixed.indexOf('class="card clarify')), /loading="lazy"/, 'pictures are visible at once: no lazy loading')
+  assert.match(mixed, /style="--clarify-n:4"/)
 })
 
-test('view: a11y: a radio group per question named by its heading, checked state, roving tab stop, a polite live region, labelled section', async () => {
+test('view: the mixed fixture has one text-only option among pictures, and a question with two options', () => {
+  const c = makeClarify({ mixed: true })
+  assert.equal(c.questions[0].options.filter((o) => o.picture_url === null).length, 1)
+  assert.equal(c.questions[0].options.length, 4)
+  assert.equal(c.questions[1].options.length, 2)
+  assert.ok('askmixed' in fixtureStates)
+})
+
+test('view: partial answers: the first question without an answer shows (question 3), the answered dots are filled, back is available', async () => {
   const html = await view('askpartial')
-  assert.equal(html.match(/role="radiogroup"/g)?.length, 5)
-  assert.match(html, /<h3 id="([^"]+)" class="clarify-q-title">Which colour do you like\?<\/h3><div class="clarify-options" role="radiogroup" aria-labelledby="\1"/)
-  assert.ok(html.includes('role="radio" aria-checked="true"'), 'the chosen option is checked')
-  assert.match(html, /<section class="clarify[^"]*" aria-labelledby="[^"]+"/)
+  assert.ok(html.includes('Which shape do you want?') && !html.includes('Which colour do you like?'))
+  assert.match(html, /clarify-count">3(?:<!-- -->)? of (?:<!-- -->)?5</)
+  assert.equal(html.match(/clarify-dot is-answered/g)?.length, 2)
+  assert.equal(html.match(/clarify-dot is-current/g)?.length, 1)
+  assert.match(html, /class="clarify-back"(?! disabled)/)
+  assert.ok(!html.includes('clarify-back is-hidden'))
+})
+
+test('view: a11y: radio group named by the question, roving tab stop, focusable heading, polite announcement, labelled section, dot names', async () => {
+  const html = await view('askpartial')
+  assert.equal(html.match(/role="radiogroup"/g)?.length, 1)
+  assert.match(html, /<h3 id="([^"]+)" tabindex="-1" class="clarify-q-title">Which shape do you want\?<\/h3><div class="clarify-options" role="radiogroup" aria-labelledby="\1"/)
+  assert.match(html, /<section class="card clarify[^"]*" aria-labelledby="[^"]+"/)
+  assert.match(html, /role="status" aria-live="polite">Question 3 of 5: Which shape do you want\?<\/p>|role="status" aria-live="polite">Question <!-- -->3<!-- --> of <!-- -->5<!-- -->: <!-- -->Which shape do you want\?/)
   assert.match(html, /role="status" aria-live="polite">5 quick questions are ready below/)
-  const colour = html.slice(html.indexOf('Which colour do you like?'), html.indexOf('What should it be made of?'))
-  assert.equal(colour.match(/tabindex="0"/g)?.length, 1, 'one tab stop in a group')
-  assert.match(colour, /aria-checked="true" tabindex="0"[^>]*class="clarify-tile is-on[^"]*"[^>]*><span class="clarify-pic"[^>]*>(?:<img[^>]*>)?<\/span><span class="clarify-label">Walnut or brown/)
-  const style = html.slice(html.indexOf('Which look do you prefer?'), html.indexOf('How big should it be?'))
-  assert.match(style, /class="chip clarify-nopref is-on"/, 'no_preference from the server shows on the chip')
+  const group = html.slice(html.indexOf('role="radiogroup"'), html.indexOf('clarify-foot'))
+  assert.equal(group.match(/tabindex="0"/g)?.length, 1, 'one tab stop in the group')
+  assert.equal(group.match(/role="radio"/g)?.length, 2)
+  assert.match(html, /class="chip clarify-nopref" aria-pressed="false"/)
+  assert.ok(html.includes('aria-label="Question 3 of 5"'))
+  const chosenView = await view('askpartial')
+  assert.ok(chosenView.includes('aria-current="step"'))
+  const first = await view('askpics')
+  assert.match(first, /role="radio" aria-checked="false" tabindex="0"/, 'with no choice the first tile is the tab stop')
+})
+
+test('view: the chosen no_preference shows on the chip', async () => {
+  const html = render(
+    (await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')).default,
+    props(fixtureStates.askpartial),
+  )
+  assert.ok(!html.includes('is-on'), 'question 3 has no answer yet')
+  // everything answered: the panel opens on question 1, whose chip is on
+  const { default: Panel } = await loadModule<{ default: ComponentType<{ ui: ClarifyUi } & Record<string, unknown>> }>('/src/shop/ClarifyPanel.tsx')
+  const q = fixtureStates.askpartial as Extract<ShopState, { status: 'running' }>
+  let ui2 = q.clarify as ClarifyUi
+  for (const id of ['q_color', 'q_material', 'q_shape', 'q_style', 'q_size']) ui2 = clarifyReduce(ui2, { type: 'select', id, value: NO_PREFERENCE }) as ClarifyUi
+  const out = render(Panel, { ui: ui2, onAnswer: noop, onSubmit: noop, onRetry: noop })
+  assert.match(out, /class="chip clarify-nopref is-on" aria-pressed="true"/)
+})
+
+// ---- the stepper's logic (pure) ----
+
+test('stepper: the first question to show is the first unanswered one', () => {
+  assert.equal(firstUnanswered(ui()), 0)
+  assert.equal(firstUnanswered(ui({ answers: [{ question_id: 'q_color', option_value: 'cream' }, { question_id: 'q_material', option_value: 'velvet' }] })), 2)
+  const all = makeClarify().questions.map((q) => ({ question_id: q.id, option_value: NO_PREFERENCE }))
+  assert.equal(firstUnanswered(ui({ answers: all })), 0, 'everything answered: back to the first')
+  assert.equal(firstUnanswered(ui({}, { q_color: 'cream' })), 1, 'a local choice counts')
+})
+
+test('stepper: auto-advance goes to the next unanswered question, skips answered ones, and not past the last', () => {
+  assert.equal(nextStep(ui(), 0), 1)
+  assert.equal(nextStep(ui({}, { q_material: 'velvet' }), 0), 2, 'question 2 is answered: on to 3')
+  assert.equal(nextStep(ui(), 4), null, 'the last question: stay, Show results is already there')
+  assert.equal(nextStep(ui({}, { q_shape: 'curved', q_style: 'modern', q_size: 'x' }), 1), null, 'nothing unanswered after it')
+  assert.equal(ADVANCE_MS, 250)
+})
+
+test('stepper: choosing records and advances; choosing the chosen option again clears and stays; the last question never advances', () => {
+  assert.deepEqual(choiceOutcome(ui(), 0, 'cream'), { answer: 'cream', advanceTo: 1 })
+  assert.deepEqual(choiceOutcome(ui({}, { q_color: 'cream' }), 0, 'cream'), { answer: null, advanceTo: null })
+  assert.deepEqual(choiceOutcome(ui({ answers: [{ question_id: 'q_color', option_value: 'cream' }] }), 0, 'cream'), { answer: null, advanceTo: null }, "the server's answer clears too")
+  assert.deepEqual(choiceOutcome(ui(), 0, NO_PREFERENCE), { answer: NO_PREFERENCE, advanceTo: 1 })
+  assert.deepEqual(choiceOutcome(ui(), 4, 'under 70 in'), { answer: 'under 70 in', advanceTo: null })
+  assert.equal(clampStep(7, 5), 4)
+  assert.equal(clampStep(-1, 5), 0)
+  assert.equal(clampStep(3, 2), 1, 'fewer questions than the step: clamp')
+})
+
+test('stepper: back and the dots reach any question (clamped); the dot state follows the answers', () => {
+  const u = ui({ answers: [{ question_id: 'q_color', option_value: 'cream' }] }, { q_shape: 'curved' })
+  const qs = u.server.questions
+  assert.deepEqual(qs.map((q) => chosen(u, q.id) !== null), [true, false, true, false, false])
+  assert.equal(clampStep(2 - 1, qs.length), 1, 'Back from question 3')
+  assert.equal(clampStep(0 - 1, qs.length), 0, 'Back never goes before question 1')
+})
+
+test('keyboard: the arrows move (and wrap) without choosing; Home and End jump; Space and Enter are the buttons\' own click', () => {
+  assert.equal(roveTo('ArrowRight', 0, 4), 1)
+  assert.equal(roveTo('ArrowDown', 3, 4), 0, 'wraps')
+  assert.equal(roveTo('ArrowLeft', 0, 4), 3, 'wraps')
+  assert.equal(roveTo('ArrowUp', 2, 4), 1)
+  assert.equal(roveTo('Home', 2, 4), 0)
+  assert.equal(roveTo('End', 0, 4), 3)
+  assert.equal(roveTo(' ', 1, 4), null)
+  assert.equal(roveTo('Enter', 1, 4), null)
+  assert.equal(roveTo('Tab', 1, 4), null)
+})
+
+test('auto-scroll: when the panel arrives below or across the window bottom and the visitor has not scrolled', () => {
+  assert.equal(SCROLL_BOTTOM_MARGIN, 120)
+  const at = (panelTop: number, h: number, viewportHeight: number, scrolled = false) => shouldAutoScroll({ panelTop, panelBottom: panelTop + h, viewportHeight, scrolled })
+  assert.equal(at(663, 400, 720), true, '1280x720: starts below the bottom minus 120')
+  assert.equal(at(601, 400, 720), true)
+  assert.equal(at(666, 407, 900), true, '1440x900: top is above the margin but the panel runs past the bottom')
+  assert.equal(at(100, 400, 900), false, 'fully in view')
+  assert.equal(at(300, 420, 720), false, 'bottom exactly at the window edge: in view')
+  assert.equal(at(300, 421, 720), true, 'one pixel past the edge')
+  assert.equal(at(900, 400, 720, true), false, 'the visitor scrolled: never take the page from them')
+  assert.equal(at(100, 400, 900, true), false)
 })
 
 test('view: submitted and closed lock the tiles and say so quietly', async () => {
@@ -412,6 +540,7 @@ test('view: submitted and closed lock the tiles and say so quietly', async () =>
   assert.match(sub, /class="btn btn-primary clarify-submit" disabled/)
   assert.ok(sub.includes('Thanks. Your results are on the way.'))
   assert.match(sub, /role="radio"[^>]*disabled/)
+  assert.match(sub, /class="chip clarify-nopref"[^>]*disabled/)
   const closed = await view('askclosed')
   assert.ok(closed.includes(CLARIFY_CLOSED))
   assert.match(closed, /role="radio"[^>]*disabled/)
@@ -443,15 +572,45 @@ test('view: clicking a chip x asks to remove answer:<qid>', async () => {
   assert.equal(removed.length, 0)
 })
 
-test('view: the pipeline has six stages with Ask between Search and Tag, and the caption', async () => {
+test('view: the pipeline has six stages with Ask between Search and Check photos, and the caption', async () => {
   const html = await view('empty')
-  assert.deepEqual(PIPELINE_STAGES.map((s) => s.name), ['Request', 'Search', 'Ask', 'Tag', 'Rank', 'Results'])
+  assert.deepEqual(PIPELINE_STAGES.map((s) => s.name), ['Understand', 'Search', 'Ask', 'Check photos', 'Rank', 'Results'])
   assert.equal(html.match(/class="card shop-stage"/g)?.length, 6)
   assert.ok(html.includes('<h4>Ask</h4><p>Up to five quick questions come from the first results, with a photo for each choice.</p>'))
-  assert.ok(html.indexOf('<h4>Search</h4>') < html.indexOf('<h4>Ask</h4>') && html.indexOf('<h4>Ask</h4>') < html.indexOf('<h4>Tag</h4>'))
+  assert.ok(html.indexOf('<h4>Search</h4>') < html.indexOf('<h4>Ask</h4>') && html.indexOf('<h4>Ask</h4>') < html.indexOf('<h4>Check photos</h4>'))
 })
 
 test('view: with the flag off (no clarify anywhere) a running search renders as before', async () => {
   const html = await view('running')
   assert.ok(!html.includes('clarify'))
+})
+
+// ---- plain-language labels ----
+
+test('copy: the progress row shows plain labels for the service\'s step labels; an unknown one falls back to the service\'s own', () => {
+  assert.deepEqual(STEP_LABELS, { Searching: 'Finding products', Tagging: 'Checking photos', Ranking: 'Picking the best', 'Checking style': 'Checking style' })
+  for (const [service, shown] of [['Searching', 'Finding products'], ['Tagging', 'Checking photos'], ['Ranking', 'Picking the best'], ['Checking style', 'Checking style']]) assert.equal(stepLabel(service), shown, service)
+  assert.equal(stepLabel('Something new'), 'Something new')
+  assert.ok(!('Ask' in STEP_LABELS) && !('Asking' in STEP_LABELS), 'no Ask step in the progress row')
+})
+
+test('view: the running page shows the plain labels, never the old words, and no Ask step; the service\'s step ids are untouched', async () => {
+  for (const key of ['running', 'slow', 'askpics', 'again']) {
+    const html = await view(key)
+    const steps = html.slice(html.indexOf('class="shop-steps"'), html.indexOf('</ol>', html.indexOf('class="shop-steps"')))
+    assert.match(steps, /Finding products/, key)
+    assert.doesNotMatch(steps, /Searching|Tagging|Ranking|>Ask</, key)
+    assert.match(steps, /Checking style \(skipped\)/, key)
+  }
+  assert.match(await view('running'), /Checking photos 12\/40/)
+  const running = fixtureStates.running as Extract<ShopState, { status: 'running' }>
+  assert.deepEqual(running.steps.map((x) => x.id), ['searching', 'tagging', 'ranking', 'checking style'])
+  assert.equal(running.phase, 'tagging', 'code identifiers stay')
+})
+
+test('copy: the pipeline tiles are Understand, Search, Ask, Check photos, Rank, Results with their captions and step numbers', async () => {
+  assert.deepEqual(PIPELINE_STAGES.map((x) => x.name), ['Understand', 'Search', 'Ask', 'Check photos', 'Rank', 'Results'])
+  assert.equal(PIPELINE_STAGES[0].caption, 'A small AI model reads your words into a search.')
+  const html = await view('empty')
+  PIPELINE_STAGES.forEach((x, i) => assert.ok(html.includes(`>0${i + 1}</span><h4>${x.name}</h4><p>${x.caption}</p>`), x.name))
 })

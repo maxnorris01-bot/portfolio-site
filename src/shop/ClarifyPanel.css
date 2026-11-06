@@ -1,59 +1,30 @@
-/* The clarifying questions (stage Q2): question cards in a grid under the search form, each with 2 to 4 option tiles (a picture over a
-   label, or a compact text tile) and a slim "No preference" chip. Only the shared tokens: --text-card for labels, --text-label for headings,
-   --card-pad inside the cards, the site's card and chip styles. */
+/* The clarifying questions (stage Q2): one panel under the progress steps, one question at a time. Option tiles are equal-sized (a 4:3
+   picture area, then the label; a text-only option puts its label inside the same area), left-aligned, at most 4 across. Only the shared
+   tokens: --text-card for tile labels, --text-label for headings, --text-small for the quiet lines, --card-pad inside the card, the
+   site's card, chip and button styles. */
 .clarify {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin-top: var(--space-4);
-}
-
-.clarify-title {
-  margin: 0;
-  font-size: var(--text-label);
-  font-weight: var(--label-weight);
-  line-height: 1.3;
-}
-
-.clarify-sub {
-  margin: calc(-1 * var(--space-2)) 0 0;
-  color: var(--color-text-muted);
-}
-
-/* Cards: 1 across on a phone, 2, 3 on a laptop, 5 from 1800px. The grid keeps the column width when there are fewer questions. */
-.clarify-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (min-width: 600px) {
-  .clarify-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1100px) {
-  .clarify-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1800px) {
-  .clarify-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-.clarify-q {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   padding: var(--card-pad);
+  scroll-margin-bottom: var(--space-3);
 }
 
+.clarify-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.clarify-head-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.clarify-title,
 .clarify-q-title {
   margin: 0;
   font-size: var(--text-label);
@@ -61,10 +32,97 @@
   line-height: 1.3;
 }
 
+.clarify-q-title:focus {
+  outline: none;
+}
+
+.clarify-q-title:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.clarify-sub {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.clarify-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+/* The 44px dot buttons overlap their neighbours' padding by 10px above and below, so the header stays slim. */
+.clarify-progress {
+  margin-block: -10px;
+}
+
+.clarify-count {
+  white-space: nowrap;
+}
+
+.clarify-dots {
+  display: flex;
+}
+
+/* Each dot is a button with a 44px touch target made of padding around the 10px dot. */
+.clarify-dot {
+  padding: 17px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.clarify-dot > span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.clarify-dot.is-answered > span {
+  background: var(--color-navy);
+}
+
+.clarify-dot.is-current > span {
+  background: var(--color-accent);
+}
+
+.clarify-dot:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -4px;
+  border-radius: var(--radius);
+}
+
+.clarify-question {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Tiles of equal width, left-aligned: 2x2 on a phone, up to 4 across (200px each at most) from 720px. */
 .clarify-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
+}
+
+@media (max-width: 719px) {
+  .clarify-tile {
+    padding: 6px;
+    gap: 6px;
+  }
+}
+
+@media (min-width: 720px) {
+  .clarify-options {
+    grid-template-columns: repeat(var(--clarify-n, 4), minmax(0, 200px));
+    justify-content: start;
+  }
 }
 
 .clarify-tile {
@@ -91,11 +149,11 @@
 .clarify-tile.is-on,
 .clarify-nopref.is-on {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-accent);
 }
 
 .clarify-tile:focus-visible,
-.clarify-nopref:focus-visible {
+.clarify-nopref:focus-visible,
+.clarify-back:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -107,13 +165,14 @@
   opacity: 0.55;
 }
 
-.clarify-tile .clarify-label {
+.clarify-label {
   overflow-wrap: anywhere;
 }
 
-/* The picture area is fixed (4:3), so a picture arriving later does not move anything; a neutral ground so odd crops do not look broken. */
+/* The picture area is fixed (4:3), so a picture arriving later moves nothing; a neutral ground so odd crops do not look broken. */
 .clarify-pic {
   display: block;
+  flex: none;
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: calc(var(--radius) - 2px);
@@ -128,6 +187,22 @@
   animation: clarify-fade 0.35s ease-out;
 }
 
+/* While pictures are still being checked: a quiet tint. */
+.clarify-pic.is-pending {
+  animation: clarify-pulse 1.6s ease-in-out infinite;
+}
+
+/* A text-only option: the label is centred inside the same area (and grows to fill the tile when its row-mates are taller). */
+.clarify-pic.is-text {
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  font-weight: 600;
+  text-align: center;
+}
+
 @keyframes clarify-fade {
   from {
     opacity: 0;
@@ -138,19 +213,44 @@
   }
 }
 
-/* "No preference": a slim chip under the tiles, the full row. */
-.clarify-nopref {
-  grid-column: 1 / -1;
-  justify-self: start;
-  font-size: var(--text-small);
-  cursor: pointer;
+@keyframes clarify-pulse {
+  50% {
+    opacity: 0.55;
+  }
 }
 
 .clarify-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.clarify-foot-left {
+  display: flex;
+  align-items: center;
   gap: var(--space-3);
+}
+
+.clarify-back {
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-small);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.clarify-back.is-hidden {
+  display: none;
+}
+
+.clarify-nopref {
+  font-size: var(--text-small);
+  cursor: pointer;
 }
 
 .clarify-submit {
@@ -164,8 +264,13 @@
   font-size: var(--text-small);
 }
 
+.clarify-note:empty {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .clarify-pic img {
+  .clarify-pic img,
+  .clarify-pic.is-pending {
     animation: none;
   }
 }

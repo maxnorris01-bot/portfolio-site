@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { usePageMeta } from '../hooks/usePageMeta'
+import { clarifyReduce, type ClarifyUi } from '../shop/clarify'
 import { SHOP_PAGE_DESCRIPTION, SHOP_PAGE_TITLE } from '../shop/copy'
 import ShopView from '../shop/ShopView'
 import { readSavedOpen, writeSavedOpen } from '../shop/saved'
@@ -29,10 +30,17 @@ export default function Shop() {
   const [savedOpen, setSavedOpen] = useState(readSavedOpen)
   const [savedTab, setSavedTab] = useState<'love' | 'like'>('love')
   const fixture = useFixture()
+  // Development fixtures with questions are interactive (choices, steps, Show results) without a service: the choices live here.
+  const [fixtureUi, setFixtureUi] = useState<ClarifyUi | null>(null)
+  const fixtureClarify = fixture?.state.status === 'running' ? (fixture.state.clarify ?? null) : null
+  const fixtureState =
+    fixture && fixture.state.status === 'running' && fixtureClarify ? { ...fixture.state, clarify: fixtureUi ?? fixtureClarify } : fixture?.state
+  const answer = (id: string, choice: string | null) =>
+    fixtureClarify ? setFixtureUi((u) => clarifyReduce(u ?? fixtureClarify, { type: 'select', id, value: choice })) : shop.selectAnswer(id, choice)
 
   return (
     <ShopView
-      state={fixture?.state ?? shop.state}
+      state={fixtureState ?? shop.state}
       meta={fixture?.meta ?? shop.meta}
       value={value}
       onChange={setValue}
@@ -61,8 +69,8 @@ export default function Shop() {
       }}
       savedTab={fixture?.savedTab ?? savedTab}
       onSavedTab={setSavedTab}
-      onAnswer={shop.selectAnswer}
-      onSubmitAnswers={() => void shop.submitAnswers()}
+      onAnswer={answer}
+      onSubmitAnswers={() => (fixtureClarify ? setFixtureUi((u) => clarifyReduce(u ?? fixtureClarify, { type: 'submitted', value: true })) : void shop.submitAnswers())}
       onRetryAnswers={() => void shop.retryAnswers()}
       onResolve={shop.resolveLink}
     />

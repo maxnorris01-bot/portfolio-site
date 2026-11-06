@@ -1,3 +1,4 @@
+import { stepLabel } from './copy.ts'
 import { ratingsFromView, ratingsReducer, type RatingAction, type RatingsState } from './ratings.ts'
 import type { LimitInfo } from './limits.ts'
 import { clarifyReduce, type ClarifyAction, type ClarifyUi } from './clarify.ts'
@@ -161,7 +162,8 @@ export function shortfallLine(search: SessionView['search']): string | null {
 }
 
 export function stepSummary(step: JobStep): string {
-  const label = step.state === 'skipped' ? `${step.label} (skipped)` : step.label
+  const shown = stepLabel(step.label)
+  const label = step.state === 'skipped' ? `${shown} (skipped)` : shown
   return step.total ? `${label} ${step.done_count ?? 0}/${step.total}` : label
 }
 

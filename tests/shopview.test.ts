@@ -75,14 +75,14 @@ test('the submit button is disabled with no text, and while a search runs', asyn
   assert.match(render(View, props(fixtureStates.running, 'a couch')), /<button type="submit"[^>]*disabled/)
 })
 
-test('running: named steps (done, active with counts, pending, skipped) and a polite live region', async () => {
+test('running: labelled steps (plain words) (done, active with counts, pending, skipped) and a polite live region', async () => {
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.running))
   assert.match(html, /role="status" aria-live="polite"/)
   assert.match(html, /Searching for “modern couch under \$1000”/)
-  assert.match(html, /Searching/)
-  assert.match(html, /Tagging 12\/40/)
-  assert.match(html, /Ranking/)
+  assert.match(html, /Finding products/)
+  assert.match(html, /Checking photos 12\/40/)
+  assert.match(html, /Picking the best/)
   assert.match(html, /Checking style \(skipped\)/)
   assert.match(html, /is-active/)
   assert.match(html, /aria-current="step"/)
@@ -235,7 +235,7 @@ test('Shop Again running: the same steps and timer as a search, named for the ba
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.again))
   assert.match(html, /Finding batch 2 for “modern couch under \$1000”/)
-  assert.match(html, /Ranking/)
+  assert.match(html, /Picking the best/)
   assert.match(html, /shop-timer/)
   assert.match(html, /<button type="submit"[^>]*disabled/)
 })
