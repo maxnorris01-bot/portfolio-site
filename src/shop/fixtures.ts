@@ -255,6 +255,8 @@ export const fixtureStates: Record<string, ShopState> = {
   askpics: asking(askUi()),
   askpartial: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_material', option_value: 'no_preference' }] })),
   askmixed: asking(askUi({ mixed: true })),
+  // Every question answered (five picks in the right column; the panel opens on question 1).
+  askfive: asking(askUi({ answers: fixtureQuestions.map((q, i) => ({ question_id: q.id, option_value: i === 2 ? 'no_preference' : q.options[0].value })) })),
   asksubmitted: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_material', option_value: 'boucle' }], submitted: true })),
   askclosed: asking(askUi({ applied: true, answers: [{ question_id: 'q_color', option_value: 'walnut' }] })),
   askskipped: asking(askUi({ state: 'skipped' })),

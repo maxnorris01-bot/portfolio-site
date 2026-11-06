@@ -17,21 +17,29 @@
 
 .clarify.has-side {
   display: grid;
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 26%, 440px);
 }
 
 .clarify-side {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 10px;
   padding: var(--card-pad);
   border-left: 1px solid var(--color-border);
+}
+
+.clarify-side .clarify-progress-block {
+  gap: 10px;
 }
 
 .clarify-picks {
   display: grid;
   gap: var(--space-2);
   align-content: start;
+}
+
+.clarify-picks .chip-list {
+  gap: 6px;
 }
 
 .clarify-picks .shop-caps {
@@ -318,6 +326,18 @@
 
 .clarify-note:empty {
   display: none;
+}
+
+/* From 1600px the picture area is 3:2 (shorter), which makes room for the larger tiles of the original brief. */
+@media (min-width: 1600px) {
+  /* (Two options stay at 290px: at 340px even the 3:2 panel is 468px tall, over the 460px limit.) */
+  .clarify-options[data-n='3'] {
+    --clarify-max: 300px;
+  }
+
+  .clarify-pic {
+    aspect-ratio: 3 / 2;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

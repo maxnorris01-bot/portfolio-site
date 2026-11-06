@@ -701,12 +701,20 @@ test('copy: the side note and labels are as briefed (DRAFT)', () => {
   assert.equal(CLARIFY_SIDE_NOTE, 'Your picks narrow the search: the colours, materials and sizes you choose are used when the results are ranked. Skip any question you like.')
 })
 
+test('fixtures: askfive has five picks and opens on question 1', () => {
+  const f = fixtureStates.askfive as Extract<ShopState, { status: 'running' }>
+  assert.equal(picks(f.clarify as ClarifyUi).length, 5)
+  assert.equal(firstUnanswered(f.clarify as ClarifyUi), 0)
+})
+
 test('layout: the wide width is 1280px in the hook and the stylesheet', async () => {
   const { WIDE_PX } = await loadModule<{ WIDE_PX: number }>('/src/shop/wide.ts')
   assert.equal(WIDE_PX, 1280)
   const css = (await import('node:fs')).readFileSync('src/shop/ClarifyPanel.css', 'utf8')
-  assert.match(css, /\.clarify\.has-side \{[^}]*grid-template-columns: 3fr 2fr/)
+  assert.match(css, /\.clarify\.has-side \{[^}]*grid-template-columns: minmax\(0, 1fr\) clamp\(280px, 26%, 440px\)/)
   assert.match(css, /@media \(min-width: 1280px\)/)
   assert.match(css, /data-n='4'\] \{\s*--clarify-max: 260px/)
   assert.match(css, /data-n='3'\][\s\S]*--clarify-max: 290px/)
+  assert.match(css, /@media \(min-width: 1600px\) \{[\s\S]*data-n='3'\] \{\s*--clarify-max: 300px[\s\S]*aspect-ratio: 3 \/ 2/, 'from 1600px: 300px for three options and a 3:2 picture area')
+  assert.match(css, /\.clarify-pic \{[^}]*aspect-ratio: 4 \/ 3/, '4:3 below 1600px')
 })
