@@ -84,3 +84,11 @@ export const STEP_LABELS: Readonly<Record<string, string>> = {
   'Checking style': 'Checking style',
 }
 export const stepLabel = (serviceLabel: string): string => STEP_LABELS[serviceLabel] ?? serviceLabel
+
+/** The panel's right column (from 1280px): the progress steps move in beside the questions, with the picks so far. DRAFT. */
+export const CLARIFY_SIDE_PROGRESS = 'Searching'
+export const CLARIFY_PICKS_LABEL = 'Your picks so far'
+export const CLARIFY_PICKS_EMPTY = 'Your choices will show here.'
+export const CLARIFY_SIDE_NOTE = 'Your picks narrow the search: the colours, materials and sizes you choose are used when the results are ranked. Skip any question you like.'
+/** "Any colour" for a pick of No preference; the dimension's word as the questions use it. */
+export const clarifyAny = (dimension: string) => `Any ${({ color: 'colour' } as Record<string, string>)[dimension] ?? dimension}`

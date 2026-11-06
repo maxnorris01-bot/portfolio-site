@@ -74,7 +74,8 @@
     "1920x1080 ShopAI (questions, partial) | text under 14px",
     "2000x1100 ShopAI (questions, partial) | text under 14px",
     "2560x1440 ShopAI (questions, partial) | text under 14px",
-    "390x844 ShopAI (questions, partial) | text under 14px"
+    "390x844 ShopAI (questions, partial) | text under 14px",
+    "2560x1440 ShopAI (questions, partial) | the tile row covers"
   ],
   "reasons": {
     "1920x1080 SatPOV | the rows have 17.": "Home at 1920x1080: the system is at its 0.32 Wc maximum and the cards are taller than their text needs; padding is 17.8px, over the 16px allowed",
@@ -151,6 +152,7 @@
     "1920x1080 ShopAI (questions, partial) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
     "2000x1100 ShopAI (questions, partial) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
     "2560x1440 ShopAI (questions, partial) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
-    "390x844 ShopAI (questions, partial) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print."
+    "390x844 ShopAI (questions, partial) | text under 14px": "The mono notes under the pipeline tiles and under Guardrails are the SatPOV tile-note style at the 12px floor (--sat-dense), the same exception as SatPOV's notes; they are the old About text, small print.",
+    "2560x1440 ShopAI (questions, partial) | the tile row covers": "A 2-option question at 2560px: the tiles stop at 290px (a 340px tile would make the panel 490px tall, over the 460px limit; thumbnails are only 200-300px), so the row covers 0.43 of the wider left column instead of 0.5."
   }
 }

@@ -1,12 +1,15 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type MutableRefObject } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type MutableRefObject, type ReactNode } from 'react'
 import { prefersReducedMotion } from './autoscroll.ts'
-import { ADVANCE_MS, choiceOutcome, chosen, clampStep, expectsPicture, firstUnanswered, NO_PREFERENCE, panelLocked, roveTo, shouldAutoScroll, type ClarifyUi } from './clarify.ts'
+import { ADVANCE_MS, choiceOutcome, chosen, clampStep, expectsPicture, firstUnanswered, NO_PREFERENCE, panelLocked, picks, roveTo, shouldAutoScroll, type ClarifyUi } from './clarify.ts'
 import {
   CLARIFY_BACK,
   CLARIFY_CLOSED,
   CLARIFY_FAILED,
   CLARIFY_LIMIT,
   CLARIFY_NO_PREFERENCE,
+  CLARIFY_PICKS_EMPTY,
+  CLARIFY_PICKS_LABEL,
+  CLARIFY_SIDE_NOTE,
   CLARIFY_RETRY,
   CLARIFY_SUB,
   CLARIFY_SUBMIT,
@@ -60,7 +63,7 @@ function QuestionStep({ q, ui, locked, choose, titleRef }: { q: ClarifyQuestion;
       <h3 id={headingId} ref={titleRef} tabIndex={-1} className="clarify-q-title">
         {q.text}
       </h3>
-      <div className="clarify-options" role="radiogroup" aria-labelledby={headingId} onKeyDown={onKey} style={{ '--clarify-n': n } as React.CSSProperties}>
+      <div className="clarify-options" role="radiogroup" aria-labelledby={headingId} data-n={n} onKeyDown={onKey} style={{ '--clarify-n': n } as React.CSSProperties}>
         {q.options.map((o, i) => {
           const picture = expectsPicture(ui.server, o.picture_url)
           return (
@@ -101,9 +104,9 @@ const NOTES = { closed: CLARIFY_CLOSED, failed: CLARIFY_FAILED, limit: CLARIFY_L
 /**
  * The clarifying questions under the progress steps while the search keeps running, one question at a time. Shown only for a `ready`
  * clarify object (the page decides: `panelVisible`). Everything is optional: with no interaction the backend carries on by itself.
- * `scrolled` says whether the visitor scrolled since the search started; when they did not and the panel arrives below or across the bottom of the window it is scrolled into view once.
+ * `side`, when given (a window of 1280px or more), is the progress block for the right column, which also lists the picks so far and a note. `scrolled` says whether the visitor scrolled since the search started; when they did not and the panel arrives below or across the bottom of the window it is scrolled into view once.
  */
-export default function ClarifyPanel({ ui, scrolled, ...handlers }: { ui: ClarifyUi; scrolled?: MutableRefObject<boolean> } & ClarifyHandlers) {
+export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }: { ui: ClarifyUi; scrolled?: MutableRefObject<boolean>; side?: ReactNode } & ClarifyHandlers) {
   const titleId = useId()
   const rootRef = useRef<HTMLElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
@@ -117,6 +120,7 @@ export default function ClarifyPanel({ ui, scrolled, ...handlers }: { ui: Clarif
   const locked = panelLocked(ui)
   const note = ui.note ?? (ui.server.applied && !ui.submitted ? 'closed' : null)
   const current = chosen(ui, q.id)
+  const picked = picks(ui)
 
   const goTo = (i: number) => {
     clearTimeout(timer.current)
@@ -152,56 +156,57 @@ export default function ClarifyPanel({ ui, scrolled, ...handlers }: { ui: Clarif
   }
 
   return (
-    <section ref={rootRef} className={`card clarify${locked ? ' is-locked' : ''}`} aria-labelledby={titleId}>
-      <header className="clarify-head">
-        <div className="clarify-head-text">
-          <h2 id={titleId} className="clarify-title">
-            {CLARIFY_TITLE}
-          </h2>
-          <p className="clarify-sub">{CLARIFY_SUB}</p>
-        </div>
-        <div className="clarify-progress">
-          <span className="clarify-count">
-            {step + 1} of {total}
-          </span>
-          <div className="clarify-dots" role="group" aria-label="Questions">
-            {qs.map((x, i) => (
-              <button
-                key={x.id}
-                type="button"
-                className={`clarify-dot${i === step ? ' is-current' : chosen(ui, x.id) !== null ? ' is-answered' : ''}`}
-                aria-label={clarifyQuestionOf(i + 1, total)}
-                aria-current={i === step ? 'step' : undefined}
-                onClick={() => goTo(i)}
-              >
-                <span aria-hidden="true" />
-              </button>
-            ))}
+    <section ref={rootRef} className={`card clarify${side ? ' has-side' : ''}${locked ? ' is-locked' : ''}`} aria-labelledby={titleId}>
+      <div className="clarify-main">
+        <header className="clarify-head">
+          <div className="clarify-head-text">
+            <h2 id={titleId} className="clarify-title">
+              {CLARIFY_TITLE}
+            </h2>
+            <p className="clarify-sub">{CLARIFY_SUB}</p>
           </div>
-        </div>
-      </header>
-      <p className="visually-hidden" role="status" aria-live="polite">
-        {clarifyAnnounce(step + 1, total, q.text)}
-      </p>
-      <QuestionStep key={q.id} q={q} ui={ui} locked={locked} choose={choose} titleRef={titleRef} />
-      <div className="clarify-foot">
-        <div className="clarify-foot-left">
-          <button type="button" className={`clarify-back${step === 0 ? ' is-hidden' : ''}`} disabled={step === 0} aria-hidden={step === 0 ? true : undefined} tabIndex={step === 0 ? -1 : undefined} onClick={() => goTo(step - 1)}>
-            {CLARIFY_BACK}
+          <div className="clarify-progress">
+            <span className="clarify-count">
+              {step + 1} of {total}
+            </span>
+            <div className="clarify-dots" role="group" aria-label="Questions">
+              {qs.map((x, i) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  className={`clarify-dot${i === step ? ' is-current' : chosen(ui, x.id) !== null ? ' is-answered' : ''}`}
+                  aria-label={clarifyQuestionOf(i + 1, total)}
+                  aria-current={i === step ? 'step' : undefined}
+                  onClick={() => goTo(i)}
+                >
+                  <span aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </header>
+        <p className="visually-hidden" role="status" aria-live="polite">
+          {clarifyAnnounce(step + 1, total, q.text)}
+        </p>
+        <QuestionStep key={q.id} q={q} ui={ui} locked={locked} choose={choose} titleRef={titleRef} />
+        <div className="clarify-foot">
+          <div className="clarify-foot-left">
+            <button type="button" className={`clarify-back${step === 0 ? ' is-hidden' : ''}`} disabled={step === 0} aria-hidden={step === 0 ? true : undefined} tabIndex={step === 0 ? -1 : undefined} onClick={() => goTo(step - 1)}>
+              {CLARIFY_BACK}
+            </button>
+            <button
+              type="button"
+              className={`chip clarify-nopref${current === NO_PREFERENCE ? ' is-on' : ''}`}
+              aria-pressed={current === NO_PREFERENCE}
+              disabled={locked}
+              onClick={() => choose(NO_PREFERENCE)}
+            >
+              {CLARIFY_NO_PREFERENCE}
+            </button>
+          </div>
+          <button type="button" className="btn btn-primary clarify-submit" disabled={locked} onClick={handlers.onSubmit}>
+            {CLARIFY_SUBMIT}
           </button>
-          <button
-            type="button"
-            className={`chip clarify-nopref${current === NO_PREFERENCE ? ' is-on' : ''}`}
-            aria-pressed={current === NO_PREFERENCE}
-            disabled={locked}
-            onClick={() => choose(NO_PREFERENCE)}
-          >
-            {CLARIFY_NO_PREFERENCE}
-          </button>
-        </div>
-        <button type="button" className="btn btn-primary clarify-submit" disabled={locked} onClick={handlers.onSubmit}>
-          {CLARIFY_SUBMIT}
-        </button>
       </div>
       <p className="clarify-note" role="status" aria-live="polite">
         {ui.submitted && note === null ? (
@@ -220,6 +225,30 @@ export default function ClarifyPanel({ ui, scrolled, ...handlers }: { ui: Clarif
           </>
         ) : null}
       </p>
+      </div>
+      {side && (
+        <div className="clarify-side">
+          {side}
+          <div className="clarify-picks">
+            <h3 className="shop-caps">{CLARIFY_PICKS_LABEL}</h3>
+            {picked.length === 0 ? (
+              <p className="clarify-picks-empty">{CLARIFY_PICKS_EMPTY}</p>
+            ) : (
+              <ul className="chip-list" aria-label={CLARIFY_PICKS_LABEL}>
+                {picked.map((p) => (
+                  <li key={p.id} className="chip shop-understood" title={p.question}>
+                    {p.label}
+                    <button type="button" className="shop-chip-x" aria-label={`Remove ${p.label} (${p.question})`} disabled={locked} onClick={() => handlers.onAnswer(p.id, null)}>
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <p className="clarify-side-note">{CLARIFY_SIDE_NOTE}</p>
+        </div>
+      )}
     </section>
   )
 }

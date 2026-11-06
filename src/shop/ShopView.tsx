@@ -1,11 +1,13 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import PageHeader from '../components/PageHeader'
 import { useScrolledSince } from './autoscroll.ts'
+import { useWide } from './wide.ts'
 import ClarifyPanel from './ClarifyPanel.tsx'
 import { panelVisible } from './clarify.ts'
 import {
   CLARIFY_CHIP_PREFIX,
   clarifyReady,
+  CLARIFY_SIDE_PROGRESS,
   EXAMPLE_REQUESTS,
   GUARDRAILS_LABEL,
   GUARDRAILS_NOTE,
@@ -174,12 +176,51 @@ function Elapsed({ since }: { since: number }) {
   return <span className="shop-timer">{Math.max(0, Math.floor((now - since) / 1000))} s</span>
 }
 
+/** The running search's progress: the status line with the timer, and the step list. `compact` is the panel's right-column version (a mono SEARCHING label instead of the sentence). */
+function ProgressBlock({ state, compact = false }: { state: Extract<ShopState, { status: 'running' }>; compact?: boolean }) {
+  return (
+    <div className={compact ? 'clarify-progress-block' : 'shop-progress-block'}>
+      <p className="shop-progress-head" role="status" aria-live="polite">
+        <span className="shop-spinner" aria-hidden="true" />
+        {compact && !state.slow ? (
+          <span className="shop-caps">{CLARIFY_SIDE_PROGRESS}</span>
+        ) : (
+          <span>
+            {state.slow
+              ? 'Still working. This one is taking longer than usual…'
+              : state.kind === 'shop_again'
+                ? `Finding batch ${state.batch} for “${state.request}”…`
+                : `Searching for “${state.request}”…`}
+          </span>
+        )}
+        <Elapsed since={state.startedAt} />
+      </p>
+      {state.steps.length > 0 && (
+        <ol className="shop-steps">
+          {state.steps.map((step) => (
+            <li key={step.id} className={`shop-step is-${step.state}`} aria-current={step.state === 'active' ? 'step' : undefined}>
+              <span className="shop-step-mark" aria-hidden="true">
+                {step.state === 'done' ? '✓' : step.state === 'skipped' ? '–' : step.state === 'active' ? '●' : '○'}
+              </span>
+              <span>{stepSummary(step)}</span>
+              <span className="visually-hidden"> — {step.state}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  )
+}
+
 export default function ShopView(props: ShopViewProps) {
   const { state, value, onChange, onSubmit, onExample, onRetry } = props
   const inputId = useId()
   const running = state.status === 'running'
   const scrolled = useScrolledSince(state.status === 'running' ? state.startedAt : null)
   const blocked = props.meta.blocked.search
+  const windowWide = useWide()
+  // The progress steps sit in the questions panel's right column while the panel shows on a wide window, otherwise above it: never both.
+  const side = (props.wide ?? windowWide) && state.status === 'running' && state.kind === 'search' && panelVisible(state.clarify)
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (!running && !blocked && value.trim()) onSubmit()
@@ -256,37 +297,21 @@ export default function ShopView(props: ShopViewProps) {
 
           {state.status === 'running' && (
             <div className="shop-progress">
-              <p className="shop-progress-head" role="status" aria-live="polite">
-                <span className="shop-spinner" aria-hidden="true" />
-                <span>
-                  {state.slow
-                    ? 'Still working. This one is taking longer than usual…'
-                    : state.kind === 'shop_again'
-                      ? `Finding batch ${state.batch} for “${state.request}”…`
-                      : `Searching for “${state.request}”…`}
-                </span>
-                <Elapsed since={state.startedAt} />
-              </p>
-              {state.steps.length > 0 && (
-                <ol className="shop-steps">
-                  {state.steps.map((step) => (
-                    <li key={step.id} className={`shop-step is-${step.state}`} aria-current={step.state === 'active' ? 'step' : undefined}>
-                      <span className="shop-step-mark" aria-hidden="true">
-                        {step.state === 'done' ? '✓' : step.state === 'skipped' ? '–' : step.state === 'active' ? '●' : '○'}
-                      </span>
-                      <span>{stepSummary(step)}</span>
-                      <span className="visually-hidden"> — {step.state}</span>
-                    </li>
-                  ))}
-                </ol>
-              )}
+              {!side && <ProgressBlock state={state} />}
               {state.kind === 'search' && (
                 <>
                   <p className="visually-hidden" role="status" aria-live="polite">
                     {panelVisible(state.clarify) ? clarifyReady(state.clarify.server.questions.length) : ''}
                   </p>
                   {panelVisible(state.clarify) && (
-                    <ClarifyPanel ui={state.clarify} scrolled={scrolled} onAnswer={props.onAnswer} onSubmit={props.onSubmitAnswers} onRetry={props.onRetryAnswers} />
+                    <ClarifyPanel
+                      ui={state.clarify}
+                      scrolled={scrolled}
+                      side={side ? <ProgressBlock state={state} compact /> : null}
+                      onAnswer={props.onAnswer}
+                      onSubmit={props.onSubmitAnswers}
+                      onRetry={props.onRetryAnswers}
+                    />
                   )}
                 </>
               )}

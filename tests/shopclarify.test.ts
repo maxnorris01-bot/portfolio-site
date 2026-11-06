@@ -15,6 +15,7 @@ import {
   NO_PREFERENCE,
   panelLocked,
   panelVisible,
+  picks,
   roveTo,
   SCROLL_BOTTOM_MARGIN,
   shouldAutoScroll,
@@ -26,7 +27,12 @@ import {
   CLARIFY_CLOSED,
   CLARIFY_FAILED,
   CLARIFY_NO_PREFERENCE,
+  CLARIFY_PICKS_EMPTY,
+  CLARIFY_PICKS_LABEL,
+  CLARIFY_SIDE_NOTE,
+  CLARIFY_SIDE_PROGRESS,
   CLARIFY_SUB,
+  clarifyAny,
   CLARIFY_SUBMIT,
   CLARIFY_TITLE,
   PIPELINE_STAGES,
@@ -613,4 +619,94 @@ test('copy: the pipeline tiles are Understand, Search, Ask, Check photos, Rank, 
   assert.equal(PIPELINE_STAGES[0].caption, 'A small AI model reads your words into a search.')
   const html = await view('empty')
   PIPELINE_STAGES.forEach((x, i) => assert.ok(html.includes(`>0${i + 1}</span><h4>${x.name}</h4><p>${x.caption}</p>`), x.name))
+})
+
+// ---- the two-column panel (from 1280px): progress, picks, note ----
+
+const stepsCount = (html: string) => html.match(/class="shop-steps"/g)?.length ?? 0
+
+test('placement: wide and a ready panel: the steps are in the panel\'s right column, once; narrow: above the panel, once', async () => {
+  const wide = await view('askpics', { wide: true })
+  assert.equal(stepsCount(wide), 1)
+  assert.ok(wide.indexOf('class="card clarify has-side"') < wide.indexOf('class="shop-steps"'), 'inside the panel')
+  assert.ok(wide.indexOf('class="clarify-side"') < wide.indexOf('class="shop-steps"'))
+  assert.equal(wide.match(/class="shop-timer"/g)?.length, 1, 'one timer')
+  assert.match(wide, /class="shop-caps">Searching<\/span>/)
+  assert.equal(CLARIFY_SIDE_PROGRESS, 'Searching')
+  assert.doesNotMatch(wide, /Searching for “/, 'the compact head has the label, not the sentence')
+  const narrow = await view('askpics', { wide: false })
+  assert.equal(stepsCount(narrow), 1)
+  assert.ok(narrow.indexOf('class="shop-steps"') < narrow.indexOf('class="card clarify'), 'above the panel')
+  assert.ok(!narrow.includes('clarify-side') && !narrow.includes('has-side'), 'no right column below 1280px')
+  assert.match(narrow, /Searching for “modern couch under \$1000”/)
+  assert.equal(narrow.match(/class="shop-timer"/g)?.length, 1)
+})
+
+test('placement: with no panel (pending, skipped, failed, a plain running search, Shop Again) the steps stay above at any width, once', async () => {
+  for (const key of ['askpending', 'askskipped', 'askfailed', 'running', 'slow', 'again']) {
+    for (const wide of [true, false]) {
+      const html = await view(key, { wide })
+      assert.equal(stepsCount(html), 1, `${key} ${wide}`)
+      assert.ok(!html.includes('clarify-side'), `${key} ${wide}`)
+      assert.match(html, /Searching for “|Finding batch|Still working/, `${key} ${wide}: the sentence head`)
+    }
+  }
+})
+
+test('placement: a locked panel (submitted, applied) keeps its steps inside on a wide window, still once', async () => {
+  for (const key of ['asksubmitted', 'askclosed']) {
+    const html = await view(key, { wide: true })
+    assert.equal(stepsCount(html), 1, key)
+    assert.ok(html.indexOf('class="clarify-side"') < html.indexOf('class="shop-steps"'), key)
+  }
+})
+
+test('the slow message replaces the SEARCHING label in the right column (the status stays a polite live region)', async () => {
+  const base = fixtureStates.askpics as Extract<ShopState, { status: 'running' }>
+  const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
+  const html = render(View, props({ ...base, slow: true }, { wide: true }))
+  assert.match(html, /<p class="shop-progress-head" role="status" aria-live="polite"><span class="shop-spinner" aria-hidden="true"><\/span><span>Still working/)
+  assert.equal(stepsCount(html), 1)
+})
+
+test('picks: the answers so far in question order, as the chosen option\'s label, "Any <dimension>" for No preference', () => {
+  assert.deepEqual(picks(ui()), [])
+  const u = ui({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_material', option_value: NO_PREFERENCE }] }, { q_style: 'modern' })
+  assert.deepEqual(picks(u), [
+    { id: 'q_color', question: 'Which colour do you like?', label: 'Walnut or brown' },
+    { id: 'q_material', question: 'What should it be made of?', label: 'Any material' },
+    { id: 'q_style', question: 'Which look do you prefer?', label: 'Modern' },
+  ])
+  assert.equal(clarifyAny('color'), 'Any colour')
+  assert.equal(clarifyAny('size'), 'Any size')
+  assert.deepEqual(picks(clarifyReduce(u, { type: 'select', id: 'q_color', value: null }) as ClarifyUi).map((x) => x.id), ['q_material', 'q_style'], 'clearing removes the pick')
+})
+
+test('picks column: empty text, the label, the chips with a remove button per answer, and the note at the end', async () => {
+  const empty = await view('askpics', { wide: true })
+  assert.ok(empty.includes(`>${CLARIFY_PICKS_LABEL}</h3>`) && CLARIFY_PICKS_LABEL === 'Your picks so far')
+  assert.ok(empty.includes(`<p class="clarify-picks-empty">${CLARIFY_PICKS_EMPTY}</p>`) && CLARIFY_PICKS_EMPTY === 'Your choices will show here.')
+  assert.ok(!empty.includes('aria-label="Your picks so far"'), 'no chip list while empty')
+  const part = await view('askpartial', { wide: true })
+  assert.match(part, /<ul class="chip-list" aria-label="Your picks so far"><li class="chip shop-understood" title="Which colour do you like\?">Walnut or brown<button type="button" class="shop-chip-x" aria-label="Remove Walnut or brown \(Which colour do you like\?\)">×<\/button><\/li><li class="chip shop-understood" title="What should it be made of\?">Any material<button/)
+  assert.ok(!part.includes('Your choices will show here.'))
+  assert.ok(part.endsWith('</div></div></section>') || part.includes(`<p class="clarify-side-note">${CLARIFY_SIDE_NOTE}</p></div></section>`), 'the note closes the right column')
+  assert.ok(part.indexOf('class="shop-steps"') < part.indexOf('clarify-picks'), 'steps, then picks, then the note')
+  assert.ok(part.indexOf('clarify-picks') < part.indexOf('clarify-side-note'))
+  const locked = await view('asksubmitted', { wide: true })
+  assert.match(locked, /class="shop-chip-x" aria-label="Remove [^"]+" disabled=""/, 'a locked panel cannot clear picks')
+})
+
+test('copy: the side note and labels are as briefed (DRAFT)', () => {
+  assert.equal(CLARIFY_SIDE_NOTE, 'Your picks narrow the search: the colours, materials and sizes you choose are used when the results are ranked. Skip any question you like.')
+})
+
+test('layout: the wide width is 1280px in the hook and the stylesheet', async () => {
+  const { WIDE_PX } = await loadModule<{ WIDE_PX: number }>('/src/shop/wide.ts')
+  assert.equal(WIDE_PX, 1280)
+  const css = (await import('node:fs')).readFileSync('src/shop/ClarifyPanel.css', 'utf8')
+  assert.match(css, /\.clarify\.has-side \{[^}]*grid-template-columns: 3fr 2fr/)
+  assert.match(css, /@media \(min-width: 1280px\)/)
+  assert.match(css, /data-n='4'\] \{\s*--clarify-max: 260px/)
+  assert.match(css, /data-n='3'\][\s\S]*--clarify-max: 290px/)
 })

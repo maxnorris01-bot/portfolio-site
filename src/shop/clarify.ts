@@ -1,5 +1,6 @@
 // The clarifying questions' state (stage Q2): what the server last said, and what the visitor has chosen on this page.
 // Pure functions, so the reducer, the answer list and the panel's mode are tested without a browser.
+import { clarifyAny } from './copy.ts'
 import type { Clarify, ClarifyAnswer } from './types.ts'
 
 export const NO_PREFERENCE = 'no_preference'
@@ -119,4 +120,20 @@ export function roveTo(key: string, at: number, count: number): number | null {
   if (key === 'Home') return 0
   if (key === 'End') return count - 1
   return null
+}
+
+// ---- the picks so far (the panel's right column) ----
+
+export type Pick = { id: string; question: string; label: string }
+
+/** The answers chosen so far, in question order: the chosen option's label ("Any colour" for No preference). */
+export function picks(ui: ClarifyUi): Pick[] {
+  const out: Pick[] = []
+  for (const q of ui.server.questions) {
+    const value = chosen(ui, q.id)
+    if (value === null) continue
+    const option = q.options.find((o) => o.value === value)
+    out.push({ id: q.id, question: q.text, label: option ? option.label : clarifyAny(q.dimension) })
+  }
+  return out
 }

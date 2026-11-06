@@ -3,11 +3,50 @@
    tokens: --text-card for tile labels, --text-label for headings, --text-small for the quiet lines, --card-pad inside the card, the
    site's card, chip and button styles. */
 .clarify {
+  margin-top: var(--space-4);
+  padding: 0;
+  scroll-margin-bottom: var(--space-3);
+}
+
+/* The questions column; each column carries the card padding. From 1280px a second column (the progress, the picks, a note) sits beside it. */
+.clarify-main {
   display: grid;
   gap: var(--space-2);
-  margin-top: var(--space-4);
   padding: var(--card-pad);
-  scroll-margin-bottom: var(--space-3);
+}
+
+.clarify.has-side {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+}
+
+.clarify-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--card-pad);
+  border-left: 1px solid var(--color-border);
+}
+
+.clarify-picks {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.clarify-picks .shop-caps {
+  margin: 0;
+}
+
+.clarify-picks-empty,
+.clarify-side-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.clarify-side-note {
+  margin-top: auto;
 }
 
 .clarify-head {
@@ -120,8 +159,21 @@
 
 @media (min-width: 720px) {
   .clarify-options {
-    grid-template-columns: repeat(var(--clarify-n, 4), minmax(0, 200px));
+    --clarify-max: 200px;
+    grid-template-columns: repeat(var(--clarify-n, 4), minmax(0, var(--clarify-max)));
     justify-content: start;
+  }
+}
+
+/* From 1280px the left column is wider: tiles may be bigger by option count (product thumbnails are small, so never past 290px; 290px keeps the panel under 460px tall). */
+@media (min-width: 1280px) {
+  .clarify-options[data-n='2'],
+  .clarify-options[data-n='3'] {
+    --clarify-max: 290px;
+  }
+
+  .clarify-options[data-n='4'] {
+    --clarify-max: 260px;
   }
 }
 

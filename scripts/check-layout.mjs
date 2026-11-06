@@ -29,7 +29,7 @@ const ALL = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080]]
 // CHECK_SIZES=1440x900,1920x1080 limits the run to some sizes.
 const SIZES = process.env.CHECK_SIZES ? ALL.filter(([w, h]) => process.env.CHECK_SIZES.split(',').includes(`${w}x${h}`)) : ALL
 const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
-const ASK = { panelMax: 420, panelMaxPhone: 560, tileMin: 140, tileMinPhone: 150, tileMax: 260, rowDiff: 2 } // the questions panel (one question at a time): heights and tile widths wanted
+const ASK = { panelMax: 460, panelMaxPhone: 560, tileMin: 140, tileMinPhone: 150, tileMax: 290, rowDiff: 2, cover: 0.7, cover2: 0.5, sideGap: 24 } // the questions panel (one question at a time): heights and tile widths wanted
 const TARGET = { hFill: 0.85, vFill: 0.8, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4, rowPad: 16 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
 const expected = new Set(JSON.parse(readFileSync(expectedFile, 'utf8')).misses)
@@ -151,10 +151,10 @@ const STYLE_PAGES = [
   { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopIdle', onScale: true },
   { name: 'ShopAI (first load)', path: '/shop?fixture=savedempty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopFresh', onScale: true },
   { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.shop-short', extra: 'shopResults', onScale: true },
-  { name: 'ShopAI (questions)', path: '/shop?fixture=askpics', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify', paras: '', extra: 'shopAsk', interact: true, onScale: true },
-  { name: 'ShopAI (questions, text)', path: '/shop?fixture=asktext', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify', paras: '', extra: 'shopAsk', onScale: true },
-  { name: 'ShopAI (questions, mixed)', wantDots: 2, path: '/shop?fixture=askmixed', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify', paras: '', extra: 'shopAsk', onScale: true },
-  { name: 'ShopAI (questions, partial)', path: '/shop?fixture=askpartial', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify', paras: '', extra: 'shopAsk', onScale: true, wantStep: '3 of 5' },
+  { name: 'ShopAI (questions)', path: '/shop?fixture=askpics', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', interact: true, onScale: true },
+  { name: 'ShopAI (questions, text)', path: '/shop?fixture=asktext', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', onScale: true },
+  { name: 'ShopAI (questions, mixed)', wantDots: 2, path: '/shop?fixture=askmixed', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', onScale: true },
+  { name: 'ShopAI (questions, partial)', path: '/shop?fixture=askpartial', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', onScale: true, wantStep: '3 of 5' },
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
 ]
 
@@ -286,7 +286,8 @@ function measureExtra(kind) {
     const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
     const cont = { l: sh.getBoundingClientRect().left + px(cs.paddingLeft), r: sh.getBoundingClientRect().right - px(cs.paddingRight) }
     const Wc = cont.r - cont.l
-    const panel = document.querySelector('.clarify'), pr = R(panel), pcs = getComputedStyle(panel), pin = { l: pr.l + px(pcs.borderLeftWidth) + px(pcs.paddingLeft) }
+    const panel = document.querySelector('.clarify'), pr = R(panel), main = document.querySelector('.clarify-main'), mcs = getComputedStyle(main), mr = R(main), pin = { l: mr.l + px(mcs.paddingLeft), w: mr.w - px(mcs.paddingLeft) - px(mcs.paddingRight) }
+    const side = document.querySelector('.clarify-side'), sr = side ? R(side) : null, scs = side ? getComputedStyle(side) : null
     const tiles = [...document.querySelectorAll('.clarify-tile')], pics = [...document.querySelectorAll('.clarify-pic:not(.is-text)')]
     const rects = tiles.map(R)
     const rowsByTop = new Map()
@@ -304,6 +305,12 @@ function measureExtra(kind) {
     const dots = [...document.querySelectorAll('.clarify-dot')].map(R)
     const smalls = ['.clarify-sub', '.clarify-count', '.clarify-nopref'].map((q) => px(getComputedStyle(document.querySelector(q)).fontSize))
     const first = rects[0]
+    const rowRects = rects.filter((q) => Math.abs(q.t - first.t) <= 2)
+    const grid = document.querySelector('.clarify-options'), gap = px(getComputedStyle(grid).columnGap)
+    const sideInfo = side ? (() => {
+      const last = side.lastElementChild, lr = R(last), top = sr.t + px(scs.borderTopWidth) + px(scs.paddingTop), bottom = sr.b - px(scs.borderBottomWidth) - px(scs.paddingBottom)
+      return { equal: Math.abs(sr.h - mr.h), hairline: scs.borderLeftWidth, hairlineColor: scs.borderLeftColor, border: (() => { const el = document.createElement('div'); el.style.cssText = 'position:absolute;visibility:hidden;border:1px solid var(--color-border)'; sh.appendChild(el); const v = getComputedStyle(el).borderTopColor; el.remove(); return v })(), gap: bottom - lr.b, vFill: (lr.b - top) / (bottom - top), overflow: [...side.children].filter((k) => R(k).b > bottom + 0.5 || k.scrollWidth > k.clientWidth + 1).map((k) => k.className), stepsIn: !!side.querySelector('.shop-steps'), picks: side.querySelectorAll('.clarify-picks li').length, w: sr.w / pr.w, left: mr.w / pr.w }
+    })() : null
     return {
       Wc, panelL: pr.l - cont.l, panelR: cont.r - pr.r, panelW: pr.w / Wc, panelH: pr.h, questions: document.querySelectorAll('.clarify-q-title').length, count: document.querySelector('.clarify-count').textContent.trim(),
       tiles: tiles.length, tileMin: tiles.length ? Math.min(...rects.map((q) => q.w)) : 0, tileMax: tiles.length ? Math.max(...rects.map((q) => q.w)) : 0, tileH: rects.map((q) => Math.round(q.h)), rowDiff, rowWDiff, tileLeft: first ? first.l - pin.l : 99,
@@ -311,6 +318,7 @@ function measureExtra(kind) {
       headWant: probe('font-size:var(--text-label)', 'fontSize'), smallWant: probe('font-size:var(--text-small)', 'fontSize'), heading, head2, smalls,
       picRatio: pics.map((p) => R(p).w / R(p).h), fitOk, over, dotCount: dots.length, dotMin: dots.length ? Math.min(...dots.map((d) => Math.min(d.w, d.h))) : 0,
       page: doc.scrollHeight, vh: innerHeight, hscroll: doc.scrollWidth - innerWidth, scrollY: Math.round(scrollY),
+      cover: rowRects.length ? (rowRects.reduce((a, q) => a + q.w, 0) + gap * (rowRects.length - 1)) / pin.w : 0, rowTiles: rowRects.length, sideInfo, stepsCount: document.querySelectorAll('.shop-steps').length, timers: document.querySelectorAll('.shop-timer').length, wide: innerWidth >= 1280,
       stepsAbove: progress ? R(progress).b <= pr.t + 0.5 : false, panelTop: pr.t + scrollY, panelBottom: pr.b + scrollY, inWindow: pr.t >= -0.5 && pr.b <= innerHeight + 0.5, winTop: pr.t, winBottom: pr.b,
     }
   }
@@ -356,6 +364,9 @@ async function interact(browser, base, w, h) {
   const page = await open()
   const expect = (ok, msg) => { if (!ok) bad.push(msg) }
   expect((await title(page)) === Q[0] && (await count(page)) === '1 of 5', 'does not open on question 1 of 5')
+  const t0 = await page.locator('.shop-timer').first().innerText()
+  await page.waitForTimeout(1300)
+  expect((await page.locator('.shop-timer').first().innerText()) !== t0, 'the timer does not update')
   expect(await page.locator('.clarify-back.is-hidden').count() === 1, 'Back is not hidden on question 1')
   // choose: advances after the pause, moves focus to the question text
   await page.locator('.clarify-tile').first().click()
@@ -364,6 +375,16 @@ async function interact(browser, base, w, h) {
   expect(await focusIs(page, 'clarify-q-title'), 'focus does not move to the question text on advance')
   expect(await page.locator('.clarify-back:not(.is-hidden)').count() === 1, 'Back is not shown on question 2')
   expect((await page.locator('.clarify-dot.is-answered').count()) === 1 && (await page.locator('.clarify-dot.is-current').count()) === 1, 'the dots do not show 1 answered and 1 current')
+  if (w >= 1280) {
+    // the picks column lists the answer; its x clears it (and the dot goes back to unanswered)
+    expect((await page.locator('.clarify-picks li').count()) === 1 && (await page.locator('.clarify-picks li').innerText()).includes('Cream'), 'the picks column does not list the answer')
+    await page.locator('.clarify-picks .shop-chip-x').click()
+    await page.waitForTimeout(100)
+    expect((await page.locator('.clarify-picks li').count()) === 0 && (await page.locator('.clarify-picks-empty').count()) === 1 && (await page.locator('.clarify-dot.is-answered').count()) === 0, 'clearing a pick does not clear the answer')
+    await page.locator('.clarify-back').click()
+    await page.locator('.clarify-tile').first().click()
+    await page.waitForTimeout(600)
+  }
   // back: the answer is still there; choosing it again clears it and does not advance
   await page.locator('.clarify-back').click()
   await page.waitForTimeout(100)
@@ -476,6 +497,7 @@ async function runStyle(browser, base) {
       }
       if (x && cfg.extra === 'shopAsk') {
         const phone = w < 720
+        const wide = w >= 1280
         if (x.panelL < -0.5 || x.panelR < -0.5) bad.push(`the questions panel leaves the container by ${Math.min(x.panelL, x.panelR).toFixed(1)}px`)
         if (x.panelW < 0.995) bad.push(`the questions panel is ${(x.panelW * 100).toFixed(1)}% of the content width`)
         if (x.questions !== 1) bad.push(`${x.questions} questions visible (one at a time wanted)`)
@@ -494,7 +516,25 @@ async function runStyle(browser, base) {
         if (x.over.length) bad.push(`content overflows inside the panel: ${x.over.slice(0, 3).join(', ')}`)
         if (x.dotCount !== (cfg.wantDots ?? 5)) bad.push(`${x.dotCount} progress dots (${cfg.wantDots ?? 5} in the fixture)`)
         if (x.dotMin < 43.5) bad.push(`a progress dot's touch target is ${x.dotMin.toFixed(0)}px (44px wanted)`)
-        if (!x.stepsAbove) bad.push('the progress steps are not above the questions')
+        if (x.stepsCount !== 1) bad.push(`the progress steps are in the page ${x.stepsCount} times (once wanted)`)
+        if (x.timers !== 1) bad.push(`${x.timers} timers (one wanted)`)
+        if (wide) {
+          const si = x.sideInfo
+          if (!si) bad.push('no right column in the questions panel at 1280px or wider')
+          else {
+            if (si.equal > 1) bad.push(`the panel's columns differ in height by ${si.equal.toFixed(1)}px`)
+            if (si.hairline !== '1px' || si.hairlineColor !== si.border) bad.push(`no hairline in the card border colour between the columns (${si.hairline} ${si.hairlineColor})`)
+            if (!si.stepsIn) bad.push('the progress steps are not in the right column')
+            if (si.gap > ASK.sideGap + 0.5) bad.push(`the right column's last block ends ${si.gap.toFixed(0)}px above its inner bottom (${ASK.sideGap}px wanted; fill ${si.vFill.toFixed(2)})`)
+            if (si.vFill < 0.85) bad.push(`the right column's vertical fill is ${si.vFill.toFixed(2)} (0.85 wanted)`)
+            if (si.overflow.length) bad.push(`right column blocks overflow: ${si.overflow.join(', ')}`)
+            const want = x.rowTiles >= 3 ? ASK.cover : ASK.cover2
+            if (x.cover < want) bad.push(`the tile row covers ${x.cover.toFixed(2)} of the left column (${want} wanted for ${x.rowTiles} options)`)
+          }
+        } else {
+          if (x.sideInfo) bad.push('the right column shows below 1280px')
+          if (!x.stepsAbove) bad.push('the progress steps are not above the questions')
+        }
         if (!x.inWindow) bad.push(`the panel is not fully in the window after the auto-scroll (${x.winTop.toFixed(0)} to ${x.winBottom.toFixed(0)} in a ${x.vh}px window)`)
         for (const m of x.interact ?? []) bad.push(`interaction: ${m}`)
       }
@@ -526,7 +566,7 @@ async function runStyle(browser, base) {
     const tag = `${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}`
     if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | Pipeline top ${x.pipeTop.toFixed(0)} (window ${x.vh}) | tile centre off ${x.tileDx.toFixed(1)}/${x.tileDy.toFixed(1)}px | numerals ${x.numeral.toFixed(1)}px | S ${x.spare.S.toFixed(0)}px = gaps ${x.spare.gaps.toFixed(0)} (${x.spare.gapEach.toFixed(0)} each) + tiles ${x.spare.tiles.toFixed(0)} (${x.spare.tileRatio.toFixed(2)}x) + risk card ${x.spare.risk.toFixed(0)} (rows ${x.spare.rowH.toFixed(0)}px) + flexible gap ${x.spare.flexGap.toFixed(0)} | left last line ${(x.lastText - x.barBottom).toFixed(0)}px from the clock bar | sources line ${x.creditsGap.toFixed(0)}px under the bar, ${x.creditsW.toFixed(0)}px wide | bar bottom ${x.barBottom.toFixed(0)}`)
     else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines (${x.ledeW.toFixed(0)}px, search row ${x.rowW.toFixed(0)}px), Guardrails rows ${x.guardRows} | ${x.stages} tiles in ${x.stageRows} row(s), text ${x.stageText.toFixed(0)}px wide ${x.stageFont}px${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
-    else if (cfg.extra === 'shopAsk') console.log(`${tag}questions panel ${(x.panelW * 100).toFixed(1)}% wide ${x.panelH.toFixed(0)}px tall, "${x.count}", ${x.tiles} tiles (${x.textTiles} text) ${x.tileMin.toFixed(0)}-${x.tileMax.toFixed(0)}px wide, heights ${[...new Set(x.tileH)].join('/')}px (row diff ${x.rowDiff.toFixed(1)}), labels ${x.labelMin}px, headings ${x.heading}px | auto-scroll ${x.scrollY}px, panel ${x.winTop.toFixed(0)}-${x.winBottom.toFixed(0)} of ${x.vh} ${x.inWindow ? 'in view' : 'NOT IN VIEW'} | page ${x.page}${x.hscroll > 1 ? ` | SCROLLS SIDEWAYS ${x.hscroll}px` : ''}${x.interact ? (x.interact.length ? ' | INTERACTION FAILED' : ' | interaction ok') : ''}`)
+    else if (cfg.extra === 'shopAsk') console.log(`${tag}questions panel ${(x.panelW * 100).toFixed(1)}% wide ${x.panelH.toFixed(0)}px tall, "${x.count}", ${x.tiles} tiles (${x.textTiles} text) ${x.tileMin.toFixed(0)}-${x.tileMax.toFixed(0)}px wide, heights ${[...new Set(x.tileH)].join('/')}px (row diff ${x.rowDiff.toFixed(1)}), labels ${x.labelMin}px, headings ${x.heading}px | ${x.sideInfo ? `columns ${(x.sideInfo.left * 100).toFixed(0)}/${(x.sideInfo.w * 100).toFixed(0)}% (height diff ${x.sideInfo.equal.toFixed(1)}), cover ${x.cover.toFixed(2)} of ${x.rowTiles} tiles, right fill ${x.sideInfo.vFill.toFixed(2)} (${x.sideInfo.gap.toFixed(0)}px from the bottom), steps inside` : `one column, steps ${x.stepsAbove ? 'above' : 'NOT ABOVE'}`} | auto-scroll ${x.scrollY}px, panel ${x.winTop.toFixed(0)}-${x.winBottom.toFixed(0)} of ${x.vh} ${x.inWindow ? 'in view' : 'NOT IN VIEW'} | page ${x.page}${x.hscroll > 1 ? ` | SCROLLS SIDEWAYS ${x.hscroll}px` : ''}${x.interact ? (x.interact.length ? ' | INTERACTION FAILED' : ' | interaction ok') : ''}`)
     else if (cfg.extra === 'shopFresh') console.log(`${tag}Guardrails rows on a first load: ${x.guardRows}`)
     else if (cfg.extra === 'shopResults') console.log(`${tag}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)
   }

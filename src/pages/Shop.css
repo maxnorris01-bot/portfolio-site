@@ -89,6 +89,12 @@
   gap: 1rem;
 }
 
+.shop-progress-block,
+.clarify-progress-block {
+  display: grid;
+  gap: 1rem;
+}
+
 .shop-progress-head {
   display: flex;
   flex-wrap: wrap;
