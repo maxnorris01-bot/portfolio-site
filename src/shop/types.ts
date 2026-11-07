@@ -73,6 +73,9 @@ export type ShopSearch = {
   note?: string | null
   warnings?: string[]
   results: ShopItem[]
+  /** Filters F1 (backend PR #41): the batch's facets and per-dimension unknown counts live here, beside `results`. */
+  facets?: Facet[]
+  facets_unknown?: Record<string, number>
 }
 
 /** The body of GET /session, and the `result` of a finished job. */
@@ -134,7 +137,7 @@ export type SessionView = {
   refine?: RefineChip[]
   /** Only with the backend flag on. */
   clarify_answers?: ClarifyAnswerChip[]
-  /** Filters F1: the batch's facets and, per dimension, how many shown results have no value for it. Absent when the service sends none. */
+  /** Filters F1, older top-level shape: read through viewFacets(), which prefers `search.facets`. */
   facets?: Facet[]
   facets_unknown?: Record<string, number>
   can_shop_again?: boolean

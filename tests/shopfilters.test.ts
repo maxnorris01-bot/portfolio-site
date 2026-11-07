@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import type { ComponentType } from 'react'
-import { activeCount, applyFilters, cleanSelection, fewLine, filterChips, matchesSelection, refineTextFor, toggleOption, trapTab, unknownLine, type Selection } from '../src/shop/filters.ts'
+import { activeCount, applyFilters, cleanSelection, fewLine, filterChips, matchesSelection, refineTextFor, toggleOption, trapTab, unknownLine, viewFacets, type Selection } from '../src/shop/filters.ts'
 import { fixtureBundles, fixtureFilters, fixtureFiltersFew, fixtureFiltersFewSelection, fixtureStates, filterItemsFixture } from '../src/shop/fixtures.ts'
 import { filtersFew } from '../src/shop/copy.ts'
 import type { ShopViewProps } from '../src/shop/viewprops.ts'
@@ -11,7 +11,7 @@ after(closeServer)
 
 // The dialog's props, as far as the test sets them (the component's own type lives in a .tsx file the test project does not compile).
 type FiltersModalProps = { facets: typeof facets; unknown?: Record<string, number>; selection: Selection; matching: number; onToggle: () => void; onClear: () => void; onClose: () => void; few: string | null; again: { block: string | null; onSearch: () => void } | null; returnFocus: { current: null } }
-const facets = fixtureFilters.facets ?? []
+const facets = viewFacets(fixtureFilters).facets
 const items = filterItemsFixture
 
 test('fixture: askfilters has 12 results with attrs, facets in the contract shape, and an unknown count', () => {
@@ -20,8 +20,19 @@ test('fixture: askfilters has 12 results with attrs, facets in the contract shap
   assert.deepEqual(facets.map((f) => f.dimension), ['color', 'material', 'style', 'shape', 'feature'])
   const gray = facets[0].options.find((o) => o.value === 'gray')
   assert.deepEqual(gray, { value: 'gray', label: 'Gray', count: 4, icon: null, swatches: ['#8C8C8C'] })
-  assert.deepEqual(fixtureFilters.facets_unknown?.color, 1)
+  assert.deepEqual(viewFacets(fixtureFilters).unknown?.color, 1)
   assert.ok(facets.every((f) => f.options.length >= 2 && f.options.length <= 10 && f.options.every((o) => o.count >= 1)))
+})
+
+test('facets: read from view.search (real shape) first, falling back to the top level', async () => {
+  const batch = viewFacets(fixtureFilters)
+  assert.ok(fixtureFilters.search?.facets?.length && !fixtureFilters.facets)
+  assert.equal(batch.facets.length, 5)
+  const top = { ...fixtureFilters, search: { ...fixtureFilters.search!, facets: undefined, facets_unknown: undefined }, facets: batch.facets, facets_unknown: batch.unknown }
+  assert.deepEqual(viewFacets(top), batch)
+  const both = { ...top, search: { ...fixtureFilters.search!, facets: batch.facets.slice(0, 1), facets_unknown: {} } }
+  assert.equal(viewFacets(both).facets.length, 1)
+  assert.deepEqual(viewFacets({ search: null }), { facets: [], unknown: undefined })
 })
 
 test('filter logic: OR within a dimension, AND across dimensions', () => {
@@ -118,6 +129,14 @@ test('view: the Filters button is on the results header when there are facets, h
   for (const key of ['results', 'rated', 'batch2']) assert.doesNotMatch(await view(key), /filters-button/, key)
 })
 
+test('view: the Filters button shows for facets at the top level of the view too (older shape)', async () => {
+  const batch = viewFacets(fixtureFilters)
+  const top = { ...fixtureFilters, search: { ...fixtureFilters.search!, facets: undefined, facets_unknown: undefined }, facets: batch.facets, facets_unknown: batch.unknown }
+  const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
+  const html = render(View, props({ ...fixtureStates.askfilters, view: top } as typeof fixtureStates.askfilters, { meta: fixtureBundles.askfilters.meta }))
+  assert.match(await html, /filters-button/)
+})
+
 test('view: active filters show a count on the button, chips after the existing ones, fewer results in the grid', async () => {
   const html = await view('askfilters', { initialFilters: { color: ['gray'], style: ['vintage'] } })
   assert.match(html, /Filters<span class="filters-badge">2<span class="visually-hidden"> active<\/span><\/span>/)
@@ -183,7 +202,7 @@ test('view: wide puts the steps in the right column, narrow stacks them below th
 
 test('modal: role dialog, aria-modal, labelled by its title; sections in the facets\' order; tiles are toggles with "Gray (4)"', async () => {
   const { FiltersDialog } = await loadModule<{ FiltersDialog: ComponentType<{ p: FiltersModalProps; titleId: string }> }>('/src/shop/FiltersModal.tsx')
-  const p: FiltersModalProps = { facets, unknown: fixtureFilters.facets_unknown, selection: { color: ['gray'] }, matching: 4, onToggle: noop, onClear: noop, onClose: noop, few: null, again: null, returnFocus: { current: null } }
+  const p: FiltersModalProps = { facets, unknown: viewFacets(fixtureFilters).unknown, selection: { color: ['gray'] }, matching: 4, onToggle: noop, onClear: noop, onClose: noop, few: null, again: null, returnFocus: { current: null } }
   const html = render(FiltersDialog, { p, titleId: 'ttl' })
   assert.match(html, /role="dialog" aria-modal="true" aria-labelledby="ttl"/)
   assert.match(html, /<h2 id="ttl" class="filters-title">Filter results<\/h2>/)

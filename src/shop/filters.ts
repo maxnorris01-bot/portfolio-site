@@ -2,10 +2,16 @@
 // dimension with chosen values, its attrs for that dimension share at least one of them (OR within a dimension, AND across). A result with
 // no values for a filtered dimension is hidden. All of it runs in the browser on the batch on screen.
 import { filtersFew, filtersUnknown } from './copy.ts'
-import type { Facet, ShopItem } from './types.ts'
+import type { Facet, SessionView, ShopItem } from './types.ts'
 
 export type Selection = Readonly<Record<string, readonly string[]>>
 export const NO_FILTERS: Selection = {}
+
+/** The batch's facets and unknown counts: from view.search first (the real shape), else the top level of the view. */
+export function viewFacets(view: Pick<SessionView, 'search' | 'facets' | 'facets_unknown'>): { facets: Facet[]; unknown: Record<string, number> | undefined } {
+  const s = view.search
+  return { facets: s?.facets ?? view.facets ?? [], unknown: s?.facets_unknown ?? view.facets_unknown }
+}
 
 /** Fewer matches than this and the page offers to search again with the selection. */
 export const FEW_LIMIT = 4

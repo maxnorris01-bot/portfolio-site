@@ -308,19 +308,15 @@ const facetsOf = (items: ShopItem[]): { facets: Facet[]; unknown: Record<string,
 const filtersBatch = facetsOf(filterItemsFixture)
 export const fixtureFilters: SessionView = {
   ...fixtureView,
-  search: { request: 'rug', headline: 'Twelve rugs.', warnings: [], query: { search_text: 'rug', category: 'rug' }, results: filterItemsFixture },
+  search: { request: 'rug', headline: 'Twelve rugs.', warnings: [], query: { search_text: 'rug', category: 'rug' }, results: filterItemsFixture, facets: filtersBatch.facets, facets_unknown: filtersBatch.unknown },
   refine: [],
-  facets: filtersBatch.facets,
-  facets_unknown: filtersBatch.unknown,
 }
 /** Five results, two chosen options leaving two matches (gray + vintage): the few-matches line. */
 const fewItems = filterItemsFixture.slice(0, 5)
 const fewBatch = facetsOf(fewItems)
 export const fixtureFiltersFew: SessionView = {
   ...fixtureFilters,
-  search: { ...(fixtureFilters.search as NonNullable<SessionView['search']>), results: fewItems },
-  facets: fewBatch.facets,
-  facets_unknown: fewBatch.unknown,
+  search: { ...(fixtureFilters.search as NonNullable<SessionView['search']>), results: fewItems, facets: fewBatch.facets, facets_unknown: fewBatch.unknown },
 }
 export const fixtureFiltersFewSelection: Selection = { color: ['gray'], style: ['vintage'] }
 

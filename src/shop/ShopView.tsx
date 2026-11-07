@@ -3,7 +3,7 @@ import PageHeader from '../components/PageHeader'
 import { useWide } from './wide.ts'
 import FiltersModal from './FiltersModal.tsx'
 import WaitScreensaver from './WaitScreensaver.tsx'
-import { activeCount, applyFilters, cleanSelection, fewLine, filterChips, NO_FILTERS, refineTextFor, toggleOption, type Selection } from './filters.ts'
+import { activeCount, applyFilters, cleanSelection, fewLine, filterChips, NO_FILTERS, refineTextFor, toggleOption, viewFacets, type Selection } from './filters.ts'
 import type { Pattern } from './screensaver.ts'
 import { prefersReducedMotion } from './autoscroll.ts'
 import {
@@ -596,7 +596,7 @@ function SavedPanel({ state, props, open }: { state: Extract<ShopState, { status
 function Results({ state, props, selection, onSelection }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; selection: Selection; onSelection: (sel: Selection) => void }) {
   const search = state.view.search
   const all = search?.results ?? []
-  const facets = state.view.facets ?? []
+  const { facets, unknown: facetsUnknown } = viewFacets(state.view)
   const sel = cleanSelection(selection, facets)
   const items = applyFilters(all, sel)
   const active = activeCount(sel)
@@ -687,7 +687,7 @@ function Results({ state, props, selection, onSelection }: { state: Extract<Shop
       {filtersOpen && (
         <FiltersModal
           facets={facets}
-          unknown={state.view.facets_unknown}
+          unknown={facetsUnknown}
           selection={sel}
           matching={items.length}
           onToggle={(d, v) => onSelection(toggleOption(sel, d, v))}
