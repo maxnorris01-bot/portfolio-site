@@ -28,6 +28,7 @@ const props = (state: ShopViewProps['state'], value = ''): ShopViewProps => ({
   onSubmitAnswers: noop,
   onRetryAnswers: noop,
   onSearchFilters: noop,
+  onSaveFilters: noop,
   onRemoveContext: noop,
   meta: { usage: null, blocked: { search: false, again: false }, maintenance: false },
   savedOpen: true,

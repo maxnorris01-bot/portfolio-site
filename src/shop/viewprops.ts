@@ -16,7 +16,7 @@ export type ShopViewProps = {
   refineText: string
   onRefineChange: (value: string) => void
   /** `filters`: the choices to send (a list replaces the stored ones, [] clears them); absent leaves them as they are. */
-  onShopAgain: (filters?: FilterChoice[]) => void
+  onShopAgain: () => void
   onRate: (id: string, rating: Rating | null) => void
   onComment: (id: string, text: string) => void
   onCommentBlur: (id: string) => void
@@ -40,6 +40,8 @@ export type ShopViewProps = {
   wide?: boolean
   /** Refine search: Shop Again with the chosen options as `filters`. */
   onSearchFilters: (filters: FilterChoice[]) => void
+  /** Save the choices (POST /refine) when the dialog closes. */
+  onSaveFilters: (filters: FilterChoice[]) => void
   /** Tests and development fixtures only: a local selection to start with (when the service has no filter chips), and the wait panel's pattern. */
   initialFilters?: Selection
   waitPattern?: Pattern

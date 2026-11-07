@@ -64,12 +64,11 @@ export type RefineChip = {
   label: string
   approximate?: boolean
   text?: string
-  /** Kind `filter` (the chosen options of the Refine search dialog): id is `filter:<dimension>`; these two are assumed to come with it and are read from the id when absent. */
-  dimension?: string
-  values?: string[]
+  /** Kind `filter` (the chosen options of the Refine search dialog): id is `filter:<dimension>` and target is "dimension:v1,v2" (there is no `values` field). */
+  target?: string
 }
 
-/** The choices sent with Shop Again (the backend stores them as a set: a new list replaces the old, an empty list clears them). */
+/** The choices sent with POST /refine (the backend stores them as a set: a new list replaces the old, an empty list clears them). */
 export type FilterChoice = { dimension: string; values: string[] }
 
 /** After a batch that had choices: how many of the shown results satisfy all of them. */

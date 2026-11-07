@@ -109,9 +109,11 @@ export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)
     /** Save a rating, a comment, or both (a missing field is left as it is; `rating: null` clears). */
     rate: (body: RateBody, signal?: AbortSignal) =>
       request<{ result_id: string; rating: Rating | null; comment: string }>('/rate', { method: 'POST', body, signal }),
-    /** `filters` is sent only when given: a list replaces the stored choices, [] clears them, absent leaves them. */
-    shopAgain: (sessionId: string, refineText: string | null, signal?: AbortSignal, filters?: FilterChoice[]) =>
-      request<{ job_id: string }>('/shop-again', { method: 'POST', body: { session_id: sessionId, refine_text: refineText, ...(filters ? { filters } : {}) }, signal }),
+    shopAgain: (sessionId: string, refineText: string | null, signal?: AbortSignal) =>
+      request<{ job_id: string }>('/shop-again', { method: 'POST', body: { session_id: sessionId, refine_text: refineText }, signal }),
+    /** Save the refine choices for the next Shop Again: the list REPLACES the stored set ([] clears it). Returns the refine chips. */
+    setRefineFilters: (sessionId: string, filters: FilterChoice[], signal?: AbortSignal) =>
+      request<{ refine: RefineChip[]; notices?: string[]; refine_usd?: number }>('/refine', { method: 'POST', body: { session_id: sessionId, filters }, signal }),
     /**
      * Post the answers to a job's clarifying questions (all current answers; `option_value` is an option's value or "no_preference"),
      * and `submit: true` to rank now. Returns the server's clarify object. Not a search: it is not counted.

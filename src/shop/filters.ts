@@ -76,14 +76,16 @@ export function sameSelection(a: Selection, b: Selection): boolean {
   return [...dims].every((d) => same(a[d], b[d]))
 }
 
-/** The choices the backend holds, from the `filter` chips of the refine list (null when it has none). A chip without `values` is skipped. */
+/** The choices the backend holds, from the `filter` chips of the refine list (null when it has none). Dimension and values are parsed from `target` ("dimension:v1,v2"); a chip without a readable target is skipped. */
 export function serverSelection(refine: readonly RefineChip[] | undefined): Selection | null {
   const chips = (refine ?? []).filter((r) => r.kind === 'filter')
   if (chips.length === 0) return null
   const out: Record<string, string[]> = {}
   for (const c of chips) {
-    const dimension = c.dimension ?? c.id.replace(/^filter:/, '')
-    if (c.values?.length) out[dimension] = [...c.values]
+    const at = (c.target ?? '').indexOf(':')
+    if (at < 1) continue
+    const values = c.target!.slice(at + 1).split(',').filter((v) => v !== '')
+    if (values.length) out[c.target!.slice(0, at)] = values
   }
   return out
 }

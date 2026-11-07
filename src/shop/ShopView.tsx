@@ -37,7 +37,7 @@ import { openTarget, savedLists, type SavedItem } from './saved.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
 import { alsoAtLine, formatPrice, ratingLine, safeHref, shortfallLine, stepSummary, type ShopState } from './state.ts'
 import type { ShopViewProps } from './viewprops.ts'
-import type { FilterChoice, Rating, ResolvedLink, ShopItem } from './types.ts'
+import type { Rating, ResolvedLink, ShopItem } from './types.ts'
 
 export function ProductImageView({ src, alt, failed, onError }: { src: string; alt: string; failed: boolean; onError?: () => void }) {
   return (
@@ -488,14 +488,14 @@ function againBlockFor(state: Extract<ShopState, { status: 'done' }>, props: Sho
   })
 }
 
-function AgainBar({ block, filters, props }: { block: string | null; filters: FilterChoice[] | undefined; props: ShopViewProps }) {
+function AgainBar({ block, props }: { block: string | null; props: ShopViewProps }) {
   const refineId = useId()
   return (
     <form
       className="shop-again"
       onSubmit={(e) => {
         e.preventDefault()
-        if (!block) props.onShopAgain(filters)
+        if (!block) props.onShopAgain()
       }}
     >
       <label className="shop-label" htmlFor={refineId}>
@@ -624,8 +624,11 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
   // The server's chips (in the refine list) show the choices; the local ones show only when the server has none.
   const chips: MergedChip[] = serverSel ? [] : filterChips(selection, facets).map((c) => ({ key: c.key, label: c.label, remove: { type: 'filter', dimension: c.dimension } }))
   const block = againBlockFor(state, props)
-  // The choices to send: the page's selection when it differs from what the server holds ([] clears them); nothing when they agree.
-  const filters = serverSel ? (sameSelection(selection, serverSel) ? undefined : filterChoices(selection)) : active > 0 ? filterChoices(selection) : undefined
+  // The choices are saved (POST /refine) when the dialog closes or Search again is pressed, when they differ from what the server holds.
+  const closeModal = () => {
+    setFiltersOpen(false)
+    if (!sameSelection(selection, serverSel ?? {})) props.onSaveFilters(filterChoices(selection))
+  }
   const searchAgain = () => props.onSearchFilters(filterChoices(selection))
   const clear = () => onSelection({})
   const matching = matchCount(all, selection)
@@ -678,7 +681,7 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
               {block && <span className="filters-why"> ({block})</span>}
             </p>
           )}
-          <AgainBar block={block} filters={filters} props={props} />
+          <AgainBar block={block} props={props} />
         </>
       )}
       <SavedPanel state={state} props={props} open={open} />
@@ -690,7 +693,7 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
           matchText={active > 0 ? filtersMatching(matching) : null}
           onToggle={(d, v) => onSelection(toggleOption(selection, d, v))}
           onClear={clear}
-          onClose={() => setFiltersOpen(false)}
+          onClose={closeModal}
           onSearch={() => {
             setFiltersOpen(false)
             searchAgain()

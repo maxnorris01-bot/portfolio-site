@@ -216,12 +216,30 @@ export class ShopController {
   retry = () => this.search(this.lastRequest)
 
   /** Shop Again, with the refine box's text if there is any. */
-  shopAgain = (refineText: string, filters?: FilterChoice[]) => {
+  shopAgain = (refineText: string) => {
     const id = this.session
     if (!id) return Promise.resolve()
     const text = refineText.trim()
     const request = this.snapshot.status === 'done' ? this.snapshot.request : this.lastRequest
-    return this.begin(request, 'shop_again', (signal) => this.client.shopAgain(id, text === '' ? null : text, signal, filters))
+    return this.begin(request, 'shop_again', (signal) => this.client.shopAgain(id, text === '' ? null : text, signal))
+  }
+
+  /** Save the refine choices (replaces the stored set, [] clears it) and show the returned chips. True when saved. */
+  saveFilters = async (filters: FilterChoice[]) => {
+    if (!this.session) return false
+    try {
+      const out = await this.client.setRefineFilters(this.session, filters)
+      this.dispatch({ type: 'patch', refine: out.refine })
+      return true
+    } catch (e) {
+      this.note(e)
+      return false
+    }
+  }
+
+  /** Search again with the choices: save them with POST /refine, then Shop Again (without a filters field). */
+  searchAgain = async (refineText: string, filters: FilterChoice[]) => {
+    if (await this.saveFilters(filters)) await this.shopAgain(refineText)
   }
 
   private async persist(id: string, part: { rating: Rating | null } | { comment: string }) {

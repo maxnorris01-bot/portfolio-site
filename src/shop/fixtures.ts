@@ -310,10 +310,10 @@ export const fixtureFilters: SessionView = {
   search: { request: 'rug', headline: 'Twelve rugs.', warnings: [], query: { search_text: 'rug', category: 'rug' }, results: filterItemsFixture, facets: filtersBatch.facets, facets_unknown: filtersBatch.unknown },
   refine: [],
 }
-/** Refine search: the backend's `filter` chips (id `filter:<dimension>`; `dimension` and `values` are assumed beside them), no ratings, Shop Again on. */
+/** Refine search: the backend's `filter` chips (id `filter:<dimension>`, target "dimension:v1,v2", no values field), no ratings, Shop Again on. */
 export const refineChips: RefineChip[] = [
-  { id: 'filter:color', kind: 'filter', label: 'Colour: gray or blue', dimension: 'color', values: ['gray', 'blue'] },
-  { id: 'filter:style', kind: 'filter', label: 'Style: vintage', dimension: 'style', values: ['vintage'] },
+  { id: 'filter:color', kind: 'filter', target: 'color:gray,blue', label: 'Colour: gray or blue' },
+  { id: 'filter:style', kind: 'filter', target: 'style:vintage', label: 'Style: vintage' },
 ]
 export const fixtureRefine: SessionView = { ...fixtureFilters, refine: refineChips, can_shop_again: true, shop_agains_used: 0, shop_agains_cap: 25 }
 /** A batch that came back for those choices: 5 of the 12 satisfy both. */

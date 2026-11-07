@@ -66,8 +66,8 @@ export default function Shop() {
       onRetry={shop.retry}
       refineText={refineText}
       onRefineChange={setRefineText}
-      onShopAgain={(filters) => {
-        void shop.shopAgain(refineText, filters)
+      onShopAgain={() => {
+        void shop.shopAgain(refineText)
         setRefineText('')
       }}
       onRate={shop.rate}
@@ -88,9 +88,10 @@ export default function Shop() {
       onTouch={fixtureClarify ? undefined : shop.touch}
       onRetryAnswers={() => void shop.retryAnswers()}
       onSearchFilters={(filters) => {
-        void shop.shopAgain(refineText, filters)
+        void shop.searchAgain(refineText, filters)
         setRefineText('')
       }}
+      onSaveFilters={(filters) => void shop.saveFilters(filters)}
       waitPattern={import.meta.env.DEV && (params.get('pattern') === 'mystify' || params.get('pattern') === 'spirograph') ? (params.get('pattern') as 'mystify' | 'spirograph') : undefined}
       onResolve={shop.resolveLink}
     />

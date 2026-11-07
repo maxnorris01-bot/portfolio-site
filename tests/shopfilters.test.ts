@@ -86,11 +86,12 @@ test('the request\'s filters list: a dimension and its values, empty dimensions 
   assert.deepEqual(filterChoices({}), [])
 })
 
-test('server choices: read from the refine list\'s filter chips (id filter:<dimension>, values), null when there are none', () => {
+test('server choices: read from the refine list\'s filter chips (id filter:<dimension>, target "dimension:v1,v2"), null when there are none', () => {
   assert.deepEqual(serverSelection(refineChips), { color: ['gray', 'blue'], style: ['vintage'] })
   assert.equal(serverSelection([{ id: 'answer:q_color', label: 'Walnut' }]), null)
   assert.equal(serverSelection(undefined), null)
-  assert.deepEqual(serverSelection([{ id: 'filter:color', kind: 'filter', label: 'Colour: gray', values: ['gray'] }]), { color: ['gray'] })
+  assert.deepEqual(serverSelection([{ id: 'filter:color', kind: 'filter', label: 'Colour: gray', target: 'color:gray' }]), { color: ['gray'] })
+  assert.deepEqual(serverSelection([{ id: 'filter:color', kind: 'filter', label: 'x' }]), {}, 'no target: skipped')
   assert.ok(sameSelection({ color: ['blue', 'gray'] }, { color: ['gray', 'blue'] }))
   assert.ok(!sameSelection({ color: ['gray'] }, {}))
 })
@@ -110,7 +111,7 @@ const noop = () => {}
 const props = (state: ShopViewProps['state'], over: Partial<ShopViewProps> = {}): ShopViewProps => ({
   state, value: '', onChange: noop, onSubmit: noop, onExample: noop, onRetry: noop, refineText: '', onRefineChange: noop, onShopAgain: noop,
   onRate: noop, onComment: noop, onCommentBlur: noop, onRetryRating: noop, onRemoveRefine: noop, onRemoveContext: noop,
-  onAnswer: noop, onSubmitAnswers: noop, onRetryAnswers: noop, onSearchFilters: noop,
+  onAnswer: noop, onSubmitAnswers: noop, onRetryAnswers: noop, onSearchFilters: noop, onSaveFilters: noop,
   meta: { usage: null, blocked: { search: false, again: false }, maintenance: false },
   savedOpen: true, onToggleSaved: noop, savedTab: 'love', onSavedTab: noop, onResolve: async () => null, ...over,
 })
