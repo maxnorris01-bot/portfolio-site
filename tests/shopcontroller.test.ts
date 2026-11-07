@@ -151,6 +151,17 @@ test('Shop Again sends the session id and null without refine text, or the trimm
   ])
 })
 
+test('Shop Again sends the chosen options as `filters` (a list replaces, [] clears, absent leaves them), counted as one Shop Again', async () => {
+  const t = await withResults({ 'POST /shop-again': () => json({ job_id: 'j2' }, 202) })
+  await t.controller.shopAgain('', [{ dimension: 'color', values: ['gray', 'blue'] }, { dimension: 'style', values: ['vintage'] }])
+  await t.controller.shopAgain('', [])
+  const bodies = t.calls.filter((c) => c.path === '/shop-again').map((c) => c.body)
+  assert.deepEqual(bodies, [
+    { session_id: 'fixture-session', refine_text: null, filters: [{ dimension: 'color', values: ['gray', 'blue'] }, { dimension: 'style', values: ['vintage'] }] },
+    { session_id: 'fixture-session', refine_text: null, filters: [] },
+  ])
+})
+
 test('Shop Again polls the job like a search, then replaces the grid and counts the batch (a new search resets it)', async () => {
   const jobs: Handler[] = [done(fixtureView), () => json({ state: 'running', steps: [{ id: 'rank', label: 'Ranking', state: 'active', done_count: null, total: null }] }), done(fixtureBatch2)]
   const t = await withResults({ 'POST /shop-again': () => json({ job_id: 'j2' }, 202), 'GET /job': jobs })

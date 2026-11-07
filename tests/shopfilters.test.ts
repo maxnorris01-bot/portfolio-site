@@ -1,22 +1,21 @@
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
 import type { ComponentType } from 'react'
-import { activeCount, applyFilters, cleanSelection, fewLine, filterChips, matchesSelection, refineTextFor, toggleOption, trapTab, unknownLine, viewFacets, type Selection } from '../src/shop/filters.ts'
-import { fixtureBundles, fixtureFilters, fixtureFiltersFew, fixtureFiltersFewSelection, fixtureStates, filterItemsFixture } from '../src/shop/fixtures.ts'
-import { filtersFew } from '../src/shop/copy.ts'
+import { activeCount, filterChips, filterChoices, matchCount, matchesSelection, sameSelection, serverSelection, toggleOption, trapTab, unknownLine, viewFacets, type Selection } from '../src/shop/filters.ts'
+import { fixtureBundles, fixtureFilters, fixtureRefine, fixtureRefineMatch, fixtureStates, filterItemsFixture, refineChips } from '../src/shop/fixtures.ts'
 import type { ShopViewProps } from '../src/shop/viewprops.ts'
 import { closeServer, loadModule, render } from './helpers/ssr.ts'
 
 after(closeServer)
 
 // The dialog's props, as far as the test sets them (the component's own type lives in a .tsx file the test project does not compile).
-type FiltersModalProps = { facets: typeof facets; unknown?: Record<string, number>; selection: Selection; matching: number; onToggle: () => void; onClear: () => void; onClose: () => void; few: string | null; again: { block: string | null; onSearch: () => void } | null; returnFocus: { current: null } }
+type FiltersModalProps = { facets: typeof facets; unknown?: Record<string, number>; selection: Selection; matchText: string | null; onToggle: () => void; onClear: () => void; onClose: () => void; onSearch: () => void; block: string | null; returnFocus: { current: null } }
 const facets = viewFacets(fixtureFilters).facets
 const items = filterItemsFixture
 
 test('fixture: askfilters has 12 results with attrs, facets in the contract shape, and an unknown count', () => {
   assert.equal(items.length, 12)
-  assert.ok(items.every((i) => i.attrs && ['color', 'material', 'shape', 'style', 'size', 'feature'].every((k) => Array.isArray(i.attrs?.[k]))))
+  assert.ok(items.every((i: (typeof items)[number]) => i.attrs && ['color', 'material', 'shape', 'style', 'size', 'feature'].every((k) => Array.isArray(i.attrs?.[k]))))
   assert.deepEqual(facets.map((f) => f.dimension), ['color', 'material', 'style', 'shape', 'feature'])
   const gray = facets[0].options.find((o) => o.value === 'gray')
   assert.deepEqual(gray, { value: 'gray', label: 'Gray', count: 4, icon: null, swatches: ['#8C8C8C'] })
@@ -35,16 +34,14 @@ test('facets: read from view.search (real shape) first, falling back to the top 
   assert.deepEqual(viewFacets({ search: null }), { facets: [], unknown: undefined })
 })
 
-test('filter logic: OR within a dimension, AND across dimensions', () => {
-  const gray: Selection = { color: ['gray'] }
-  assert.equal(applyFilters(items, gray).length, 4)
-  assert.equal(applyFilters(items, { color: ['gray', 'blue'] }).length, 6) // OR within colour (item 1 is both)
-  const both = applyFilters(items, { color: ['gray', 'blue'], style: ['vintage'] })
-  assert.deepEqual(both.map((i) => i.id), ['ft-1', 'ft-5', 'ft-7']) // AND across
-  assert.equal(applyFilters(items, {}).length, 12)
+test('match count: OR within a dimension, AND across; nothing chosen counts nothing', () => {
+  assert.equal(matchCount(items, { color: ['gray'] }), 4)
+  assert.equal(matchCount(items, { color: ['gray', 'blue'] }), 6) // OR within colour (item 1 is both)
+  assert.equal(matchCount(items, { color: ['gray', 'blue'], style: ['vintage'] }), 3) // AND across
+  assert.equal(matchCount(items, {}), 0)
 })
 
-test('filter logic: an item with an empty list for a filtered dimension is hidden; one with no attrs at all too', () => {
+test('match logic: an item with an empty list for a chosen dimension does not match; one with no attrs at all neither', () => {
   const unknown = items[10] // no listed details
   assert.equal(matchesSelection(unknown, { color: ['gray'] }), false)
   assert.equal(matchesSelection({}, { style: ['modern'] }), false)
@@ -60,42 +57,42 @@ test('unknown line: "3 have no colour info", singular for one, nothing for zero'
   assert.equal(unknownLine(color, undefined), null)
 })
 
-test('live count follows the selection; toggling adds and removes; an emptied dimension is dropped', () => {
+test('toggling adds and removes; an emptied dimension is dropped; the live count follows', () => {
   let sel: Selection = {}
   sel = toggleOption(sel, 'color', 'gray')
-  assert.equal(applyFilters(items, sel).length, 4)
+  assert.equal(matchCount(items, sel), 4)
   sel = toggleOption(sel, 'color', 'blue')
-  assert.equal(applyFilters(items, sel).length, 6)
   sel = toggleOption(sel, 'style', 'vintage')
   assert.equal(activeCount(sel), 3)
-  assert.equal(applyFilters(items, sel).length, 3)
+  assert.equal(matchCount(items, sel), 3)
   sel = toggleOption(toggleOption(sel, 'color', 'gray'), 'color', 'blue')
   assert.deepEqual(sel, { style: ['vintage'] })
   assert.deepEqual(toggleOption(sel, 'style', 'vintage'), {})
 })
 
-test('chips: "Colour: Gray" per chosen option in the facets\' order; removing one is a toggle; stale values are ignored', () => {
+test('chips: one per dimension, "Next search: Colour: Gray or blue", in the facets\' order; a value the batch no longer offers still shows', () => {
   const sel: Selection = { style: ['vintage'], color: ['gray', 'blue'] }
-  assert.deepEqual(filterChips(sel, facets).map((c) => c.label), ['Colour: Gray', 'Colour: Blue', 'Style: Vintage'])
-  const first = filterChips(sel, facets)[0]
-  assert.deepEqual(toggleOption(sel, first.dimension, first.value), { style: ['vintage'], color: ['blue'] })
-  assert.deepEqual(cleanSelection({ color: ['gray', 'teal'], material: ['unobtainium'] }, facets), { color: ['gray'] })
+  assert.deepEqual(filterChips(sel, facets).map((c) => c.label), ['Next search: Colour: Gray or blue', 'Next search: Style: Vintage'])
+  assert.deepEqual(filterChips(sel, facets).map((c) => c.key), ['filter:color', 'filter:style'])
+  assert.deepEqual(filterChips({ color: ['teal'] }, facets).map((c) => c.label), ['Next search: Colour: Teal'])
+  assert.deepEqual(filterChips({}, facets), [])
 })
 
-test('few matches: fewer than 4 with something chosen; not for none, for enough, or for zero', () => {
-  assert.equal(fewLine(2, { color: ['gray'] }), filtersFew(2))
-  assert.equal(filtersFew(2), 'Only 2 match.')
-  assert.equal(fewLine(3, { color: ['gray'] }), 'Only 3 match.')
-  assert.equal(fewLine(4, { color: ['gray'] }), null)
-  assert.equal(fewLine(2, {}), null)
-  assert.equal(fewLine(0, { color: ['gray'] }), null) // the empty state handles it
+test('the request\'s filters list: a dimension and its values, empty dimensions left out', () => {
+  assert.deepEqual(filterChoices({ color: ['gray', 'blue'], style: ['vintage'], shape: [] }), [
+    { dimension: 'color', values: ['gray', 'blue'] },
+    { dimension: 'style', values: ['vintage'] },
+  ])
+  assert.deepEqual(filterChoices({}), [])
 })
 
-test('refinement text: options of a dimension joined with "or", dimensions with commas, in the facets\' order', () => {
-  assert.equal(refineTextFor({ color: ['gray', 'blue'], style: ['vintage'] }, facets), 'gray or blue, vintage')
-  assert.equal(refineTextFor({ style: ['vintage'], material: ['wool'] }, facets), 'wool, vintage')
-  assert.equal(refineTextFor({}, facets), '')
-  assert.ok(refineTextFor({ color: facets[0].options.map((o) => o.value) }, facets).length <= 200)
+test('server choices: read from the refine list\'s filter chips (id filter:<dimension>, values), null when there are none', () => {
+  assert.deepEqual(serverSelection(refineChips), { color: ['gray', 'blue'], style: ['vintage'] })
+  assert.equal(serverSelection([{ id: 'answer:q_color', label: 'Walnut' }]), null)
+  assert.equal(serverSelection(undefined), null)
+  assert.deepEqual(serverSelection([{ id: 'filter:color', kind: 'filter', label: 'Colour: gray', values: ['gray'] }]), { color: ['gray'] })
+  assert.ok(sameSelection({ color: ['blue', 'gray'] }, { color: ['gray', 'blue'] }))
+  assert.ok(!sameSelection({ color: ['gray'] }, {}))
 })
 
 test('focus trap: Tab on the last control wraps to the first, Shift+Tab on the first to the last; elsewhere the browser moves on', () => {
@@ -117,60 +114,91 @@ const props = (state: ShopViewProps['state'], over: Partial<ShopViewProps> = {})
   meta: { usage: null, blocked: { search: false, again: false }, maintenance: false },
   savedOpen: true, onToggleSaved: noop, savedTab: 'love', onSavedTab: noop, onResolve: async () => null, ...over,
 })
+const againButton = (html: string) => html.match(/<button type="submit"[^>]*>Shop Again/)?.[0] ?? 'NO BUTTON'
 const view = async (key: string, over: Partial<ShopViewProps> = {}) => {
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
   return render(View, props(fixtureBundles[key].state, { meta: fixtureBundles[key].meta, ...over }))
 }
 
-test('view: the Filters button is on the results header when there are facets, hidden without them', async () => {
+test('view: the Refine search button is on the results header when there are facets, hidden without them', async () => {
   const withFacets = await view('askfilters')
-  assert.match(withFacets, /<button[^>]*class="btn btn-secondary filters-button"[^>]*aria-haspopup="dialog"[^>]*>Filters<\/button>/)
+  assert.match(withFacets, /<button[^>]*class="btn btn-secondary filters-button"[^>]*aria-haspopup="dialog"[^>]*>Refine search<\/button>/)
   assert.match(withFacets, /12 results for/)
   for (const key of ['results', 'rated', 'batch2']) assert.doesNotMatch(await view(key), /filters-button/, key)
 })
 
-test('view: the Filters button shows for facets at the top level of the view too (older shape)', async () => {
+test('view: the button shows for facets at the top level of the view too (older shape)', async () => {
   const batch = viewFacets(fixtureFilters)
   const top = { ...fixtureFilters, search: { ...fixtureFilters.search!, facets: undefined, facets_unknown: undefined }, facets: batch.facets, facets_unknown: batch.unknown }
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
-  const html = render(View, props({ ...fixtureStates.askfilters, view: top } as typeof fixtureStates.askfilters, { meta: fixtureBundles.askfilters.meta }))
-  assert.match(await html, /filters-button/)
+  const html = await render(View, props({ ...fixtureStates.askfilters, view: top } as typeof fixtureStates.askfilters, { meta: fixtureBundles.askfilters.meta }))
+  assert.match(html, /filters-button/)
 })
 
-test('view: active filters show a count on the button, chips after the existing ones, fewer results in the grid', async () => {
-  const html = await view('askfilters', { initialFilters: { color: ['gray'], style: ['vintage'] } })
-  assert.match(html, /Filters<span class="filters-badge">2<span class="visually-hidden"> active<\/span><\/span>/)
-  assert.match(html, /2 of 12 results for/)
-  assert.equal(html.match(/class="shop-card"/g)?.length, 2)
-  assert.ok(html.includes('Colour: Gray') && html.includes('Style: Vintage'))
-  assert.match(html, /aria-label="Remove Colour: Gray"/)
+test('view: the grid never shrinks, whatever is chosen; the count and the cards stay at 12', async () => {
+  const choices: Selection[] = [{ color: ['gray'], style: ['vintage'] }, { color: ['cream'], style: ['vintage'] }, { material: ['unobtainium'] }]
+  for (const initialFilters of choices) {
+    const html = await view('askfilters', { initialFilters })
+    assert.match(html, /12 results for/)
+    assert.doesNotMatch(html, / of 12 results for/)
+    assert.equal(html.match(/class="shop-card"/g)?.length, 12)
+    assert.doesNotMatch(html, /No results match|Clear filters/)
+  }
 })
 
-test('view: the chip row overflows like the others: filter chips count towards the "+N more"', async () => {
-  const html = await view('askfilters', { initialFilters: { color: ['gray', 'blue', 'cream'], material: ['wool'], style: ['vintage', 'modern'], shape: ['runner'], feature: ['washable'] } })
-  assert.match(html, /\+\d+ more/)
+test('view: local choices (a service with no filter chips) show a count on the button and one "Next search" chip per dimension', async () => {
+  const html = await view('askfilters', { initialFilters: { color: ['gray', 'blue'], style: ['vintage'] } })
+  assert.match(html, /Refine search<span class="filters-badge">3<span class="visually-hidden"> chosen<\/span><\/span>/)
+  assert.ok(html.includes('Next search: Colour: Gray or blue') && html.includes('Next search: Style: Vintage'))
+  assert.match(html, /aria-label="Remove Next search: Colour: Gray or blue"/)
+  assert.match(html, />Search again with these choices<\/button>/)
 })
 
-test('view: a filter that hides everything says so and offers Clear filters, never a blank grid', async () => {
-  const html = await view('askfilters', { initialFilters: { color: ['cream'], style: ['vintage'] } })
-  assert.ok(html.includes('No results match these filters.'))
-  assert.match(html, />Clear filters<\/button>/)
-  assert.doesNotMatch(html, /class="shop-grid"/)
+test('view: nothing chosen: no chips, no "Search again with these choices" line', async () => {
+  const html = await view('askfilters')
+  assert.doesNotMatch(html, /Next search|Search again with these choices|filters-badge/)
 })
 
-test('view: few matches show the line under the grid with the Search again button (Shop Again\'s own block applies)', async () => {
-  const html = await view('askfiltersfew', { initialFilters: fixtureFiltersFewSelection })
-  assert.ok(html.includes('Only 2 match.'))
-  assert.match(html, /<button type="button" class="shop-link"[^>]*>Search again with these filters<\/button>/)
-  assert.doesNotMatch(html.slice(html.indexOf('Only 2 match.')), /Rate at least one result first/) // one result is rated in the fixture
-  // Nothing rated: the button is off and says why, the existing words.
+test('view: the chip row overflows like the others: choice chips count towards the "+N more"', async () => {
+  const none = await view('askchipsmany')
+  const html = await view('askchipsmany', { initialFilters: { color: ['gray'], material: ['wool'], style: ['vintage'] } })
+  assert.match(none, /\+2 more/)
+  assert.match(html, /\+5 more/)
+})
+
+test('view: askrefine: the backend\'s filter chips are the chips (with an x through /refine/remove), the count is 3, the grid is whole', async () => {
+  const html = await view('askrefine')
+  assert.ok(html.includes('Next search: Colour: gray or blue') && html.includes('Next search: Style: vintage'))
+  assert.equal(html.match(/Next search: Colour/g)?.length, 2) // the chip text and its Remove label, never a second local chip
+  assert.match(html, /aria-label="Remove Next search: Style: vintage"/)
+  assert.match(html, /Refine search<span class="filters-badge">3</)
+  assert.equal(html.match(/class="shop-card"/g)?.length, 12)
+  assert.match(html, />Search again with these choices<\/button>/)
+})
+
+test('view: Shop Again is enabled with no ratings and shows the hint; the old rating rule is gone', async () => {
+  const html = await view('askrefine')
+  assert.doesNotMatch(againButton(html), /disabled/)
+  assert.ok(html.includes('Rate results to steer the next batch, or just search again.'))
+  assert.doesNotMatch(html, /Rate at least one result first/)
+  assert.equal(fixtureRefine.search?.results.length, 12)
+  assert.deepEqual(fixtureRefine.ratings ?? {}, {})
+})
+
+test('view: after a batch with choices, one line says how many match all of them; none when absent', async () => {
+  assert.ok((await view('askrefinematch')).includes('5 of 12 results match all your choices.'))
+  assert.doesNotMatch(await view('askrefine'), /match all your choices/)
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
-  const unrated = render(View, props({ ...(fixtureStates.askfiltersfew as Extract<ShopViewProps['state'], { status: 'done' }>), ratings: {} }, { initialFilters: fixtureFiltersFewSelection }))
-  assert.match(unrated, /shop-link"[^>]*disabled=""[^>]*>Search again with these filters<\/button><span class="filters-why"> \(Rate at least one result first\.\)/)
-  // Enough matches, or nothing chosen: no line.
-  assert.ok(!(await view('askfiltersfew')).includes('Only '))
-  assert.ok(!(await view('askfilters', { initialFilters: { color: ['gray'] } })).includes('Only '))
-  assert.equal(fixtureFiltersFew.search?.results.length, 5)
+  const none = { ...fixtureRefineMatch, search: { ...fixtureRefineMatch.search!, filters_match: { satisfied_all: 0, shown: 12 } } }
+  const html = await render(View, props({ ...(fixtureStates.askrefinematch as Extract<ShopViewProps['state'], { status: 'done' }>), view: none }))
+  assert.ok(html.includes('No result matches all your choices; showing the closest.'))
+})
+
+test('view: Search again is off with Shop Again\'s own reasons (cap reached), not for missing ratings', async () => {
+  const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
+  const st = fixtureStates.askrefine as Extract<ShopViewProps['state'], { status: 'done' }>
+  const capped = await render(View, props({ ...st, view: { ...st.view, shop_agains_used: 25, shop_agains_cap: 25 } }))
+  assert.match(capped, /shop-link"[^>]*disabled=""[^>]*>Search again with these choices<\/button><span class="filters-why"> \(You have used every Shop Again for this visit\.\)/)
 })
 
 test('view: the old Ask tile and the clarifying panel are gone; a running search shows the wait panel', async () => {
@@ -200,22 +228,30 @@ test('view: wide puts the steps in the right column, narrow stacks them below th
 
 // ---- the modal ----
 
-test('modal: role dialog, aria-modal, labelled by its title; sections in the facets\' order; tiles are toggles with "Gray (4)"', async () => {
+test('modal: role dialog, aria-modal, labelled by its title; the intro line; sections in the facets\' order; tiles are toggles with "Gray (4)"', async () => {
   const { FiltersDialog } = await loadModule<{ FiltersDialog: ComponentType<{ p: FiltersModalProps; titleId: string }> }>('/src/shop/FiltersModal.tsx')
-  const p: FiltersModalProps = { facets, unknown: viewFacets(fixtureFilters).unknown, selection: { color: ['gray'] }, matching: 4, onToggle: noop, onClear: noop, onClose: noop, few: null, again: null, returnFocus: { current: null } }
-  const html = render(FiltersDialog, { p, titleId: 'ttl' })
+  const p: FiltersModalProps = { facets, unknown: viewFacets(fixtureFilters).unknown, selection: { color: ['gray'] }, matchText: '4 of the current results match', onToggle: noop, onClear: noop, onClose: noop, onSearch: noop, block: null, returnFocus: { current: null } }
+  const html = await render(FiltersDialog, { p, titleId: 'ttl' })
   assert.match(html, /role="dialog" aria-modal="true" aria-labelledby="ttl"/)
-  assert.match(html, /<h2 id="ttl" class="filters-title">Filter results<\/h2>/)
+  assert.match(html, /<h2 id="ttl" class="filters-title">Refine your next search<\/h2>/)
+  assert.ok(html.includes('Your choices are used the next time you search again. Your current results stay as they are.'))
   const sections = [...html.matchAll(/<h3 class="filters-section-title">([^<]+)<\/h3>/g)].map((m) => m[1])
   assert.deepEqual(sections, facets.map((f) => f.title))
   assert.match(html, /aria-pressed="true"><span class="filter-pic is-swatch"[^]*?Gray <span class="filter-count">\(4\)<\/span>/)
   assert.match(html, /aria-pressed="false"/)
   assert.ok(html.includes('1 has no colour info'))
-  assert.ok(html.includes('Show 4 results') && html.includes('Clear all') && html.includes('>Close<'))
-  assert.doesNotMatch(html, /filters-few/)
-  // Few matches: the line and the button, off with Shop Again's reason when it is blocked.
-  const few = render(FiltersDialog, { p: { ...p, few: 'Only 2 match.', again: { block: 'Rate at least one result first.', onSearch: noop } }, titleId: 'ttl' })
-  assert.match(few, /Only 2 match\. <button type="button" class="shop-link" disabled="">Search again with these filters<\/button><span class="filters-why"> \(Rate at least one result first\.\)/)
+  // The footer: the live match text, Clear all, Close and the primary Search again (no "Show N results").
+  assert.match(html, /<p class="filters-match" role="status">4 of the current results match<\/p>/)
+  assert.match(html, /btn btn-primary filters-show"[^>]*>Search again<\/button>/)
+  assert.ok(html.includes('Clear all') && html.includes('>Close<'))
+  assert.doesNotMatch(html, /Show \d+ result|filters-few/)
+  assert.doesNotMatch(html.match(/btn btn-primary filters-show"[^>]*>/)?.[0] ?? '', /disabled/)
+  // Nothing chosen: no match text. Blocked: the button is off and the reason shows.
+  const none = await render(FiltersDialog, { p: { ...p, selection: {}, matchText: null }, titleId: 'ttl' })
+  assert.doesNotMatch(none, /filters-match/)
+  const blocked = await render(FiltersDialog, { p: { ...p, block: 'You have used every Shop Again for this visit.' }, titleId: 'ttl' })
+  assert.match(blocked, /btn btn-primary filters-show" disabled=""[^>]*>Search again<\/button>/)
+  assert.ok(blocked.includes('You have used every Shop Again for this visit.'))
 })
 
 test('modal: the source wires Esc to close, the Tab trap, focus in on open and back to the button, aria-modal, an 80vh cap and a sheet under 700px', async () => {

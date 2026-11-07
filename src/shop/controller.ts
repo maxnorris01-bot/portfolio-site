@@ -5,7 +5,7 @@ import { JobPoller } from './poller.ts'
 import { ratingBody } from './ratings.ts'
 import { initialState, readSavedSession, saveSession, shopReducer, type JobKind, type ShopAction, type ShopState } from './state.ts'
 import { safeHref } from './state.ts'
-import type { ContextKind, Rating, UsageInfo } from './types.ts'
+import type { ContextKind, FilterChoice, Rating, UsageInfo } from './types.ts'
 
 /** Rapid clicks on answer tiles are sent together after this long (the last choice wins). */
 export const ANSWER_DEBOUNCE_MS = 250
@@ -216,12 +216,12 @@ export class ShopController {
   retry = () => this.search(this.lastRequest)
 
   /** Shop Again, with the refine box's text if there is any. */
-  shopAgain = (refineText: string) => {
+  shopAgain = (refineText: string, filters?: FilterChoice[]) => {
     const id = this.session
     if (!id) return Promise.resolve()
     const text = refineText.trim()
     const request = this.snapshot.status === 'done' ? this.snapshot.request : this.lastRequest
-    return this.begin(request, 'shop_again', (signal) => this.client.shopAgain(id, text === '' ? null : text, signal))
+    return this.begin(request, 'shop_again', (signal) => this.client.shopAgain(id, text === '' ? null : text, signal, filters))
   }
 
   private async persist(id: string, part: { rating: Rating | null } | { comment: string }) {

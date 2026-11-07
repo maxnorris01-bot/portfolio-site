@@ -1,4 +1,4 @@
-import type { AuthSession, Clarify, ClarifyAnswer, ClarifyAnswerChip, ContextKind, JobStatus, ParsedQuery, Rating, RefineChip, ResolvedLink, SessionView, ShopErrorCode } from './types.ts'
+import type { AuthSession, Clarify, ClarifyAnswer, ClarifyAnswerChip, ContextKind, FilterChoice, JobStatus, ParsedQuery, Rating, RefineChip, ResolvedLink, SessionView, ShopErrorCode } from './types.ts'
 
 const BASE = '/api/shop'
 
@@ -109,8 +109,9 @@ export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)
     /** Save a rating, a comment, or both (a missing field is left as it is; `rating: null` clears). */
     rate: (body: RateBody, signal?: AbortSignal) =>
       request<{ result_id: string; rating: Rating | null; comment: string }>('/rate', { method: 'POST', body, signal }),
-    shopAgain: (sessionId: string, refineText: string | null, signal?: AbortSignal) =>
-      request<{ job_id: string }>('/shop-again', { method: 'POST', body: { session_id: sessionId, refine_text: refineText }, signal }),
+    /** `filters` is sent only when given: a list replaces the stored choices, [] clears them, absent leaves them. */
+    shopAgain: (sessionId: string, refineText: string | null, signal?: AbortSignal, filters?: FilterChoice[]) =>
+      request<{ job_id: string }>('/shop-again', { method: 'POST', body: { session_id: sessionId, refine_text: refineText, ...(filters ? { filters } : {}) }, signal }),
     /**
      * Post the answers to a job's clarifying questions (all current answers; `option_value` is an option's value or "no_preference"),
      * and `submit: true` to rank now. Returns the server's clarify object. Not a search: it is not counted.

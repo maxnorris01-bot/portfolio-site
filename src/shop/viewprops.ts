@@ -3,7 +3,7 @@ import type { RatingsState } from './ratings.ts'
 import type { ShopState } from './state.ts'
 import type { Selection } from './filters.ts'
 import type { Pattern } from './screensaver.ts'
-import type { ContextKind, Rating } from './types.ts'
+import type { ContextKind, FilterChoice, Rating } from './types.ts'
 
 export type ShopViewProps = {
   state: ShopState
@@ -15,7 +15,8 @@ export type ShopViewProps = {
   /** The refine box (sent with Shop Again). */
   refineText: string
   onRefineChange: (value: string) => void
-  onShopAgain: () => void
+  /** `filters`: the choices to send (a list replaces the stored ones, [] clears them); absent leaves them as they are. */
+  onShopAgain: (filters?: FilterChoice[]) => void
   onRate: (id: string, rating: Rating | null) => void
   onComment: (id: string, text: string) => void
   onCommentBlur: (id: string) => void
@@ -37,9 +38,9 @@ export type ShopViewProps = {
   onTouch?: () => void
   /** Overrides the window-width test for the two-column questions panel (from 1280px): the progress steps inside it or above it. Tests only. */
   wide?: boolean
-  /** Filters F1: send the filters' selection as a text refinement through Shop Again ("gray or blue, vintage"). */
-  onSearchFilters: (text: string) => void
-  /** Tests and development fixtures only: a selection to start with, and the wait panel's pattern. */
+  /** Refine search: Shop Again with the chosen options as `filters`. */
+  onSearchFilters: (filters: FilterChoice[]) => void
+  /** Tests and development fixtures only: a local selection to start with (when the service has no filter chips), and the wait panel's pattern. */
   initialFilters?: Selection
   waitPattern?: Pattern
   /** Look up a result's store link (for Open). */
