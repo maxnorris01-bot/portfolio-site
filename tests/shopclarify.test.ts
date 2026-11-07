@@ -23,7 +23,6 @@ import {
 } from '../src/shop/clarify.ts'
 import { ANSWER_DEBOUNCE_MS, ShopController } from '../src/shop/controller.ts'
 import {
-  CLARIFY_CHIP_PREFIX,
   CLARIFY_CLOSED,
   CLARIFY_FAILED,
   CLARIFY_NO_PREFERENCE,
@@ -560,22 +559,33 @@ test('view: a failed post shows a quiet note with a retry', async () => {
   assert.match(html, /class="shop-link">Try again<\/button>/)
 })
 
-test('view: results show the answers as deletable "You chose" chips next to the others, with the question as the tooltip', async () => {
+test('view: results show ONE row of chips; answers replace same-dimension parsed chips and keep the question as the tooltip', async () => {
   const html = await view('askchips')
-  assert.ok(html.includes(`>${CLARIFY_CHIP_PREFIX}</p>`))
-  assert.equal(CLARIFY_CHIP_PREFIX, 'You chose')
+  assert.equal(html.match(/class="shop-chips-title"/g)?.length, 1, 'one labelled row')
+  assert.ok(html.includes('>What I&#x27;m searching for</p>') || html.includes("What I'm searching for"))
+  assert.ok(!html.includes('What I understood') && !html.includes('Your refinements') && !html.includes('You chose'))
   assert.match(html, /<li class="chip shop-understood" title="Which colour do you like\?">Walnut or brown<button[^>]*aria-label="Remove Walnut or brown \(Which colour do you like\?\)"/)
-  assert.ok(html.indexOf('What I understood') < html.indexOf(`>${CLARIFY_CHIP_PREFIX}</p>`) && html.indexOf(`>${CLARIFY_CHIP_PREFIX}</p>`) < html.indexOf('Your refinements'))
+  assert.ok(!html.includes('Colour: oatmeal') && !html.includes('Material: boucle') && !html.includes('Avoid: walmart'), 'replaced by the answer and the refinement')
+  assert.ok(html.includes('No Walmart') && html.includes('Curved'))
+  assert.equal(html.match(/class="chip shop-understood"/g)?.length, 8, 'eight chips (the row fits)')
+  assert.ok(!html.includes('shop-chip-more'), 'no "+N more" for eight')
   assert.ok(!html.includes('class="clarify'), 'the panel is gone once results show')
   const none = await view('results')
-  assert.ok(!none.includes(CLARIFY_CHIP_PREFIX), 'no clarify_answers (flag off): no new chips')
+  assert.ok(none.includes('Colour: oatmeal') && !none.includes('Walnut'), 'no clarify_answers (flag off): the parsed chips stay')
 })
 
-test('view: clicking a chip x asks to remove answer:<qid>', async () => {
-  const removed: string[] = []
-  const html = await view('askchips', { onRemoveRefine: (id) => removed.push(id) })
-  assert.match(html, /shop-chip-x/)
-  assert.equal(removed.length, 0)
+test('view: more than eight chips: the first eight and a "+2 more" chip with aria-expanded; the example chips are gone', async () => {
+  const html = await view('askchipsmany')
+  assert.equal(html.match(/class="chip shop-understood"/g)?.length, 8)
+  assert.match(html, /<button type="button" class="chip shop-chip shop-chip-more" aria-expanded="false" aria-controls="[^"]+">\+2 more<\/button>/)
+  assert.ok(html.includes('Under 70 in') && !html.includes('Focus on cream'), 'the ninth and tenth (the refinements) are behind the chip')
+  assert.ok(html.includes('Mid-century') && !html.includes('>modern<'), 'Mid-century replaces modern')
+  assert.ok(!html.includes('Example requests'), 'example chips are hidden once results show')
+})
+
+test('view: the example chips stay on the empty page, and go once a search runs or fails', async () => {
+  assert.ok((await view('empty')).includes('Example requests'))
+  for (const key of ['running', 'results', 'error', 'askpics']) assert.ok(!(await view(key)).includes('Example requests'), key)
 })
 
 test('view: the pipeline has six stages with Ask between Search and Check photos, and the caption', async () => {

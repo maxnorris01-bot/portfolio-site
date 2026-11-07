@@ -5,7 +5,9 @@ import { useWide } from './wide.ts'
 import ClarifyPanel from './ClarifyPanel.tsx'
 import { panelVisible } from './clarify.ts'
 import {
-  CLARIFY_CHIP_PREFIX,
+  CHIPS_FEWER,
+  CHIPS_LABEL,
+  chipsMore,
   clarifyReady,
   CLARIFY_SIDE_PROGRESS,
   EXAMPLE_REQUESTS,
@@ -21,7 +23,7 @@ import {
   SHOP_EYEBROW,
   SHOP_TITLE,
 } from './copy.ts'
-import { requestChips } from './chips.ts'
+import { CHIP_LIMIT, mergeChips, requestChips, splitChips } from './chips.ts'
 import { defaultUsage, limitText, isLimit, localTime, usageLine } from './limits.ts'
 import { openResolved } from './open.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
@@ -272,15 +274,17 @@ export default function ShopView(props: ShopViewProps) {
               {running ? 'Searching…' : 'Search'}
             </button>
           </div>
-          <ul className="chip-list shop-examples" aria-label="Example requests">
-            {EXAMPLE_REQUESTS.map((text) => (
-              <li key={text}>
-                <button type="button" className="chip shop-chip" disabled={running || blocked} onClick={() => onExample(text)}>
-                  {text}
-                </button>
-              </li>
-            ))}
-          </ul>
+          {state.status === 'idle' && (
+            <ul className="chip-list shop-examples" aria-label="Example requests">
+              {EXAMPLE_REQUESTS.map((text) => (
+                <li key={text}>
+                  <button type="button" className="chip shop-chip" disabled={running || blocked} onClick={() => onExample(text)}>
+                    {text}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {usage && (
             <p className="shop-usage" aria-label="Your usage this visit">
               {usage}
@@ -402,59 +406,43 @@ function emptyMessage(search: Extract<ShopState, { status: 'done' }>['view']['se
 }
 
 function Chips({ state, props }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps }) {
-  const asked = requestChips(state.view.search?.query)
-  const refine = state.view.refine ?? []
-  const chose = state.view.clarify_answers ?? []
-  if (asked.length === 0 && refine.length === 0 && chose.length === 0) return null
+  const [expanded, setExpanded] = useState(false)
+  const listId = useId()
+  const chips = mergeChips(requestChips(state.view.search?.query), state.view.clarify_answers ?? [], state.view.refine ?? [])
+  if (chips.length === 0) return null
+  const { shown, hidden } = splitChips(chips, expanded)
   return (
     <div className="shop-chips">
-      {asked.length > 0 && (
-        <div>
-          <p className="shop-chips-title">What I understood</p>
-          <ul className="chip-list" aria-label="What I understood from your request">
-            {asked.map((c) => (
-              <li key={c.key} className="chip shop-understood">
+      <div>
+        <p className="shop-chips-title">{CHIPS_LABEL}</p>
+        <ul className="chip-list" id={listId} aria-label={CHIPS_LABEL}>
+          {shown.map((c) => {
+            const remove = c.remove
+            return (
+              <li key={c.key} className="chip shop-understood" title={c.title}>
                 {c.label}
-                {c.remove && (
-                  <button type="button" className="shop-chip-x" aria-label={`Remove ${c.label}`} onClick={() => props.onRemoveContext(c.remove!.kind, c.remove!.value)}>
+                {remove && (
+                  <button
+                    type="button"
+                    className="shop-chip-x"
+                    aria-label={c.title ? `Remove ${c.label} (${c.title})` : `Remove ${c.label}`}
+                    onClick={() => (remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
+                  >
                     ×
                   </button>
                 )}
               </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {chose.length > 0 && (
-        <div>
-          <p className="shop-chips-title">{CLARIFY_CHIP_PREFIX}</p>
-          <ul className="chip-list" aria-label={CLARIFY_CHIP_PREFIX}>
-            {chose.map((c) => (
-              <li key={c.id} className="chip shop-understood" title={c.question}>
-                {c.label}
-                <button type="button" className="shop-chip-x" aria-label={`Remove ${c.label} (${c.question})`} onClick={() => props.onRemoveRefine(c.id)}>
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {refine.length > 0 && (
-        <div>
-          <p className="shop-chips-title">Your refinements</p>
-          <ul className="chip-list" aria-label="Your refinements">
-            {refine.map((c) => (
-              <li key={c.id} className="chip shop-understood">
-                {c.approximate ? `${c.label} (approximate)` : c.label}
-                <button type="button" className="shop-chip-x" aria-label={`Remove ${c.label}`} onClick={() => props.onRemoveRefine(c.id)}>
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+            )
+          })}
+          {(hidden > 0 || (expanded && chips.length > CHIP_LIMIT)) && (
+            <li>
+              <button type="button" className="chip shop-chip shop-chip-more" aria-expanded={expanded} aria-controls={listId} onClick={() => setExpanded(!expanded)}>
+                {expanded ? CHIPS_FEWER : chipsMore(hidden)}
+              </button>
+            </li>
+          )}
+        </ul>
+      </div>
       <p className="shop-card-meta">Changes here apply the next time you press Shop Again.</p>
     </div>
   )

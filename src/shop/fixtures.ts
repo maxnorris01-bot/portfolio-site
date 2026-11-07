@@ -209,12 +209,26 @@ export const makeClarify = (o: ClarifyOpts = {}): Clarify => {
 }
 const askUi = (o: ClarifyOpts = {}, selected: ClarifyUi['selected'] = {}): ClarifyUi => ({ server: makeClarify(o), selected, submitted: o.submitted ?? false, note: null })
 const asking = (clarify: ClarifyUi): ShopState => ({ status: 'running', request: 'modern couch under $1000', kind: 'search', batch: 1, prev: null, phase: 'ranking', startedAt: Date.now() - 6_000, slow: false, steps: steps(['done', 'done', 'active', 'skipped']), clarify })
+// Results with answers (no `must_have`, so the row is 8 chips): "Walnut or brown" replaces "Colour: oatmeal", "Boucle" replaces "Material:
+// boucle", "Curved" is added (no parsed shape), and "No Walmart" replaces "Avoid: walmart".
+const fixtureQuery = fixtureView.search?.query
+const answeredSearch = { ...(fixtureView.search as NonNullable<SessionView['search']>), query: { ...fixtureQuery, must_have: [] } }
 const answeredView: SessionView = {
   ...fixtureView,
+  search: answeredSearch,
   clarify_answers: [
     { id: 'answer:q_color', question: 'Which colour do you like?', label: 'Walnut or brown', dimension: 'color' },
     { id: 'answer:q_material', question: 'What should it be made of?', label: 'Boucle', dimension: 'material' },
     { id: 'answer:q_shape', question: 'Which shape do you want?', label: 'Curved', dimension: 'shape' },
+  ],
+}
+// More than eight chips: "+2 more" behind the first eight. "Mid-century" replaces the parsed "modern"; "Under 70 in" is added.
+const manyView: SessionView = {
+  ...fixtureView,
+  clarify_answers: [
+    ...(answeredView.clarify_answers ?? []),
+    { id: 'answer:q_style', question: 'Which look do you prefer?', label: 'Mid-century', dimension: 'style' },
+    { id: 'answer:q_size', question: 'How big should it be?', label: 'Under 70 in', dimension: 'size' },
   ],
 }
 
@@ -262,6 +276,7 @@ export const fixtureStates: Record<string, ShopState> = {
   askskipped: asking(askUi({ state: 'skipped' })),
   askfailed: asking(askUi({ state: 'failed' })),
   askchips: done(answeredView, 1),
+  askchipsmany: done(manyView, 1),
   // Part 3
   saved: done(savedView, 1, savedRatings),
   savedempty: done({ ...fixtureView, saved: [] }, 1, {}),

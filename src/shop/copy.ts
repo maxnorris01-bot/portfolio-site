@@ -60,7 +60,10 @@ export const CLARIFY_TITLE = 'A few quick questions'
 export const CLARIFY_SUB = 'Optional. Your results keep loading while you answer.'
 export const CLARIFY_SUBMIT = 'Show results'
 export const CLARIFY_NO_PREFERENCE = 'No preference'
-export const CLARIFY_CHIP_PREFIX = 'You chose'
+/** The one row of chips under the results (what the search used: your words, your answers, your refinements). DRAFT. */
+export const CHIPS_LABEL = "What I'm searching for"
+export const chipsMore = (n: number) => `+${n} more`
+export const CHIPS_FEWER = 'Show fewer'
 /** Quiet notes under the panel. DRAFT. */
 export const CLARIFY_SUBMITTED = 'Thanks. Your results are on the way.'
 export const CLARIFY_CLOSED = 'Results are already on the way.'

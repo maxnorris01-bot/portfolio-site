@@ -208,13 +208,13 @@ test('Shop Again: refine box labelled with its placeholder; button off with noth
   assert.match(againButton(saving), /disabled=""/)
 })
 
-test('chips: what the server understood and the refinements, as plain text with Remove buttons only where a route exists', async () => {
+test('chips: one row of what the search used: plain facts without a Remove button, removable terms and refinements with one', async () => {
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.results))
-  assert.match(html, /What I understood/)
-  for (const label of ['sofa', 'Up to \\$1,000', 'modern', 'Material: boucle', 'Colour: oatmeal', 'Must have: 3-seat', 'Avoid: walmart']) assert.match(html, new RegExp(label))
-  assert.match(html, /Your refinements/)
+  assert.match(html, /What I(&#x27;|')m searching for/)
+  for (const label of ['sofa', 'Up to \\$1,000', 'modern', 'Material: boucle', 'Colour: oatmeal', 'Must have: 3-seat']) assert.match(html, new RegExp(label))
   assert.match(html, /No Walmart/)
+  assert.doesNotMatch(html, /Avoid: walmart/, 'the refinement replaces the same-term parsed chip')
   assert.match(html, /Focus on cream \(approximate\)/)
   assert.match(html, /aria-label="Remove Material: boucle"/)
   assert.match(html, /aria-label="Remove No Walmart"/)
@@ -328,7 +328,7 @@ test('limit reached: the friendly sentence with the reset time, and the Search, 
   const html = await view('limit')
   assert.match(html, /You have reached your limit for today\. It resets at \d{1,2}:\d{2} [AP]M\./)
   assert.match(html, /<button type="submit" class="btn btn-primary shop-submit" disabled="">Search/)
-  assert.match(html, /<button type="button" class="chip shop-chip" disabled="">/)
+  assert.doesNotMatch(html, /Example requests/, 'results are showing: no example chips')
   assert.match(againButton(html), /disabled=""/)
   assert.match(html, /Searches used: 8 of 8/)
 })
@@ -337,6 +337,7 @@ test('maintenance: a paused notice and no way to start a search', async () => {
   const html = await view('maintenance')
   assert.match(html, /ShopAI is paused right now\. Please try again later\./)
   assert.match(html, /<button type="submit" class="btn btn-primary shop-submit" disabled="">Search/)
+  assert.match(html, /<button type="button" class="chip shop-chip" disabled="">/, 'the example chips (empty page) are off')
 })
 
 test('Open links on Google pages say so only to the click handler: the link itself is the result link, new tab, noopener', async () => {
