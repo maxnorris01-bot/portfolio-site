@@ -101,16 +101,19 @@ export const CLARIFY_WAITING = 'Everything is ready. Pick your options and press
 
 /** Filters F1 and the wait panel. DRAFT. */
 export const FILTERS_BUTTON = 'Refine search'
-export const FILTERS_TITLE = 'Refine your next search'
+export const FILTERS_TITLE = 'Refine search'
 export const FILTERS_INTRO = 'Your choices are used the next time you search again. Your current results stay as they are.'
 export const FILTERS_CLEAR_ALL = 'Clear all'
 export const FILTERS_CLOSE = 'Close'
 export const FILTERS_SEARCH = 'Search again'
 export const FILTERS_SEARCH_LINE = 'Search again with these choices'
 export const filtersMatching = (n: number) => `${n} of the current results match`
-export const CHIP_NEXT = 'Next search: '
+/** The small mono label between the neutral chips and the choice chips. */
+export const CHOICES_LABEL = 'apply on next search'
+export const CHOICES_LIST_LABEL = 'Choices for the next search'
 export const AGAIN_HINT = 'Rate results to steer the next batch, or just search again.'
-export const filtersMatchLine = (satisfied: number, shown: number) =>
-  satisfied > 0 ? `${satisfied} of ${shown} results match all your choices.` : 'No result matches all your choices; showing the closest.'
+export const filtersMatchLine = (satisfied: number) => (satisfied > 0 ? `${satisfied} match all your choices` : 'None match all your choices')
+export const USAGE_POPOVER_TITLE = "Today's limits"
+export const USAGE_CHIP_LABEL = 'Usage this visit'
 export const filtersUnknown = (n: number, title: string) => `${n} ${n === 1 ? 'has' : 'have'} no ${title.toLowerCase()} info`
 export const WAIT_NOTE = 'Results appear here as soon as they are ready.'

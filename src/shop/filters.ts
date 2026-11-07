@@ -1,7 +1,7 @@
 // Refine search: the pure logic behind the Refine dialog. A selection is dimension -> chosen option values. It does not hide anything: it is
 // sent with Shop Again as `filters` and applies to the NEXT search. The dialog only counts how many of the current results already match
 // (OR within a dimension, AND across), from their attrs.
-import { CHIP_NEXT, filtersUnknown } from './copy.ts'
+import { filtersUnknown } from './copy.ts'
 import type { Facet, FilterChoice, RefineChip, SessionView, ShopItem } from './types.ts'
 
 export type Selection = Readonly<Record<string, readonly string[]>>
@@ -46,7 +46,7 @@ const nice = (v: string) => v.charAt(0).toUpperCase() + v.slice(1)
 
 export type FilterChip = { key: string; label: string; dimension: string }
 
-/** One chip per chosen dimension, "Next search: Colour: Gray or blue", in the facets' order then any others (a value the batch no longer offers still shows). */
+/** One chip per chosen dimension, "Colour: Gray or blue", in the facets' order then any others (a value the batch no longer offers still shows). */
 export function filterChips(sel: Selection, facets: readonly Facet[]): FilterChip[] {
   const dims = [...facets.map((f) => f.dimension), ...Object.keys(sel).filter((d) => !facets.some((f) => f.dimension === d))]
   const out: FilterChip[] = []
@@ -58,7 +58,7 @@ export function filterChips(sel: Selection, facets: readonly Facet[]): FilterChi
       const l = facet?.options.find((o) => o.value === v)?.label ?? nice(v)
       return i === 0 ? l : l.toLowerCase()
     })
-    out.push({ key: `filter:${d}`, label: `${CHIP_NEXT}${facet?.title ?? TITLES[d] ?? nice(d)}: ${labels.join(' or ')}`, dimension: d })
+    out.push({ key: `filter:${d}`, label: `${facet?.title ?? TITLES[d] ?? nice(d)}: ${labels.join(' or ')}`, dimension: d })
   }
   return out
 }

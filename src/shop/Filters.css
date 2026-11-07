@@ -1,32 +1,49 @@
 /* Filters F1: the Filters button on the results header and the modal. Only the shared tokens. The modal is rendered in the body (not in the
    scaled page container), so it uses plain space tokens, not --card-pad. */
-.shop-count-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.shop-count-row .shop-count {
-  margin: 0;
-}
-
+/* Refine search: a solid navy button with a sliders icon and a coral count badge. */
 .filters-button {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-small);
+  gap: 8px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--color-navy);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filters-button:hover {
+  background: #1c3358;
+}
+
+.filters-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.filters-icon {
+  flex: none;
+  display: block;
 }
 
 .filters-badge {
-  min-width: 1.5em;
-  padding: 0 6px;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
   border-radius: 999px;
   background: var(--color-accent);
-  color: var(--color-surface);
+  color: #fff;
   font-family: var(--font-mono);
   font-size: 12px;
-  line-height: 1.6;
+  font-weight: 600;
+  line-height: 20px;
   text-align: center;
 }
 
@@ -254,6 +271,6 @@
 
 .shop-match {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
   font-size: var(--text-small);
 }

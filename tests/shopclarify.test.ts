@@ -571,8 +571,8 @@ test('view: a failed post shows a quiet note with a retry', { skip: RETIRED }, a
 
 test('view: results show ONE row of chips; answers replace same-dimension parsed chips and keep the question as the tooltip', async () => {
   const html = await view('askchips')
-  assert.equal(html.match(/class="shop-chips-title"/g)?.length, 1, 'one labelled row')
-  assert.ok(html.includes('>What I&#x27;m searching for</p>') || html.includes("What I'm searching for"))
+  assert.equal(html.match(/<ul class="chip-list" id="[^"]+" aria-label="What I&#x27;m searching for">/g)?.length, 1, 'one row of chips (labelled for readers; no visible label)')
+  assert.doesNotMatch(html, /shop-chips-title|Changes here apply/)
   assert.ok(!html.includes('What I understood') && !html.includes('Your refinements') && !html.includes('You chose'))
   assert.match(html, /<li class="chip shop-understood" title="Which colour do you like\?">Walnut or brown<button[^>]*aria-label="Remove Walnut or brown \(Which colour do you like\?\)"/)
   assert.ok(!html.includes('Colour: oatmeal') && !html.includes('Material: boucle') && !html.includes('Avoid: walmart'), 'replaced by the answer and the refinement')

@@ -2,7 +2,6 @@ import type { ShopMeta } from './controller.ts'
 import type { RatingsState } from './ratings.ts'
 import type { ShopState } from './state.ts'
 import type { Selection } from './filters.ts'
-import type { Pattern } from './screensaver.ts'
 import type { ContextKind, FilterChoice, Rating } from './types.ts'
 
 export type ShopViewProps = {
@@ -42,9 +41,8 @@ export type ShopViewProps = {
   onSearchFilters: (filters: FilterChoice[]) => void
   /** Save the choices (POST /refine) when the dialog closes. */
   onSaveFilters: (filters: FilterChoice[]) => void
-  /** Tests and development fixtures only: a local selection to start with (when the service has no filter chips), and the wait panel's pattern. */
+  /** Tests and development fixtures only: a local selection to start with (when the service has no filter chips). */
   initialFilters?: Selection
-  waitPattern?: Pattern
   /** Look up a result's store link (for Open). */
   onResolve: (id: string) => Promise<string | null>
 }

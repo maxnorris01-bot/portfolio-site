@@ -68,13 +68,19 @@ export const isLimit = (info: Pick<LimitInfo, 'code'>) => info.code === 'cap_rea
  * (the contract gives search_count for both kinds together). No dollar amounts.
  */
 export function usageLine(usage: UsageInfo | null, counts: { searchCount?: number; shopAgainsUsed?: number } | null, timeZone?: string): string | null {
+  const u = usageNumbers(usage, counts, timeZone)
+  if (!u) return null
+  const parts = [`Searches used: ${u.searches} of ${u.maxSearches}`, `Shop Agains: ${u.again} of ${u.maxShopAgains}`]
+  if (u.reset) parts.push(`Daily limit resets at ${u.reset}`)
+  return parts.join(' · ')
+}
+
+/** The figures behind the usage line and the usage chip (same counting); null without usage data. */
+export function usageNumbers(usage: UsageInfo | null, counts: { searchCount?: number; shopAgainsUsed?: number } | null, timeZone?: string) {
   if (!usage) return null
   const again = counts?.shopAgainsUsed ?? 0
   const searches = Math.max(0, (counts?.searchCount ?? 0) - again)
-  const parts = [`Searches used: ${searches} of ${usage.maxSearches}`, `Shop Agains: ${again} of ${usage.maxShopAgains}`]
-  const reset = localTime(usage.resetsAt, timeZone)
-  if (reset) parts.push(`Daily limit resets at ${reset}`)
-  return parts.join(' · ')
+  return { searches, again, maxSearches: usage.maxSearches, maxShopAgains: usage.maxShopAgains, reset: localTime(usage.resetsAt, timeZone) }
 }
 
 /**

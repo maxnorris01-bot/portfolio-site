@@ -322,6 +322,22 @@ export const fixtureRefineMatch: SessionView = {
   search: { ...(fixtureRefine.search as NonNullable<SessionView['search']>), kind: 'shop_again', filters_match: { satisfied_all: 5, shown: 12, filters: ['color', 'style'] } },
   shop_agains_used: 1,
 }
+/** The polished results header: a parsed request, three choices (gray or cream, wool, washable) and 5 of 12 matching all of them. */
+export const fixturePolish: SessionView = {
+  ...fixtureRefineMatch,
+  search: {
+    ...(fixtureRefineMatch.search as NonNullable<SessionView['search']>),
+    query: { search_text: 'wool rug under $300', category: 'rug', price_max: 300, style_terms: ['modern'], must_have: ['low pile'] },
+    filters_match: { satisfied_all: 5, shown: 12, filters: ['color', 'material', 'feature'] },
+  },
+  refine: [
+    { id: 'filter:color', kind: 'filter', target: 'color:gray,cream', label: 'Colour: gray or cream' },
+    { id: 'filter:material', kind: 'filter', target: 'material:wool', label: 'Material: wool' },
+    { id: 'filter:feature', kind: 'filter', target: 'feature:washable', label: 'Washable' },
+  ],
+  search_count: 3,
+  shop_agains_used: 1,
+}
 
 const limitUsage = { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-01T00:00:00+00:00' }
 const limitView: SessionView = { ...fixtureView, search_count: 9, shop_agains_used: 1, shop_agains_cap: 25 }
@@ -380,6 +396,7 @@ export const fixtureStates: Record<string, ShopState> = {
   askfilters: done(fixtureFilters, 1),
   askrefine: done(fixtureRefine, 1),
   askrefinematch: done(fixtureRefineMatch, 2),
+  askpolish: done(fixturePolish, 2),
   limit: done(limitView, 1, {}, { message: 'Daily limit reached.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00', code: 'cap_reached', limit: 'ip_day' }),
 }
 

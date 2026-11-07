@@ -70,11 +70,11 @@ test('toggling adds and removes; an emptied dimension is dropped; the live count
   assert.deepEqual(toggleOption(sel, 'style', 'vintage'), {})
 })
 
-test('chips: one per dimension, "Next search: Colour: Gray or blue", in the facets\' order; a value the batch no longer offers still shows', () => {
+test('chips: one per dimension, "Colour: Gray or blue" (no "Next search" prefix), in the facets\' order; a value the batch no longer offers still shows', () => {
   const sel: Selection = { style: ['vintage'], color: ['gray', 'blue'] }
-  assert.deepEqual(filterChips(sel, facets).map((c) => c.label), ['Next search: Colour: Gray or blue', 'Next search: Style: Vintage'])
+  assert.deepEqual(filterChips(sel, facets).map((c) => c.label), ['Colour: Gray or blue', 'Style: Vintage'])
   assert.deepEqual(filterChips(sel, facets).map((c) => c.key), ['filter:color', 'filter:style'])
-  assert.deepEqual(filterChips({ color: ['teal'] }, facets).map((c) => c.label), ['Next search: Colour: Teal'])
+  assert.deepEqual(filterChips({ color: ['teal'] }, facets).map((c) => c.label), ['Colour: Teal'])
   assert.deepEqual(filterChips({}, facets), [])
 })
 
@@ -123,7 +123,7 @@ const view = async (key: string, over: Partial<ShopViewProps> = {}) => {
 
 test('view: the Refine search button is on the results header when there are facets, hidden without them', async () => {
   const withFacets = await view('askfilters')
-  assert.match(withFacets, /<button[^>]*class="btn btn-secondary filters-button"[^>]*aria-haspopup="dialog"[^>]*>Refine search<\/button>/)
+  assert.match(withFacets, /<button[^>]*class="filters-button"[^>]*aria-haspopup="dialog"[^>]*><svg class="filters-icon" width="18" height="18"[^>]*aria-hidden="true"[^>]*>.*<\/svg>Refine search<\/button>/)
   assert.match(withFacets, /12 results for/)
   for (const key of ['results', 'rated', 'batch2']) assert.doesNotMatch(await view(key), /filters-button/, key)
 })
@@ -147,31 +147,48 @@ test('view: the grid never shrinks, whatever is chosen; the count and the cards 
   }
 })
 
-test('view: local choices (a service with no filter chips) show a count on the button and one "Next search" chip per dimension', async () => {
+test('view: local choices (a service with no filter chips) show a count on the button and one choice chip per dimension (no prefix)', async () => {
   const html = await view('askfilters', { initialFilters: { color: ['gray', 'blue'], style: ['vintage'] } })
   assert.match(html, /Refine search<span class="filters-badge">3<span class="visually-hidden"> chosen<\/span><\/span>/)
-  assert.ok(html.includes('Next search: Colour: Gray or blue') && html.includes('Next search: Style: Vintage'))
-  assert.match(html, /aria-label="Remove Next search: Colour: Gray or blue"/)
+  assert.match(html, /<li class="chip shop-understood is-choice">Colour: Gray or blue<button[^>]*aria-label="Remove Colour: Gray or blue"/)
+  assert.ok(html.includes('Style: Vintage'))
+  assert.doesNotMatch(html, /Next search/)
   assert.match(html, />Search again with these choices<\/button>/)
 })
 
 test('view: nothing chosen: no chips, no "Search again with these choices" line', async () => {
   const html = await view('askfilters')
-  assert.doesNotMatch(html, /Next search|Search again with these choices|filters-badge/)
+  assert.doesNotMatch(html, /Next search|apply on next search|is-choice|Search again with these choices|filters-badge/)
 })
 
-test('view: the chip row overflows like the others: choice chips count towards the "+N more"', async () => {
+test('view: choice chips are never folded into "+N more": only the other chips overflow, the choices stay visible after the divider', async () => {
   const none = await view('askchipsmany')
   const html = await view('askchipsmany', { initialFilters: { color: ['gray'], material: ['wool'], style: ['vintage'] } })
   assert.match(none, /\+2 more/)
-  assert.match(html, /\+5 more/)
+  assert.match(html, /\+2 more/, 'the same two chips behind the button, whatever is chosen')
+  assert.doesNotMatch(html, /\+5 more/)
+  assert.equal(html.match(/class="chip shop-understood"/g)?.length, 8)
+  assert.equal(html.match(/class="chip shop-understood is-choice"/g)?.length, 3)
+  const [neutral, choices] = html.split('shop-choices-divider')
+  assert.ok(neutral.includes('shop-chip-more') && !neutral.includes('is-choice'))
+  assert.ok(choices.includes('Colour: Gray') && choices.includes('Material: Wool') && choices.includes('Style: Vintage') && !choices.includes('shop-chip-more'))
+})
+
+test('view: the divider and the "apply on next search" label show only when there are choice chips', async () => {
+  const none = await view('askfilters')
+  assert.doesNotMatch(none, /shop-choices|apply on next search/)
+  const html = await view('askfilters', { initialFilters: { color: ['gray', 'blue'] } })
+  assert.match(html, /<div class="shop-choices"><span class="shop-choices-divider" aria-hidden="true"><\/span><span class="shop-choices-label">apply on next search<\/span><ul class="chip-list" aria-label="Choices for the next search">/)
+  assert.doesNotMatch(html, /WHAT I|What I&#x27;m searching for<\/p>|Changes here apply/)
 })
 
 test('view: askrefine: the backend\'s filter chips are the chips (with an x through /refine/remove), the count is 3, the grid is whole', async () => {
   const html = await view('askrefine')
-  assert.ok(html.includes('Next search: Colour: gray or blue') && html.includes('Next search: Style: vintage'))
-  assert.equal(html.match(/Next search: Colour/g)?.length, 2) // the chip text and its Remove label, never a second local chip
-  assert.match(html, /aria-label="Remove Next search: Style: vintage"/)
+  assert.ok(html.includes('Colour: gray or blue') && html.includes('Style: vintage'))
+  assert.doesNotMatch(html, /Next search/)
+  assert.equal(html.match(/Colour: gray or blue/g)?.length, 2) // the chip text and its Remove label, never a second local chip
+  assert.equal(html.match(/class="chip shop-understood is-choice"/g)?.length, 2)
+  assert.match(html, /aria-label="Remove Style: vintage"/)
   assert.match(html, /Refine search<span class="filters-badge">3</)
   assert.equal(html.match(/class="shop-card"/g)?.length, 12)
   assert.match(html, />Search again with these choices<\/button>/)
@@ -186,13 +203,39 @@ test('view: Shop Again is enabled with no ratings and shows the hint; the old ra
   assert.deepEqual(fixtureRefine.ratings ?? {}, {})
 })
 
-test('view: after a batch with choices, one line says how many match all of them; none when absent', async () => {
-  assert.ok((await view('askrefinematch')).includes('5 of 12 results match all your choices.'))
+test('view: after a batch with choices, a muted line says how many match all of them; "None" at zero; nothing when absent', async () => {
+  const withMatch = await view('askrefinematch')
+  assert.match(withMatch, /<p class="shop-match">5 match all your choices<\/p>/)
   assert.doesNotMatch(await view('askrefine'), /match all your choices/)
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
   const none = { ...fixtureRefineMatch, search: { ...fixtureRefineMatch.search!, filters_match: { satisfied_all: 0, shown: 12 } } }
   const html = await render(View, props({ ...(fixtureStates.askrefinematch as Extract<ShopViewProps['state'], { status: 'done' }>), view: none }))
-  assert.ok(html.includes('No result matches all your choices; showing the closest.'))
+  assert.match(html, /<p class="shop-match">None match all your choices<\/p>/)
+})
+
+test('view: the results header is one card: headline, Batch pill, match line on the left; usage chip and Refine search on the right; then the chips', async () => {
+  const html = await view('askrefinematch')
+  const head = html.match(/<header class="shop-head">.*?<\/header>/s)?.[0] ?? ''
+  assert.ok(head, 'one header card')
+  assert.match(head, /<div class="shop-head-left"><p class="shop-count" role="status" aria-live="polite">12 results for “[^<]*”<\/p><span class="shop-batch">Batch 2<\/span><p class="shop-match">5 match all your choices<\/p><\/div>/)
+  assert.match(head, /<div class="shop-head-right"><span class="usage">.*<button type="button" class="filters-button"/s)
+  assert.ok(head.indexOf('shop-head-top') < head.indexOf('class="shop-chips"'), 'the chips are line 2')
+  assert.doesNotMatch(html, /Changes here apply|shop-chips-title/)
+  assert.doesNotMatch(html, /<p class="shop-usage"/, 'the usage line under the form is replaced by the chip')
+})
+
+test('view: the Refine search button shows the count of chosen options as a coral badge only when above zero', async () => {
+  assert.doesNotMatch(await view('askfilters'), /filters-badge/)
+  const html = await view('askfilters', { initialFilters: { color: ['gray', 'blue'], style: ['vintage'] } })
+  assert.match(html, /Refine search<span class="filters-badge">3<span class="visually-hidden"> chosen<\/span><\/span><\/button>/)
+  const { readFileSync } = await import('node:fs')
+  const css = readFileSync(new URL('../src/shop/Filters.css', import.meta.url), 'utf8')
+  const button = css.match(/\.filters-button \{[^}]*\}/)?.[0] ?? ''
+  for (const part of ['background: var(--color-navy)', 'color: #fff', 'var(--font-heading)', 'font-size: 14px', 'font-weight: 600', 'border-radius: 8px', 'padding: 9px 16px', 'white-space: nowrap']) assert.ok(button.includes(part), part)
+  assert.match(css, /\.filters-button:hover \{\s*background: #1c3358/)
+  assert.match(css, /\.filters-button:focus-visible \{\s*outline: 2px solid/)
+  const badge = css.match(/\.filters-badge \{[^}]*\}/)?.[0] ?? ''
+  for (const part of ['min-width: 20px', 'height: 20px', 'background: var(--color-accent)', 'color: #fff', 'var(--font-mono)', 'font-size: 12px', 'font-weight: 600']) assert.ok(badge.includes(part), part)
 })
 
 test('view: Search again is off with Shop Again\'s own reasons (cap reached), not for missing ratings', async () => {
@@ -234,7 +277,7 @@ test('modal: role dialog, aria-modal, labelled by its title; the intro line; sec
   const p: FiltersModalProps = { facets, unknown: viewFacets(fixtureFilters).unknown, selection: { color: ['gray'] }, matchText: '4 of the current results match', onToggle: noop, onClear: noop, onClose: noop, onSearch: noop, block: null, returnFocus: { current: null } }
   const html = await render(FiltersDialog, { p, titleId: 'ttl' })
   assert.match(html, /role="dialog" aria-modal="true" aria-labelledby="ttl"/)
-  assert.match(html, /<h2 id="ttl" class="filters-title">Refine your next search<\/h2>/)
+  assert.match(html, /<h2 id="ttl" class="filters-title">Refine search<\/h2>/)
   assert.ok(html.includes('Your choices are used the next time you search again. Your current results stay as they are.'))
   const sections = [...html.matchAll(/<h3 class="filters-section-title">([^<]+)<\/h3>/g)].map((m) => m[1])
   assert.deepEqual(sections, facets.map((f) => f.title))

@@ -323,12 +323,38 @@ test('guardrails: what the service reports for the visit (searches and Shop Agai
   assert.doesNotMatch(fresh, /\$0\.|usd/i)
 })
 
-test('usage line: searches, Shop Agains and the daily reset; never a dollar amount', async () => {
-  const html = await view('results')
+test('idle page: the usage line under the form stays (searches, Shop Agains, the daily reset; never a dollar amount) and there is no usage chip', async () => {
+  const html = await view('empty')
   const line = html.match(/<p class="shop-usage"[^>]*>(.*?)<\/p>/)?.[1] ?? ''
   assert.match(line, /^Searches used: 0 of 8 · Shop Agains: 0 of 25 · Daily limit resets at \d{1,2}:\d{2} [AP]M$/)
   assert.doesNotMatch(html, /\$0\.|used_usd|cap_usd|usd/i)
-  assert.doesNotMatch(await view('savedempty'), /shop-usage/, 'no line without usage data (a visit not started yet)')
+  assert.doesNotMatch(html, /class="usage"|usage-chip|shop-head/)
+  assert.doesNotMatch(await view('empty', { meta: { usage: null, blocked: { search: false, again: false }, maintenance: false } }), /shop-usage/, 'no line without usage data (a visit not started yet)')
+})
+
+test('results page: the usage line under the form is hidden; the chip in the header says "X of Y" and never wraps, the popover lists the limits', async () => {
+  const html = await view('results')
+  assert.doesNotMatch(html, /<p class="shop-usage"/)
+  assert.match(html, /<button type="button" class="usage-chip" aria-expanded="false" aria-controls="([^"]+)" aria-haspopup="dialog" aria-label="Usage this visit: 0 of 8 searches">.*<span class="usage-chip-text">0 of 8<\/span><\/button>/s)
+  const pop = html.match(/<div id="[^"]+" class="usage-pop" role="dialog" aria-label="Today&#x27;s limits" hidden="">(.*?)<\/div>/)?.[1] ?? ''
+  assert.match(pop, /^<p class="usage-pop-title">Today&#x27;s limits<\/p><p>Searches: 0 of 8<\/p><p>Shop Agains: 0 of 25<\/p><p>Daily limit resets at \d{1,2}:\d{2} [AP]M<\/p>$/)
+  assert.doesNotMatch(html, /\$0\.|usd/i)
+  assert.equal(html.match(/aria-controls="([^"]+)"/)?.[1] ?? 'x', html.match(/class="usage-pop"/) ? html.match(/<div id="([^"]+)" class="usage-pop"/)?.[1] : 'y', 'aria-controls points at the popover')
+  const { readFileSync } = await import('node:fs')
+  const css = readFileSync(new URL('../src/pages/Shop.css', import.meta.url), 'utf8')
+  assert.match(css.match(/\.usage-chip \{[^}]*\}/)?.[0] ?? '', /white-space: nowrap/)
+  assert.match(css.match(/\.usage-chip-text \{[^}]*\}/)?.[0] ?? '', /white-space: nowrap/)
+  assert.match(css.match(/\.shop-head-right \{[^}]*\}/)?.[0] ?? '', /flex: none;[^}]*flex-wrap: nowrap/s, 'the right cluster never shrinks or wraps inside')
+  assert.match(css, /@media \(max-width: 699px\) \{\s*\.shop-head-left \{\s*flex-basis: 100%;[^}]*\}\s*\.shop-head-right \{\s*flex-basis: 100%;/, 'under 700px the cluster drops under the headline')
+})
+
+test('usage chip: the limit styling and the limit messages when a cap is reached', async () => {
+  const html = await view('limit')
+  assert.match(html, /class="usage-chip is-limit"/)
+  assert.match(html, /<span class="usage-chip-text">8 of 8<\/span>/)
+  assert.match(html, /<p>Searches: 8 of 8<\/p>/)
+  assert.match(html, /You have reached your limit for today\./, 'the existing message stays')
+  assert.doesNotMatch(await view('results'), /usage-chip is-limit/)
 })
 
 test('limit reached: the friendly sentence with the reset time, and the Search, example and Shop Again buttons are off', async () => {
@@ -337,7 +363,7 @@ test('limit reached: the friendly sentence with the reset time, and the Search, 
   assert.match(html, /<button type="submit" class="btn btn-primary shop-submit" disabled="">Search/)
   assert.doesNotMatch(html, /Example requests/, 'results are showing: no example chips')
   assert.match(againButton(html), /disabled=""/)
-  assert.match(html, /Searches used: 8 of 8/)
+  assert.match(html, /Searches: 8 of 8/)
 })
 
 test('maintenance: a paused notice and no way to start a search', async () => {

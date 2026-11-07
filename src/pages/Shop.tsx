@@ -92,7 +92,6 @@ export default function Shop() {
         setRefineText('')
       }}
       onSaveFilters={(filters) => void shop.saveFilters(filters)}
-      waitPattern={import.meta.env.DEV && (params.get('pattern') === 'mystify' || params.get('pattern') === 'spirograph') ? (params.get('pattern') as 'mystify' | 'spirograph') : undefined}
       onResolve={shop.resolveLink}
     />
   )

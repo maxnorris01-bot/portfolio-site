@@ -3,12 +3,14 @@ import PageHeader from '../components/PageHeader'
 import { useWide } from './wide.ts'
 import FiltersModal from './FiltersModal.tsx'
 import WaitScreensaver from './WaitScreensaver.tsx'
+import UsageChip from './UsageChip.tsx'
 import { activeCount, filterChips, filterChoices, matchCount, NO_FILTERS, sameSelection, serverSelection, toggleOption, viewFacets, type Selection } from './filters.ts'
-import type { Pattern } from './screensaver.ts'
 import { prefersReducedMotion } from './autoscroll.ts'
 import {
   CHIPS_FEWER,
   CHIPS_LABEL,
+  CHOICES_LABEL,
+  CHOICES_LIST_LABEL,
   chipsMore,
   CLARIFY_SIDE_PROGRESS,
   EXAMPLE_REQUESTS,
@@ -31,7 +33,7 @@ import {
   WAIT_NOTE,
 } from './copy.ts'
 import { CHIP_LIMIT, mergeChips, requestChips, splitChips, type MergedChip } from './chips.ts'
-import { defaultUsage, limitText, isLimit, localTime, usageLine } from './limits.ts'
+import { defaultUsage, limitText, isLimit, localTime, usageLine, usageNumbers } from './limits.ts'
 import { openResolved } from './open.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
@@ -232,7 +234,7 @@ function stepProgress(steps: RunningState['steps']): number | undefined {
  * The wait panel: one card while a search runs. The screensaver on the left (above from under 1280px), the step list with the timer and a
  * note on the right. When the results arrive it fades out over 300 ms on top of where the results appear (not with reduced motion).
  */
-function WaitPanel({ running, side, pattern }: { running: RunningState | null; side: boolean; pattern?: Pattern }) {
+function WaitPanel({ running, side }: { running: RunningState | null; side: boolean }) {
   const [last, setLast] = useState<RunningState | null>(running)
   if (running && running !== last) setLast(running)
   const leaving = !running && last !== null && !prefersReducedMotion()
@@ -246,13 +248,24 @@ function WaitPanel({ running, side, pattern }: { running: RunningState | null; s
       onAnimationEnd={leaving ? () => setLast(null) : undefined}
     >
       <div className="wait-anim">
-        <WaitScreensaver key={shown.startedAt} pattern={pattern} progress={stepProgress(shown.steps)} />
+        <WaitScreensaver key={shown.startedAt} progress={stepProgress(shown.steps)} />
       </div>
       <div className="wait-side">
         <ProgressBlock state={shown} compact={side} />
         <p className="wait-note">{WAIT_NOTE}</p>
       </div>
     </section>
+  )
+}
+
+/** Sliders: two horizontal lines with a knob each (18px, white on the navy button). */
+function SlidersIcon() {
+  return (
+    <svg className="filters-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false">
+      <path d="M3 8h18M3 16h18" />
+      <circle cx="9" cy="8" r="2.6" fill="currentColor" />
+      <circle cx="15" cy="16" r="2.6" fill="currentColor" />
+    </svg>
   )
 }
 
@@ -336,7 +349,7 @@ export default function ShopView(props: ShopViewProps) {
               ))}
             </ul>
           )}
-          {usage && (
+          {usage && state.status !== 'done' && (
             <p className="shop-usage" aria-label="Your usage this visit">
               {usage}
             </p>
@@ -350,7 +363,7 @@ export default function ShopView(props: ShopViewProps) {
             </p>
           )}
 
-          <WaitPanel running={state.status === 'running' ? state : null} side={side} pattern={props.waitPattern} />
+          <WaitPanel running={state.status === 'running' ? state : null} side={side} />
 
           {state.status === 'error' && (
             <div className="shop-error" role="alert">
@@ -438,34 +451,36 @@ function emptyMessage(search: Extract<ShopState, { status: 'done' }>['view']['se
 function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; extra: MergedChip[]; onRemoveFilter: (dimension: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const listId = useId()
-  const own = mergeChips(requestChips(state.view.search?.query), state.view.clarify_answers ?? [], state.view.refine ?? [])
-  const chips = [...own, ...extra]
-  if (chips.length === 0) return null
-  const { shown, hidden } = splitChips(chips, expanded)
+  const all = [...mergeChips(requestChips(state.view.search?.query), state.view.clarify_answers ?? [], state.view.refine ?? []), ...extra]
+  // The choices made in Refine search sit apart (after a divider) and are never folded into "+N more"; only the other chips overflow.
+  const neutral = all.filter((c) => !c.choice)
+  const choices = all.filter((c) => c.choice)
+  if (all.length === 0) return null
+  const { shown, hidden } = splitChips(neutral, expanded)
+  const chip = (c: MergedChip, extraClass = '') => {
+    const remove = c.remove
+    return (
+      <li key={c.key} className={`chip shop-understood${extraClass}`} title={c.title}>
+        {c.label}
+        {remove && (
+          <button
+            type="button"
+            className="shop-chip-x"
+            aria-label={c.title ? `Remove ${c.label} (${c.title})` : `Remove ${c.label}`}
+            onClick={() => (remove.type === 'filter' ? onRemoveFilter(remove.dimension) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
+          >
+            ×
+          </button>
+        )}
+      </li>
+    )
+  }
   return (
     <div className="shop-chips">
-      <div>
-        <p className="shop-chips-title">{CHIPS_LABEL}</p>
+      {neutral.length > 0 && (
         <ul className="chip-list" id={listId} aria-label={CHIPS_LABEL}>
-          {shown.map((c) => {
-            const remove = c.remove
-            return (
-              <li key={c.key} className="chip shop-understood" title={c.title}>
-                {c.label}
-                {remove && (
-                  <button
-                    type="button"
-                    className="shop-chip-x"
-                    aria-label={c.title ? `Remove ${c.label} (${c.title})` : `Remove ${c.label}`}
-                    onClick={() => (remove.type === 'filter' ? onRemoveFilter(remove.dimension) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
-                  >
-                    ×
-                  </button>
-                )}
-              </li>
-            )
-          })}
-          {(hidden > 0 || (expanded && chips.length > CHIP_LIMIT)) && (
+          {shown.map((c) => chip(c))}
+          {(hidden > 0 || (expanded && neutral.length > CHIP_LIMIT)) && (
             <li>
               <button type="button" className="chip shop-chip shop-chip-more" aria-expanded={expanded} aria-controls={listId} onClick={() => setExpanded(!expanded)}>
                 {expanded ? CHIPS_FEWER : chipsMore(hidden)}
@@ -473,8 +488,16 @@ function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopSta
             </li>
           )}
         </ul>
-      </div>
-      {own.some((c) => c.remove) && <p className="shop-card-meta">Changes here apply the next time you press Shop Again.</p>}
+      )}
+      {choices.length > 0 && (
+        <div className="shop-choices">
+          <span className="shop-choices-divider" aria-hidden="true" />
+          <span className="shop-choices-label">{CHOICES_LABEL}</span>
+          <ul className="chip-list" aria-label={CHOICES_LIST_LABEL}>
+            {choices.map((c) => chip(c, ' is-choice'))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
@@ -627,7 +650,7 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
   const handlers = { onRate: props.onRate, onComment: props.onComment, onCommentBlur: props.onCommentBlur, onRetryRating: props.onRetryRating }
   const open = { resolved: state.view.resolved, onResolve: props.onResolve }
   // The server's chips (in the refine list) show the choices; the local ones show only when the server has none.
-  const chips: MergedChip[] = serverSel ? [] : filterChips(selection, facets).map((c) => ({ key: c.key, label: c.label, remove: { type: 'filter', dimension: c.dimension } }))
+  const chips: MergedChip[] = serverSel ? [] : filterChips(selection, facets).map((c) => ({ key: c.key, label: c.label, choice: true, remove: { type: 'filter', dimension: c.dimension } }))
   const block = againBlockFor(state, props)
   // The choices are saved (POST /refine) when the dialog closes or Search again is pressed, when they differ from what the server holds.
   const closeModal = () => {
@@ -637,38 +660,48 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
   const searchAgain = () => props.onSearchFilters(filterChoices(selection))
   const clear = () => onSelection({})
   const matching = matchCount(all, selection)
+  const usageFigures = usageNumbers(props.meta.usage, { searchCount: state.view.search_count, shopAgainsUsed: state.view.shop_agains_used })
+  const limited = props.meta.blocked.search || props.meta.blocked.again || props.meta.maintenance || (usageFigures !== null && usageFigures.searches >= usageFigures.maxSearches)
   return (
     <div className="shop-results" ref={top}>
       {state.banner && <Banner banner={state.banner} />}
-      <div className="shop-count-row">
-        <p className="shop-count" role="status" aria-live="polite">
-          {all.length === 0 ? '0 results' : `${all.length} result${all.length === 1 ? '' : 's'} for “${state.request}”`}
-          {all.length > 0 && <span className="shop-batch"> · Batch {state.batch}</span>}
-        </p>
-        {facets.length > 0 && all.length > 0 && (
-          <button ref={filtersButton} type="button" className="btn btn-secondary filters-button" aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)}>
-            {FILTERS_BUTTON}
-            {active > 0 && (
-              <span className="filters-badge">
-                {active}
-                <span className="visually-hidden"> chosen</span>
-              </span>
+      <header className="shop-head">
+        <div className="shop-head-top">
+          <div className="shop-head-left">
+            <p className="shop-count" role="status" aria-live="polite">
+              {all.length === 0 ? '0 results' : `${all.length} result${all.length === 1 ? '' : 's'} for “${state.request}”`}
+            </p>
+            {all.length > 0 && <span className="shop-batch">Batch {state.batch}</span>}
+            {match && all.length > 0 && <p className="shop-match">{filtersMatchLine(match.satisfied_all)}</p>}
+          </div>
+          <div className="shop-head-right">
+            {usageFigures && <UsageChip figures={usageFigures} limited={limited} />}
+            {facets.length > 0 && all.length > 0 && (
+              <button ref={filtersButton} type="button" className="filters-button" aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)}>
+                <SlidersIcon />
+                {FILTERS_BUTTON}
+                {active > 0 && (
+                  <span className="filters-badge">
+                    {active}
+                    <span className="visually-hidden"> chosen</span>
+                  </span>
+                )}
+              </button>
             )}
-          </button>
-        )}
-      </div>
-      {match && all.length > 0 && <p className="shop-match">{filtersMatchLine(match.satisfied_all, match.shown)}</p>}
-      {short && all.length > 0 && <p className="shop-short">{short}</p>}
-      <Chips
-        state={state}
-        props={props}
-        extra={chips}
-        onRemoveFilter={(d) => {
-          const { [d]: _gone, ...rest } = selection
-          void _gone
-          onSelection(rest)
-        }}
-      />
+          </div>
+        </div>
+        {short && all.length > 0 && <p className="shop-short">{short}</p>}
+        <Chips
+          state={state}
+          props={props}
+          extra={chips}
+          onRemoveFilter={(d) => {
+            const { [d]: _gone, ...rest } = selection
+            void _gone
+            onSelection(rest)
+          }}
+        />
+      </header>
       {all.length === 0 ? (
         <p className="shop-empty">{emptyMessage(search)}</p>
       ) : (
