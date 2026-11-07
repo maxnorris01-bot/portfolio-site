@@ -290,7 +290,7 @@
 }
 
 .shop-stages {
-  /* Six stages (Understand, Search, Ask, Check photos, Rank, Results): one row from 1600px, two rows of three from 1100px (a row of six would squeeze
+  /* Five stages (Understand, Search, Check photos, Rank, Results): one row from 1600px, three then two from 1100px (a row of five would squeeze
      the tile text under what the type tokens allow), two across below that. */
   --stage-gap: var(--space-4);
   display: grid;
@@ -391,10 +391,10 @@
 
 @media (min-width: 1600px) {
   .shop-stages {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
-  .shop-stage:nth-child(3n):not(:last-child)::after {
+  .shop-stage:not(:last-child)::after {
     position: absolute;
     top: 50%;
     right: calc(-1 * var(--stage-gap) / 2);

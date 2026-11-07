@@ -34,7 +34,7 @@ export type MergedChip = {
   label: string
   /** Tooltip and the remove button's detail (an answer's question). */
   title?: string
-  remove: { type: 'context'; kind: ContextKind; value: string } | { type: 'refine'; id: string } | null
+  remove: { type: 'context'; kind: ContextKind; value: string } | { type: 'refine'; id: string } | { type: 'filter'; dimension: string; value: string } | null
 }
 
 /** The term a refinement is about: "no Walmart" and "avoid walmart" are walmart, "focus on cream" is cream. */

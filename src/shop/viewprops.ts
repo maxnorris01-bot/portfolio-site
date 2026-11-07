@@ -1,6 +1,8 @@
 import type { ShopMeta } from './controller.ts'
 import type { RatingsState } from './ratings.ts'
 import type { ShopState } from './state.ts'
+import type { Selection } from './filters.ts'
+import type { Pattern } from './screensaver.ts'
 import type { ContextKind, Rating } from './types.ts'
 
 export type ShopViewProps = {
@@ -35,6 +37,11 @@ export type ShopViewProps = {
   onTouch?: () => void
   /** Overrides the window-width test for the two-column questions panel (from 1280px): the progress steps inside it or above it. Tests only. */
   wide?: boolean
+  /** Filters F1: send the filters' selection as a text refinement through Shop Again ("gray or blue, vintage"). */
+  onSearchFilters: (text: string) => void
+  /** Tests and development fixtures only: a selection to start with, and the wait panel's pattern. */
+  initialFilters?: Selection
+  waitPattern?: Pattern
   /** Look up a result's store link (for Open). */
   onResolve: (id: string) => Promise<string | null>
 }

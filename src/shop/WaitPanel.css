@@ -1,0 +1,120 @@
+/* The wait panel (shown while a search runs): the screensaver beside the step list from 1280px (stacked, the animation 220px tall on top
+   below that). One card, never taller than 460px. The animation box reserves its size before the first frame. */
+.shop-output {
+  position: relative;
+}
+
+.wait-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-height: 460px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.wait-anim {
+  position: relative;
+  height: 220px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.wait-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wait-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--card-pad);
+}
+
+.wait-side .shop-steps {
+  margin: 0;
+}
+
+.wait-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+@media (min-width: 1280px) {
+  .wait-panel.has-side {
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 34%, 480px);
+    min-height: 300px;
+  }
+
+  .wait-panel.has-side .wait-anim {
+    height: auto;
+    min-height: 300px;
+    border-right: 1px solid var(--color-border);
+    border-bottom: 0;
+  }
+
+  .wait-panel.has-side .wait-note {
+    margin-top: auto;
+  }
+}
+
+/* The results arrive: the panel fades over 300ms on top of where the results appear. */
+.wait-panel.is-leaving {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  pointer-events: none;
+  animation: wait-fade 0.3s ease-out forwards;
+}
+
+@keyframes wait-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wait-panel.is-leaving {
+    animation: none;
+  }
+}
+
+/* A phone: the animation is 200px (220px above 720px) and the text block tighter, so the whole card stays under 460px with the step list. */
+@media (max-width: 719px) {
+  .wait-anim {
+    height: 200px;
+  }
+
+  .wait-side {
+    gap: var(--space-2);
+  }
+
+  /* The status sentence takes two lines at most (the whole text is still there for readers). */
+  .wait-side .shop-progress-head {
+    flex-wrap: nowrap;
+  }
+
+  .wait-side .shop-timer {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .wait-side .shop-progress-head > span:nth-child(2) {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .wait-side .shop-progress-block,
+  .wait-side .clarify-progress-block {
+    gap: var(--space-2);
+  }
+}

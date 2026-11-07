@@ -32,13 +32,12 @@ export const SHOP_EYEBROW = 'Project · Personal shopping assistant'
 export const SHOP_DESCRIPTION =
   'Describe what you want to buy in plain words. The tool searches Google Shopping, has an AI model rank the matches against your request, and shows the best ones here with their price, store and a link. Rate results, then press Shop Again for a new batch that follows your ratings. It runs live, with spending caps per visit and per day.'
 
-/** The search pipeline, as the service runs it (Ask is the optional clarifying questions). DRAFT names and captions. */
+/** The search pipeline, as the service runs it. DRAFT names and captions. */
 export const PIPELINE_TITLE = 'Search pipeline'
 export const PIPELINE_LABEL = 'How a search works'
 export const PIPELINE_STAGES = [
   { name: 'Understand', caption: 'A small AI model reads your words into a search.' },
   { name: 'Search', caption: 'Google Shopping is queried for candidates.' },
-  { name: 'Ask', caption: 'Up to five quick questions come from the first results, with a photo for each choice.' },
   { name: 'Check photos', caption: 'Each candidate is tagged for colour, material and shape.' },
   { name: 'Rank', caption: 'An AI model ranks the candidates against your request.' },
   { name: 'Results', caption: 'Top matches with price, store and a link.' },
@@ -99,3 +98,16 @@ export const clarifyAny = (dimension: string) => `Any ${({ color: 'colour' } as 
 /** Progressive questions and the waiting note (F2). DRAFT. */
 export const CLARIFY_LOADING_MORE = 'Loading one more question…'
 export const CLARIFY_WAITING = 'Everything is ready. Pick your options and press Show results.'
+
+/** Filters F1 and the wait panel. DRAFT. */
+export const FILTERS_BUTTON = 'Filters'
+export const FILTERS_TITLE = 'Filter results'
+export const FILTERS_SHOW = (n: number) => `Show ${n} result${n === 1 ? '' : 's'}`
+export const FILTERS_CLEAR_ALL = 'Clear all'
+export const FILTERS_CLOSE = 'Close'
+export const FILTERS_NONE = 'No results match these filters.'
+export const FILTERS_CLEAR = 'Clear filters'
+export const FILTERS_AGAIN = 'Search again with these filters'
+export const filtersFew = (n: number) => (n === 1 ? 'Only 1 matches.' : `Only ${n} match.`)
+export const filtersUnknown = (n: number, title: string) => `${n} ${n === 1 ? 'has' : 'have'} no ${title.toLowerCase()} info`
+export const WAIT_NOTE = 'Results appear here as soon as they are ready.'

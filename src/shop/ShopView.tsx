@@ -1,16 +1,21 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import PageHeader from '../components/PageHeader'
-import { useScrolledSince } from './autoscroll.ts'
 import { useWide } from './wide.ts'
-import ClarifyPanel from './ClarifyPanel.tsx'
-import { panelLocked, panelVisible } from './clarify.ts'
+import FiltersModal from './FiltersModal.tsx'
+import WaitScreensaver from './WaitScreensaver.tsx'
+import { activeCount, applyFilters, cleanSelection, fewLine, filterChips, NO_FILTERS, refineTextFor, toggleOption, viewFacets, type Selection } from './filters.ts'
+import type { Pattern } from './screensaver.ts'
+import { prefersReducedMotion } from './autoscroll.ts'
 import {
   CHIPS_FEWER,
   CHIPS_LABEL,
   chipsMore,
-  clarifyReady,
   CLARIFY_SIDE_PROGRESS,
   EXAMPLE_REQUESTS,
+  FILTERS_BUTTON,
+  FILTERS_CLEAR,
+  FILTERS_NONE,
+  FILTERS_AGAIN,
   GUARDRAILS_LABEL,
   GUARDRAILS_NOTE,
   NO_RESULTS_MESSAGE,
@@ -22,8 +27,9 @@ import {
   SHOP_DESCRIPTION,
   SHOP_EYEBROW,
   SHOP_TITLE,
+  WAIT_NOTE,
 } from './copy.ts'
-import { CHIP_LIMIT, mergeChips, requestChips, splitChips } from './chips.ts'
+import { CHIP_LIMIT, mergeChips, requestChips, splitChips, type MergedChip } from './chips.ts'
 import { defaultUsage, limitText, isLimit, localTime, usageLine } from './limits.ts'
 import { openResolved } from './open.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
@@ -185,7 +191,7 @@ function ProgressBlock({ state, compact = false }: { state: Extract<ShopState, {
       <p className="shop-progress-head" role="status" aria-live="polite">
         <span className="shop-spinner" aria-hidden="true" />
         {compact && !state.slow ? (
-          <span className="shop-caps">{CLARIFY_SIDE_PROGRESS}</span>
+          <span className="shop-caps">{state.kind === 'search' ? CLARIFY_SIDE_PROGRESS : `Finding batch ${state.batch}`}</span>
         ) : (
           <span>
             {state.slow
@@ -214,15 +220,49 @@ function ProgressBlock({ state, compact = false }: { state: Extract<ShopState, {
   )
 }
 
+type RunningState = Extract<ShopState, { status: 'running' }>
+
+/**
+ * The wait panel: one card while a search runs. The screensaver on the left (above from under 1280px), the step list with the timer and a
+ * note on the right. When the results arrive it fades out over 300 ms on top of where the results appear (not with reduced motion).
+ */
+function WaitPanel({ running, side, pattern }: { running: RunningState | null; side: boolean; pattern?: Pattern }) {
+  const [last, setLast] = useState<RunningState | null>(running)
+  if (running && running !== last) setLast(running)
+  const leaving = !running && last !== null && !prefersReducedMotion()
+  const shown = running ?? (leaving ? last : null)
+  if (!shown) return null
+  return (
+    <section
+      className={`card wait-panel${side ? ' has-side' : ''}${leaving ? ' is-leaving' : ''}`}
+      aria-label="Search progress"
+      aria-hidden={leaving ? true : undefined}
+      onAnimationEnd={leaving ? () => setLast(null) : undefined}
+    >
+      <div className="wait-anim">
+        <WaitScreensaver key={shown.startedAt} pattern={pattern} />
+      </div>
+      <div className="wait-side">
+        <ProgressBlock state={shown} compact={side} />
+        <p className="wait-note">{WAIT_NOTE}</p>
+      </div>
+    </section>
+  )
+}
+
 export default function ShopView(props: ShopViewProps) {
   const { state, value, onChange, onSubmit, onExample, onRetry } = props
   const inputId = useId()
   const running = state.status === 'running'
-  const scrolled = useScrolledSince(state.status === 'running' ? state.startedAt : null)
   const blocked = props.meta.blocked.search
   const windowWide = useWide()
-  // The progress steps sit in the questions panel's right column while the panel shows on a wide window, otherwise above it: never both.
-  const side = (props.wide ?? windowWide) && state.status === 'running' && state.kind === 'search' && panelVisible(state.clarify)
+  // From 1280px the wait panel has two columns (the animation, then the steps); below it they stack.
+  const side = props.wide ?? windowWide
+  // Filters F1: the chosen options belong to one batch (its results) and reset when another loads.
+  const batchKey = state.status === 'done' ? `${state.batch}:${(state.view.search?.results ?? []).map((i) => i.id).join('|')}` : null
+  const [chosen, setChosen] = useState<{ key: string | null; sel: Selection }>({ key: null, sel: props.initialFilters ?? NO_FILTERS })
+  const selection = batchKey !== null && (chosen.key === batchKey || chosen.key === null) ? chosen.sel : NO_FILTERS
+  const setSelection = (sel: Selection) => batchKey !== null && setChosen({ key: batchKey, sel })
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (!running && !blocked && value.trim()) onSubmit()
@@ -299,29 +339,7 @@ export default function ShopView(props: ShopViewProps) {
             </p>
           )}
 
-          {state.status === 'running' && (
-            <div className="shop-progress">
-              {!side && <ProgressBlock state={state} />}
-              {state.kind === 'search' && (
-                <>
-                  <p className="visually-hidden" role="status" aria-live="polite">
-                    {panelVisible(state.clarify) ? clarifyReady(state.clarify.server.questions.length) : ''}
-                  </p>
-                  {panelVisible(state.clarify) && (
-                    <ClarifyPanel
-                      ui={state.clarify}
-                      scrolled={scrolled}
-                      side={side ? <ProgressBlock state={state} compact /> : null}
-                      onAnswer={props.onAnswer}
-                      onSubmit={props.onSubmitAnswers}
-                      onRetry={props.onRetryAnswers}
-                      onTouch={props.onTouch}
-                    />
-                  )}
-                </>
-              )}
-            </div>
-          )}
+          <WaitPanel running={state.status === 'running' ? state : null} side={side} pattern={props.waitPattern} />
 
           {state.status === 'error' && (
             <div className="shop-error" role="alert">
@@ -335,10 +353,7 @@ export default function ShopView(props: ShopViewProps) {
             </div>
           )}
 
-          {state.status === 'done' && panelVisible(state.clarify) && !panelLocked(state.clarify) && (
-            <ClarifyPanel ui={state.clarify} onAnswer={props.onAnswer} onSubmit={props.onSubmitAnswers} onRetry={props.onRetryAnswers} onTouch={props.onTouch} />
-          )}
-          {state.status === 'done' && <Results state={state} props={props} />}
+          {state.status === 'done' && <Results state={state} props={props} selection={selection} onSelection={setSelection} />}
         </section>
 
         <SearchPipeline usage={props.meta.usage} />
@@ -409,10 +424,11 @@ function emptyMessage(search: Extract<ShopState, { status: 'done' }>['view']['se
   return ownWords || search?.note || NO_RESULTS_MESSAGE
 }
 
-function Chips({ state, props }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps }) {
+function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; extra: MergedChip[]; onRemoveFilter: (dimension: string, value: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const listId = useId()
-  const chips = mergeChips(requestChips(state.view.search?.query), state.view.clarify_answers ?? [], state.view.refine ?? [])
+  const own = mergeChips(requestChips(state.view.search?.query), state.view.clarify_answers ?? [], state.view.refine ?? [])
+  const chips = [...own, ...extra]
   if (chips.length === 0) return null
   const { shown, hidden } = splitChips(chips, expanded)
   return (
@@ -430,7 +446,7 @@ function Chips({ state, props }: { state: Extract<ShopState, { status: 'done' }>
                     type="button"
                     className="shop-chip-x"
                     aria-label={c.title ? `Remove ${c.label} (${c.title})` : `Remove ${c.label}`}
-                    onClick={() => (remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
+                    onClick={() => (remove.type === 'filter' ? onRemoveFilter(remove.dimension, remove.value) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
                   >
                     ×
                   </button>
@@ -447,7 +463,7 @@ function Chips({ state, props }: { state: Extract<ShopState, { status: 'done' }>
           )}
         </ul>
       </div>
-      <p className="shop-card-meta">Changes here apply the next time you press Shop Again.</p>
+      {own.some((c) => c.remove) && <p className="shop-card-meta">Changes here apply the next time you press Shop Again.</p>}
     </div>
   )
 }
@@ -577,11 +593,17 @@ function SavedPanel({ state, props, open }: { state: Extract<ShopState, { status
   )
 }
 
-function Results({ state, props }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps }) {
+function Results({ state, props, selection, onSelection }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; selection: Selection; onSelection: (sel: Selection) => void }) {
   const search = state.view.search
-  const items = search?.results ?? []
+  const all = search?.results ?? []
+  const { facets, unknown: facetsUnknown } = viewFacets(state.view)
+  const sel = cleanSelection(selection, facets)
+  const items = applyFilters(all, sel)
+  const active = activeCount(sel)
   const short = shortfallLine(search)
   const top = useRef<HTMLDivElement>(null)
+  const filtersButton = useRef<HTMLButtonElement>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   // A new batch from Shop Again scrolls to its top (not after a page refresh).
   useEffect(() => {
     if (!state.fresh || state.batch < 2) return
@@ -590,28 +612,92 @@ function Results({ state, props }: { state: Extract<ShopState, { status: 'done' 
   }, [state.fresh, state.batch, state.view])
   const handlers = { onRate: props.onRate, onComment: props.onComment, onCommentBlur: props.onCommentBlur, onRetryRating: props.onRetryRating }
   const open = { resolved: state.view.resolved, onResolve: props.onResolve }
+  const chips: MergedChip[] = filterChips(sel, facets).map((c) => ({ key: c.key, label: c.label, remove: { type: 'filter', dimension: c.dimension, value: c.value } }))
+  const few = fewLine(items.length, sel)
+  // The few-matches button goes through Shop Again with a text refinement, so Shop Again's own limits apply.
+  const againBlock = shopAgainBlock({
+    running: false,
+    saving: Object.values(state.ratings).some((r) => r.save === 'saving'),
+    rated: ratedCount(all.map((i) => i.id), state.ratings),
+    used: state.view.shop_agains_used,
+    cap: state.view.shop_agains_cap,
+    limited: props.meta.blocked.again ? 'Shop Again is not available right now.' : null,
+  })
+  const again = { block: againBlock, onSearch: () => props.onSearchFilters(refineTextFor(sel, facets)) }
+  const clear = () => onSelection({})
   return (
     <div className="shop-results" ref={top}>
       {state.banner && <Banner banner={state.banner} />}
-      <p className="shop-count" role="status" aria-live="polite">
-        {items.length === 0 ? '0 results' : `${items.length} result${items.length === 1 ? '' : 's'} for “${state.request}”`}
-        {items.length > 0 && <span className="shop-batch"> · Batch {state.batch}</span>}
-      </p>
-      {short && items.length > 0 && <p className="shop-short">{short}</p>}
-      <Chips state={state} props={props} />
-      {items.length === 0 ? (
+      <div className="shop-count-row">
+        <p className="shop-count" role="status" aria-live="polite">
+          {all.length === 0
+            ? '0 results'
+            : `${active > 0 ? `${items.length} of ${all.length}` : all.length} result${all.length === 1 ? '' : 's'} for “${state.request}”`}
+          {all.length > 0 && <span className="shop-batch"> · Batch {state.batch}</span>}
+        </p>
+        {facets.length > 0 && all.length > 0 && (
+          <button ref={filtersButton} type="button" className="btn btn-secondary filters-button" aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)}>
+            {FILTERS_BUTTON}
+            {active > 0 && (
+              <span className="filters-badge">
+                {active}
+                <span className="visually-hidden"> active</span>
+              </span>
+            )}
+          </button>
+        )}
+      </div>
+      {short && all.length > 0 && <p className="shop-short">{short}</p>}
+      <Chips state={state} props={props} extra={chips} onRemoveFilter={(d, v) => onSelection(toggleOption(sel, d, v))} />
+      {all.length === 0 ? (
         <p className="shop-empty">{emptyMessage(search)}</p>
       ) : (
         <>
-          <ul className="shop-grid">
-            {items.map((item) => (
-              <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} />
-            ))}
-          </ul>
+          {items.length === 0 ? (
+            <div className="shop-filter-empty">
+              <p className="shop-empty" role="status">
+                {FILTERS_NONE}
+              </p>
+              <button type="button" className="btn btn-secondary" onClick={clear}>
+                {FILTERS_CLEAR}
+              </button>
+            </div>
+          ) : (
+            <ul className="shop-grid">
+              {items.map((item) => (
+                <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} />
+              ))}
+            </ul>
+          )}
+          {few && (
+            <div className="shop-few">
+              <p>
+                {few}{' '}
+                <button type="button" className="shop-link" disabled={againBlock !== null} onClick={again.onSearch}>
+                  {FILTERS_AGAIN}
+                </button>
+                {againBlock && <span className="filters-why"> ({againBlock})</span>}
+              </p>
+            </div>
+          )}
           <AgainBar state={state} props={props} />
         </>
       )}
       <SavedPanel state={state} props={props} open={open} />
+      {filtersOpen && (
+        <FiltersModal
+          facets={facets}
+          unknown={facetsUnknown}
+          selection={sel}
+          matching={items.length}
+          onToggle={(d, v) => onSelection(toggleOption(sel, d, v))}
+          onClear={clear}
+          onClose={() => setFiltersOpen(false)}
+          few={few}
+          again={few ? again : null}
+          returnFocus={filtersButton}
+        />
+      )}
     </div>
   )
 }
