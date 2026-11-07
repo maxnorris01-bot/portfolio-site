@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { after, test } from 'node:test'
 import type { ComponentType } from 'react'
 import { fixtureNoResults, fixtureStates, fixtureItems } from '../src/shop/fixtures.ts'
 import { ABOUT_ROWS, ABOUT_TITLE, GUARDRAILS_NOTE, LIMITATIONS_NOTICE, PIPELINE_NOTE, PIPELINE_STAGES, SHOP_CHIPS, SHOP_DESCRIPTION, SHOP_TITLE } from '../src/shop/copy.ts'
 import type { ShopViewProps } from '../src/shop/viewprops.ts'
+import type { ItemRating } from '../src/shop/ratings.ts'
+import type { ShopItem } from '../src/shop/types.ts'
 import { closeServer, loadModule, render } from './helpers/ssr.ts'
 
 after(closeServer)
@@ -41,6 +44,7 @@ const mod = () =>
   loadModule<{
     default: ComponentType<ShopViewProps>
     ProductImageView: ComponentType<{ src: string; alt: string; failed: boolean }>
+    ProductCard: ComponentType<{ item: ShopItem; entry?: ItemRating; handlers?: object; pop?: { openId: string | null; dispatch: (e: never) => void } }>
   }>('/src/shop/ShopView.tsx')
 const escaped = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
@@ -172,14 +176,62 @@ test('rating group: a labelled radio group per card, one tab stop, selected stat
   for (const name of ['Love', 'Like', 'Dislike']) assert.match(html, new RegExp(`>${name}</button>`))
 })
 
-test('comment field: only after a rating is chosen, labelled, limited to 200 characters, with the saved text', async () => {
+test('comment line: every card reserves one line; rated cards link to the popover (Add a comment / Comment saved), which is closed until opened', async () => {
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.rated))
-  assert.equal(html.match(/shop-comment-input/g)?.length, 3, 'three rated cards, one unrated')
-  assert.match(html, /Comment on Example Loft 3-seat sofa/)
-  assert.match(html, /maxLength="200"|maxlength="200"/)
-  assert.match(html, /value="Great colour, but check the depth\."/)
-  assert.doesNotMatch(render(View, props(fixtureStates.results)).replace(/shop-comment-input/g, ''), /Add a short comment/)
+  assert.equal(html.match(/class="shop-comment-slot"/g)?.length, 4, 'one reserved line on each of the four cards, rated or not')
+  // fx-1 is rated with a comment; fx-2 is rated without one; fx-3 failed to save (its line says so instead); fx-4 is unrated (an empty line).
+  assert.equal(html.match(/>Comment saved<\/button>/g)?.length, 1)
+  assert.equal(html.match(/>Add a comment<\/button>/g)?.length, 1)
+  for (const link of html.match(/<button[^>]*shop-comment-link[^>]*>/g) ?? []) assert.match(link, /aria-expanded="false"[^>]*aria-controls="[^"]+"|aria-controls="[^"]+"[^>]*aria-expanded="false"/)
+  assert.match(html, /<div class="shop-comment-slot"><\/div>/, 'an unrated card has an empty reserved line')
+  // Nothing is open: no textarea and no dialog in the page.
+  assert.doesNotMatch(html, /shop-comment-input|role="dialog"|<textarea/)
+  assert.doesNotMatch(render(View, props(fixtureStates.results)), /shop-comment-link/)
+})
+
+test('comment popover: a labelled dialog with the textarea (200 characters, the saved text), tied to its link by aria-controls', async () => {
+  const { ProductCard } = await mod()
+  const fx = fixtureStates.rated
+  assert.ok(fx.status === 'done')
+  const item = fixtureItems[0]
+  const handlers = { onRate: noop, onComment: noop, onCommentBlur: noop, onRetryRating: noop }
+  const open = render(ProductCard, { item, entry: fx.ratings['fx-1'], handlers, pop: { openId: 'fx-1', dispatch: noop } })
+  const id = open.match(/aria-controls="([^"]+)"/)?.[1]
+  assert.ok(id, 'the link has aria-controls')
+  assert.match(open, new RegExp(`<div[^>]*id="${id}"[^>]*role="dialog"|<div[^>]*role="dialog"[^>]*id="${id}"`))
+  assert.match(open, /aria-label="Comment on Example Loft 3-seat sofa/)
+  assert.match(open, /aria-expanded="true"/)
+  assert.match(open, /<textarea[^>]*maxLength="200"|<textarea[^>]*maxlength="200"/)
+  assert.match(open, />Great colour, but check the depth\.<\/textarea>/)
+  assert.match(open, /34\/200/)
+  // Another card's popover being open leaves this one closed; an unrated card never shows one.
+  assert.doesNotMatch(render(ProductCard, { item, entry: fx.ratings['fx-1'], handlers, pop: { openId: 'other', dispatch: noop } }), /role="dialog"/)
+  assert.doesNotMatch(render(ProductCard, { item, handlers, pop: { openId: 'fx-1', dispatch: noop } }), /role="dialog"/)
+})
+
+test('card layout (source): nine subgrid rows, a subgrid fallback, nothing clipped, one 20px comment line, equal rating columns', () => {
+  const css = readFileSync(new URL('../src/pages/Shop.css', import.meta.url), 'utf8')
+  const rule = (sel: string) => css.match(new RegExp(`\\n${sel.replace(/[.]/g, '\\.')} \\{([^}]*)\\}`))?.[1] ?? ''
+  const card = rule('.shop-card')
+  assert.match(card, /grid-row: span 9/)
+  assert.match(card, /grid-template-rows: subgrid/)
+  assert.doesNotMatch(card, /overflow:\s*hidden/, 'the popover hangs outside the card')
+  assert.match(css, /@supports not \(grid-template-rows: subgrid\)[\s\S]*margin-top: auto/)
+  assert.match(rule('.shop-grid'), /row-gap: 0/)
+  assert.match(rule('.shop-comment-slot'), /height: 20px/)
+  assert.match(rule('.shop-rate'), /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, 'the check on the chosen button changes no width')
+  assert.match(rule('.shop-pop'), /position: absolute/)
+  // Nine sections, in order, in the card's markup.
+  const src = readFileSync(new URL('../src/shop/ShopView.tsx', import.meta.url), 'utf8')
+  const card9 = src.slice(src.indexOf('<li ref={card}'), src.indexOf('</li>', src.indexOf('<li ref={card}')))
+  const order = ['<ProductImage', 'shop-card-title', 'shop-card-price', 'shop-cell">\n        <p', 'shop-cell">{rating', 'shop-cell shop-extra', 'shop-open-cell', 'shop-rate-cell', 'shop-comment-slot']
+  let at = -1
+  for (const key of order) {
+    const i = card9.indexOf(key)
+    assert.ok(i > at, `${key} comes in order`)
+    at = i
+  }
 })
 
 test('save indicators: Saved, Saving…, and a failed save with its reason and a Retry button', async () => {
@@ -187,7 +239,7 @@ test('save indicators: Saved, Saving…, and a failed save with its reason and a
   const html = render(View, props(fixtureStates.rated))
   assert.match(html, /Saved/)
   assert.match(html, /Saving…/)
-  assert.match(html, /role="alert"[^>]*>\s*<span>Could not save your rating\./)
+  assert.match(html, /role="alert"[^>]*title="Could not save your rating\.[^"]*"><span>Could not save\.<\/span>/)
   assert.match(html, /<button type="button" class="shop-link">Retry<\/button>/)
 })
 

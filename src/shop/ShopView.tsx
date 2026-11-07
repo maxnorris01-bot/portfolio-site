@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useEffect, useId, useLayoutEffect, useReducer, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import PageHeader from '../components/PageHeader'
 import { useWide } from './wide.ts'
 import FiltersModal from './FiltersModal.tsx'
@@ -37,6 +37,7 @@ import { CHIP_LIMIT, mergeChips, refineTextChip, requestChips, splitChips, type 
 import { defaultUsage, limitText, isLimit, localTime, usageLine, usageNumbers } from './limits.ts'
 import { openResolved } from './open.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
+import { COMMENT_POP_CLOSED, commentLinkLabel, commentPopStep, popoverPlacement, type CommentPopEvent } from './commentpop.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
 import { alsoAtLine, formatPrice, ratingLine, safeHref, shortfallLine, stepSummary, type ShopState } from './state.ts'
 import type { ShopViewProps } from './viewprops.ts'
@@ -62,7 +63,7 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
 }
 
 type RateHandlers = {
-  onRate: (id: string, rating: Rating | null) => void
+  onRate: (id: string, rating: Rating | null, viaKey?: boolean) => void
   onComment: (id: string, text: string) => void
   onCommentBlur: (id: string) => void
   onRetryRating: (id: string) => void
@@ -76,7 +77,7 @@ export function RatingGroup({ item, entry, onRate }: { item: ShopItem; entry: It
     const next = nextRatingForKey(current, e.key)
     if (!next) return
     e.preventDefault()
-    onRate(item.id, next)
+    onRate(item.id, next, true)
     refs.current[next]?.focus()
   }
   return (
@@ -101,25 +102,6 @@ export function RatingGroup({ item, entry, onRate }: { item: ShopItem; entry: It
   )
 }
 
-function SaveStatus({ entry, onRetry }: { entry: ItemRating | undefined; onRetry: () => void }) {
-  if (!entry || entry.save === 'idle') return null
-  if (entry.save === 'failed') {
-    return (
-      <p className="shop-save is-failed" role="alert">
-        <span>{entry.error ?? 'Could not save.'}</span>{' '}
-        <button type="button" className="shop-link" onClick={onRetry}>
-          Retry
-        </button>
-      </p>
-    )
-  }
-  return (
-    <p className={`shop-save is-${entry.save}`} role="status">
-      {entry.save === 'saving' ? 'Saving…' : 'Saved'}
-    </p>
-  )
-}
-
 type OpenProps = { resolved?: Record<string, ResolvedLink>; onResolve: (id: string) => Promise<string | null> }
 
 /** Open the store: the resolved store link when known, else the result's own link (looked up on click when it is Google's page). */
@@ -139,40 +121,155 @@ function OpenLink({ item, open }: { item: ShopItem; open?: OpenProps }) {
   )
 }
 
-export function ProductCard({ item, entry, handlers, open }: { item: ShopItem; entry?: ItemRating; handlers?: RateHandlers; open?: OpenProps }) {
+/** The save state in words, for the popover (the polite live region) and, muted and hidden from screen readers, beside the comment link. */
+function saveWord(entry: ItemRating | undefined): string | null {
+  if (!entry || entry.save === 'idle' || entry.save === 'failed') return null
+  return entry.save === 'saving' ? 'Saving…' : 'Saved'
+}
+
+/** The comment popover: a small dialog under the rating buttons with the textarea (200 characters, autosaved as before) and the save state. */
+function CommentPopover({ item, entry, handlers, id, onClose }: { item: ShopItem; entry: ItemRating; handlers: RateHandlers; id: string; onClose: (e: 'escape' | 'blur', refocus: boolean) => void }) {
+  const box = useRef<HTMLDivElement>(null)
+  const area = useRef<HTMLTextAreaElement>(null)
+  const [above, setAbove] = useState(false)
+  // Focus the textarea when it opens; flip above the buttons when it would run off the bottom of the window.
+  useLayoutEffect(() => {
+    const el = box.current
+    const cell = el?.parentElement
+    if (!el || !cell) return
+    const r = cell.getBoundingClientRect()
+    setAbove(popoverPlacement({ buttonsTop: r.top, buttonsBottom: r.bottom, height: el.offsetHeight, viewportHeight: window.innerHeight }) === 'above')
+    area.current?.focus({ preventScroll: true })
+  }, [])
+  const word = saveWord(entry)
+  return (
+    <div
+      ref={box}
+      id={id}
+      role="dialog"
+      aria-label={`Comment on ${item.title}`}
+      className={`shop-pop${above ? ' is-above' : ''}`}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape') return
+        e.stopPropagation()
+        onClose('escape', true)
+      }}
+      onBlur={(e) => {
+        const next = e.relatedTarget as Node | null
+        if (next && box.current?.contains(next)) return
+        // Switching to another window keeps it open; moving focus anywhere else in the page closes it.
+        if (!next && !document.hasFocus()) return
+        handlers.onCommentBlur(item.id)
+        onClose('blur', false)
+      }}
+    >
+      <textarea
+        ref={area}
+        className="shop-comment-input"
+        rows={3}
+        value={entry.comment}
+        maxLength={COMMENT_MAX}
+        aria-label={`Comment on ${item.title}`}
+        placeholder="Add a short comment (optional)"
+        onChange={(e) => handlers.onComment(item.id, e.target.value)}
+      />
+      <p className="shop-pop-foot">
+        <span className="shop-pop-count">
+          {entry.comment.length}/{COMMENT_MAX}
+        </span>
+        <span className={`shop-pop-status${word ? '' : ' is-empty'}`} role="status">
+          {word}
+        </span>
+      </p>
+    </div>
+  )
+}
+
+/**
+ * One result card. Its children are the rows of a subgrid (see .shop-card in Shop.css), in a fixed order, so that within one row of cards
+ * the same section starts at the same height: image, title, price, store, rating line, extra lines, Open, rating buttons, comment line.
+ * Every row is always present (an empty cell takes no height unless another card in the row needs it). The comment line is one reserved
+ * line, so the popover opening or closing never changes the card.
+ */
+export function ProductCard({ item, entry, handlers, open, pop }: { item: ShopItem; entry?: ItemRating; handlers?: RateHandlers; open?: OpenProps; pop?: { openId: string | null; dispatch: (e: CommentPopEvent) => void } }) {
   const price = formatPrice(item.price, item.currency)
   const rating = ratingLine(item)
   const also = alsoAtLine(item)
+  const popId = useId()
+  const card = useRef<HTMLLIElement>(null)
+  const rated = !!entry?.rating
+  const isOpen = rated && pop?.openId === item.id
+  const label = commentLinkLabel(rated, entry?.comment ?? '')
+  const word = saveWord(entry)
+  const focusRating = () => card.current?.querySelector<HTMLElement>('.shop-rate-btn[tabindex="0"]')?.focus()
+  // A click outside the popover (and outside this card's own rating buttons and comment link) closes it, keeping the comment.
+  useEffect(() => {
+    if (!isOpen || !pop) return
+    const down = (e: PointerEvent) => {
+      const t = e.target as Node
+      if (card.current?.querySelector('.shop-pop')?.contains(t)) return
+      if ((t as Element).closest?.('.shop-rate, .shop-comment-link')) return
+      // Blur the field first so its autosave runs once (the popover is gone after the next render), then close.
+      const active = document.activeElement as HTMLElement | null
+      if (active && card.current?.querySelector('.shop-pop')?.contains(active)) active.blur()
+      pop.dispatch({ type: 'outside' })
+    }
+    document.addEventListener('pointerdown', down)
+    return () => document.removeEventListener('pointerdown', down)
+  }, [isOpen, pop])
   return (
-    <li className="shop-card">
+    <li ref={card} className={`shop-card${isOpen ? ' has-pop' : ''}`}>
       <ProductImage src={item.thumbnail_url} alt={item.title} />
-      <div className="shop-card-body">
-        <h3 className="shop-card-title">{item.title}</h3>
-        <p className="shop-card-price">{price ?? 'Price not listed'}</p>
+      <h3 className="shop-card-title">{item.title}</h3>
+      <p className="shop-card-price">{price ?? 'Price not listed'}</p>
+      <div className="shop-cell">
         <p className="shop-card-meta">{item.seller}</p>
-        {rating && <p className="shop-card-meta">{rating}</p>}
+      </div>
+      <div className="shop-cell">{rating && <p className="shop-card-meta">{rating}</p>}</div>
+      <div className="shop-cell shop-extra">
         {item.size_hint && <p className="shop-card-meta">{item.size_hint}</p>}
         {also && <p className="shop-card-meta shop-card-also">{also}</p>}
+      </div>
+      <div className="shop-open-cell">
         <OpenLink item={item} open={open} />
-        {handlers && (
-          <div className="shop-rating">
-            <RatingGroup item={item} entry={entry} onRate={handlers.onRate} />
-            {entry?.rating && (
-              <label className="shop-comment">
-                <span className="visually-hidden">Comment on {item.title}</span>
-                <input
-                  type="text"
-                  className="shop-comment-input"
-                  value={entry.comment}
-                  maxLength={COMMENT_MAX}
-                  placeholder="Add a short comment (optional)"
-                  onChange={(e) => handlers.onComment(item.id, e.target.value)}
-                  onBlur={() => handlers.onCommentBlur(item.id)}
-                />
-              </label>
-            )}
-            <SaveStatus entry={entry} onRetry={() => handlers.onRetryRating(item.id)} />
-          </div>
+      </div>
+      <div className="shop-rate-cell">
+        {handlers && <RatingGroup item={item} entry={entry} onRate={(id, r, viaKey) => handlers.onRate(id, r, viaKey)} />}
+        {handlers && isOpen && entry && (
+          <CommentPopover
+            item={item}
+            entry={entry}
+            handlers={handlers}
+            id={popId}
+            onClose={(why, refocus) => {
+              pop?.dispatch({ type: why })
+              if (refocus) focusRating()
+            }}
+          />
+        )}
+      </div>
+      <div className="shop-comment-slot">
+        {handlers && entry?.save === 'failed' ? (
+          <p className="shop-save is-failed" role="alert" title={entry.error ?? undefined}>
+            <span>Could not save.</span>{' '}
+            <button type="button" className="shop-link" onClick={() => handlers.onRetryRating(item.id)}>
+              Retry
+            </button>
+          </p>
+        ) : (
+          handlers &&
+          label && (
+            <>
+              <button type="button" className="shop-link shop-comment-link" aria-expanded={isOpen} aria-controls={popId} onClick={() => pop?.dispatch(isOpen ? { type: 'close' } : { type: 'open', id: item.id })}>
+                {label}
+              </button>
+              {word && (
+                <span className="shop-save" aria-hidden="true">
+                  {word}
+                </span>
+              )}
+            </>
+          )
         )}
       </div>
     </li>
@@ -662,7 +759,17 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
     const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     top.current?.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' })
   }, [state.fresh, state.batch, state.view])
-  const handlers = { onRate: props.onRate, onComment: props.onComment, onCommentBlur: props.onCommentBlur, onRetryRating: props.onRetryRating }
+  // Only one comment popover is open at a time: rating a card opens its popover (arrow keys do not), clearing the rating closes it.
+  const [pop, dispatchPop] = useReducer(commentPopStep, COMMENT_POP_CLOSED)
+  const handlers = {
+    onRate: (id: string, rating: Rating | null, viaKey?: boolean) => {
+      props.onRate(id, rating)
+      dispatchPop({ type: 'rate', id, rating, viaKey })
+    },
+    onComment: props.onComment,
+    onCommentBlur: props.onCommentBlur,
+    onRetryRating: props.onRetryRating,
+  }
   const open = { resolved: state.view.resolved, onResolve: props.onResolve }
   // The server's chips (in the refine list) show the choices; the local ones show only when the server has none.
   const chips: MergedChip[] = [...(serverSel ? [] : filterChips(selection, facets).map((c): MergedChip => ({ key: c.key, label: c.label, choice: true, remove: { type: 'filter', dimension: c.dimension } }))), ...(textChip ? [textChip] : [])]
@@ -739,7 +846,7 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
       ) : (
         <ul className="shop-grid">
           {all.map((item) => (
-            <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} />
+            <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} pop={{ openId: pop.openId, dispatch: dispatchPop }} />
           ))}
         </ul>
       )}

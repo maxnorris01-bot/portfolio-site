@@ -339,6 +339,39 @@ export const fixturePolish: SessionView = {
   shop_agains_used: 1,
 }
 
+/** Product cards: eight results with deliberately uneven content (2 and 3 line titles, a 2 line store, a size line, "Also at", no rating), two rated with comments. */
+const cardRows: [string, string, string, string, Partial<ShopItem>][] = [
+  ['Wool Bengal Tiger Hand-Tufted Rug', '#c9b79c', 'Anthropologie', '#c9b79c', { rating: 4.8, rating_count: 111, size_hint: "3' x 5'" }],
+  ['Example Persian Vintage Medallion Area Rug in washed gray and faded blue with a very long product name that needs three lines', '#8c8c8c', 'Example Home Co.', '#8c8c8c', { rating: 4.2, rating_count: 380, also_at: [{ seller: 'Sample Furniture', price: 229 }, { seller: 'Demo Living', price: 239.5 }] }],
+  ['Sample Gray wool shag rug', '#3c5a87', 'Sample Furniture and Home Goods Warehouse Outlet of the Northwest', '#3c5a87', { rating: null, rating_count: null }],
+  ['Demo Blue cotton flatweave with a long two-line name for the row', '#9fb0a0', 'Demo Living', '#9fb0a0', { rating: 3.9, rating_count: 36, size_hint: "8' x 10' (also in runner sizes)", also_at: [{ seller: 'Placeholder Interiors', price: 149 }] }],
+  ['Cream jute round rug', '#e8dfd0', 'Placeholder Interiors', '#e8dfd0', { rating: 4.5, rating_count: 12 }],
+  ['Example Gray vintage oval rug, low pile, easy to clean, pet friendly, and a bit longer than the rest', '#8a6a4f', 'Example Home Co.', '#8a6a4f', { rating: 4.1, rating_count: 2210, size_hint: "5' x 8'" }],
+  ['Black and white striped rug', '#1f1f1f', 'Sample Furniture', '#1f1f1f', { rating: 4.7, rating_count: 58 }],
+  ['Multicolour boho rug', '#c0504d', 'Demo Living', '#c0504d', { rating: null, rating_count: null, also_at: [{ seller: 'Example Home Co.', price: 99 }] }],
+]
+export const cardItems: ShopItem[] = cardRows.map(([title, fill, seller, , extra], i) => ({
+  id: `cd-${i + 1}`,
+  title,
+  price: 98 + i * 41,
+  currency: 'USD',
+  seller,
+  thumbnail_url: art(fill),
+  link: `https://example.com/product/card-${i + 1}`,
+  link_kind: 'retailer',
+  rating: null,
+  rating_count: null,
+  ...extra,
+}))
+export const fixtureCards: SessionView = {
+  ...fixtureView,
+  search: { request: 'nice rug', headline: 'Eight rugs.', warnings: [], query: { search_text: 'nice rug', category: 'rug' }, results: cardItems },
+  refine: [],
+  can_shop_again: true,
+  shop_agains_used: 0,
+  shop_agains_cap: 25,
+}
+
 const limitUsage = { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-01T00:00:00+00:00' }
 const limitView: SessionView = { ...fixtureView, search_count: 9, shop_agains_used: 1, shop_agains_cap: 25 }
 
@@ -401,6 +434,8 @@ export const fixtureStates: Record<string, ShopState> = {
   askrefine: done(fixtureRefine, 1),
   askrefinematch: done(fixtureRefineMatch, 2),
   askpolish: done(fixturePolish, 2),
+  // Product cards: rated with a comment (cd-1, cd-5), rated without one (cd-2), the rest unrated.
+  askcards: done(fixtureCards, 1, { 'cd-1': rated('love', 'Love the colours.'), 'cd-5': rated('like', 'Check the pile height.'), 'cd-2': rated('like') }),
   limit: done(limitView, 1, {}, { message: 'Daily limit reached.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00', code: 'cap_reached', limit: 'ip_day' }),
 }
 

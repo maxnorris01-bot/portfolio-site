@@ -15,6 +15,8 @@
 //   planet card      heading row included: width fill >= 0.85, height fill >= 0.85, 45 to 80 characters a line
 //   system           the picture is at least 0.40 Wc wide (the ratio is printed)
 //   title            one or two lines, not clipped, inside the left column
+//   product cards   (--cards runs only this; also part of style mode) fixture askcards: in every row of cards the Open buttons, the rating buttons
+//                   and the comment lines share a top (1px), and rating or liking a card moves no button in any card
 //   style mode      (node scripts/check-layout.mjs --style, or as part of the default run; --home runs only the Home checks above)
 //                   for every page and state, at 1280x720, 1440x900, 1920x1080 and 390x844: h1 size and weight, body size, no text under
 //                   14px, card padding, paragraph line lengths (desktop) and no sideways scroll, all against the tokens' computed values;
@@ -35,7 +37,7 @@ const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', impor
 const expected = new Set(JSON.parse(readFileSync(expectedFile, 'utf8')).misses)
 const expectedReasons = JSON.parse(readFileSync(expectedFile, 'utf8')).reasons ?? {}
 const outDir = process.env.CHECK_LAYOUT_OUT
-const MODE = process.argv.includes('--style') ? 'style' : process.argv.includes('--home') ? 'home' : 'all'
+const MODE = process.argv.includes('--cards') ? 'cards' : process.argv.includes('--style') ? 'style' : process.argv.includes('--home') ? 'home' : 'all'
 
 // Playwright is not a dependency of this repo: use the one installed here, or the one in PLAYWRIGHT_DIR (a folder whose node_modules has it).
 let chromium
@@ -613,6 +615,77 @@ async function runStyle(browser, base) {
   }
 }
 
+// Product cards (fixture askcards): the cards are subgrid rows, so within one row of cards each section starts at the same height, and the
+// comment popover is a floating layer that changes no card. Measured at five desktop windows and the phone.
+async function runCards(browser, base) {
+  const SIZES_CARDS = [[1280, 720], [1440, 900], [1920, 1080], [2000, 1100], [2560, 1440], [390, 844]]
+  const tops = () => {
+    const cards = [...document.querySelectorAll('.shop-grid > .shop-card')]
+    const sy = -document.querySelector('.shop-grid').getBoundingClientRect().top // positions are relative to the grid (the Saved row above it may grow when a card is saved)
+    const top = (el) => (el ? Math.round((el.getBoundingClientRect().top + sy) * 100) / 100 : null)
+    const info = cards.map((c, i) => {
+      const r = c.getBoundingClientRect()
+      return { i, row: Math.round(r.top + sy), left: Math.round(r.left), h: r.height, open: top(c.querySelector('.shop-open')), rate: top(c.querySelector('.shop-rate')), slot: top(c.querySelector('.shop-comment-slot')), price: top(c.querySelector('.shop-card-price')), btns: [...c.querySelectorAll('.shop-rate-btn')].map((b) => { const q = b.getBoundingClientRect(); return [q.left, q.top + sy, q.width, q.height].map((v) => Math.round(v * 100) / 100) }), wraps: [...c.querySelectorAll('.shop-rate-btn')].some((b) => b.scrollWidth > b.clientWidth + 1 || b.getBoundingClientRect().height > 40), slotH: c.querySelector('.shop-comment-slot').getBoundingClientRect().height }
+    })
+    return info
+  }
+  const out = []
+  for (const [w, h] of SIZES_CARDS) {
+    const page = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
+    await page.goto(base + 'shop?fixture=askcards', { waitUntil: 'load' })
+    await page.waitForSelector('.shop-grid > .shop-card', { timeout: 30000 })
+    await page.waitForTimeout(500)
+    const before = await page.evaluate(tops)
+    const rows = new Map()
+    for (const c of before) { const k = Math.round(c.row / 4); const key = [...rows.keys()].find((q) => Math.abs(q - k) <= 1) ?? k; rows.set(key, [...(rows.get(key) ?? []), c]) }
+    const dev = (key, list) => Math.max(...list.map((c) => c[key])) - Math.min(...list.map((c) => c[key]))
+    const bad = []
+    let maxOpen = 0, maxRate = 0, maxSlot = 0, maxPrice = 0, perRow = []
+    for (const list of rows.values()) {
+      const d = { open: dev('open', list), rate: dev('rate', list), slot: dev('slot', list), price: dev('price', list) }
+      perRow.push(`${list.length}c o${d.open.toFixed(2)} r${d.rate.toFixed(2)}`)
+      maxOpen = Math.max(maxOpen, d.open); maxRate = Math.max(maxRate, d.rate); maxSlot = Math.max(maxSlot, d.slot); maxPrice = Math.max(maxPrice, d.price)
+    }
+    if (maxOpen > 1) bad.push(`Open buttons differ by ${maxOpen.toFixed(2)}px within a row`)
+    if (maxRate > 1) bad.push(`rating buttons differ by ${maxRate.toFixed(2)}px within a row`)
+    if (maxSlot > 1) bad.push(`comment lines differ by ${maxSlot.toFixed(2)}px within a row`)
+    if (before.some((c) => c.slotH < 19.5 || c.slotH > 20.5)) bad.push('a comment line is not 20px high')
+    if (before.some((c) => c.wraps)) bad.push('a rating button wraps or is clipped')
+    if (w < 520 && new Set(before.map((c) => c.left)).size !== 1) bad.push('the phone layout is not one column')
+    // Rating or liking cards, with the popover opening each time: no button of any card moves, no card changes height.
+    let shift = 0
+    for (const idx of [2, 3, 0]) {
+      const card = page.locator('.shop-grid > .shop-card').nth(idx)
+      await card.locator('.shop-rate-btn.is-like').click()
+      await page.waitForTimeout(150)
+      const open = await page.evaluate(tops)
+      if (!(await card.locator('.shop-pop').count())) bad.push(`card ${idx + 1}: no popover after rating`)
+      for (let i = 0; i < before.length; i++) {
+        const a = before[i], b = open[i]
+        if (process.env.DEBUG_CARDS) for (const k of ['open', 'rate', 'slot', 'h']) if (Math.abs(a[k] - b[k]) > 1) console.log(`  card ${i + 1} ${k}: ${a[k]} -> ${b[k]} (rated card ${idx + 1})`)
+        shift = Math.max(shift, Math.abs(a.open - b.open), Math.abs(a.rate - b.rate), Math.abs(a.slot - b.slot), Math.abs(a.h - b.h), ...a.btns.flatMap((q, k) => q.map((v, j) => (j < 2 ? Math.abs(v - b.btns[k][j]) : Math.abs(v - b.btns[k][j])))))
+      }
+      if (idx === 3) await page.keyboard.press('Escape')
+      before.splice(0, before.length, ...(await page.evaluate(tops)))
+    }
+    if (shift > 1) bad.push(`rating a card moved something by ${shift.toFixed(2)}px`)
+    // The popover is fully inside the window (or flipped above) and not clipped.
+    await page.locator('.shop-grid > .shop-card').nth(7).scrollIntoViewIfNeeded()
+    await page.locator('.shop-grid > .shop-card').nth(7).locator('.shop-rate-btn.is-love').click()
+    await page.waitForTimeout(150)
+    const pop = await page.evaluate(() => { const p = document.querySelector('.shop-pop'); const r = p.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, vh: innerHeight, vw: innerWidth, above: p.classList.contains('is-above'), focus: document.activeElement?.tagName } })
+    if (pop.top < 0 || pop.bottom > pop.vh + 0.5 || pop.left < 0 || pop.right > pop.vw + 0.5) bad.push(`the popover is outside the window (${pop.top.toFixed(0)}-${pop.bottom.toFixed(0)} of ${pop.vh})`)
+    if (pop.focus !== 'TEXTAREA') bad.push(`focus is on ${pop.focus}, not the textarea`)
+    const cols = new Set(before.map((c) => c.left)).size
+    out.push({ w, h, cols, maxOpen, maxRate, maxSlot, maxPrice, shift, perRow, bad })
+    await page.context().close()
+  }
+  console.log('\n=== product cards (askcards): alignment within each row of cards ===')
+  console.log('window'.padEnd(11) + 'cols'.padEnd(6) + 'max dev Open'.padEnd(14) + 'rating btns'.padEnd(13) + 'comment line'.padEnd(14) + 'price'.padEnd(8) + 'shift on rate'.padEnd(15) + 'rows (cards, Open dev, rating dev)')
+  for (const r of out) console.log(`${r.w}x${r.h}`.padEnd(11) + String(r.cols).padEnd(6) + `${r.maxOpen.toFixed(2)}px`.padEnd(14) + `${r.maxRate.toFixed(2)}px`.padEnd(13) + `${r.maxSlot.toFixed(2)}px`.padEnd(14) + `${r.maxPrice.toFixed(2)}px`.padEnd(8) + `${r.shift.toFixed(2)}px`.padEnd(15) + r.perRow.join(' | '))
+  for (const r of out) for (const b of r.bad) misses.push(`${r.w}x${r.h} product cards | ${b}`)
+}
+
 const reasonsUsed = new Set()
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'silent' })
 await server.listen()
@@ -621,7 +694,7 @@ const browser = await chromium.launch({ headless: true, args: ['--use-angle=swif
 const misses = []
 const fmt = (n, d = 3) => n.toFixed(d)
 try {
-  for (const [w, h] of MODE === 'style' ? [] : SIZES) {
+  for (const [w, h] of MODE === 'style' || MODE === 'cards' ? [] : SIZES) {
     const page = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
     await page.goto(url, { waitUntil: 'load' })
     await page.waitForSelector('.home-slot-live')
@@ -694,7 +767,8 @@ try {
     }
     await page.context().close()
   }
-  if (MODE !== 'home') await runStyle(browser, url)
+  if (MODE === 'cards' || MODE === 'style' || MODE === 'all') await runCards(browser, url)
+  if (MODE !== 'home' && MODE !== 'cards') await runStyle(browser, url)
 } finally {
   await browser.close()
   await server.close()
