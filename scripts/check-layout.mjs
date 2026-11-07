@@ -29,6 +29,7 @@ const ALL = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080]]
 // CHECK_SIZES=1440x900,1920x1080 limits the run to some sizes.
 const SIZES = process.env.CHECK_SIZES ? ALL.filter(([w, h]) => process.env.CHECK_SIZES.split(',').includes(`${w}x${h}`)) : ALL
 const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
+const ASK = { panelMax: 460, panelMaxPhone: 560, tileMin: 140, tileMinPhone: 150, tileMax: 340, band: 48, rowDiff: 2, cover: 0.7, cover2: 0.5, sideGap: 24 } // the questions panel (one question at a time): heights and tile widths wanted
 const TARGET = { hFill: 0.85, vFill: 0.8, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4, rowPad: 16 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
 const expected = new Set(JSON.parse(readFileSync(expectedFile, 'utf8')).misses)
@@ -150,6 +151,11 @@ const STYLE_PAGES = [
   { name: 'ShopAI (idle)', path: '/shop?fixture=empty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopIdle', onScale: true },
   { name: 'ShopAI (first load)', path: '/shop?fixture=savedempty', ready: '.page-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '', paras: '', extra: 'shopFresh', onScale: true },
   { name: 'ShopAI (results)', path: '/shop?fixture=rated', ready: '.shop-card', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.shop-card, .shop-saved-card, .shop-again', paras: '.shop-short', extra: 'shopResults', onScale: true },
+  { name: 'ShopAI (questions)', path: '/shop?fixture=askpics', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', interact: true, onScale: true },
+  { name: 'ShopAI (questions, text)', path: '/shop?fixture=asktext', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', onScale: true },
+  { name: 'ShopAI (questions, mixed)', wantDots: 2, path: '/shop?fixture=askmixed', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', onScale: true },
+  { name: 'ShopAI (questions, partial)', path: '/shop?fixture=askpartial', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', onScale: true, wantStep: '3 of 5' },
+  { name: 'ShopAI (questions, five picks)', path: '/shop?fixture=askfive', ready: '.clarify-q-title', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.clarify-main, .clarify-side', paras: '', extra: 'shopAsk', onScale: true, picks: 5 },
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
 ]
 
@@ -276,6 +282,48 @@ function measureExtra(kind) {
     const pipe = document.querySelector('#sat-pipeline').getBoundingClientRect()
     return { ...headerBlock(), spare, lastText, Wc, left: L.w / Wc, gutter: (Rt.l - L.r) / Wc, right: Rt.w / Wc, boxDiff: L.b - Rt.b, leftBottom: leftText.b, creditsBottom: credits.b, mapW: stage.w / Wc, mapH: stage.h, mapInside: stage.r <= Rt.r + 0.5 && stage.l >= Rt.l - 0.5, controlsTop: modebar.t, numeral: px(getComputedStyle(dd[0]).fontSize), oneLine, tileDx, tileDy, page: doc.scrollHeight, vh: innerHeight, barBottom: bar.b, overlap: L.r > Rt.l + 0.5, pipeTop: pipe.top + scrollY, creditsGap: credits.t - bar.b, creditsW: credits.w, mapWpx: stage.w, creditsLeftOk: Math.abs(credits.l - stage.l) <= 1 }
   }
+  if (kind === 'shopAsk') {
+    // The questions panel (one question at a time): inside the container and the window, slim, equal tiles left-aligned, text at the tokens.
+    const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
+    const cont = { l: sh.getBoundingClientRect().left + px(cs.paddingLeft), r: sh.getBoundingClientRect().right - px(cs.paddingRight) }
+    const Wc = cont.r - cont.l
+    const panel = document.querySelector('.clarify'), pr = R(panel), main = document.querySelector('.clarify-main'), mcs = getComputedStyle(main), mr = R(main), pin = { l: mr.l + px(mcs.paddingLeft), w: mr.w - px(mcs.paddingLeft) - px(mcs.paddingRight) }
+    const side = document.querySelector('.clarify-side'), sr = side ? R(side) : null, scs = side ? getComputedStyle(side) : null
+    const tiles = [...document.querySelectorAll('.clarify-tile')], pics = [...document.querySelectorAll('.clarify-pic:not(.is-text)')]
+    const rects = tiles.map(R)
+    const rowsByTop = new Map()
+    rects.forEach((q) => { const k = [...rowsByTop.keys()].find((t) => Math.abs(t - q.t) <= 2) ?? q.t; rowsByTop.set(k, [...(rowsByTop.get(k) ?? []), q]) })
+    const rowDiff = Math.max(0, ...[...rowsByTop.values()].map((r) => Math.max(...r.map((q) => q.h)) - Math.min(...r.map((q) => q.h))))
+    const rowWDiff = Math.max(0, ...[...rowsByTop.values()].map((r) => Math.max(...r.map((q) => q.w)) - Math.min(...r.map((q) => q.w))))
+    const labelFs = [...document.querySelectorAll('.clarify-label')].map((e) => px(getComputedStyle(e).fontSize))
+    const over = [...panel.querySelectorAll('*')].filter((e) => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== 'hidden' && e.clientWidth > 0).map((e) => e.className || e.tagName)
+    const imgs = [...document.querySelectorAll('.clarify-pic img')]
+    const fitOk = imgs.every((i) => getComputedStyle(i).objectFit === 'contain')
+    const heading = px(getComputedStyle(document.querySelector('.clarify-q-title')).fontSize), head2 = px(getComputedStyle(document.querySelector('.clarify-title')).fontSize)
+    const probe = (css, prop) => { const el = document.createElement('div'); el.style.cssText = `position:absolute;visibility:hidden;${css}`; sh.appendChild(el); const v = px(getComputedStyle(el)[prop]); el.remove(); return v }
+    const doc = document.documentElement
+    const progress = document.querySelector('.shop-steps')
+    const dots = [...document.querySelectorAll('.clarify-dot')].map(R)
+    const smalls = ['.clarify-sub', '.clarify-count', '.clarify-nopref'].map((q) => px(getComputedStyle(document.querySelector(q)).fontSize))
+    const first = rects[0]
+    const rowRects = rects.filter((q) => Math.abs(q.t - first.t) <= 2)
+    const grid = document.querySelector('.clarify-options'), gap = px(getComputedStyle(grid).columnGap)
+    const sideInfo = side ? (() => {
+      const last = side.lastElementChild, lr = R(last), top = sr.t + px(scs.borderTopWidth) + px(scs.paddingTop), bottom = sr.b - px(scs.borderBottomWidth) - px(scs.paddingBottom)
+      const pk = side.querySelector('.clarify-picks'), nt = side.querySelector('.clarify-side-note'), chips = [...side.querySelectorAll('.clarify-picks li')]
+      return { band: R(nt).t - (chips.length ? Math.max(...chips.map((c) => R(c).b)) : R(pk).b), sideW: sr.w, share: sr.w / pr.w, chips: chips.length, equal: Math.abs(sr.h - mr.h), hairline: scs.borderLeftWidth, hairlineColor: scs.borderLeftColor, border: (() => { const el = document.createElement('div'); el.style.cssText = 'position:absolute;visibility:hidden;border:1px solid var(--color-border)'; sh.appendChild(el); const v = getComputedStyle(el).borderTopColor; el.remove(); return v })(), gap: bottom - lr.b, vFill: (lr.b - top) / (bottom - top), overflow: [...side.children].filter((k) => R(k).b > bottom + 0.5 || k.scrollWidth > k.clientWidth + 1).map((k) => k.className), stepsIn: !!side.querySelector('.shop-steps'), picks: side.querySelectorAll('.clarify-picks li').length, w: sr.w / pr.w, left: mr.w / pr.w }
+    })() : null
+    return {
+      Wc, panelWpx: pr.w, panelL: pr.l - cont.l, panelR: cont.r - pr.r, panelW: pr.w / Wc, panelH: pr.h, questions: document.querySelectorAll('.clarify-q-title').length, count: document.querySelector('.clarify-count').textContent.trim(),
+      tiles: tiles.length, tileMin: tiles.length ? Math.min(...rects.map((q) => q.w)) : 0, tileMax: tiles.length ? Math.max(...rects.map((q) => q.w)) : 0, tileH: rects.map((q) => Math.round(q.h)), rowDiff, rowWDiff, tileLeft: first ? first.l - pin.l : 99,
+      textTiles: document.querySelectorAll('.clarify-pic.is-text').length, labelMin: Math.min(...labelFs), labelWant: probe('font-size:var(--text-card)', 'fontSize'),
+      headWant: probe('font-size:var(--text-label)', 'fontSize'), smallWant: probe('font-size:var(--text-small)', 'fontSize'), heading, head2, smalls,
+      picRatio: pics.map((p) => R(p).w / R(p).h), fitOk, over, dotCount: dots.length, dotMin: dots.length ? Math.min(...dots.map((d) => Math.min(d.w, d.h))) : 0,
+      page: doc.scrollHeight, vh: innerHeight, hscroll: doc.scrollWidth - innerWidth, scrollY: Math.round(scrollY),
+      cover: rowRects.length ? (rowRects.reduce((a, q) => a + q.w, 0) + gap * (rowRects.length - 1)) / pin.w : 0, rowTiles: rowRects.length, sideInfo, stepsCount: document.querySelectorAll('.shop-steps').length, timers: document.querySelectorAll('.shop-timer').length, wide: innerWidth >= 1280,
+      stepsAbove: progress ? R(progress).b <= pr.t + 0.5 : false, panelTop: pr.t + scrollY, panelBottom: pr.b + scrollY, inWindow: pr.t >= -0.5 && pr.b <= innerHeight + 0.5, winTop: pr.t, winBottom: pr.b,
+    }
+  }
   if (kind === 'shopIdle' || kind === 'shopResults' || kind === 'shopFresh') {
     const sh = document.querySelector('.shop'), cs = getComputedStyle(sh)
     const Wc = sh.getBoundingClientRect().width - px(cs.paddingLeft) - px(cs.paddingRight)
@@ -292,9 +340,95 @@ function measureExtra(kind) {
     }
     const tileFill = stages.map((e) => { const r = R(e), s = getComputedStyle(e), t = textBox(e); return { h: (t.r - t.l) / (r.w - px(s.paddingLeft) - px(s.paddingRight)), v: (t.b - t.t) / (r.h - px(s.paddingTop) - px(s.paddingBottom)) } })
     const input = R(document.querySelector('.shop-input')), form = R(document.querySelector('.shop-form')), lede = R(document.querySelector('main .page-lede')), row = R(document.querySelector('.shop-form-row'))
-    return { ...headerBlock(), Wc, stages: stages.length, stagesRow: new Set(sr.map((q) => Math.round(q.t))).size === 1, clipped, guard, tileFillMin: Math.min(...tileFill.map((q) => q.h)), tileFillV: Math.min(...tileFill.map((q) => q.v)), inputW: input.w / Wc, formW: form.w / Wc, ledeW: lede.w, rowW: row.w, ledeLeft: lede.l - row.l, guardRows: document.querySelectorAll('.shop-guard-row').length, page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked2x2: new Set(sr.map((q) => Math.round(q.l))).size }
+    const stageText = Math.min(...stages.map((e) => { const q = getComputedStyle(e); return e.getBoundingClientRect().width - px(q.paddingLeft) - px(q.paddingRight) - px(q.borderLeftWidth) - px(q.borderRightWidth) }))
+    const stageFont = Math.min(...stages.map((e) => px(getComputedStyle(e.querySelector('p')).fontSize)))
+    return { ...headerBlock(), Wc, stageText, stageFont, stageRows: new Set(sr.map((q) => Math.round(q.t))).size, stages: stages.length, stagesRow: new Set(sr.map((q) => Math.round(q.t))).size === 1, clipped, guard, tileFillMin: Math.min(...tileFill.map((q) => q.h)), tileFillV: Math.min(...tileFill.map((q) => q.v)), inputW: input.w / Wc, formW: form.w / Wc, ledeW: lede.w, rowW: row.w, ledeLeft: lede.l - row.l, guardRows: document.querySelectorAll('.shop-guard-row').length, page: doc.scrollHeight, vh: innerHeight, gridW: grid ? R(grid).w : null, gridWanted: Wc, stacked2x2: new Set(sr.map((q) => Math.round(q.l))).size }
   }
   return null
+}
+
+// The stepper's behaviour in a real page (the dev fixture keeps the choices): choose and advance, Back, clear, keyboard, dots, the last
+// question, No preference, Show results, focus and reduced motion. Returns the failures.
+async function interact(browser, base, w, h) {
+  const bad = []
+  const open = async (opts = {}) => {
+    const page = await (await browser.newContext({ viewport: { width: w, height: h }, ...opts })).newPage()
+    await page.goto(`${base}shop?fixture=askpics`, { waitUntil: 'load' })
+    await page.waitForSelector('.clarify-q-title', { timeout: 30000 })
+    await page.waitForTimeout(500)
+    return page
+  }
+  const title = (page) => page.locator('.clarify-q-title').innerText()
+  const count = (page) => page.locator('.clarify-count').innerText()
+  const checked = (page) => page.locator('.clarify-tile[aria-checked="true"]').count()
+  const focusIs = (page, cls) => page.evaluate((c) => document.activeElement?.classList.contains(c) ?? false, cls)
+  const Q = ['Which colour do you like?', 'What should it be made of?', 'Which shape do you want?', 'Which look do you prefer?', 'How big should it be?']
+  const page = await open()
+  const expect = (ok, msg) => { if (!ok) bad.push(msg) }
+  expect((await title(page)) === Q[0] && (await count(page)) === '1 of 5', 'does not open on question 1 of 5')
+  const t0 = await page.locator('.shop-timer').first().innerText()
+  await page.waitForTimeout(1300)
+  expect((await page.locator('.shop-timer').first().innerText()) !== t0, 'the timer does not update')
+  expect(await page.locator('.clarify-back.is-hidden').count() === 1, 'Back is not hidden on question 1')
+  // choose: advances after the pause, moves focus to the question text
+  await page.locator('.clarify-tile').first().click()
+  await page.waitForTimeout(600)
+  expect((await title(page)) === Q[1] && (await count(page)) === '2 of 5', 'choosing a tile does not move on to question 2')
+  expect(await focusIs(page, 'clarify-q-title'), 'focus does not move to the question text on advance')
+  expect(await page.locator('.clarify-back:not(.is-hidden)').count() === 1, 'Back is not shown on question 2')
+  expect((await page.locator('.clarify-dot.is-answered').count()) === 1 && (await page.locator('.clarify-dot.is-current').count()) === 1, 'the dots do not show 1 answered and 1 current')
+  if (w >= 1280) {
+    // the picks column lists the answer; its x clears it (and the dot goes back to unanswered)
+    expect((await page.locator('.clarify-picks li').count()) === 1 && (await page.locator('.clarify-picks li').innerText()).includes('Cream'), 'the picks column does not list the answer')
+    await page.locator('.clarify-picks .shop-chip-x').click()
+    await page.waitForTimeout(100)
+    expect((await page.locator('.clarify-picks li').count()) === 0 && (await page.locator('.clarify-picks-empty').count()) === 1 && (await page.locator('.clarify-dot.is-answered').count()) === 0, 'clearing a pick does not clear the answer')
+    await page.locator('.clarify-back').click()
+    await page.locator('.clarify-tile').first().click()
+    await page.waitForTimeout(600)
+  }
+  // back: the answer is still there; choosing it again clears it and does not advance
+  await page.locator('.clarify-back').click()
+  await page.waitForTimeout(100)
+  expect((await title(page)) === Q[0] && (await checked(page)) === 1, 'Back does not return to question 1 with its answer')
+  await page.locator('.clarify-tile').first().click()
+  await page.waitForTimeout(600)
+  expect((await title(page)) === Q[0] && (await checked(page)) === 0, 'choosing the chosen tile again does not clear it in place')
+  // keyboard: the arrows move focus without choosing; Enter chooses and advances
+  await page.locator('.clarify-tile').first().focus()
+  await page.keyboard.press('ArrowRight')
+  await page.waitForTimeout(600)
+  expect((await page.evaluate(() => document.activeElement?.textContent)) === 'Walnut or brown' && (await checked(page)) === 0 && (await title(page)) === Q[0], 'ArrowRight does not just move focus to the next tile')
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(600)
+  expect((await title(page)) === Q[1], 'Enter does not choose and advance')
+  // dots, the No preference chip, the last question
+  await page.locator('.clarify-dot').nth(2).click()
+  await page.waitForTimeout(100)
+  expect((await title(page)) === Q[2] && (await count(page)) === '3 of 5' && (await focusIs(page, 'clarify-q-title')), 'a dot does not go to its question')
+  await page.locator('.clarify-nopref').click()
+  await page.waitForTimeout(600)
+  expect((await title(page)) === Q[3], 'No preference does not choose and advance')
+  await page.locator('.clarify-dot').nth(4).click()
+  await page.waitForTimeout(100)
+  await page.locator('.clarify-tile').first().click()
+  await page.waitForTimeout(600)
+  expect((await title(page)) === Q[4] && (await count(page)) === '5 of 5', 'the last question moved on')
+  expect(await page.locator('.clarify-submit:not([disabled])').isVisible(), 'Show results is not visible and enabled on the last question')
+  await page.locator('.clarify-submit').click()
+  await page.waitForTimeout(100)
+  expect((await page.locator('.clarify-tile[disabled]').count()) > 0 && (await page.locator('.clarify-note').innerText()).length > 0, 'Show results does not lock the tiles and say so')
+  await page.context().close()
+  // reduced motion: no pause before moving on, no fade
+  const rm = await open({ reducedMotion: 'reduce' })
+  await rm.locator('.clarify-tile').first().click()
+  await rm.waitForTimeout(60)
+  expect((await title(rm)) === Q[1], 'with reduced motion the panel does not move on at once')
+  await rm.locator('.clarify-back').click()
+  await rm.waitForTimeout(50)
+  expect(await rm.evaluate(() => [...document.querySelectorAll('.clarify-pic img')].every((i) => getComputedStyle(i).animationName === 'none')), 'with reduced motion a picture still fades')
+  await rm.context().close()
+  return bad
 }
 
 async function runStyle(browser, base) {
@@ -309,8 +443,10 @@ async function runStyle(browser, base) {
       await page.waitForTimeout(cfg.wait ?? 500)
       if (cfg.scroll) { await page.evaluate((s) => document.querySelector(s)?.scrollIntoView(), cfg.scroll); await page.waitForTimeout(300) }
       if (cfg.extra === 'sat') await page.waitForSelector('.sat-risk-card', { timeout: 20000 }).catch(() => {})
+      if (cfg.extra === 'shopAsk') { let last = -1; for (let i = 0; i < 30; i++) { const y = await page.evaluate(() => scrollY); if (y === last) break; last = y; await page.waitForTimeout(150) } } // the panel's own smooth scroll into view settles
       const m = await page.evaluate(measureStyle, cfg)
       const x = cfg.extra ? await page.evaluate(measureExtra, cfg.extra) : null
+      if (x && cfg.interact && [1280, 1440, 390].includes(w)) x.interact = await interact(browser, base, w, h)
       // The sources line's "Data and credits" link must still take the page to the credits.
       let creditsTop = null
       if (cfg.extra === 'sat' && w >= 1280) { await page.click('.globe-credits a'); await page.waitForTimeout(1500); creditsTop = await page.evaluate(() => { const t = document.querySelector('#sat-credits').getBoundingClientRect().top; const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2; return atEnd && t > 0 ? 0 : t }) } // (a page already scrolled to its end cannot bring the credits higher)
@@ -349,8 +485,11 @@ async function runStyle(browser, base) {
         if (w >= 1440 && x.barBottom > x.vh + 0.5) bad.push(`the clock bar's bottom is at ${x.barBottom.toFixed(0)}px, below the ${x.vh}px window`)
       }
       if (x && cfg.extra === 'shopIdle' && w >= 1100) {
-        if (x.stages < 3 || x.stages > 5) bad.push(`${x.stages} pipeline tiles (3 to 5 wanted)`)
-        if (!x.stagesRow) bad.push('the pipeline tiles are not in one row')
+        if (x.stages !== 6) bad.push(`${x.stages} pipeline tiles (6 wanted: Understand, Search, Ask, Check photos, Rank, Results)`)
+        if (w >= 1600 && !x.stagesRow) bad.push('the six pipeline tiles are not in one row from 1600px')
+        if (w < 1600 && x.stageRows !== 2) bad.push(`the pipeline tiles are in ${x.stageRows} rows (two rows of three from 1100px to 1599px)`)
+        if (x.stageText < 150) bad.push(`pipeline tile text is ${x.stageText.toFixed(0)}px wide (150px wanted)`)
+        if (x.stageFont < 16.99) bad.push(`pipeline tile text is ${x.stageFont}px (the card token, 17px, wanted)`)
         if (x.clipped) bad.push('a pipeline tile clips its text')
         if (x.guard && (x.guard.hFill < TARGET.hFill || x.guard.vFill < TARGET.hFill)) bad.push(`Guardrails card fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)} (more than 15% dead space)`)
         if (x.formW < 0.97 || x.inputW < 0.85) bad.push(`the form is ${(x.formW * 100).toFixed(0)}% and the input ${(x.inputW * 100).toFixed(0)}% of the content width`)
@@ -358,9 +497,56 @@ async function runStyle(browser, base) {
         if (x.guardRows < 3) bad.push(`Guardrails shows ${x.guardRows} rows`)
         if (w >= 1440 && x.page > x.vh + 0.5) bad.push(`the idle page is ${x.page}px tall in a ${x.vh}px window`)
       }
+      if (x && cfg.extra === 'shopAsk') {
+        const phone = w < 720
+        const wide = w >= 1280
+        if (x.panelL < -0.5 || x.panelR < -0.5) bad.push(`the questions panel leaves the container by ${Math.min(x.panelL, x.panelR).toFixed(1)}px`)
+        if (x.panelW < 0.995) bad.push(`the questions panel is ${(x.panelW * 100).toFixed(1)}% of the content width`)
+        if (x.questions !== 1) bad.push(`${x.questions} questions visible (one at a time wanted)`)
+        if (cfg.wantStep && x.count !== cfg.wantStep) bad.push(`the panel shows "${x.count}" (${cfg.wantStep} wanted)`)
+        if (x.panelH > (phone ? ASK.panelMaxPhone : ASK.panelMax) + 0.5) bad.push(`the questions panel is ${x.panelH.toFixed(0)}px tall (${phone ? ASK.panelMaxPhone : ASK.panelMax}px wanted)`)
+        if (x.tileMin < (phone ? ASK.tileMinPhone : ASK.tileMin)) bad.push(`an option tile is ${x.tileMin.toFixed(0)}px wide (${phone ? ASK.tileMinPhone : ASK.tileMin}px wanted)`)
+        if (x.tileMax > ASK.tileMax + 0.5) bad.push(`an option tile is ${x.tileMax.toFixed(0)}px wide (${ASK.tileMax}px at most)`)
+        if (x.rowDiff > ASK.rowDiff) bad.push(`tiles in a row differ in height by ${x.rowDiff.toFixed(1)}px (${ASK.rowDiff}px allowed)`)
+        if (x.rowWDiff > 1) bad.push(`tiles in a row differ in width by ${x.rowWDiff.toFixed(1)}px`)
+        if (Math.abs(x.tileLeft) > 1) bad.push(`the first tile is ${x.tileLeft.toFixed(1)}px from the panel's left edge (left-aligned wanted)`)
+        if (Math.abs(x.labelMin - x.labelWant) > 0.5) bad.push(`tile labels are ${x.labelMin}px, the card token is ${x.labelWant}px`)
+        if (Math.abs(x.heading - x.headWant) > 0.5 || Math.abs(x.head2 - x.headWant) > 0.5) bad.push(`question headings are ${x.heading}px / ${x.head2}px, the label token is ${x.headWant}px`)
+        if (x.smalls.some((v) => Math.abs(v - x.smallWant) > 0.5)) bad.push(`the sub-line, count or chip is ${x.smalls.join('/')}px, the small token is ${x.smallWant}px`)
+        if (x.picRatio.some((r) => Math.abs(r - (w >= 1600 ? 3 / 2 : 4 / 3)) > 0.02)) bad.push(`a picture area is not ${w >= 1600 ? '3:2' : '4:3'}`)
+        if (!x.fitOk) bad.push('a picture is not object-fit: contain')
+        if (x.over.length) bad.push(`content overflows inside the panel: ${x.over.slice(0, 3).join(', ')}`)
+        if (x.dotCount !== (cfg.wantDots ?? 5)) bad.push(`${x.dotCount} progress dots (${cfg.wantDots ?? 5} in the fixture)`)
+        if (x.dotMin < 43.5) bad.push(`a progress dot's touch target is ${x.dotMin.toFixed(0)}px (44px wanted)`)
+        if (x.stepsCount !== 1) bad.push(`the progress steps are in the page ${x.stepsCount} times (once wanted)`)
+        if (x.timers !== 1) bad.push(`${x.timers} timers (one wanted)`)
+        if (wide) {
+          const si = x.sideInfo
+          if (!si) bad.push('no right column in the questions panel at 1280px or wider')
+          else {
+            if (si.equal > 1) bad.push(`the panel's columns differ in height by ${si.equal.toFixed(1)}px`)
+            if (si.hairline !== '1px' || si.hairlineColor !== si.border) bad.push(`no hairline in the card border colour between the columns (${si.hairline} ${si.hairlineColor})`)
+            if (!si.stepsIn) bad.push('the progress steps are not in the right column')
+            if (si.gap > ASK.sideGap + 0.5) bad.push(`the right column's last block ends ${si.gap.toFixed(0)}px above its inner bottom (${ASK.sideGap}px wanted; fill ${si.vFill.toFixed(2)})`)
+            if (si.vFill < 0.85) bad.push(`the right column's vertical fill is ${si.vFill.toFixed(2)} (0.85 wanted)`)
+            const wantW = Math.min(440, Math.max(280, 0.26 * x.panelWpx))
+            if (Math.abs(si.sideW - wantW) > 1.5) bad.push(`the right column is ${si.sideW.toFixed(0)}px wide (clamp(280px, 26%, 440px) = ${wantW.toFixed(0)}px wanted)`)
+            if (cfg.picks && si.chips !== cfg.picks) bad.push(`${si.chips} picks (${cfg.picks} in the fixture)`)
+            if (cfg.picks && si.band > ASK.band + 0.5) bad.push(`the band between the picks and the note is ${si.band.toFixed(0)}px (${ASK.band}px wanted with ${cfg.picks} picks)`)
+            if (si.overflow.length) bad.push(`right column blocks overflow: ${si.overflow.join(', ')}`)
+            const want = x.rowTiles >= 3 ? ASK.cover : ASK.cover2
+            if (x.cover < want) bad.push(`the tile row covers ${x.cover.toFixed(2)} of the left column (${want} wanted for ${x.rowTiles} options)`)
+          }
+        } else {
+          if (x.sideInfo) bad.push('the right column shows below 1280px')
+          if (!x.stepsAbove) bad.push('the progress steps are not above the questions')
+        }
+        if (!x.inWindow) bad.push(`the panel is not fully in the window after the auto-scroll (${x.winTop.toFixed(0)} to ${x.winBottom.toFixed(0)} in a ${x.vh}px window)`)
+        for (const m of x.interact ?? []) bad.push(`interaction: ${m}`)
+      }
       if (x && cfg.extra === 'shopFresh' && x.guardRows < 3) bad.push(`Guardrails shows ${x.guardRows} rows on a first load`)
       if (x && cfg.extra === 'shopIdle' && w < 1100 && x.stages) {
-        if (w > 520 && x.stacked2x2 !== 2) bad.push('the pipeline tiles are not two by two')
+        if (w > 520 && x.stacked2x2 !== 2) bad.push('the pipeline tiles are not two across')
         if (w <= 520 && x.stacked2x2 !== 1) bad.push('the pipeline tiles are not one column')
         if (x.clipped) bad.push('a pipeline tile clips its text')
       }
@@ -382,10 +568,11 @@ async function runStyle(browser, base) {
   }
   console.log('\n=== style: page-specific layout ===')
   for (const { cfg, w, h, x } of rows) {
-    if (!x || w < 1100) continue
+    if (!x || (w < 1100 && cfg.extra !== 'shopAsk')) continue
     const tag = `${cfg.name.padEnd(18)}${`${w}x${h}`.padEnd(11)}`
     if (cfg.extra === 'sat') console.log(`${tag}columns ${x.left.toFixed(3)} / ${x.gutter.toFixed(3)} / ${x.right.toFixed(3)} | map ${(x.mapW * 100).toFixed(0)}% x ${x.mapH.toFixed(0)}px | Pipeline top ${x.pipeTop.toFixed(0)} (window ${x.vh}) | tile centre off ${x.tileDx.toFixed(1)}/${x.tileDy.toFixed(1)}px | numerals ${x.numeral.toFixed(1)}px | S ${x.spare.S.toFixed(0)}px = gaps ${x.spare.gaps.toFixed(0)} (${x.spare.gapEach.toFixed(0)} each) + tiles ${x.spare.tiles.toFixed(0)} (${x.spare.tileRatio.toFixed(2)}x) + risk card ${x.spare.risk.toFixed(0)} (rows ${x.spare.rowH.toFixed(0)}px) + flexible gap ${x.spare.flexGap.toFixed(0)} | left last line ${(x.lastText - x.barBottom).toFixed(0)}px from the clock bar | sources line ${x.creditsGap.toFixed(0)}px under the bar, ${x.creditsW.toFixed(0)}px wide | bar bottom ${x.barBottom.toFixed(0)}`)
-    else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines (${x.ledeW.toFixed(0)}px, search row ${x.rowW.toFixed(0)}px), Guardrails rows ${x.guardRows} | ${x.stages} tiles${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopIdle') console.log(`${tag}title+chips+text: chips ${x.chipCount} (${x.chipH}px, gap ${x.chipGap}px), description ${x.ledeLines} lines (${x.ledeW.toFixed(0)}px, search row ${x.rowW.toFixed(0)}px), Guardrails rows ${x.guardRows} | ${x.stages} tiles in ${x.stageRows} row(s), text ${x.stageText.toFixed(0)}px wide ${x.stageFont}px${x.clipped ? ' CLIPPED' : ''}, tile fill ${x.tileFillMin.toFixed(2)} | Guardrails ${x.guard ? `${(x.guard.widthPct * 100).toFixed(0)}% wide, fill ${x.guard.hFill.toFixed(2)} x ${x.guard.vFill.toFixed(2)}` : 'none'} | page ${x.page}/${x.vh}`)
+    else if (cfg.extra === 'shopAsk') console.log(`${tag}questions panel ${(x.panelW * 100).toFixed(1)}% wide ${x.panelH.toFixed(0)}px tall, "${x.count}", ${x.tiles} tiles (${x.textTiles} text) ${x.tileMin.toFixed(0)}-${x.tileMax.toFixed(0)}px wide, heights ${[...new Set(x.tileH)].join('/')}px (row diff ${x.rowDiff.toFixed(1)}), labels ${x.labelMin}px, headings ${x.heading}px | ${x.sideInfo ? `columns ${(x.sideInfo.left * 100).toFixed(0)}/${(x.sideInfo.w * 100).toFixed(0)}% (height diff ${x.sideInfo.equal.toFixed(1)}), cover ${x.cover.toFixed(2)} of ${x.rowTiles} tiles, right column ${x.sideInfo.sideW.toFixed(0)}px = ${(x.sideInfo.share * 100).toFixed(0)}% (${x.sideInfo.chips} picks, band ${x.sideInfo.band.toFixed(0)}px), fill ${x.sideInfo.vFill.toFixed(2)}, steps inside` : `one column, steps ${x.stepsAbove ? 'above' : 'NOT ABOVE'}`} | auto-scroll ${x.scrollY}px, panel ${x.winTop.toFixed(0)}-${x.winBottom.toFixed(0)} of ${x.vh} ${x.inWindow ? 'in view' : 'NOT IN VIEW'} | page ${x.page}${x.hscroll > 1 ? ` | SCROLLS SIDEWAYS ${x.hscroll}px` : ''}${x.interact ? (x.interact.length ? ' | INTERACTION FAILED' : ' | interaction ok') : ''}`)
     else if (cfg.extra === 'shopFresh') console.log(`${tag}Guardrails rows on a first load: ${x.guardRows}`)
     else if (cfg.extra === 'shopResults') console.log(`${tag}results grid ${x.gridW === null ? '-' : x.gridW.toFixed(0)}px of ${x.gridWanted.toFixed(0)}px`)
   }

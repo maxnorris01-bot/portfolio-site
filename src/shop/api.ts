@@ -1,4 +1,4 @@
-import type { AuthSession, ContextKind, JobStatus, ParsedQuery, Rating, RefineChip, ResolvedLink, SessionView, ShopErrorCode } from './types.ts'
+import type { AuthSession, Clarify, ClarifyAnswer, ClarifyAnswerChip, ContextKind, JobStatus, ParsedQuery, Rating, RefineChip, ResolvedLink, SessionView, ShopErrorCode } from './types.ts'
 
 const BASE = '/api/shop'
 
@@ -111,8 +111,18 @@ export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)
       request<{ result_id: string; rating: Rating | null; comment: string }>('/rate', { method: 'POST', body, signal }),
     shopAgain: (sessionId: string, refineText: string | null, signal?: AbortSignal) =>
       request<{ job_id: string }>('/shop-again', { method: 'POST', body: { session_id: sessionId, refine_text: refineText }, signal }),
+    /**
+     * Post the answers to a job's clarifying questions (all current answers; `option_value` is an option's value or "no_preference"),
+     * and `submit: true` to rank now. Returns the server's clarify object. Not a search: it is not counted.
+     */
+    postAnswers: (jobId: string, answers: ClarifyAnswer[], submit: boolean, sessionId: string | null, signal?: AbortSignal) =>
+      request<{ clarify: Clarify }>(`/job/${encodeURIComponent(jobId)}/answers`, {
+        method: 'POST',
+        body: { answers, submit, ...(sessionId ? { session_id: sessionId } : {}) },
+        signal,
+      }),
     removeRefine: (sessionId: string, id: string, signal?: AbortSignal) =>
-      request<{ refine: RefineChip[] }>('/refine/remove', { method: 'POST', body: { session_id: sessionId, id }, signal }),
+      request<{ refine: RefineChip[]; clarify_answers?: ClarifyAnswerChip[] }>('/refine/remove', { method: 'POST', body: { session_id: sessionId, id }, signal }),
     removeContext: (sessionId: string, kind: ContextKind, value: string, signal?: AbortSignal) =>
       request<{ query: ParsedQuery; removed: string }>('/context/remove', { method: 'POST', body: { session_id: sessionId, kind, value }, signal }),
     /** Look up the store link for a result (cached on the server once found). */

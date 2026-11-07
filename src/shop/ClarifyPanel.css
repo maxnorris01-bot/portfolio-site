@@ -1,0 +1,348 @@
+/* The clarifying questions (stage Q2): one panel under the progress steps, one question at a time. Option tiles are equal-sized (a 4:3
+   picture area, then the label; a text-only option puts its label inside the same area), left-aligned, at most 4 across. Only the shared
+   tokens: --text-card for tile labels, --text-label for headings, --text-small for the quiet lines, --card-pad inside the card, the
+   site's card, chip and button styles. */
+.clarify {
+  margin-top: var(--space-4);
+  padding: 0;
+  scroll-margin-bottom: var(--space-3);
+}
+
+/* The questions column; each column carries the card padding. From 1280px a second column (the progress, the picks, a note) sits beside it. */
+.clarify-main {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--card-pad);
+}
+
+.clarify.has-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 26%, 440px);
+}
+
+.clarify-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--card-pad);
+  border-left: 1px solid var(--color-border);
+}
+
+.clarify-side .clarify-progress-block {
+  gap: 10px;
+}
+
+.clarify-picks {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+
+.clarify-picks .chip-list {
+  gap: 6px;
+}
+
+.clarify-picks .shop-caps {
+  margin: 0;
+}
+
+.clarify-picks-empty,
+.clarify-side-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.clarify-side-note {
+  margin-top: auto;
+}
+
+.clarify-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.clarify-head-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.clarify-title,
+.clarify-q-title {
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+  line-height: 1.3;
+}
+
+.clarify-q-title:focus {
+  outline: none;
+}
+
+.clarify-q-title:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.clarify-sub {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.clarify-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+/* The 44px dot buttons overlap their neighbours' padding by 10px above and below, so the header stays slim. */
+.clarify-progress {
+  margin-block: -10px;
+}
+
+.clarify-count {
+  white-space: nowrap;
+}
+
+.clarify-dots {
+  display: flex;
+}
+
+/* Each dot is a button with a 44px touch target made of padding around the 10px dot. */
+.clarify-dot {
+  padding: 17px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.clarify-dot > span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.clarify-dot.is-answered > span {
+  background: var(--color-navy);
+}
+
+.clarify-dot.is-current > span {
+  background: var(--color-accent);
+}
+
+.clarify-dot:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -4px;
+  border-radius: var(--radius);
+}
+
+.clarify-question {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Tiles of equal width, left-aligned: 2x2 on a phone, up to 4 across (200px each at most) from 720px. */
+.clarify-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+@media (max-width: 719px) {
+  .clarify-tile {
+    padding: 6px;
+    gap: 6px;
+  }
+}
+
+@media (min-width: 720px) {
+  .clarify-options {
+    --clarify-max: 200px;
+    grid-template-columns: repeat(var(--clarify-n, 4), minmax(0, var(--clarify-max)));
+    justify-content: start;
+  }
+}
+
+/* From 1280px the left column is wider: tiles may be bigger by option count (product thumbnails are small, so never past 290px; 290px keeps the panel under 460px tall). */
+@media (min-width: 1280px) {
+  .clarify-options[data-n='2'],
+  .clarify-options[data-n='3'] {
+    --clarify-max: 290px;
+  }
+
+  .clarify-options[data-n='4'] {
+    --clarify-max: 260px;
+  }
+}
+
+.clarify-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-card);
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clarify-tile:hover:not(:disabled) {
+  border-color: var(--color-navy);
+}
+
+.clarify-tile.is-on,
+.clarify-nopref.is-on {
+  border-color: var(--color-accent);
+}
+
+.clarify-tile:focus-visible,
+.clarify-nopref:focus-visible,
+.clarify-back:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.clarify-tile:disabled,
+.clarify-nopref:disabled,
+.clarify-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.clarify-label {
+  overflow-wrap: anywhere;
+}
+
+/* The picture area is fixed (4:3), so a picture arriving later moves nothing; a neutral ground so odd crops do not look broken. */
+.clarify-pic {
+  display: block;
+  flex: none;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--color-bg);
+}
+
+.clarify-pic img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: clarify-fade 0.35s ease-out;
+}
+
+/* While pictures are still being checked: a quiet tint. */
+.clarify-pic.is-pending {
+  animation: clarify-pulse 1.6s ease-in-out infinite;
+}
+
+/* A text-only option: the label is centred inside the same area (and grows to fill the tile when its row-mates are taller). */
+.clarify-pic.is-text {
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2);
+  font-weight: 600;
+  text-align: center;
+}
+
+@keyframes clarify-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes clarify-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.clarify-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.clarify-foot-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.clarify-back {
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-small);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.clarify-back.is-hidden {
+  display: none;
+}
+
+.clarify-nopref {
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.clarify-submit {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.clarify-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.clarify-note:empty {
+  display: none;
+}
+
+/* From 1600px the picture area is 3:2 (shorter), which makes room for the larger tiles of the original brief. */
+@media (min-width: 1600px) {
+  /* (Two options stay at 290px: at 340px even the 3:2 panel is 468px tall, over the 460px limit.) */
+  .clarify-options[data-n='3'] {
+    --clarify-max: 300px;
+  }
+
+  .clarify-pic {
+    aspect-ratio: 3 / 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clarify-pic img,
+  .clarify-pic.is-pending {
+    animation: none;
+  }
+}

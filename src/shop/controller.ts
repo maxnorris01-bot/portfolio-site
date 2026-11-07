@@ -1,10 +1,14 @@
 import { ShopError, isAbort, type ShopClient } from './api.ts'
+import { answersToPost, panelLocked, type ClarifyNote, type ClarifyUi } from './clarify.ts'
 import { limitBlocks, noBlocks, usageFrom, type Blocked } from './limits.ts'
 import { JobPoller } from './poller.ts'
 import { ratingBody } from './ratings.ts'
 import { initialState, readSavedSession, saveSession, shopReducer, type JobKind, type ShopAction, type ShopState } from './state.ts'
 import { safeHref } from './state.ts'
 import type { ContextKind, Rating, UsageInfo } from './types.ts'
+
+/** Rapid clicks on answer tiles are sent together after this long (the last choice wins). */
+export const ANSWER_DEBOUNCE_MS = 250
 
 /** What the page knows besides the results: the visit's limits, which buttons a refusal turned off. */
 export type ShopMeta = { usage: UsageInfo | null; blocked: Blocked; maintenance: boolean }
@@ -28,6 +32,15 @@ export class ShopController {
   private restoring: AbortController | null = null
   // Per result: only the newest save may update its indicator.
   private saves = new Map<string, number>()
+  // Stage Q2: the clarifying questions of the running search job. Answers are posted whole (idempotent), one request at a time.
+  private jobId: string | null = null
+  private posted = new Set<string>()
+  private answerTimer: ReturnType<typeof setTimeout> | null = null
+  private answerBusy = false
+  private answerDirty = false
+  private submitWanted = false
+  private answersStopped = false
+  private answerAbort: AbortController | null = null
 
   constructor(client: ShopClient) {
     this.client = client
@@ -64,8 +77,24 @@ export class ShopController {
     this.dispatch({ type: 'fail', ...info, phase })
   }
 
+  private resetAnswers() {
+    if (this.answerTimer !== null) clearTimeout(this.answerTimer)
+    this.answerTimer = null
+    this.answerAbort?.abort()
+    this.answerAbort = null
+    this.jobId = null
+    this.posted = new Set()
+    this.answerBusy = this.answerDirty = this.submitWanted = this.answersStopped = false
+  }
+
+  private ui(): ClarifyUi | null {
+    const s = this.snapshot
+    return s.status === 'running' ? (s.clarify ?? null) : null
+  }
+
   private async begin(request: string, kind: JobKind, start: (signal: AbortSignal) => Promise<{ job_id: string }>) {
     this.poller.stop()
+    this.resetAnswers()
     this.starting?.abort()
     const controller = new AbortController()
     this.starting = controller
@@ -73,10 +102,13 @@ export class ShopController {
     this.dispatch({ type: 'submit', request, kind, batch: nextBatch, now: Date.now() })
     try {
       const { job_id } = await start(controller.signal)
+      if (kind === 'search') this.jobId = job_id
       this.poller.start(job_id, this.session, {
         onProgress: (job) => this.dispatch({ type: 'progress', job }),
+        onClarify: (clarify) => this.dispatch({ type: 'clarify', action: { type: 'server', clarify } }),
         onSlow: () => this.dispatch({ type: 'slow' }),
         onDone: (view) => {
+          this.resetAnswers()
           this.session = view.session_id ?? this.session
           this.batch = nextBatch
           saveSession(this.session, this.batch)
@@ -87,6 +119,78 @@ export class ShopController {
       })
     } catch (e) {
       this.failWith(e, 'start')
+    }
+  }
+
+  /** Choose an option for a question (or clear it with null). The post is debounced; the last choice wins. */
+  selectAnswer = (id: string, value: string | null) => {
+    const ui = this.ui()
+    if (!ui || panelLocked(ui)) return
+    this.dispatch({ type: 'clarify', action: { type: 'select', id, value } })
+    if (this.answersStopped) return
+    if (this.answerTimer !== null) clearTimeout(this.answerTimer)
+    this.answerTimer = setTimeout(() => void this.flushAnswers(false), ANSWER_DEBOUNCE_MS)
+  }
+
+  /** "Show results": send the answers with submit, now. */
+  submitAnswers = () => {
+    const ui = this.ui()
+    if (!ui || panelLocked(ui)) return Promise.resolve()
+    if (this.answerTimer !== null) clearTimeout(this.answerTimer)
+    this.answerTimer = null
+    this.dispatch({ type: 'clarify', action: { type: 'submitted', value: true } })
+    return this.flushAnswers(true)
+  }
+
+  /** After the quiet "could not save" note: send the answers again. */
+  retryAnswers = () => {
+    const ui = this.ui()
+    if (!ui) return Promise.resolve()
+    this.dispatch({ type: 'clarify', action: { type: 'note', note: null } })
+    return this.flushAnswers(ui.submitted)
+  }
+
+  private async flushAnswers(submit: boolean): Promise<void> {
+    if (this.answerBusy) {
+      this.answerDirty = true
+      this.submitWanted = this.submitWanted || submit
+      return
+    }
+    const ui = this.ui()
+    const jobId = this.jobId
+    if (!ui || !jobId || (this.answersStopped && !submit)) return
+    const answers = answersToPost(ui, this.posted)
+    if (answers.length === 0 && !submit) return
+    this.answerBusy = true
+    const controller = new AbortController()
+    this.answerAbort = controller
+    const note = (n: ClarifyNote) => this.dispatch({ type: 'clarify', action: { type: 'note', note: n } })
+    try {
+      const out = await this.client.postAnswers(jobId, answers, submit, this.session, controller.signal)
+      for (const a of answers) this.posted.add(a.question_id)
+      this.dispatch({ type: 'clarify', action: { type: 'server', clarify: out.clarify } })
+      if (this.ui()?.note === 'failed') note(null)
+    } catch (e) {
+      if (isAbort(e)) return
+      // None of this may disturb the search: a quiet note, and the visitor can retry or ignore it.
+      const status = e instanceof ShopError ? e.status : 0
+      if (submit) this.dispatch({ type: 'clarify', action: { type: 'submitted', value: false } })
+      if (status === 404 || status === 409) note('closed')
+      else if (status === 429) {
+        this.answersStopped = true
+        note('limit')
+      } else {
+        if (status === 400) console.warn('ShopAI: the answers were refused as malformed')
+        note('failed')
+      }
+    } finally {
+      this.answerBusy = false
+      if (this.answerAbort === controller) this.answerAbort = null
+      if ((this.answerDirty || this.submitWanted) && this.jobId === jobId && this.ui()?.note !== 'closed') {
+        const again = this.submitWanted
+        this.answerDirty = this.submitWanted = false
+        void this.flushAnswers(again)
+      }
     }
   }
 
@@ -157,7 +261,8 @@ export class ShopController {
   removeRefine = async (chipId: string) => {
     if (!this.session) return
     try {
-      this.dispatch({ type: 'patch', refine: (await this.client.removeRefine(this.session, chipId)).refine })
+      const out = await this.client.removeRefine(this.session, chipId)
+      this.dispatch({ type: 'patch', refine: out.refine, clarifyAnswers: out.clarify_answers })
     } catch (e) {
       this.note(e)
     }
@@ -235,6 +340,7 @@ export class ShopController {
     this.restoring?.abort()
     this.starting?.abort()
     this.poller.stop()
+    this.resetAnswers()
     this.saves.clear()
   }
 }

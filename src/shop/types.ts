@@ -74,6 +74,31 @@ export type SavedRow = ShopItem & { topic_label?: string }
 
 export type ResolvedLink = { status: 'resolved' | 'fallback'; link: string; link_kind?: string }
 
+/** Stage Q1 (docs/api-contract.md in room-redesign-agent): the clarifying questions a search job may carry. Absent when the backend flag is off. */
+export type ClarifyOption = { label: string; value: string; picture_url: string | null }
+export type ClarifyQuestion = {
+  id: string
+  text: string
+  kind: 'choice' | 'size_range'
+  dimension: 'color' | 'material' | 'shape' | 'style' | 'size' | 'feature'
+  options: ClarifyOption[]
+}
+export type ClarifyAnswer = { question_id: string; option_value: string }
+export type Clarify = {
+  state: 'pending' | 'ready' | 'skipped' | 'failed'
+  /** [] unless state is "ready". */
+  questions: ClarifyQuestion[]
+  pictures_state: 'pending' | 'done'
+  no_preference_value: 'no_preference'
+  answers: ClarifyAnswer[]
+  submitted: boolean
+  applied: boolean
+  deadline: { idle_grace_s: number; max_wait_s: number; waiting: boolean; seconds_left: number | null; shown_s_ago: number | null }
+}
+
+/** An answered question kept in the session (a chip after the results show). Delete with POST /refine/remove and this id. */
+export type ClarifyAnswerChip = { id: string; question: string; label: string; dimension: string }
+
 export type SessionView = {
   session_id: string | null
   search: ShopSearch | null
@@ -86,6 +111,8 @@ export type SessionView = {
   /** Result id to its rating and comment. */
   ratings?: Record<string, RatingEntry>
   refine?: RefineChip[]
+  /** Only with the backend flag on. */
+  clarify_answers?: ClarifyAnswerChip[]
   can_shop_again?: boolean
   shop_agains_used?: number
   shop_agains_cap?: number
@@ -101,9 +128,9 @@ export type JobStep = {
   total: number | null
 }
 
-export type JobRunning = { state: 'running' | 'queued' | 'pending'; phase?: string; steps?: JobStep[] }
-export type JobDone = { state: 'done'; phase?: string; steps?: JobStep[]; elapsed_s?: number; result: SessionView }
-export type JobFailed = { state: 'error'; status?: number; error: string }
+export type JobRunning = { state: 'running' | 'queued' | 'pending'; phase?: string; steps?: JobStep[]; clarify?: Clarify }
+export type JobDone = { state: 'done'; phase?: string; steps?: JobStep[]; elapsed_s?: number; result: SessionView; clarify?: Clarify }
+export type JobFailed = { state: 'error'; status?: number; error: string; clarify?: Clarify }
 export type JobStatus = JobRunning | JobDone | JobFailed
 
 /** The part of GET /auth/session's usage block this page shows: per-visit limits and the daily reset. (Dollar figures are never shown.) */

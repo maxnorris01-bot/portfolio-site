@@ -1,6 +1,8 @@
+import { stepLabel } from './copy.ts'
 import { ratingsFromView, ratingsReducer, type RatingAction, type RatingsState } from './ratings.ts'
 import type { LimitInfo } from './limits.ts'
-import type { JobStatus, JobStep, RefineChip, ParsedQuery, ResolvedLink, SessionView, ShopItem } from './types.ts'
+import { clarifyReduce, type ClarifyAction, type ClarifyUi } from './clarify.ts'
+import type { ClarifyAnswerChip, JobStatus, JobStep, RefineChip, ParsedQuery, ResolvedLink, SessionView, ShopItem } from './types.ts'
 
 export type JobKind = 'search' | 'shop_again'
 
@@ -22,6 +24,8 @@ export type ShopState =
       slow: boolean
       /** The results on screen when this started, put back if it fails. */
       prev: Previous | null
+      /** Stage Q2: the clarifying questions for this search (never for a Shop Again); absent when the backend sends none. */
+      clarify?: ClarifyUi | null
     }
   | { status: 'done'; request: string; view: SessionView; batch: number; ratings: RatingsState; banner: Banner | null; fresh: boolean }
   | ({ status: 'error'; request: string } & LimitInfo)
@@ -37,7 +41,8 @@ export type ShopAction =
   | { type: 'done'; view: SessionView }
   | ({ type: 'fail' } & FailInfo)
   | { type: 'ratings'; action: RatingAction }
-  | { type: 'patch'; refine?: RefineChip[]; query?: ParsedQuery; resolved?: { id: string; entry: ResolvedLink } }
+  | { type: 'clarify'; action: ClarifyAction }
+  | { type: 'patch'; refine?: RefineChip[]; clarifyAnswers?: ClarifyAnswerChip[]; query?: ParsedQuery; resolved?: { id: string; entry: ResolvedLink } }
   | { type: 'banner'; banner: Banner | null }
 
 export const initialState: ShopState = { status: 'idle', restoring: false }
@@ -54,12 +59,18 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
         : { status: 'idle', restoring: false }
     case 'submit': {
       const prev = state.status === 'done' ? { view: state.view, batch: state.batch, ratings: state.ratings } : state.status === 'running' ? state.prev : null
-      return { status: 'running', request: action.request, kind: action.kind, batch: action.batch, steps: [], phase: '', startedAt: action.now, slow: false, prev }
+      return { status: 'running', request: action.request, kind: action.kind, batch: action.batch, steps: [], phase: '', startedAt: action.now, slow: false, prev, clarify: null }
     }
     case 'progress':
       if (state.status !== 'running') return state
       if (action.job.state === 'done' || action.job.state === 'error') return state
       return { ...state, steps: action.job.steps ?? state.steps, phase: action.job.phase || state.phase }
+    case 'clarify': {
+      // Questions belong to a search; a Shop Again never shows them.
+      if (state.status !== 'running' || state.kind !== 'search') return state
+      const next = clarifyReduce(state.clarify ?? null, action.action)
+      return next === (state.clarify ?? null) ? state : { ...state, clarify: next }
+    }
     case 'slow':
       return state.status === 'running' ? { ...state, slow: true } : state
     case 'done': {
@@ -89,7 +100,7 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
       if (state.status !== 'done' || !state.view.search) return state
       const search = action.query ? { ...state.view.search, query: action.query } : state.view.search
       const resolved = action.resolved ? { ...state.view.resolved, [action.resolved.id]: action.resolved.entry } : state.view.resolved
-      return { ...state, view: { ...state.view, search, refine: action.refine ?? state.view.refine, resolved } }
+      return { ...state, view: { ...state.view, search, refine: action.refine ?? state.view.refine, clarify_answers: action.clarifyAnswers ?? state.view.clarify_answers, resolved } }
     }
     case 'banner':
       return state.status === 'done' ? { ...state, banner: action.banner } : state
@@ -151,7 +162,8 @@ export function shortfallLine(search: SessionView['search']): string | null {
 }
 
 export function stepSummary(step: JobStep): string {
-  const label = step.state === 'skipped' ? `${step.label} (skipped)` : step.label
+  const shown = stepLabel(step.label)
+  const label = step.state === 'skipped' ? `${shown} (skipped)` : shown
   return step.total ? `${label} ${step.done_count ?? 0}/${step.total}` : label
 }
 

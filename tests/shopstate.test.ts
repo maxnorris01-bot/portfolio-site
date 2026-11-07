@@ -34,7 +34,7 @@ test('helpers: price, rating, also-at, notices, steps', () => {
   assert.equal(ratingLine(fixtureItems[1]), null)
   assert.equal(alsoAtLine(fixtureItems[0]), 'Also at: Sample Furniture $929, Demo Living $949.50')
   assert.equal(alsoAtLine(fixtureItems[1]), null)
-  assert.equal(stepSummary({ id: 't', label: 'Tagging', state: 'active', done_count: 12, total: 40 }), 'Tagging 12/40')
+  assert.equal(stepSummary({ id: 't', label: 'Tagging', state: 'active', done_count: 12, total: 40 }), 'Checking photos 12/40')
   assert.equal(stepSummary({ id: 't', label: 'Checking style', state: 'skipped', done_count: null, total: null }), 'Checking style (skipped)')
 })
 

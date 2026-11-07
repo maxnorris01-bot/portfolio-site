@@ -24,6 +24,9 @@ const props = (state: ShopViewProps['state'], value = ''): ShopViewProps => ({
   onCommentBlur: noop,
   onRetryRating: noop,
   onRemoveRefine: noop,
+  onAnswer: noop,
+  onSubmitAnswers: noop,
+  onRetryAnswers: noop,
   onRemoveContext: noop,
   meta: { usage: null, blocked: { search: false, again: false }, maintenance: false },
   savedOpen: true,
@@ -72,14 +75,14 @@ test('the submit button is disabled with no text, and while a search runs', asyn
   assert.match(render(View, props(fixtureStates.running, 'a couch')), /<button type="submit"[^>]*disabled/)
 })
 
-test('running: named steps (done, active with counts, pending, skipped) and a polite live region', async () => {
+test('running: labelled steps (plain words) (done, active with counts, pending, skipped) and a polite live region', async () => {
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.running))
   assert.match(html, /role="status" aria-live="polite"/)
   assert.match(html, /Searching for “modern couch under \$1000”/)
-  assert.match(html, /Searching/)
-  assert.match(html, /Tagging 12\/40/)
-  assert.match(html, /Ranking/)
+  assert.match(html, /Finding products/)
+  assert.match(html, /Checking photos 12\/40/)
+  assert.match(html, /Picking the best/)
   assert.match(html, /Checking style \(skipped\)/)
   assert.match(html, /is-active/)
   assert.match(html, /aria-current="step"/)
@@ -205,13 +208,13 @@ test('Shop Again: refine box labelled with its placeholder; button off with noth
   assert.match(againButton(saving), /disabled=""/)
 })
 
-test('chips: what the server understood and the refinements, as plain text with Remove buttons only where a route exists', async () => {
+test('chips: one row of what the search used: plain facts without a Remove button, removable terms and refinements with one', async () => {
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.results))
-  assert.match(html, /What I understood/)
-  for (const label of ['sofa', 'Up to \\$1,000', 'modern', 'Material: boucle', 'Colour: oatmeal', 'Must have: 3-seat', 'Avoid: walmart']) assert.match(html, new RegExp(label))
-  assert.match(html, /Your refinements/)
+  assert.match(html, /What I(&#x27;|')m searching for/)
+  for (const label of ['sofa', 'Up to \\$1,000', 'modern', 'Material: boucle', 'Colour: oatmeal', 'Must have: 3-seat']) assert.match(html, new RegExp(label))
   assert.match(html, /No Walmart/)
+  assert.doesNotMatch(html, /Avoid: walmart/, 'the refinement replaces the same-term parsed chip')
   assert.match(html, /Focus on cream \(approximate\)/)
   assert.match(html, /aria-label="Remove Material: boucle"/)
   assert.match(html, /aria-label="Remove No Walmart"/)
@@ -232,7 +235,7 @@ test('Shop Again running: the same steps and timer as a search, named for the ba
   const { default: View } = await mod()
   const html = render(View, props(fixtureStates.again))
   assert.match(html, /Finding batch 2 for “modern couch under \$1000”/)
-  assert.match(html, /Ranking/)
+  assert.match(html, /Picking the best/)
   assert.match(html, /shop-timer/)
   assert.match(html, /<button type="submit"[^>]*disabled/)
 })
@@ -325,7 +328,7 @@ test('limit reached: the friendly sentence with the reset time, and the Search, 
   const html = await view('limit')
   assert.match(html, /You have reached your limit for today\. It resets at \d{1,2}:\d{2} [AP]M\./)
   assert.match(html, /<button type="submit" class="btn btn-primary shop-submit" disabled="">Search/)
-  assert.match(html, /<button type="button" class="chip shop-chip" disabled="">/)
+  assert.doesNotMatch(html, /Example requests/, 'results are showing: no example chips')
   assert.match(againButton(html), /disabled=""/)
   assert.match(html, /Searches used: 8 of 8/)
 })
@@ -334,6 +337,7 @@ test('maintenance: a paused notice and no way to start a search', async () => {
   const html = await view('maintenance')
   assert.match(html, /ShopAI is paused right now\. Please try again later\./)
   assert.match(html, /<button type="submit" class="btn btn-primary shop-submit" disabled="">Search/)
+  assert.match(html, /<button type="button" class="chip shop-chip" disabled="">/, 'the example chips (empty page) are off')
 })
 
 test('Open links on Google pages say so only to the click handler: the link itself is the result link, new tab, noopener', async () => {

@@ -27,6 +27,12 @@ export type ShopViewProps = {
   onToggleSaved: () => void
   savedTab: 'love' | 'like'
   onSavedTab: (tab: 'love' | 'like') => void
+  /** Stage Q2: choose (or clear, with null) an option for a clarifying question; press Show results; retry a failed post. */
+  onAnswer: (questionId: string, value: string | null) => void
+  onSubmitAnswers: () => void
+  onRetryAnswers: () => void
+  /** Overrides the window-width test for the two-column questions panel (from 1280px): the progress steps inside it or above it. Tests only. */
+  wide?: boolean
   /** Look up a result's store link (for Open). */
   onResolve: (id: string) => Promise<string | null>
 }
