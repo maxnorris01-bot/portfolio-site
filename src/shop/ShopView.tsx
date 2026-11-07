@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useReducer, useRef, useState, type F
 import PageHeader from '../components/PageHeader'
 import { useWide } from './wide.ts'
 import FiltersModal from './FiltersModal.tsx'
+import ShareModal, { SHARE_BUTTON } from './ShareModal.tsx'
 import WaitScreensaver from './WaitScreensaver.tsx'
 import UsageChip from './UsageChip.tsx'
 import { activeCount, filterChips, filterChoices, matchCount, NO_FILTERS, sameSelection, serverSelection, toggleOption, viewFacets, type Selection } from './filters.ts'
@@ -683,6 +684,8 @@ function SavedRow({ state, props, open }: { state: Extract<ShopState, { status: 
   const tab = SAVED_TABS.find((t) => t.id === props.savedTab) ?? SAVED_TABS[0]
   const total = counts.love + counts.like
   const expanded = props.savedOpen && shown.length > 0
+  const [shareOpen, setShareOpen] = useState(false)
+  const shareButton = useRef<HTMLButtonElement>(null)
   const onKey = (e: KeyboardEvent) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
     e.preventDefault()
@@ -724,11 +727,16 @@ function SavedRow({ state, props, open }: { state: Extract<ShopState, { status: 
             </ul>
           )}
         </div>
-        {shown.length > 0 && (
-          <button type="button" className="shop-link shop-saved-toggle" aria-expanded={expanded} aria-controls={`${id}-all`} onClick={props.onToggleSaved}>
-            {expanded ? 'Show fewer ‹' : 'Show all ›'}
+        <div className="shop-saved-side">
+          <button ref={shareButton} type="button" className="shop-saved-share" aria-haspopup="dialog" aria-expanded={shareOpen} onClick={() => setShareOpen(true)}>
+            {SHARE_BUTTON(total)}
           </button>
-        )}
+          {shown.length > 0 && (
+            <button type="button" className="shop-link shop-saved-toggle" aria-expanded={expanded} aria-controls={`${id}-all`} onClick={props.onToggleSaved}>
+              {expanded ? 'Show fewer ‹' : 'Show all ›'}
+            </button>
+          )}
+        </div>
       </div>
       <div id={`${id}-all`} className="shop-saved-all" hidden={!expanded}>
         <ul className="shop-saved-list">
@@ -737,6 +745,7 @@ function SavedRow({ state, props, open }: { state: Extract<ShopState, { status: 
           ))}
         </ul>
       </div>
+      {shareOpen && <ShareModal lists={lists} ratings={state.ratings} resolved={state.view.resolved} query={state.request} onClose={() => setShareOpen(false)} returnFocus={shareButton} />}
     </section>
   )
 }

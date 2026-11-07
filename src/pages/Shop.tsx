@@ -11,6 +11,7 @@ import type { FixtureBundle } from '../shop/fixtures'
 import './Shop.css'
 import '../shop/ClarifyPanel.css'
 import '../shop/Filters.css'
+import '../shop/Share.css'
 import '../shop/WaitPanel.css'
 
 /** Development only: /shop?fixture=<name> shows canned states (see src/shop/fixtures.ts), no network. */
