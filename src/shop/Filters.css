@@ -1,0 +1,255 @@
+/* Filters F1: the Filters button on the results header and the modal. Only the shared tokens. The modal is rendered in the body (not in the
+   scaled page container), so it uses plain space tokens, not --card-pad. */
+.shop-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.shop-count-row .shop-count {
+  margin: 0;
+}
+
+.filters-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+}
+
+.filters-badge {
+  min-width: 1.5em;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.filters-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  background: rgb(11 27 51 / 0.45);
+}
+
+.filters-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: 80vh;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading);
+}
+
+.filters-dialog:focus {
+  outline: none;
+}
+
+.filters-head {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.filters-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+}
+
+.filters-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.filters-section + .filters-section {
+  margin-top: var(--space-4);
+}
+
+.filters-section-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.filters-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: var(--space-2);
+}
+
+.filters-unknown {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+/* A tile: a fixed 64px picture box (swatch circles, an icon, or empty so every tile is the same height) and the label with its count. */
+.filter-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-small);
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.filter-tile:hover {
+  border-color: var(--color-navy);
+}
+
+.filter-tile.is-on {
+  border-color: var(--color-accent);
+  background: var(--color-bg);
+}
+
+.filter-tile:focus-visible,
+.filters-dialog .btn:focus-visible,
+.filters-dialog .shop-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.filter-pic {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--color-bg);
+}
+
+.filter-pic img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.filter-swatch {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+
+.filter-swatch + .filter-swatch {
+  margin-left: -12px;
+}
+
+.filter-label {
+  overflow-wrap: anywhere;
+}
+
+.filter-count {
+  color: var(--color-text-muted);
+}
+
+.filters-foot {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.filters-few,
+.filters-why {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+}
+
+.filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filters-show {
+  margin-left: auto;
+}
+
+.filters-dialog .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Under 700px the dialog is a full-height sheet. */
+@media (max-width: 699px) {
+  .filters-backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .filters-dialog {
+    width: 100%;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .filters-body,
+  .filters-head,
+  .filters-foot {
+    padding-inline: var(--space-3);
+  }
+
+  .filters-tiles {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+
+  .filters-show {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+}
+
+.shop-filter-empty {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  margin-top: var(--space-3);
+}
+
+.shop-filter-empty p,
+.shop-few p {
+  margin: 0;
+}
+
+.shop-few {
+  margin-top: var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+}

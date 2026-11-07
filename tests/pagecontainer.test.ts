@@ -77,9 +77,9 @@ test('the shop page is on the shared scale: body and small text, card headings, 
   assert.match(css, /\.shop-thumb \{\s*[^}]*margin: calc\(-1 \* var\(--card-pad\)\) calc\(-1 \* var\(--card-pad\)\) 0/s)
   assert.match(css, /\.shop-card-title \{[^}]*font-size: var\(--text-label\)/s)
   assert.match(css, /\.shop-grid \{[^}]*gap: var\(--space-3\)/s)
-  // The pipeline: six stage tiles with arrows (a row of six from 1600px, three by two from 1100px, two by two under it, one on a phone), the guardrails card, and no About card or two-column grid.
+  // The pipeline: five stage tiles with arrows (a row of five from 1600px, three then two from 1100px, two by two under it, one on a phone), the guardrails card, and no About card or two-column grid.
   assert.match(css, /\.shop-stages \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/s)
-  assert.match(css, /@media \(min-width: 1600px\) \{\s*\.shop-stages \{\s*grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/)
+  assert.match(css, /@media \(min-width: 1600px\) \{\s*\.shop-stages \{\s*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/)
   assert.match(css, /\.shop-stage \{[^}]*padding: var\(--space-3\) var\(--card-pad\)/s)
   assert.match(css, /@media \(max-width: 1099px\) \{\s*\.shop-stages \{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/)
   assert.doesNotMatch(css, /shop-about|grid-template-areas/)

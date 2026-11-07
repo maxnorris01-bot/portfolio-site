@@ -376,11 +376,14 @@ test('controller: deleting an answer chip posts answer:<qid> to /refine/remove a
 
 // ---- the view ----
 
+// The question panel is no longer rendered by the page (Filters F1 replaced it with the wait panel); its code stays, so these view tests wait here.
+const RETIRED = 'retired: the questions panel is not rendered (filters F1)'
+
 const noop = () => {}
 const props = (state: ShopViewProps['state'], over: Partial<ShopViewProps> = {}): ShopViewProps => ({
   state, value: '', onChange: noop, onSubmit: noop, onExample: noop, onRetry: noop, refineText: '', onRefineChange: noop, onShopAgain: noop,
   onRate: noop, onComment: noop, onCommentBlur: noop, onRetryRating: noop, onRemoveRefine: noop, onRemoveContext: noop,
-  onAnswer: noop, onSubmitAnswers: noop, onRetryAnswers: noop,
+  onAnswer: noop, onSubmitAnswers: noop, onRetryAnswers: noop, onSearchFilters: noop,
   meta: { usage: null, blocked: { search: false, again: false }, maintenance: false },
   savedOpen: true, onToggleSaved: noop, savedTab: 'love', onSavedTab: noop, onResolve: async () => null, ...over,
 })
@@ -398,7 +401,7 @@ test('view: questions pending, skipped and failed show nothing new (the steps st
   }
 })
 
-test('view: the ready panel shows ONE question: heading, sub-line, "1 of 5", five dots, the steps above, Show results; no Back on question 1', async () => {
+test('view: the ready panel shows ONE question: heading, sub-line, "1 of 5", five dots, the steps above, Show results; no Back on question 1', { skip: RETIRED }, async () => {
   const html = await view('askpics')
   assert.ok(html.includes(`>${CLARIFY_TITLE}</h2>`))
   assert.ok(html.includes(CLARIFY_SUB))
@@ -417,7 +420,7 @@ test('view: the ready panel shows ONE question: heading, sub-line, "1 of 5", fiv
   assert.ok(!html.includes('clarify-grid') && !html.includes('clarify-q"'), 'the grid of cards is gone')
 })
 
-test('view: pending pictures show a quiet skeleton with the label below and no image; done shows pictures, and a null picture becomes a text tile', async () => {
+test('view: pending pictures show a quiet skeleton with the label below and no image; done shows pictures, and a null picture becomes a text tile', { skip: RETIRED }, async () => {
   const pending = await view('asktext')
   assert.equal(pending.match(/class="clarify-pic is-pending"/g)?.length, 4)
   assert.ok(!pending.includes('<img'))
@@ -442,7 +445,7 @@ test('view: the mixed fixture has one text-only option among pictures, and a que
   assert.ok('askmixed' in fixtureStates)
 })
 
-test('view: partial answers: the first question without an answer shows (question 3), the answered dots are filled, back is available', async () => {
+test('view: partial answers: the first question without an answer shows (question 3), the answered dots are filled, back is available', { skip: RETIRED }, async () => {
   const html = await view('askpartial')
   assert.ok(html.includes('Which shape do you want?') && !html.includes('Which colour do you like?'))
   assert.match(html, /clarify-count">3(?:<!-- -->)? of (?:<!-- -->)?5</)
@@ -452,7 +455,7 @@ test('view: partial answers: the first question without an answer shows (questio
   assert.ok(!html.includes('clarify-back is-hidden'))
 })
 
-test('view: a11y: radio group named by the question, roving tab stop, focusable heading, polite announcement, labelled section, dot names', async () => {
+test('view: a11y: radio group named by the question, roving tab stop, focusable heading, polite announcement, labelled section, dot names', { skip: RETIRED }, async () => {
   const html = await view('askpartial')
   assert.equal(html.match(/role="radiogroup"/g)?.length, 1)
   assert.match(html, /<h3 id="([^"]+)" tabindex="-1" class="clarify-q-title">Which shape do you want\?<\/h3><div class="clarify-options" role="radiogroup" aria-labelledby="\1"/)
@@ -547,7 +550,7 @@ test('auto-scroll: when the panel arrives below or across the window bottom and 
   assert.equal(at(100, 400, 900, true), false)
 })
 
-test('view: submitted and closed lock the tiles and say so quietly', async () => {
+test('view: submitted and closed lock the tiles and say so quietly', { skip: RETIRED }, async () => {
   const sub = await view('asksubmitted')
   assert.match(sub, /class="btn btn-primary clarify-submit" disabled/)
   assert.ok(sub.includes('Thanks. Your results are on the way.'))
@@ -558,7 +561,7 @@ test('view: submitted and closed lock the tiles and say so quietly', async () =>
   assert.match(closed, /role="radio"[^>]*disabled/)
 })
 
-test('view: a failed post shows a quiet note with a retry', async () => {
+test('view: a failed post shows a quiet note with a retry', { skip: RETIRED }, async () => {
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
   const base = fixtureStates.askpics as Extract<ShopState, { status: 'running' }>
   const html = render(View, props({ ...base, clarify: { ...(base.clarify as ClarifyUi), note: 'failed' } }))
@@ -595,12 +598,11 @@ test('view: the example chips stay on the empty page, and go once a search runs 
   for (const key of ['running', 'results', 'error', 'askpics']) assert.ok(!(await view(key)).includes('Example requests'), key)
 })
 
-test('view: the pipeline has six stages with Ask between Search and Check photos, and the caption', async () => {
+test('view: the pipeline has five stages (no Ask): Understand, Search, Check photos, Rank, Results', async () => {
   const html = await view('empty')
-  assert.deepEqual(PIPELINE_STAGES.map((s) => s.name), ['Understand', 'Search', 'Ask', 'Check photos', 'Rank', 'Results'])
-  assert.equal(html.match(/class="card shop-stage"/g)?.length, 6)
-  assert.ok(html.includes('<h4>Ask</h4><p>Up to five quick questions come from the first results, with a photo for each choice.</p>'))
-  assert.ok(html.indexOf('<h4>Search</h4>') < html.indexOf('<h4>Ask</h4>') && html.indexOf('<h4>Ask</h4>') < html.indexOf('<h4>Check photos</h4>'))
+  assert.deepEqual(PIPELINE_STAGES.map((s) => s.name), ['Understand', 'Search', 'Check photos', 'Rank', 'Results'])
+  assert.ok(!html.includes('<h4>Ask</h4>') && !/quick questions/.test(html))
+  assert.equal(html.match(/class="card shop-stage"/g)?.length, 5)
 })
 
 test('view: with the flag off (no clarify anywhere) a running search renders as before', async () => {
@@ -631,18 +633,16 @@ test('view: the running page shows the plain labels, never the old words, and no
   assert.equal(running.phase, 'tagging', 'code identifiers stay')
 })
 
-test('copy: the pipeline tiles are Understand, Search, Ask, Check photos, Rank, Results with their captions and step numbers', async () => {
-  assert.deepEqual(PIPELINE_STAGES.map((x) => x.name), ['Understand', 'Search', 'Ask', 'Check photos', 'Rank', 'Results'])
+test('copy: the pipeline tiles are Understand, Search, Check photos, Rank, Results with their captions and step numbers', async () => {
+  assert.deepEqual(PIPELINE_STAGES.map((x) => x.name), ['Understand', 'Search', 'Check photos', 'Rank', 'Results'])
   assert.equal(PIPELINE_STAGES[0].caption, 'A small AI model reads your words into a search.')
   const html = await view('empty')
   PIPELINE_STAGES.forEach((x, i) => assert.ok(html.includes(`>0${i + 1}</span><h4>${x.name}</h4><p>${x.caption}</p>`), x.name))
 })
 
-// ---- the two-column panel (from 1280px): progress, picks, note ----
-
 const stepsCount = (html: string) => html.match(/class="shop-steps"/g)?.length ?? 0
 
-test('placement: wide and a ready panel: the steps are in the panel\'s right column, once; narrow: above the panel, once', async () => {
+test('placement: wide and a ready panel: the steps are in the panel\'s right column, once; narrow: above the panel, once', { skip: RETIRED }, async () => {
   const wide = await view('askpics', { wide: true })
   assert.equal(stepsCount(wide), 1)
   assert.ok(wide.indexOf('class="card clarify has-side"') < wide.indexOf('class="shop-steps"'), 'inside the panel')
@@ -659,7 +659,7 @@ test('placement: wide and a ready panel: the steps are in the panel\'s right col
   assert.equal(narrow.match(/class="shop-timer"/g)?.length, 1)
 })
 
-test('placement: with no panel (pending, skipped, failed, a plain running search, Shop Again) the steps stay above at any width, once', async () => {
+test('placement: with no panel (pending, skipped, failed, a plain running search, Shop Again) the steps stay above at any width, once', { skip: RETIRED }, async () => {
   for (const key of ['askpending', 'askskipped', 'askfailed', 'running', 'slow', 'again']) {
     for (const wide of [true, false]) {
       const html = await view(key, { wide })
@@ -670,7 +670,7 @@ test('placement: with no panel (pending, skipped, failed, a plain running search
   }
 })
 
-test('placement: a locked panel (submitted, applied) keeps its steps inside on a wide window, still once', async () => {
+test('placement: a locked panel (submitted, applied) keeps its steps inside on a wide window, still once', { skip: RETIRED }, async () => {
   for (const key of ['asksubmitted', 'askclosed']) {
     const html = await view(key, { wide: true })
     assert.equal(stepsCount(html), 1, key)
@@ -699,7 +699,7 @@ test('picks: the answers so far in question order, as the chosen option\'s label
   assert.deepEqual(picks(clarifyReduce(u, { type: 'select', id: 'q_color', value: null }) as ClarifyUi).map((x) => x.id), ['q_material', 'q_style'], 'clearing removes the pick')
 })
 
-test('picks column: empty text, the label, the chips with a remove button per answer, and the note at the end', async () => {
+test('picks column: empty text, the label, the chips with a remove button per answer, and the note at the end', { skip: RETIRED }, async () => {
   const empty = await view('askpics', { wide: true })
   assert.ok(empty.includes(`>${CLARIFY_PICKS_LABEL}</h3>`) && CLARIFY_PICKS_LABEL === 'Your picks so far')
   assert.ok(empty.includes(`<p class="clarify-picks-empty">${CLARIFY_PICKS_EMPTY}</p>`) && CLARIFY_PICKS_EMPTY === 'Your choices will show here.')
@@ -775,7 +775,7 @@ test('progressive: Show results waits for more_coming on the last question, for 
   assert.equal(stepCount(1, 3, false), '2 of 3')
 })
 
-test('view: askprogress reads "2 of 3+" with a quiet pending dot; on the last question the line replaces the enabled button', async () => {
+test('view: askprogress reads "2 of 3+" with a quiet pending dot; on the last question the line replaces the enabled button', { skip: RETIRED }, async () => {
   const mid = await view('askprogress')
   assert.ok(mid.includes('2 of 3+') === false, 'the panel opens on question 1 of the frame')
   assert.ok(mid.includes('1 of 2+'))
@@ -817,7 +817,7 @@ test('swatches: hex colours only, at most three', () => {
   assert.deepEqual(safeSwatches(null), [])
 })
 
-test('view: askicons shows icons through <img>, two swatches for "Black or gray", and a row of buttons for the text-only question', async () => {
+test('view: askicons shows icons through <img>, two swatches for "Black or gray", and a row of buttons for the text-only question', { skip: RETIRED }, async () => {
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
   const base = fixtureBundles.askicons.state as Extract<ShopState, { status: 'running' }>
   const html = render(View, props(base))
@@ -838,7 +838,7 @@ test('view: askicons shows icons through <img>, two swatches for "Black or gray"
   assert.ok(!care.includes('clarify-pic'), 'no empty picture boxes')
 })
 
-test('view: a missing icon key falls back to a label-only tile without an image', async () => {
+test('view: a missing icon key falls back to a label-only tile without an image', { skip: RETIRED }, async () => {
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
   const base = fixtureBundles.askicons.state as Extract<ShopState, { status: 'running' }>
   const server = makeClarify({ questions: [{ ...fixtureQuestions[0], options: [{ label: 'Wool', value: 'wool', picture_url: null, icon: 'placeholder' }, { label: 'Odd', value: 'odd', picture_url: null, icon: 'no-such-drawing' }, { label: 'Jute', value: 'jute', picture_url: null, icon: 'placeholder' }] }] })
@@ -847,7 +847,7 @@ test('view: a missing icon key falls back to a label-only tile without an image'
   assert.match(html, /class="clarify-tile is-labelonly"><span class="clarify-label">Odd/)
 })
 
-test('view: the picture-less rug question is buttons, a mixed one with one picture is buttons too', async () => {
+test('view: the picture-less rug question is buttons, a mixed one with one picture is buttons too', { skip: RETIRED }, async () => {
   const text = await view('asktextonly')
   assert.ok(text.includes('clarify-options is-buttons') && !text.includes('clarify-pic'))
   const mixed = await view('askmixedpics')
@@ -856,7 +856,7 @@ test('view: the picture-less rug question is buttons, a mixed one with one pictu
 
 // F1: the panel stays and is always clickable
 
-test('regression: options are clickable the moment the panel shows, with pictures pending, while the pipeline is ready to rank', async () => {
+test('regression: options are clickable the moment the panel shows, with pictures pending, while the pipeline is ready to rank', { skip: RETIRED }, async () => {
   const html = await view('asktext')
   assert.equal(html.match(/role="radio"/g)?.length, 4)
   assert.doesNotMatch(html, /role="radio"[^>]*disabled/, 'no tile is disabled while pictures are pending')
@@ -884,7 +884,7 @@ test('regression: the timeline (questions, pictures, ready to rank, results) nev
   assert.ok(closed.status === 'done' && !closed.clarify, 'an applied panel is not carried into the results')
 })
 
-test('view: results with an open panel show the panel above them; applied results do not', async () => {
+test('view: results with an open panel show the panel above them; applied results do not', { skip: RETIRED }, async () => {
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
   const base = fixtureStates.results as Extract<ShopState, { status: 'done' }>
   const open = render(View, props({ ...base, clarify: ui({ waiting: true }) }))

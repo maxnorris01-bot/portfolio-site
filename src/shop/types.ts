@@ -30,7 +30,14 @@ export type ShopItem = {
   rating: number | null
   rating_count: number | null
   also_at?: AlsoAt[]
+  /** Filters F1: the item's attributes by dimension (lowercase vocabulary keys; [] = unknown). Absent on older cached jobs. */
+  attrs?: Partial<Record<string, string[]>>
 }
+
+/** Filters F1: one option of a facet. `count` is the number of shown results that have the value. */
+export type FacetOption = { value: string; label: string; count: number; icon?: string | null; swatches?: string[] | null }
+/** Filters F1: one filterable dimension of the batch, in the order the service gives (most useful first). */
+export type Facet = { dimension: string; title: string; options: FacetOption[] }
 
 export type Rating = 'love' | 'like' | 'dislike'
 export type RatingEntry = { rating: Rating | null; comment: string }
@@ -127,6 +134,9 @@ export type SessionView = {
   refine?: RefineChip[]
   /** Only with the backend flag on. */
   clarify_answers?: ClarifyAnswerChip[]
+  /** Filters F1: the batch's facets and, per dimension, how many shown results have no value for it. Absent when the service sends none. */
+  facets?: Facet[]
+  facets_unknown?: Record<string, number>
   can_shop_again?: boolean
   shop_agains_used?: number
   shop_agains_cap?: number

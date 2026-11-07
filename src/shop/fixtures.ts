@@ -3,7 +3,8 @@ import type { RatingsState } from './ratings.ts'
 import type { ShopMeta } from './controller.ts'
 import type { ClarifyUi } from './clarify.ts'
 import type { Banner, ShopState } from './state.ts'
-import type { Clarify, ClarifyQuestion, SessionView, ShopItem } from './types.ts'
+import type { Selection } from './filters.ts'
+import type { Clarify, ClarifyQuestion, Facet, SessionView, ShopItem } from './types.ts'
 
 const art = (fill: string) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" fill="${fill}"/><rect x="20" y="50" width="80" height="35" rx="6" fill="#ffffff" fill-opacity=".7"/></svg>`)}`
@@ -251,6 +252,78 @@ const manyView: SessionView = {
   ],
 }
 
+// Filters F1: 12 results with `attrs`, and the `facets` / `facets_unknown` exactly as the backend contract sends them (room-redesign-agent
+// docs/api-contract.md): options by count then vocabulary order, only options with count >= 1, `icon` or `swatches` per option.
+type Attrs = NonNullable<ShopItem['attrs']>
+const attr = (color: string[], material: string[], style: string[], shape: string[] = [], feature: string[] = [], size: string[] = []): Attrs => ({ color, material, shape, style, size, feature })
+const filterRows: [string, string, Attrs][] = [
+  ['Example Persian Vintage runner, gray and blue', '#8c8c8c', attr(['gray', 'blue'], ['wool'], ['vintage'], ['runner'], ['washable'])],
+  ['Sample Gray wool shag rug', '#8c8c8c', attr(['gray'], ['wool'], ['modern'], ['rectangular'])],
+  ['Demo Blue cotton flatweave', '#3c5a87', attr(['blue'], ['cotton'], ['modern'], ['rectangular'], ['washable', 'reversible'])],
+  ['Placeholder Cream jute round rug', '#e8dfd0', attr(['cream'], ['jute'], ['boho'], ['round'])],
+  ['Example Gray vintage oval rug', '#8c8c8c', attr(['gray'], ['wool'], ['vintage'], ['oval'])],
+  ['Sample Black and white striped rug', '#1f1f1f', attr(['black', 'white'], ['cotton'], ['modern'], ['rectangular'], ['reversible'])],
+  ['Demo Blue vintage medallion rug', '#3c5a87', attr(['blue'], ['wool'], ['vintage'], ['rectangular'])],
+  ['Placeholder Cream wool rug', '#e8dfd0', attr(['cream'], ['wool'], ['scandinavian'], ['rectangular'])],
+  ['Example Gray polyester runner', '#8c8c8c', attr(['gray'], ['polyester'], ['modern'], ['runner'], ['washable'])],
+  ['Sample Multicolour boho rug', '#c0504d', attr(['multicolor'], ['cotton'], ['boho'], ['rectangular'])],
+  ['Demo Rug with no listed details', '#b9b9b9', attr([], [], [], [])],
+  ['Placeholder Cream jute runner', '#e8dfd0', attr(['cream'], ['jute'], [], ['runner'])],
+]
+export const filterItemsFixture: ShopItem[] = filterRows.map(([title, fill, attrs], i) => ({
+  id: `ft-${i + 1}`,
+  title,
+  price: 120 + i * 17,
+  currency: 'USD',
+  seller: ['Example Home Co.', 'Sample Furniture', 'Demo Living'][i % 3],
+  thumbnail_url: art(fill),
+  link: `https://example.com/product/rug-${i + 1}`,
+  link_kind: 'retailer',
+  rating: 4.2,
+  rating_count: 40 + i,
+  attrs,
+}))
+const LABELS: Record<string, string> = { color: 'Colour', material: 'Material', style: 'Style', shape: 'Shape', size: 'Size', feature: 'Feature' }
+const HEX: Record<string, string[]> = { gray: ['#8C8C8C'], blue: ['#3C5A87'], cream: ['#E8DFD0'], black: ['#1F1F1F'], white: ['#FFFFFF'], multicolor: ['#C0504D', '#E8B84A', '#3C5A87'] }
+const niceLabel = (v: string) => v.charAt(0).toUpperCase() + v.slice(1)
+/** Facets as the service computes them: >= 2 options, not one value on every result, at most 10 options, no option with a zero count. */
+const facetsOf = (items: ShopItem[]): { facets: Facet[]; unknown: Record<string, number> } => {
+  const facets: Facet[] = []
+  const unknown: Record<string, number> = {}
+  for (const dimension of ['color', 'material', 'style', 'shape', 'size', 'feature']) {
+    const counts = new Map<string, number>()
+    for (const i of items) for (const v of i.attrs?.[dimension] ?? []) counts.set(v, (counts.get(v) ?? 0) + 1)
+    const n = items.filter((i) => (i.attrs?.[dimension] ?? []).length === 0).length
+    if (n > 0) unknown[dimension] = n
+    const options = [...counts].sort((a, b) => b[1] - a[1]).slice(0, 10)
+    if (options.length < 2) continue
+    facets.push({
+      dimension,
+      title: LABELS[dimension],
+      options: options.map(([value, count]) => ({ value, label: niceLabel(value), count, icon: dimension === 'color' ? null : value, swatches: dimension === 'color' ? HEX[value] ?? null : null })),
+    })
+  }
+  return { facets, unknown }
+}
+const filtersBatch = facetsOf(filterItemsFixture)
+export const fixtureFilters: SessionView = {
+  ...fixtureView,
+  search: { request: 'rug', headline: 'Twelve rugs.', warnings: [], query: { search_text: 'rug', category: 'rug' }, results: filterItemsFixture },
+  refine: [],
+  facets: filtersBatch.facets,
+  facets_unknown: filtersBatch.unknown,
+}
+/** Five results, two chosen options leaving two matches (gray + vintage): the few-matches line. */
+const fewItems = filterItemsFixture.slice(0, 5)
+const fewBatch = facetsOf(fewItems)
+export const fixtureFiltersFew: SessionView = {
+  ...fixtureFilters,
+  search: { ...(fixtureFilters.search as NonNullable<SessionView['search']>), results: fewItems },
+  facets: fewBatch.facets,
+  facets_unknown: fewBatch.unknown,
+}
+export const fixtureFiltersFewSelection: Selection = { color: ['gray'], style: ['vintage'] }
+
 const limitUsage = { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-01T00:00:00+00:00' }
 const limitView: SessionView = { ...fixtureView, search_count: 9, shop_agains_used: 1, shop_agains_cap: 25 }
 
@@ -305,17 +378,20 @@ export const fixtureStates: Record<string, ShopState> = {
   saved: done(savedView, 1, savedRatings),
   savedempty: done({ ...fixtureView, saved: [] }, 1, {}),
   short: done(fixtureShort, 1),
+  askfilters: done(fixtureFilters, 1),
+  askfiltersfew: done(fixtureFiltersFew, 1, { 'ft-1': rated('like') }),
   limit: done(limitView, 1, {}, { message: 'Daily limit reached.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00', code: 'cap_reached', limit: 'ip_day' }),
 }
 
 const clear: ShopMeta = { usage: null, blocked: { search: false, again: false }, maintenance: false }
 
 /** What the dev page needs besides the state: the usage line, blocked buttons, the Saved panel's tab. */
-export type FixtureBundle = { state: ShopState; meta: ShopMeta; savedTab?: 'love' | 'like'; /** Later server clarify objects, played one by one by the dev page (progressive questions). */ frames?: Clarify[] }
+export type FixtureBundle = { state: ShopState; meta: ShopMeta; /** Filters chosen when the page opens. */ filters?: Selection; savedTab?: 'love' | 'like'; /** Later server clarify objects, played one by one by the dev page (progressive questions). */ frames?: Clarify[] }
 
 export const fixtureBundles: Record<string, FixtureBundle> = {
   ...Object.fromEntries(Object.entries(fixtureStates).map(([k, state]) => [k, { state, meta: { ...clear, usage: limitUsage } } satisfies FixtureBundle])),
   askprogress: { state: fixtureStates.askprogress, meta: { ...clear, usage: limitUsage }, frames: progressFrames() },
+  askfiltersfew: { state: fixtureStates.askfiltersfew, meta: { ...clear, usage: limitUsage }, filters: fixtureFiltersFewSelection },
   savedliked: { state: fixtureStates.saved, meta: clear, savedTab: 'like' },
   savedempty: { state: fixtureStates.savedempty, meta: clear },
   limit: { state: fixtureStates.limit, meta: { usage: limitUsage, blocked: { search: true, again: true }, maintenance: false } },

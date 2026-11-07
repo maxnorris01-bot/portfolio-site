@@ -9,6 +9,8 @@ import { useShopSearch } from '../shop/useShopSearch'
 import type { FixtureBundle } from '../shop/fixtures'
 import './Shop.css'
 import '../shop/ClarifyPanel.css'
+import '../shop/Filters.css'
+import '../shop/WaitPanel.css'
 
 /** Development only: /shop?fixture=<name> shows canned states (see src/shop/fixtures.ts), no network. */
 function useFixture(): FixtureBundle | null {
@@ -85,6 +87,12 @@ export default function Shop() {
       onSubmitAnswers={() => (fixtureClarify ? setFixtureUi((u) => clarifyReduce(u ?? fixtureClarify, { type: 'submitted', value: true })) : void shop.submitAnswers())}
       onTouch={fixtureClarify ? undefined : shop.touch}
       onRetryAnswers={() => void shop.retryAnswers()}
+      onSearchFilters={(text) => {
+        void shop.shopAgain(text)
+        setRefineText('')
+      }}
+      initialFilters={fixture?.filters}
+      waitPattern={import.meta.env.DEV && (params.get('pattern') === 'mystify' || params.get('pattern') === 'spirograph') ? (params.get('pattern') as 'mystify' | 'spirograph') : undefined}
       onResolve={shop.resolveLink}
     />
   )
