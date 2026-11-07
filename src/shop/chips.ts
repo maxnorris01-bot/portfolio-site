@@ -36,7 +36,7 @@ export type MergedChip = {
   title?: string
   /** A choice made in Refine search, applied on the next search (shown after the divider, never in the "+N more"). */
   choice?: boolean
-  remove: { type: 'context'; kind: ContextKind; value: string } | { type: 'refine'; id: string } | { type: 'filter'; dimension: string } | null
+  remove: { type: 'context'; kind: ContextKind; value: string } | { type: 'refine'; id: string } | { type: 'filter'; dimension: string } | { type: 'text' } | null
 }
 
 /** The term a refinement is about: "no Walmart" and "avoid walmart" are walmart, "focus on cream" is cream. */
@@ -72,4 +72,12 @@ export const CHIP_LIMIT = 8
 export function splitChips<T>(chips: T[], expanded: boolean, limit = CHIP_LIMIT): { shown: T[]; hidden: number } {
   if (expanded || chips.length <= limit) return { shown: chips, hidden: 0 }
   return { shown: chips.slice(0, limit), hidden: chips.length - limit }
+}
+
+/** The refine text as a choice chip: “text” cut to 28 characters (with …), the whole text as its title; null when there is none. */
+export function refineTextChip(text: string): MergedChip | null {
+  const t = text.trim()
+  if (!t) return null
+  const shown = t.length > 28 ? `${t.slice(0, 27).trimEnd()}…` : t
+  return { key: 'refine-text', label: `“${shown}”`, title: t, choice: true, remove: { type: 'text' } }
 }

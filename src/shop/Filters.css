@@ -95,6 +95,22 @@
   font-size: var(--text-small);
 }
 
+.filters-text {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--space-3);
+}
+
+.filters-text .shop-label {
+  margin: 0;
+}
+
+.filters-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
 .filters-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -257,16 +273,6 @@
     margin-left: 0;
     flex: 1 1 100%;
   }
-}
-
-.shop-few {
-  margin: var(--space-3) 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--text-small);
-}
-
-.shop-few p {
-  margin: 0;
 }
 
 .shop-match {

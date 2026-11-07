@@ -105,8 +105,12 @@ export const FILTERS_TITLE = 'Refine search'
 export const FILTERS_INTRO = 'Your choices are used the next time you search again. Your current results stay as they are.'
 export const FILTERS_CLEAR_ALL = 'Clear all'
 export const FILTERS_CLOSE = 'Close'
-export const FILTERS_SEARCH = 'Search again'
-export const FILTERS_SEARCH_LINE = 'Search again with these choices'
+export const FILTERS_SEARCH = 'Shop Again with these'
+export const AGAIN_BUTTON = 'Shop Again'
+export const REFINE_LABEL = 'Refine your search'
+export const REFINE_PLACEHOLDER = 'more wood, no glass'
+export const REFINE_TEXT_MAX = 200
+export const SAVED_EMPTY = 'Love or like results to see them here.'
 export const filtersMatching = (n: number) => `${n} of the current results match`
 /** The small mono label between the neutral chips and the choice chips. */
 export const CHOICES_LABEL = 'apply on next search'
