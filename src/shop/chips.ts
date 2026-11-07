@@ -1,4 +1,3 @@
-import { CHIP_NEXT } from './copy.ts'
 import { formatPrice } from './state.ts'
 import type { ClarifyAnswerChip, ContextKind, ParsedQuery, RefineChip } from './types.ts'
 
@@ -35,6 +34,8 @@ export type MergedChip = {
   label: string
   /** Tooltip and the remove button's detail (an answer's question). */
   title?: string
+  /** A choice made in Refine search, applied on the next search (shown after the divider, never in the "+N more"). */
+  choice?: boolean
   remove: { type: 'context'; kind: ContextKind; value: string } | { type: 'refine'; id: string } | { type: 'filter'; dimension: string } | null
 }
 
@@ -60,7 +61,7 @@ export function mergeChips(parsed: RequestChip[], answers: ClarifyAnswerChip[], 
     ...kept.filter((c) => !c.remove).map(toMerged),
     ...kept.filter((c) => c.remove).map(toMerged),
     ...answers.map((a): MergedChip => ({ key: a.id, label: a.label, title: a.question, remove: { type: 'refine', id: a.id } })),
-    ...refine.map((r): MergedChip => ({ key: r.id, label: r.kind === 'filter' ? `${CHIP_NEXT}${r.label}` : r.approximate ? `${r.label} (approximate)` : r.label, remove: { type: 'refine', id: r.id } })),
+    ...refine.map((r): MergedChip => ({ key: r.id, label: r.kind !== 'filter' && r.approximate ? `${r.label} (approximate)` : r.label, choice: r.kind === 'filter' || undefined, remove: { type: 'refine', id: r.id } })),
   ]
 }
 

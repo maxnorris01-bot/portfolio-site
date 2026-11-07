@@ -164,15 +164,53 @@
   background: var(--color-surface);
 }
 
+/* The results header card: line 1 is the headline (left) and the usage chip with Refine search (right); line 2 the chips. */
+.shop-head {
+  display: grid;
+  gap: 12px;
+  padding: 16px var(--card-pad);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.shop-head-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px var(--space-3);
+}
+
+.shop-head-left {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.shop-head-right {
+  display: flex;
+  flex: none;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+}
+
 .shop-count {
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  color: var(--color-text-muted);
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+  line-height: 1.3;
 }
 
 /* The one plain line above the grid when the batch is short of what was typed. */
 .shop-short {
-  margin-top: 0.4rem;
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--text-small);
 }
@@ -548,8 +586,14 @@
 }
 
 .shop-batch {
-  color: var(--color-navy);
-  font-weight: 600;
+  padding: 2px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .shop-banner {
@@ -561,18 +605,42 @@
 }
 
 .shop-chips {
-  display: grid;
-  gap: 0.7rem;
-  margin-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }
 
-.shop-chips-title {
-  margin-bottom: 0.3rem;
+.shop-chips:empty {
+  display: none;
+}
+
+/* The choices made in Refine search: after a thin divider and a small mono label, coral-tinted. */
+.shop-choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.shop-choices-divider {
+  align-self: stretch;
+  width: 1px;
+  min-height: 20px;
+  background: var(--color-border);
+}
+
+.shop-choices-label {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
-  font-size: var(--text-small);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.shop-understood.is-choice {
+  border-color: #f2bbaa;
+  background: #fcefea;
+  color: var(--color-text);
 }
 
 .shop-understood {
@@ -596,7 +664,95 @@
   color: var(--color-accent);
 }
 
-/* Usage line (part 3) */
+/* The usage chip (results header) and its popover */
+.usage {
+  position: relative;
+  display: inline-flex;
+}
+
+.usage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.usage-chip:hover,
+.usage-chip[aria-expanded='true'] {
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.usage-chip.is-limit {
+  border-color: var(--color-accent);
+  background: #fcefea;
+  color: var(--color-text);
+}
+
+.usage-chip-icon {
+  flex: none;
+  display: block;
+}
+
+.usage-chip-text {
+  white-space: nowrap;
+}
+
+.usage-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 6px 20px rgb(11 27 51 / 12%);
+  font-size: var(--text-small);
+}
+
+.usage-pop[hidden] {
+  display: none;
+}
+
+.usage-pop p {
+  margin: 0 0 4px;
+}
+
+.usage-pop p:last-child {
+  margin-bottom: 0;
+}
+
+.usage-pop-title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+/* Under 700px the right cluster drops under the headline, still on one line. */
+@media (max-width: 699px) {
+  .shop-head-left {
+    flex-basis: 100%;
+  }
+
+  .shop-head-right {
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Usage line (idle page, under the form) */
 .shop-usage {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
