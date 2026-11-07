@@ -39,7 +39,7 @@ export class JobPoller {
 
     // Once the job is done or failed, polling continues only while pictures are still being checked, so the last `clarify` is not stale.
     let tail = 0
-    const pending = (c: Clarify | undefined) => c !== undefined && c.state === 'ready' && c.pictures_state === 'pending'
+    const pending = (c: Clarify | undefined) => c !== undefined && c.state === 'ready' && (c.pictures_state === 'pending' || (!c.applied && !c.submitted && (c.deadline.waiting || c.more_coming === true)))
 
     const tick = async () => {
       this.timer = null

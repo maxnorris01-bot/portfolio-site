@@ -1,7 +1,7 @@
 import { stepLabel } from './copy.ts'
 import { ratingsFromView, ratingsReducer, type RatingAction, type RatingsState } from './ratings.ts'
 import type { LimitInfo } from './limits.ts'
-import { clarifyReduce, type ClarifyAction, type ClarifyUi } from './clarify.ts'
+import { clarifyReduce, panelLocked, panelVisible, type ClarifyAction, type ClarifyUi } from './clarify.ts'
 import type { ClarifyAnswerChip, JobStatus, JobStep, RefineChip, ParsedQuery, ResolvedLink, SessionView, ShopItem } from './types.ts'
 
 export type JobKind = 'search' | 'shop_again'
@@ -27,7 +27,7 @@ export type ShopState =
       /** Stage Q2: the clarifying questions for this search (never for a Shop Again); absent when the backend sends none. */
       clarify?: ClarifyUi | null
     }
-  | { status: 'done'; request: string; view: SessionView; batch: number; ratings: RatingsState; banner: Banner | null; fresh: boolean }
+  | { status: 'done'; request: string; view: SessionView; batch: number; ratings: RatingsState; banner: Banner | null; fresh: boolean; /** Questions still waiting for the visitor when the results arrived (they stay until submitted, skipped or applied). */ clarify?: ClarifyUi | null }
   | ({ status: 'error'; request: string } & LimitInfo)
 
 export type FailInfo = LimitInfo & { phase: 'start' | 'poll' }
@@ -67,6 +67,11 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
       return { ...state, steps: action.job.steps ?? state.steps, phase: action.job.phase || state.phase }
     case 'clarify': {
       // Questions belong to a search; a Shop Again never shows them.
+      if (state.status === 'done') {
+        if (!state.clarify) return state
+        const kept = clarifyReduce(state.clarify, action.action)
+        return kept === state.clarify ? state : { ...state, clarify: kept }
+      }
       if (state.status !== 'running' || state.kind !== 'search') return state
       const next = clarifyReduce(state.clarify ?? null, action.action)
       return next === (state.clarify ?? null) ? state : { ...state, clarify: next }
@@ -83,6 +88,8 @@ export function shopReducer(state: ShopState, action: ShopAction): ShopState {
         ratings: ratingsFromView(action.view.ratings),
         banner: null,
         fresh: true,
+        // Results arriving never remove a question panel the service is still waiting on.
+        ...(running?.clarify && panelVisible(running.clarify) && !panelLocked(running.clarify) ? { clarify: running.clarify } : {}),
       }
     }
     case 'fail': {

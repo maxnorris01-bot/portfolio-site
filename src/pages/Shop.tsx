@@ -33,8 +33,20 @@ export default function Shop() {
   // Development fixtures with questions are interactive (choices, steps, Show results) without a service: the choices live here.
   const [fixtureUi, setFixtureUi] = useState<ClarifyUi | null>(null)
   const fixtureClarify = fixture?.state.status === 'running' ? (fixture.state.clarify ?? null) : null
+  // Progressive fixtures: ?frame=N pins a later server object, ?play=1 steps through them every 2.5 s (development only).
+  const [params] = useSearchParams()
+  const frames = fixture?.frames
+  const pinned = Number(params.get('frame'))
+  const [played, setPlayed] = useState(0)
+  useEffect(() => {
+    if (!frames || params.get('play') !== '1') return
+    const id = setInterval(() => setPlayed((n) => Math.min(n + 1, frames.length - 1)), 2500)
+    return () => clearInterval(id)
+  }, [frames, params])
+  const frameAt = frames ? (params.get('play') === '1' ? played : params.has('frame') && pinned < frames.length ? pinned : null) : null
+  const fixtureUiNow = fixtureUi && frames && frameAt !== null ? clarifyReduce(fixtureUi, { type: 'server', clarify: frames[frameAt] }) : fixtureUi
   const fixtureState =
-    fixture && fixture.state.status === 'running' && fixtureClarify ? { ...fixture.state, clarify: fixtureUi ?? fixtureClarify } : fixture?.state
+    fixture && fixture.state.status === 'running' && fixtureClarify ? { ...fixture.state, clarify: (frames && frameAt !== null ? clarifyReduce(fixtureUiNow ?? fixtureClarify, { type: 'server', clarify: frames[frameAt] }) : fixtureUi) ?? fixtureClarify } : fixture?.state
   const answer = (id: string, choice: string | null) =>
     fixtureClarify ? setFixtureUi((u) => clarifyReduce(u ?? fixtureClarify, { type: 'select', id, value: choice })) : shop.selectAnswer(id, choice)
 
@@ -71,6 +83,7 @@ export default function Shop() {
       onSavedTab={setSavedTab}
       onAnswer={answer}
       onSubmitAnswers={() => (fixtureClarify ? setFixtureUi((u) => clarifyReduce(u ?? fixtureClarify, { type: 'submitted', value: true })) : void shop.submitAnswers())}
+      onTouch={fixtureClarify ? undefined : shop.touch}
       onRetryAnswers={() => void shop.retryAnswers()}
       onResolve={shop.resolveLink}
     />

@@ -121,6 +121,9 @@ export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)
         body: { answers, submit, ...(sessionId ? { session_id: sessionId } : {}) },
         signal,
       }),
+    /** Tell the service the visitor is interacting with the questions (no answers). Best effort. */
+    postTouched: (jobId: string, sessionId: string | null, signal?: AbortSignal) =>
+      request<unknown>(`/job/${encodeURIComponent(jobId)}/answers`, { method: 'POST', body: { touched: true, ...(sessionId ? { session_id: sessionId } : {}) }, signal }),
     removeRefine: (sessionId: string, id: string, signal?: AbortSignal) =>
       request<{ refine: RefineChip[]; clarify_answers?: ClarifyAnswerChip[] }>('/refine/remove', { method: 'POST', body: { session_id: sessionId, id }, signal }),
     removeContext: (sessionId: string, kind: ContextKind, value: string, signal?: AbortSignal) =>

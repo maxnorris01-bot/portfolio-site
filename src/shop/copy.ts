@@ -95,3 +95,7 @@ export const CLARIFY_PICKS_EMPTY = 'Your choices will show here.'
 export const CLARIFY_SIDE_NOTE = 'Your picks narrow the search: the colours, materials and sizes you choose are used when the results are ranked. Skip any question you like.'
 /** "Any colour" for a pick of No preference; the dimension's word as the questions use it. */
 export const clarifyAny = (dimension: string) => `Any ${({ color: 'colour' } as Record<string, string>)[dimension] ?? dimension}`
+
+/** Progressive questions and the waiting note (F2). DRAFT. */
+export const CLARIFY_LOADING_MORE = 'Loading one more question…'
+export const CLARIFY_WAITING = 'Everything is ready. Pick your options and press Show results.'

@@ -190,11 +190,11 @@ const mixedQuestions: ClarifyQuestion[] = [
   { id: 'q_material', text: 'What should it be made of?', kind: 'choice', dimension: 'material', options: [opt('Boucle', 'boucle', '#d9c3a5'), opt('Velvet', 'velvet', '#6a3c5a'), opt('Leather', 'leather', null), opt('Linen', 'linen', '#b9ad96')] },
   { id: 'q_shape', text: 'Which shape do you want?', kind: 'choice', dimension: 'shape', options: [opt('Curved', 'curved', '#c9b79c'), opt('Straight', 'straight', '#b08a5a')] },
 ]
-type ClarifyOpts = { mixed?: boolean; state?: Clarify['state']; pictures?: 'pending' | 'done'; text?: boolean; answers?: Clarify['answers']; submitted?: boolean; applied?: boolean }
+type ClarifyOpts = { mixed?: boolean; questions?: ClarifyQuestion[]; more?: boolean; waiting?: boolean; state?: Clarify['state']; pictures?: 'pending' | 'done'; text?: boolean; answers?: Clarify['answers']; submitted?: boolean; applied?: boolean }
 /** A clarify object as the server sends it; `text` strips every picture (the first poll), `pictures: 'pending'` keeps the areas reserved. */
 export const makeClarify = (o: ClarifyOpts = {}): Clarify => {
   const state = o.state ?? 'ready'
-  const base = o.mixed ? mixedQuestions : fixtureQuestions
+  const base = o.questions ?? (o.mixed ? mixedQuestions : fixtureQuestions)
   const questions = state === 'ready' ? base.map((q) => ({ ...q, options: q.options.map((x) => (o.text ? { ...x, picture_url: null } : x)) })) : []
   return {
     state,
@@ -204,9 +204,28 @@ export const makeClarify = (o: ClarifyOpts = {}): Clarify => {
     answers: o.answers ?? [],
     submitted: o.submitted ?? false,
     applied: o.applied ?? false,
-    deadline: { ...deadline, waiting: state === 'ready' && !o.applied },
+    ...(o.more !== undefined ? { more_coming: o.more } : {}),
+    deadline: { ...deadline, waiting: o.waiting ?? false },
   }
 }
+const plain = (label: string, value: string) => ({ label, value, picture_url: null })
+const iconOpt = (label: string, value: string) => ({ ...plain(label, value), icon: 'placeholder' })
+const swatchOpt = (label: string, value: string, swatches: string[]) => ({ ...plain(label, value), swatches })
+/** A rug's questions: material as icons, colour as swatches, then text-only questions (a row of buttons). */
+const iconQuestions: ClarifyQuestion[] = [
+  { id: 'q_material', text: 'What should it be made of?', kind: 'choice', dimension: 'material', picture_eligible: false, options: [iconOpt('Wool', 'wool'), iconOpt('Cotton', 'cotton'), iconOpt('Jute', 'jute'), iconOpt('Polyester', 'polyester')] },
+  { id: 'q_color', text: 'Which colour do you like?', kind: 'choice', dimension: 'color', picture_eligible: true, options: [swatchOpt('Cream or beige', 'cream', ['#e8dfd0']), swatchOpt('Black or gray', 'blackgray', ['#1f1f1f', '#8a8f98']), swatchOpt('Blue', 'blue', ['#3c5a87']), swatchOpt('Multicolour', 'multi', ['#c0504d', '#e8b84a', '#3c5a87'])] },
+  { id: 'q_care', text: 'How should it be cared for?', kind: 'choice', dimension: 'feature', picture_eligible: false, options: [plain('Washable', 'washable'), plain('Stain resistant', 'stain'), plain('Pet friendly', 'pet')] },
+]
+const textOnlyQuestions: ClarifyQuestion[] = [{ id: 'q_material', text: 'What should it be made of?', kind: 'choice', dimension: 'material', picture_eligible: false, options: [plain('Washable', 'washable'), plain('Wool', 'wool'), plain('Cotton', 'cotton'), plain('Jute', 'jute')] }]
+const mixedPicsQuestions: ClarifyQuestion[] = [{ ...textOnlyQuestions[0], picture_eligible: true, options: [opt('Washable', 'washable', '#d9c3a5'), plain('Wool', 'wool'), plain('Cotton', 'cotton'), plain('Jute', 'jute')] }]
+/** The frames of a progressive search: one question, then two, then three (more coming), then all three. */
+export const progressFrames = (): Clarify[] => [
+  makeClarify({ questions: fixtureQuestions.slice(0, 1), more: true }),
+  makeClarify({ questions: fixtureQuestions.slice(0, 2), more: true }),
+  makeClarify({ questions: fixtureQuestions.slice(0, 3), more: true }),
+  makeClarify({ questions: fixtureQuestions.slice(0, 3), more: false }),
+]
 const askUi = (o: ClarifyOpts = {}, selected: ClarifyUi['selected'] = {}): ClarifyUi => ({ server: makeClarify(o), selected, submitted: o.submitted ?? false, note: null })
 const asking = (clarify: ClarifyUi): ShopState => ({ status: 'running', request: 'modern couch under $1000', kind: 'search', batch: 1, prev: null, phase: 'ranking', startedAt: Date.now() - 6_000, slow: false, steps: steps(['done', 'done', 'active', 'skipped']), clarify })
 // Results with answers (no `must_have`, so the row is 8 chips): "Walnut or brown" replaces "Colour: oatmeal", "Boucle" replaces "Material:
@@ -269,6 +288,11 @@ export const fixtureStates: Record<string, ShopState> = {
   askpics: asking(askUi()),
   askpartial: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_material', option_value: 'no_preference' }] })),
   askmixed: asking(askUi({ mixed: true })),
+  askwaiting: asking(askUi({ waiting: true })),
+  askprogress: asking({ server: progressFrames()[1], selected: {}, submitted: false, note: null }),
+  askicons: asking(askUi({ questions: iconQuestions })),
+  asktextonly: asking(askUi({ questions: textOnlyQuestions })),
+  askmixedpics: asking(askUi({ questions: mixedPicsQuestions })),
   // Every question answered (five picks in the right column; the panel opens on question 1).
   askfive: asking(askUi({ answers: fixtureQuestions.map((q, i) => ({ question_id: q.id, option_value: i === 2 ? 'no_preference' : q.options[0].value })) })),
   asksubmitted: asking(askUi({ answers: [{ question_id: 'q_color', option_value: 'walnut' }, { question_id: 'q_material', option_value: 'boucle' }], submitted: true })),
@@ -287,10 +311,11 @@ export const fixtureStates: Record<string, ShopState> = {
 const clear: ShopMeta = { usage: null, blocked: { search: false, again: false }, maintenance: false }
 
 /** What the dev page needs besides the state: the usage line, blocked buttons, the Saved panel's tab. */
-export type FixtureBundle = { state: ShopState; meta: ShopMeta; savedTab?: 'love' | 'like' }
+export type FixtureBundle = { state: ShopState; meta: ShopMeta; savedTab?: 'love' | 'like'; /** Later server clarify objects, played one by one by the dev page (progressive questions). */ frames?: Clarify[] }
 
 export const fixtureBundles: Record<string, FixtureBundle> = {
   ...Object.fromEntries(Object.entries(fixtureStates).map(([k, state]) => [k, { state, meta: { ...clear, usage: limitUsage } } satisfies FixtureBundle])),
+  askprogress: { state: fixtureStates.askprogress, meta: { ...clear, usage: limitUsage }, frames: progressFrames() },
   savedliked: { state: fixtureStates.saved, meta: clear, savedTab: 'like' },
   savedempty: { state: fixtureStates.savedempty, meta: clear },
   limit: { state: fixtureStates.limit, meta: { usage: limitUsage, blocked: { search: true, again: true }, maintenance: false } },
