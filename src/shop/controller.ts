@@ -5,7 +5,7 @@ import { JobPoller } from './poller.ts'
 import { ratingBody } from './ratings.ts'
 import { initialState, readSavedSession, saveSession, shopReducer, type JobKind, type ShopAction, type ShopState } from './state.ts'
 import { safeHref } from './state.ts'
-import type { ContextKind, Rating, UsageInfo } from './types.ts'
+import type { ContextKind, FilterChoice, Rating, UsageInfo } from './types.ts'
 
 /** Rapid clicks on answer tiles are sent together after this long (the last choice wins). */
 export const ANSWER_DEBOUNCE_MS = 250
@@ -222,6 +222,24 @@ export class ShopController {
     const text = refineText.trim()
     const request = this.snapshot.status === 'done' ? this.snapshot.request : this.lastRequest
     return this.begin(request, 'shop_again', (signal) => this.client.shopAgain(id, text === '' ? null : text, signal))
+  }
+
+  /** Save the refine choices (replaces the stored set, [] clears it) and show the returned chips. True when saved. */
+  saveFilters = async (filters: FilterChoice[]) => {
+    if (!this.session) return false
+    try {
+      const out = await this.client.setRefineFilters(this.session, filters)
+      this.dispatch({ type: 'patch', refine: out.refine })
+      return true
+    } catch (e) {
+      this.note(e)
+      return false
+    }
+  }
+
+  /** Search again with the choices: save them with POST /refine, then Shop Again (without a filters field). */
+  searchAgain = async (refineText: string, filters: FilterChoice[]) => {
+    if (await this.saveFilters(filters)) await this.shopAgain(refineText)
   }
 
   private async persist(id: string, part: { rating: Rating | null } | { comment: string }) {

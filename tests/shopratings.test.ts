@@ -44,12 +44,16 @@ test('keyboard: arrows move through Love, Like, Dislike and wrap; other keys are
   for (const k of ['Tab', 'Enter', ' ', 'a', 'Escape']) assert.equal(nextRatingForKey('like', k), null)
 })
 
-test('Shop Again is off while running, while saving, with nothing rated, or past the per-visit limit', () => {
+test('Shop Again is off while running, while saving, or past the per-visit limit; ratings are not needed', () => {
   const ok = { running: false, saving: false, rated: 1 }
   assert.equal(shopAgainBlock(ok), null)
   assert.ok(shopAgainBlock({ ...ok, running: true }))
   assert.ok(shopAgainBlock({ ...ok, saving: true }))
-  assert.ok(shopAgainBlock({ ...ok, rated: 0 }))
+  assert.equal(shopAgainBlock({ ...ok, rated: 0 }), null) // no rating needed
+  assert.ok(shopAgainBlock({ ...ok, canShopAgain: false }))
+  assert.equal(shopAgainBlock({ ...ok, canShopAgain: false, rated: 0, used: 1, cap: 5 }), null) // an older service's false for "no ratings"
+  assert.ok(shopAgainBlock({ ...ok, canShopAgain: false, rated: 0, used: 5, cap: 5 }))
+  assert.equal(shopAgainBlock({ ...ok, canShopAgain: true }), null)
   assert.ok(shopAgainBlock({ ...ok, used: 5, cap: 5 }))
   assert.equal(shopAgainBlock({ ...ok, used: 4, cap: 5 }), null)
 })

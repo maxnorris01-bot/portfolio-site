@@ -100,14 +100,17 @@ export const CLARIFY_LOADING_MORE = 'Loading one more question…'
 export const CLARIFY_WAITING = 'Everything is ready. Pick your options and press Show results.'
 
 /** Filters F1 and the wait panel. DRAFT. */
-export const FILTERS_BUTTON = 'Filters'
-export const FILTERS_TITLE = 'Filter results'
-export const FILTERS_SHOW = (n: number) => `Show ${n} result${n === 1 ? '' : 's'}`
+export const FILTERS_BUTTON = 'Refine search'
+export const FILTERS_TITLE = 'Refine your next search'
+export const FILTERS_INTRO = 'Your choices are used the next time you search again. Your current results stay as they are.'
 export const FILTERS_CLEAR_ALL = 'Clear all'
 export const FILTERS_CLOSE = 'Close'
-export const FILTERS_NONE = 'No results match these filters.'
-export const FILTERS_CLEAR = 'Clear filters'
-export const FILTERS_AGAIN = 'Search again with these filters'
-export const filtersFew = (n: number) => (n === 1 ? 'Only 1 matches.' : `Only ${n} match.`)
+export const FILTERS_SEARCH = 'Search again'
+export const FILTERS_SEARCH_LINE = 'Search again with these choices'
+export const filtersMatching = (n: number) => `${n} of the current results match`
+export const CHIP_NEXT = 'Next search: '
+export const AGAIN_HINT = 'Rate results to steer the next batch, or just search again.'
+export const filtersMatchLine = (satisfied: number, shown: number) =>
+  satisfied > 0 ? `${satisfied} of ${shown} results match all your choices.` : 'No result matches all your choices; showing the closest.'
 export const filtersUnknown = (n: number, title: string) => `${n} ${n === 1 ? 'has' : 'have'} no ${title.toLowerCase()} info`
 export const WAIT_NOTE = 'Results appear here as soon as they are ready.'

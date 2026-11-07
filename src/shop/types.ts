@@ -58,7 +58,21 @@ export type ParsedQuery = {
 }
 
 /** A refine instruction the server understood ("no Walmart", "focus on cream"). */
-export type RefineChip = { id: string; kind?: string; label: string; approximate?: boolean; text?: string }
+export type RefineChip = {
+  id: string
+  kind?: string
+  label: string
+  approximate?: boolean
+  text?: string
+  /** Kind `filter` (the chosen options of the Refine search dialog): id is `filter:<dimension>` and target is "dimension:v1,v2" (there is no `values` field). */
+  target?: string
+}
+
+/** The choices sent with POST /refine (the backend stores them as a set: a new list replaces the old, an empty list clears them). */
+export type FilterChoice = { dimension: string; values: string[] }
+
+/** After a batch that had choices: how many of the shown results satisfy all of them. */
+export type FiltersMatch = { satisfied_all: number; shown: number; filters?: string[] }
 
 /** Kinds POST /context/remove accepts. */
 export type ContextKind = 'context' | 'suggested' | 'avoid' | 'color_term' | 'material' | 'shape_term'
@@ -76,6 +90,7 @@ export type ShopSearch = {
   /** Filters F1 (backend PR #41): the batch's facets and per-dimension unknown counts live here, beside `results`. */
   facets?: Facet[]
   facets_unknown?: Record<string, number>
+  filters_match?: FiltersMatch | null
 }
 
 /** The body of GET /session, and the `result` of a finished job. */

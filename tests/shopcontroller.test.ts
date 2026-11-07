@@ -151,6 +151,16 @@ test('Shop Again sends the session id and null without refine text, or the trimm
   ])
 })
 
+test('Search again saves the choices with POST /refine (a list replaces, [] clears), then Shop Again WITHOUT filters', async () => {
+  const chips = [{ id: 'filter:color', kind: 'filter', target: 'color:gray,blue', label: 'Colour: gray or blue' }]
+  const t = await withResults({ 'POST /refine': () => json({ refine: chips, notices: [], refine_usd: 0 }), 'POST /shop-again': () => json({ job_id: 'j2' }, 202) })
+  await t.controller.searchAgain('', [{ dimension: 'color', values: ['gray', 'blue'] }])
+  assert.deepEqual(t.calls.filter((c) => c.path === '/refine').map((c) => c.body), [{ session_id: 'fixture-session', filters: [{ dimension: 'color', values: ['gray', 'blue'] }] }])
+  assert.deepEqual(t.calls.filter((c) => c.path === '/shop-again').map((c) => c.body), [{ session_id: 'fixture-session', refine_text: null }])
+  await t.controller.saveFilters([])
+  assert.deepEqual(t.calls.filter((c) => c.path === '/refine').at(-1)?.body, { session_id: 'fixture-session', filters: [] })
+})
+
 test('Shop Again polls the job like a search, then replaces the grid and counts the batch (a new search resets it)', async () => {
   const jobs: Handler[] = [done(fixtureView), () => json({ state: 'running', steps: [{ id: 'rank', label: 'Ranking', state: 'active', done_count: null, total: null }] }), done(fixtureBatch2)]
   const t = await withResults({ 'POST /shop-again': () => json({ job_id: 'j2' }, 202), 'GET /job': jobs })

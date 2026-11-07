@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { FILTERS_AGAIN, FILTERS_CLEAR_ALL, FILTERS_CLOSE, FILTERS_SHOW, FILTERS_TITLE } from './copy.ts'
+import { FILTERS_CLEAR_ALL, FILTERS_CLOSE, FILTERS_INTRO, FILTERS_SEARCH, FILTERS_TITLE } from './copy.ts'
 import { trapTab, unknownLine, type Selection } from './filters.ts'
 import { hasIcon, iconUrl } from './icons/index.ts'
 import type { Facet, FacetOption } from './types.ts'
@@ -45,18 +45,19 @@ export type FiltersModalProps = {
   facets: Facet[]
   unknown?: Record<string, number>
   selection: Selection
-  matching: number
+  /** "N of the current results match" (null with nothing chosen: no line). */
+  matchText: string | null
   onToggle: (dimension: string, value: string) => void
   onClear: () => void
   onClose: () => void
-  /** The few-matches line and its button (null: no line). `again` is null when the button is not offered; `block` says why it is off. */
-  few: string | null
-  again: { block: string | null; onSearch: () => void } | null
+  /** Search again with the choices; `block` says why it is off (Shop Again's own reasons), null when on. */
+  onSearch: () => void
+  block: string | null
   /** Where focus returns when the dialog closes. */
   returnFocus: RefObject<HTMLElement | null>
 }
 
-/** The dialog's markup (the modal below adds the portal, focus and keys): sections from the facets, toggle tiles, a fixed footer. */
+/** The dialog's markup (the modal below adds the portal, focus and keys): sections from the facets, toggle tiles, a fixed footer with Search again. */
 export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: FiltersModalProps; titleId: string; dialogRef?: RefObject<HTMLDivElement | null>; onKeyDown?: (e: KeyboardEvent) => void }) {
   return (
     <div className="filters-backdrop" onMouseDown={(e) => e.target === e.currentTarget && p.onClose()}>
@@ -65,6 +66,7 @@ export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: Filters
           <h2 id={titleId} className="filters-title">
             {FILTERS_TITLE}
           </h2>
+          <p className="filters-intro">{FILTERS_INTRO}</p>
         </header>
         <div className="filters-body">
           {p.facets.map((f) => {
@@ -83,20 +85,12 @@ export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: Filters
           })}
         </div>
         <footer className="filters-foot">
-          {p.few && (
-            <p className="filters-few" role="status">
-              {p.few}
-              {p.again && (
-                <>
-                  {' '}
-                  <button type="button" className="shop-link" disabled={p.again.block !== null} onClick={p.again.onSearch}>
-                    {FILTERS_AGAIN}
-                  </button>
-                  {p.again.block && <span className="filters-why"> ({p.again.block})</span>}
-                </>
-              )}
+          {p.matchText && (
+            <p className="filters-match" role="status">
+              {p.matchText}
             </p>
           )}
+          {p.block && <p className="filters-why">{p.block}</p>}
           <div className="filters-actions">
             <button type="button" className="btn btn-secondary" onClick={p.onClear} disabled={Object.keys(p.selection).length === 0}>
               {FILTERS_CLEAR_ALL}
@@ -104,8 +98,8 @@ export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: Filters
             <button type="button" className="btn btn-secondary" onClick={p.onClose}>
               {FILTERS_CLOSE}
             </button>
-            <button type="button" className="btn btn-primary filters-show" onClick={p.onClose} aria-live="polite">
-              {FILTERS_SHOW(p.matching)}
+            <button type="button" className="btn btn-primary filters-show" disabled={p.block !== null} onClick={p.onSearch}>
+              {FILTERS_SEARCH}
             </button>
           </div>
         </footer>
