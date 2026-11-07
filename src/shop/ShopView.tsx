@@ -36,6 +36,7 @@ import {
 import { CHIP_LIMIT, mergeChips, refineTextChip, requestChips, splitChips, type MergedChip } from './chips.ts'
 import { defaultUsage, limitText, isLimit, localTime, usageLine, usageNumbers } from './limits.ts'
 import { openResolved } from './open.ts'
+import { checkPrice, hasPrice, NO_PRICE, priceBody, priceInputText, priceLabel, priceNote, samePrice, serverPrice } from './price.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
 import { COMMENT_POP_CLOSED, commentLinkLabel, commentPopStep, popoverPlacement, type CommentPopEvent } from './commentpop.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
@@ -541,10 +542,10 @@ function emptyMessage(search: Extract<ShopState, { status: 'done' }>['view']['se
   return ownWords || search?.note || NO_RESULTS_MESSAGE
 }
 
-function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; extra: MergedChip[]; onRemoveFilter: (dimension: string) => void }) {
+function Chips({ state, props, extra, onRemoveFilter, onClearPrice }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; extra: MergedChip[]; onRemoveFilter: (dimension: string) => void; onClearPrice: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const listId = useId()
-  const all = [...mergeChips(requestChips(state.view.search?.query), state.view.clarify_answers ?? [], state.view.refine ?? []), ...extra]
+  const all = [...mergeChips(requestChips(state.view.search?.query), state.view.clarify_answers ?? [], state.view.refine ?? [], extra.some((c) => c.remove?.type === 'price')), ...extra]
   // The choices made in Refine search sit apart (after a divider) and are never folded into "+N more"; only the other chips overflow.
   const neutral = all.filter((c) => !c.choice)
   const choices = all.filter((c) => c.choice)
@@ -560,7 +561,7 @@ function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopSta
             type="button"
             className="shop-chip-x"
             aria-label={c.title ? `Remove ${c.label} (${c.title})` : `Remove ${c.label}`}
-            onClick={() => (remove.type === 'text' ? props.onRefineChange('') : remove.type === 'filter' ? onRemoveFilter(remove.dimension) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
+            onClick={() => (remove.type === 'text' ? props.onRefineChange('') : remove.type === 'price' ? onClearPrice() : remove.type === 'filter' ? onRemoveFilter(remove.dimension) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
           >
             ×
           </button>
@@ -746,8 +747,23 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
   const { facets, unknown: facetsUnknown } = viewFacets(state.view)
   // The refine text counts as one choice (it is shown as a chip and in the badge).
   const textChip = refineTextChip(props.refineText)
-  const active = activeCount(selection) + (textChip ? 1 : 0)
+  // The price range typed in Refine search: local until Shop Again with these or closing the dialog, like the tiles. The server's `price` chip
+  // is the source of truth and resets it when it changes.
+  const heldPrice = serverPrice(state.view.refine)
+  const priceKey = JSON.stringify(heldPrice)
+  const [priceDraft, setPriceDraft] = useState(() => {
+    const start = heldPrice ?? props.initialPrice ?? NO_PRICE
+    return { key: priceKey, min: priceInputText(start.min), max: priceInputText(start.max) }
+  })
+  if (priceDraft.key !== priceKey) setPriceDraft({ key: priceKey, min: priceInputText(heldPrice?.min ?? null), max: priceInputText(heldPrice?.max ?? null) })
+  const priceCheck = checkPrice(priceDraft.min, priceDraft.max)
+  const priceValid = !priceCheck.errors.min && !priceCheck.errors.max
+  // With a bad entry the range in force is the one the server holds.
+  const price = priceValid ? priceCheck.range : (heldPrice ?? NO_PRICE)
+  const priceChanged = priceValid && !samePrice(priceCheck.range, heldPrice ?? NO_PRICE)
+  const active = activeCount(selection) + (textChip ? 1 : 0) + (hasPrice(price) ? 1 : 0)
   const short = shortfallLine(search)
+  const limitedBy = priceNote(search?.price_filter)
   const match = search?.filters_match
   const top = useRef<HTMLDivElement>(null)
   const whyId = useId()
@@ -772,20 +788,24 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
   }
   const open = { resolved: state.view.resolved, onResolve: props.onResolve }
   // The server's chips (in the refine list) show the choices; the local ones show only when the server has none.
-  const chips: MergedChip[] = [...(serverSel ? [] : filterChips(selection, facets).map((c): MergedChip => ({ key: c.key, label: c.label, choice: true, remove: { type: 'filter', dimension: c.dimension } }))), ...(textChip ? [textChip] : [])]
+  const chips: MergedChip[] = [...(serverSel ? [] : filterChips(selection, facets).map((c): MergedChip => ({ key: c.key, label: c.label, choice: true, remove: { type: 'filter', dimension: c.dimension } }))), ...(textChip ? [textChip] : []), ...(!heldPrice && hasPrice(price) ? [{ key: 'price-local', label: priceLabel(price), choice: true, remove: { type: 'price' } } satisfies MergedChip] : [])]
   const block = againBlockFor(state, props)
   // The choices are saved (POST /refine) when the dialog closes or Shop Again with these is pressed, when they differ from what the server holds.
   const changed = !sameSelection(selection, serverSel ?? {})
+  // Only what changed is sent: the filters when the tiles changed, the price when Min or Max did (`{}` clears it); an invalid price is never sent.
+  const sendFilters = changed ? filterChoices(selection) : undefined
+  const sendPrice = priceChanged ? priceBody(priceCheck.range) : undefined
   const closeModal = () => {
     setFiltersOpen(false)
-    if (changed) props.onSaveFilters(filterChoices(selection))
+    if (changed || priceChanged) props.onSaveFilters(sendFilters, sendPrice)
   }
-  const shopAgainWithThese = () => (changed ? props.onSearchFilters(filterChoices(selection)) : props.onShopAgain())
+  const shopAgainWithThese = () => (changed || priceChanged ? props.onSearchFilters(sendFilters, sendPrice) : props.onShopAgain())
   const clear = () => {
     onSelection({})
     props.onRefineChange('')
+    setPriceDraft({ ...priceDraft, min: '', max: '' })
   }
-  const matching = matchCount(all, selection)
+  const matching = matchCount(all, selection, price)
   const usageFigures = usageNumbers(props.meta.usage, { searchCount: state.view.search_count, shopAgainsUsed: state.view.shop_agains_used })
   const limited = props.meta.blocked.search || props.meta.blocked.again || props.meta.maintenance || (usageFigures !== null && usageFigures.searches >= usageFigures.maxSearches)
   return (
@@ -829,6 +849,7 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
           </div>
         </div>
         {short && all.length > 0 && <p className="shop-short">{short}</p>}
+        {limitedBy && all.length > 0 && <p className="shop-price-note">{limitedBy}</p>}
         <Chips
           state={state}
           props={props}
@@ -838,6 +859,7 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
             void _gone
             onSelection(rest)
           }}
+          onClearPrice={() => setPriceDraft({ ...priceDraft, min: '', max: '' })}
         />
       </header>
       <SavedRow state={state} props={props} open={open} />
@@ -857,7 +879,11 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
           selection={selection}
           refineText={props.refineText}
           onRefineChange={props.onRefineChange}
-          matchText={activeCount(selection) > 0 ? filtersMatching(matching) : null}
+          priceMin={priceDraft.min}
+          priceMax={priceDraft.max}
+          onPriceChange={(field, value) => setPriceDraft({ ...priceDraft, [field]: value })}
+          priceErrors={priceCheck.errors}
+          matchText={activeCount(selection) > 0 || hasPrice(price) ? filtersMatching(matching) : null}
           onToggle={(d, v) => onSelection(toggleOption(selection, d, v))}
           onClear={clear}
           onClose={closeModal}

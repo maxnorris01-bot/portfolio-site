@@ -2,6 +2,7 @@ import type { ShopMeta } from './controller.ts'
 import type { RatingsState } from './ratings.ts'
 import type { ShopState } from './state.ts'
 import type { Selection } from './filters.ts'
+import type { PriceBody, PriceRange } from './price.ts'
 import type { ContextKind, FilterChoice, Rating } from './types.ts'
 
 export type ShopViewProps = {
@@ -38,11 +39,13 @@ export type ShopViewProps = {
   /** Overrides the window-width test for the two-column questions panel (from 1280px): the progress steps inside it or above it. Tests only. */
   wide?: boolean
   /** Refine search: Shop Again with the chosen options as `filters`. */
-  onSearchFilters: (filters: FilterChoice[]) => void
+  onSearchFilters: (filters: FilterChoice[] | undefined, price?: PriceBody) => void
   /** Save the choices (POST /refine) when the dialog closes. */
-  onSaveFilters: (filters: FilterChoice[]) => void
+  onSaveFilters: (filters: FilterChoice[] | undefined, price?: PriceBody) => void
   /** Tests and development fixtures only: a local selection to start with (when the service has no filter chips). */
   initialFilters?: Selection
+  /** Tests and development fixtures only: the Min and Max typed into the dialog to start with (when the service has no price chip). */
+  initialPrice?: PriceRange
   /** Look up a result's store link (for Open). */
   onResolve: (id: string) => Promise<string | null>
 }

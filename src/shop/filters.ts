@@ -2,6 +2,7 @@
 // sent with Shop Again as `filters` and applies to the NEXT search. The dialog only counts how many of the current results already match
 // (OR within a dimension, AND across), from their attrs.
 import { filtersUnknown } from './copy.ts'
+import { hasPrice, inPriceRange, type PriceRange } from './price.ts'
 import type { Facet, FilterChoice, RefineChip, SessionView, ShopItem } from './types.ts'
 
 export type Selection = Readonly<Record<string, readonly string[]>>
@@ -37,8 +38,10 @@ export function matchesSelection(item: Pick<ShopItem, 'attrs'>, sel: Selection):
 }
 
 /** How many of the items already match the selection (nothing chosen: 0, the dialog then shows no line). */
-export function matchCount(items: readonly Pick<ShopItem, 'attrs'>[], sel: Selection): number {
-  return activeCount(sel) === 0 ? 0 : items.filter((i) => matchesSelection(i, sel)).length
+export function matchCount<T extends Pick<ShopItem, 'attrs'> & Partial<Pick<ShopItem, 'price'>>>(items: readonly T[], sel: Selection, price?: PriceRange | null): number {
+  if (activeCount(sel) === 0 && !hasPrice(price)) return 0
+  // An item with no price does not match a price range.
+  return items.filter((i) => matchesSelection(i, sel) && inPriceRange({ price: i.price ?? null }, price)).length
 }
 
 const TITLES: Record<string, string> = { color: 'Colour', material: 'Material', style: 'Style', shape: 'Shape', size: 'Size', feature: 'Feature' }

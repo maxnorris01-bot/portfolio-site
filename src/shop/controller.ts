@@ -2,6 +2,7 @@ import { ShopError, isAbort, type ShopClient } from './api.ts'
 import { answersToPost, panelLocked, panelVisible, type ClarifyNote, type ClarifyUi } from './clarify.ts'
 import { limitBlocks, noBlocks, usageFrom, type Blocked } from './limits.ts'
 import { JobPoller } from './poller.ts'
+import type { PriceBody } from './price.ts'
 import { ratingBody } from './ratings.ts'
 import { initialState, readSavedSession, saveSession, shopReducer, type JobKind, type ShopAction, type ShopState } from './state.ts'
 import { safeHref } from './state.ts'
@@ -224,11 +225,11 @@ export class ShopController {
     return this.begin(request, 'shop_again', (signal) => this.client.shopAgain(id, text === '' ? null : text, signal))
   }
 
-  /** Save the refine choices (replaces the stored set, [] clears it) and show the returned chips. True when saved. */
-  saveFilters = async (filters: FilterChoice[]) => {
+  /** Save the refine choices (`filters` replaces the stored set, [] clears it; `price` replaces the stored price, {} clears it; a part left out stays) and show the returned chips. True when saved. */
+  saveFilters = async (filters: FilterChoice[] | undefined, price?: PriceBody) => {
     if (!this.session) return false
     try {
-      const out = await this.client.setRefineFilters(this.session, filters)
+      const out = await this.client.setRefineFilters(this.session, filters, price)
       this.dispatch({ type: 'patch', refine: out.refine })
       return true
     } catch (e) {
@@ -238,8 +239,8 @@ export class ShopController {
   }
 
   /** Search again with the choices: save them with POST /refine, then Shop Again (without a filters field). */
-  searchAgain = async (refineText: string, filters: FilterChoice[]) => {
-    if (await this.saveFilters(filters)) await this.shopAgain(refineText)
+  searchAgain = async (refineText: string, filters: FilterChoice[] | undefined, price?: PriceBody) => {
+    if (await this.saveFilters(filters, price)) await this.shopAgain(refineText)
   }
 
   private async persist(id: string, part: { rating: Rating | null } | { comment: string }) {

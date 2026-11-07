@@ -1,3 +1,4 @@
+import { priceChipLabel } from './price.ts'
 import { formatPrice } from './state.ts'
 import type { ClarifyAnswerChip, ContextKind, ParsedQuery, RefineChip } from './types.ts'
 
@@ -36,7 +37,7 @@ export type MergedChip = {
   title?: string
   /** A choice made in Refine search, applied on the next search (shown after the divider, never in the "+N more"). */
   choice?: boolean
-  remove: { type: 'context'; kind: ContextKind; value: string } | { type: 'refine'; id: string } | { type: 'filter'; dimension: string } | { type: 'text' } | null
+  remove: { type: 'context'; kind: ContextKind; value: string } | { type: 'refine'; id: string } | { type: 'filter'; dimension: string } | { type: 'text' } | { type: 'price' } | null
 }
 
 /** The term a refinement is about: "no Walmart" and "avoid walmart" are walmart, "focus on cream" is cream. */
@@ -52,16 +53,23 @@ export function refineTerm(r: RefineChip): string {
  * the questions, the refinements. An answer replaces every parsed chip of its dimension (one chip per dimension; added when the parsed
  * query has none). A refinement replaces a parsed chip with the same term ("Avoid: walmart" and "No Walmart" show as "No Walmart").
  */
-export function mergeChips(parsed: RequestChip[], answers: ClarifyAnswerChip[], refine: RefineChip[]): MergedChip[] {
+export function mergeChips(parsed: RequestChip[], answers: ClarifyAnswerChip[], refine: RefineChip[], hideBudget = false): MergedChip[] {
   const answered = new Set(answers.map((a) => a.dimension))
-  const refined = new Set(refine.map(refineTerm))
-  const kept = parsed.filter((c) => !(c.dimension && answered.has(c.dimension)) && !(c.term !== undefined && refined.has(c.term)))
+  const refined = new Set(refine.filter((r) => r.kind !== 'price').map(refineTerm))
+  // A price range chosen in Refine search replaces the budget read from the request ("Up to $300"); it comes back when the range is cleared.
+  const priced = hideBudget || refine.some((r) => r.kind === 'price')
+  const kept = parsed.filter((c) => !(c.dimension && answered.has(c.dimension)) && !(c.term !== undefined && refined.has(c.term)) && !(priced && c.key.startsWith('price:')))
   const toMerged = (c: RequestChip): MergedChip => ({ key: c.key, label: c.label, remove: c.remove ? { type: 'context', ...c.remove } : null })
   return [
     ...kept.filter((c) => !c.remove).map(toMerged),
     ...kept.filter((c) => c.remove).map(toMerged),
     ...answers.map((a): MergedChip => ({ key: a.id, label: a.label, title: a.question, remove: { type: 'refine', id: a.id } })),
-    ...refine.map((r): MergedChip => ({ key: r.id, label: r.kind !== 'filter' && r.approximate ? `${r.label} (approximate)` : r.label, choice: r.kind === 'filter' || undefined, remove: { type: 'refine', id: r.id } })),
+    // The price chip is a choice too, after the other choices.
+    ...[...refine.filter((r) => r.kind !== 'price'), ...refine.filter((r) => r.kind === 'price')].map((r): MergedChip =>
+      r.kind === 'price'
+        ? { key: r.id, label: priceChipLabel(r), choice: true, remove: { type: 'refine', id: r.id } }
+        : { key: r.id, label: r.kind !== 'filter' && r.approximate ? `${r.label} (approximate)` : r.label, choice: r.kind === 'filter' || undefined, remove: { type: 'refine', id: r.id } },
+    ),
   ]
 }
 

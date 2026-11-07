@@ -372,6 +372,18 @@ export const fixtureCards: SessionView = {
   shop_agains_cap: 25,
 }
 
+/** Price min/max: a Shop Again limited to $50-$200 (the server's price chip, the note, 4 results left out) after a request that said "under $300". */
+export const fixturePrice: SessionView = {
+  ...fixtureRefineMatch,
+  search: {
+    ...(fixtureRefineMatch.search as NonNullable<SessionView['search']>),
+    query: { search_text: 'wool rug under $300', category: 'rug', price_max: 300, style_terms: ['modern'] },
+    price_filter: { min: 50, max: 200, removed: 4 },
+  },
+  refine: [...refineChips, { id: 'price', kind: 'price', target: 'price:50-200', label: 'Price: $50-$200' }],
+  search_count: 2,
+}
+
 const limitUsage = { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-01T00:00:00+00:00' }
 const limitView: SessionView = { ...fixtureView, search_count: 9, shop_agains_used: 1, shop_agains_cap: 25 }
 
@@ -434,6 +446,7 @@ export const fixtureStates: Record<string, ShopState> = {
   askrefine: done(fixtureRefine, 1),
   askrefinematch: done(fixtureRefineMatch, 2),
   askpolish: done(fixturePolish, 2),
+  askprice: done(fixturePrice, 2),
   // Product cards: rated with a comment (cd-1, cd-5), rated without one (cd-2), the rest unrated.
   askcards: done(fixtureCards, 1, { 'cd-1': rated('love', 'Love the colours.'), 'cd-5': rated('like', 'Check the pile height.'), 'cd-2': rated('like') }),
   limit: done(limitView, 1, {}, { message: 'Daily limit reached.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00', code: 'cap_reached', limit: 'ip_day' }),

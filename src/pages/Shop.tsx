@@ -97,11 +97,11 @@ export default function Shop() {
       onSubmitAnswers={() => (fixtureClarify ? setFixtureUi((u) => clarifyReduce(u ?? fixtureClarify, { type: 'submitted', value: true })) : void shop.submitAnswers())}
       onTouch={fixtureClarify ? undefined : shop.touch}
       onRetryAnswers={() => void shop.retryAnswers()}
-      onSearchFilters={(filters) => {
-        void shop.searchAgain(refineText, filters)
+      onSearchFilters={(filters, price) => {
+        void shop.searchAgain(refineText, filters, price)
         setRefineText('')
       }}
-      onSaveFilters={(filters) => void shop.saveFilters(filters)}
+      onSaveFilters={(filters, price) => void shop.saveFilters(filters, price)}
       onResolve={shop.resolveLink}
     />
   )

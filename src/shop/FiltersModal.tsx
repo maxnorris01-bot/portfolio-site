@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { AGAIN_HINT, FILTERS_CLEAR_ALL, FILTERS_CLOSE, FILTERS_INTRO, FILTERS_SEARCH, FILTERS_TITLE, REFINE_LABEL, REFINE_PLACEHOLDER, REFINE_TEXT_MAX } from './copy.ts'
+import { AGAIN_HINT, FILTERS_CLEAR_ALL, FILTERS_CLOSE, FILTERS_INTRO, FILTERS_SEARCH, FILTERS_TITLE, PRICE_LABEL, PRICE_MAX_LABEL, PRICE_MAX_PLACEHOLDER, PRICE_MIN_LABEL, PRICE_MIN_PLACEHOLDER, REFINE_LABEL, REFINE_PLACEHOLDER, REFINE_TEXT_MAX } from './copy.ts'
 import { trapTab, unknownLine, type Selection } from './filters.ts'
 import { hasIcon, iconUrl } from './icons/index.ts'
 import type { Facet, FacetOption } from './types.ts'
@@ -50,6 +50,11 @@ export type FiltersModalProps = {
   /** The refine box (the same text the header's Shop Again sends). */
   refineText: string
   onRefineChange: (value: string) => void
+  /** The price row: the typed Min and Max (text, local until Shop Again with these or closing), and the inline message for each when it is not valid. */
+  priceMin: string
+  priceMax: string
+  onPriceChange: (field: 'min' | 'max', value: string) => void
+  priceErrors: { min?: string; max?: string }
   onToggle: (dimension: string, value: string) => void
   onClear: () => void
   onClose: () => void
@@ -63,6 +68,54 @@ export type FiltersModalProps = {
 /** The dialog's markup (the modal below adds the portal, focus and keys): sections from the facets, toggle tiles, a fixed footer with Shop Again with these. */
 export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: FiltersModalProps; titleId: string; dialogRef?: RefObject<HTMLDivElement | null>; onKeyDown?: (e: KeyboardEvent) => void }) {
   const textId = `${titleId}-text`
+  const priceId = `${titleId}-price`
+  const minRef = useRef<HTMLInputElement>(null)
+  const maxRef = useRef<HTMLInputElement>(null)
+  // Shop Again with these stays on with a bad price, but does not send it: the first bad field is focused instead.
+  const search = () => {
+    const bad = p.priceErrors.min ? minRef.current : p.priceErrors.max ? maxRef.current : null
+    if (bad) bad.focus()
+    else p.onSearch()
+  }
+  const field = (which: 'min' | 'max', label: string, placeholder: string, ref: RefObject<HTMLInputElement | null>) => {
+    const error = p.priceErrors[which]
+    return (
+      <div className="filters-price-field">
+        <label className="filters-price-label" htmlFor={`${priceId}-${which}`}>
+          {label}
+        </label>
+        <span className={`filters-price-box${error ? ' is-bad' : ''}`}>
+          <span className="filters-price-sign" aria-hidden="true">
+            $
+          </span>
+          <input
+            ref={ref}
+            id={`${priceId}-${which}`}
+            className="filters-price-input"
+            type="number"
+            inputMode="decimal"
+            step={1}
+            min={0}
+            placeholder={placeholder}
+            value={which === 'min' ? p.priceMin : p.priceMax}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${priceId}-${which}-error` : undefined}
+            onChange={(e) => p.onPriceChange(which, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              e.preventDefault()
+              if (p.block === null) search()
+            }}
+          />
+        </span>
+        {error && (
+          <p id={`${priceId}-${which}-error`} className="filters-error" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    )
+  }
   return (
     <div className="filters-backdrop" onMouseDown={(e) => e.target === e.currentTarget && p.onClose()}>
       <div ref={dialogRef} className="filters-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={onKeyDown}>
@@ -88,12 +141,21 @@ export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: Filters
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return
                 e.preventDefault()
-                if (p.block === null) p.onSearch()
+                if (p.block === null) search()
               }}
             />
             <p id={`${textId}-hint`} className="filters-hint">
               {AGAIN_HINT}
             </p>
+          </div>
+          <div className="filters-price" role="group" aria-labelledby={priceId}>
+            <span id={priceId} className="shop-label">
+              {PRICE_LABEL}
+            </span>
+            <div className="filters-price-fields">
+              {field('min', PRICE_MIN_LABEL, PRICE_MIN_PLACEHOLDER, minRef)}
+              {field('max', PRICE_MAX_LABEL, PRICE_MAX_PLACEHOLDER, maxRef)}
+            </div>
           </div>
         </header>
         <div className="filters-body">
@@ -120,13 +182,13 @@ export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: Filters
           )}
           {p.block && <p className="filters-why">{p.block}</p>}
           <div className="filters-actions">
-            <button type="button" className="btn btn-secondary" onClick={p.onClear} disabled={Object.keys(p.selection).length === 0 && p.refineText === ''}>
+            <button type="button" className="btn btn-secondary" onClick={p.onClear} disabled={Object.keys(p.selection).length === 0 && p.refineText === '' && p.priceMin === '' && p.priceMax === ''}>
               {FILTERS_CLEAR_ALL}
             </button>
             <button type="button" className="btn btn-secondary" onClick={p.onClose}>
               {FILTERS_CLOSE}
             </button>
-            <button type="button" className="btn btn-primary filters-show" disabled={p.block !== null} onClick={p.onSearch}>
+            <button type="button" className="btn btn-primary filters-show" disabled={p.block !== null} onClick={search}>
               {FILTERS_SEARCH}
             </button>
           </div>

@@ -38,7 +38,7 @@ test('header: Refine search then Shop Again, in the right cluster after the usag
 test('Shop Again: sends the refine text through the existing flow (the page passes refineText; the controller sends refine_text)', () => {
   const page = read('../src/pages/Shop.tsx')
   assert.match(page, /onShopAgain=\{\(\) => \{\s*void shop\.shopAgain\(refineText\)/)
-  assert.match(page, /void shop\.searchAgain\(refineText, filters\)/)
+  assert.match(page, /void shop\.searchAgain\(refineText, filters, price\)/)
   assert.match(read('../src/shop/api.ts'), /refine_text: refineText/)
   const ui = read('../src/shop/ShopView.tsx')
   assert.match(ui, /onClick=\{props\.onShopAgain\}/)
@@ -101,7 +101,7 @@ test('Saved row: above the grid under the header, always shown (also with nothin
 test('Refine dialog: text box under the subtitle (label, maxLength 200, no autocomplete, placeholder, hint), footer "Shop Again with these", Clear all clears the text too', async () => {
   const { FiltersDialog } = await loadModule<{ FiltersDialog: ComponentType<{ p: Record<string, unknown>; titleId: string }> }>('/src/shop/FiltersModal.tsx')
   const facets = viewFacets(fixtureFilters).facets
-  const p = { facets, selection: {}, refineText: 'more wood', onRefineChange: noop, matchText: null, onToggle: noop, onClear: noop, onClose: noop, onSearch: noop, block: null, returnFocus: { current: null } }
+  const p = { facets, selection: {}, refineText: 'more wood', onRefineChange: noop, matchText: null, priceMin: '', priceMax: '', onPriceChange: noop, priceErrors: {}, onToggle: noop, onClear: noop, onClose: noop, onSearch: noop, block: null, returnFocus: { current: null } }
   const html = await render(FiltersDialog, { p, titleId: 'ttl' })
   assert.ok(html.indexOf('filters-intro') < html.indexOf('>Refine your search</label>') && html.indexOf('>Refine your search</label>') < html.indexOf('filters-body'))
   assert.match(html, /<input id="ttl-text" class="shop-input" type="text" maxLength="200" autoComplete="off" placeholder="more wood, no glass"[^>]*value="more wood"/)
@@ -113,11 +113,11 @@ test('Refine dialog: text box under the subtitle (label, maxLength 200, no autoc
   const none = await render(FiltersDialog, { p: { ...p, refineText: '' }, titleId: 'ttl' })
   assert.match(none.match(/<button[^>]*>Clear all<\/button>/)?.[0] ?? '', /disabled/)
   const modal = read('../src/shop/FiltersModal.tsx')
-  assert.match(modal, /e\.key !== 'Enter'[^]*?p\.onSearch\(\)/, 'Enter in the text box does what the footer button does')
+  assert.match(modal, /e\.key !== 'Enter'[^]*?search\(\)/, 'Enter in the text box does what the footer button does (a bad price focuses its field instead)')
   const ui = read('../src/shop/ShopView.tsx')
-  assert.match(ui, /const clear = \(\) => \{\s*onSelection\(\{\}\)\s*props\.onRefineChange\(''\)/)
+  assert.match(ui, /const clear = \(\) => \{\s*onSelection\(\{\}\)\s*props\.onRefineChange\(''\)\s*setPriceDraft/)
   assert.match(ui, /refineText=\{props\.refineText\}\s*onRefineChange=\{props\.onRefineChange\}/, 'the dialog is bound to the same state as the chip')
-  assert.match(ui, /changed \? props\.onSearchFilters\(filterChoices\(selection\)\) : props\.onShopAgain\(\)/, 'save the filters only if they changed, then Shop Again')
+  assert.match(ui, /changed \|\| priceChanged \? props\.onSearchFilters\(sendFilters, sendPrice\) : props\.onShopAgain\(\)/, 'save what changed (tiles, price), then Shop Again')
 })
 
 test('screensaver: no progress-driven change reaches the canvas (the wait panel passes nothing)', () => {

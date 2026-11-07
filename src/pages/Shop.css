@@ -243,6 +243,12 @@
   font-size: var(--text-small);
 }
 
+.shop-price-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
 .shop-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
