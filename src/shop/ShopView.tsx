@@ -222,6 +222,11 @@ function ProgressBlock({ state, compact = false }: { state: Extract<ShopState, {
 
 type RunningState = Extract<ShopState, { status: 'running' }>
 
+/** Completed steps (done or skipped) over all steps, 0..1; undefined before the list is known, so the screensaver falls back to time. */
+function stepProgress(steps: RunningState['steps']): number | undefined {
+  return steps.length ? steps.filter((s) => s.state === 'done' || s.state === 'skipped').length / steps.length : undefined
+}
+
 /**
  * The wait panel: one card while a search runs. The screensaver on the left (above from under 1280px), the step list with the timer and a
  * note on the right. When the results arrive it fades out over 300 ms on top of where the results appear (not with reduced motion).
@@ -240,7 +245,7 @@ function WaitPanel({ running, side, pattern }: { running: RunningState | null; s
       onAnimationEnd={leaving ? () => setLast(null) : undefined}
     >
       <div className="wait-anim">
-        <WaitScreensaver key={shown.startedAt} pattern={pattern} />
+        <WaitScreensaver key={shown.startedAt} pattern={pattern} progress={stepProgress(shown.steps)} />
       </div>
       <div className="wait-side">
         <ProgressBlock state={shown} compact={side} />
