@@ -73,12 +73,16 @@ export function nextRatingForKey(current: Rating | null, key: string): Rating | 
 
 export const ratedCount = (ids: string[], ratings: RatingsState) => ids.filter((id) => ratings[id]?.rating).length
 
-/** Why Shop Again is off, or null when it is on. */
-export function shopAgainBlock(args: { running: boolean; saving: boolean; rated: number; used?: number; cap?: number; limited?: string | null }): string | null {
+/**
+ * Why Shop Again is off, or null when it is on. Ratings are not needed. `canShopAgain` is the service's own word: absent or true is on;
+ * false is believed unless nothing is rated and the cap is not reached (an older service said false for "no ratings" alone).
+ */
+export function shopAgainBlock(args: { running: boolean; saving: boolean; rated: number; used?: number; cap?: number; limited?: string | null; canShopAgain?: boolean }): string | null {
   if (args.running) return 'A search is running.'
   if (args.limited) return args.limited
-  if (args.cap !== undefined && args.used !== undefined && args.used >= args.cap) return 'You have used every Shop Again for this visit.'
+  const underCap = args.cap !== undefined && args.used !== undefined && args.used < args.cap
+  if (args.cap !== undefined && args.used !== undefined && !underCap) return 'You have used every Shop Again for this visit.'
   if (args.saving) return 'Saving your ratings…'
-  if (args.rated === 0) return 'Rate at least one result first.'
+  if (args.canShopAgain === false && !(underCap && args.rated === 0)) return 'Shop Again is not available right now.'
   return null
 }

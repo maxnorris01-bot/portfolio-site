@@ -3,8 +3,7 @@ import type { RatingsState } from './ratings.ts'
 import type { ShopMeta } from './controller.ts'
 import type { ClarifyUi } from './clarify.ts'
 import type { Banner, ShopState } from './state.ts'
-import type { Selection } from './filters.ts'
-import type { Clarify, ClarifyQuestion, Facet, SessionView, ShopItem } from './types.ts'
+import type { Clarify, ClarifyQuestion, Facet, RefineChip, SessionView, ShopItem } from './types.ts'
 
 const art = (fill: string) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" fill="${fill}"/><rect x="20" y="50" width="80" height="35" rx="6" fill="#ffffff" fill-opacity=".7"/></svg>`)}`
@@ -311,14 +310,18 @@ export const fixtureFilters: SessionView = {
   search: { request: 'rug', headline: 'Twelve rugs.', warnings: [], query: { search_text: 'rug', category: 'rug' }, results: filterItemsFixture, facets: filtersBatch.facets, facets_unknown: filtersBatch.unknown },
   refine: [],
 }
-/** Five results, two chosen options leaving two matches (gray + vintage): the few-matches line. */
-const fewItems = filterItemsFixture.slice(0, 5)
-const fewBatch = facetsOf(fewItems)
-export const fixtureFiltersFew: SessionView = {
-  ...fixtureFilters,
-  search: { ...(fixtureFilters.search as NonNullable<SessionView['search']>), results: fewItems, facets: fewBatch.facets, facets_unknown: fewBatch.unknown },
+/** Refine search: the backend's `filter` chips (id `filter:<dimension>`; `dimension` and `values` are assumed beside them), no ratings, Shop Again on. */
+export const refineChips: RefineChip[] = [
+  { id: 'filter:color', kind: 'filter', label: 'Colour: gray or blue', dimension: 'color', values: ['gray', 'blue'] },
+  { id: 'filter:style', kind: 'filter', label: 'Style: vintage', dimension: 'style', values: ['vintage'] },
+]
+export const fixtureRefine: SessionView = { ...fixtureFilters, refine: refineChips, can_shop_again: true, shop_agains_used: 0, shop_agains_cap: 25 }
+/** A batch that came back for those choices: 5 of the 12 satisfy both. */
+export const fixtureRefineMatch: SessionView = {
+  ...fixtureRefine,
+  search: { ...(fixtureRefine.search as NonNullable<SessionView['search']>), kind: 'shop_again', filters_match: { satisfied_all: 5, shown: 12, filters: ['color', 'style'] } },
+  shop_agains_used: 1,
 }
-export const fixtureFiltersFewSelection: Selection = { color: ['gray'], style: ['vintage'] }
 
 const limitUsage = { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-01T00:00:00+00:00' }
 const limitView: SessionView = { ...fixtureView, search_count: 9, shop_agains_used: 1, shop_agains_cap: 25 }
@@ -375,19 +378,19 @@ export const fixtureStates: Record<string, ShopState> = {
   savedempty: done({ ...fixtureView, saved: [] }, 1, {}),
   short: done(fixtureShort, 1),
   askfilters: done(fixtureFilters, 1),
-  askfiltersfew: done(fixtureFiltersFew, 1, { 'ft-1': rated('like') }),
+  askrefine: done(fixtureRefine, 1),
+  askrefinematch: done(fixtureRefineMatch, 2),
   limit: done(limitView, 1, {}, { message: 'Daily limit reached.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00', code: 'cap_reached', limit: 'ip_day' }),
 }
 
 const clear: ShopMeta = { usage: null, blocked: { search: false, again: false }, maintenance: false }
 
 /** What the dev page needs besides the state: the usage line, blocked buttons, the Saved panel's tab. */
-export type FixtureBundle = { state: ShopState; meta: ShopMeta; /** Filters chosen when the page opens. */ filters?: Selection; savedTab?: 'love' | 'like'; /** Later server clarify objects, played one by one by the dev page (progressive questions). */ frames?: Clarify[] }
+export type FixtureBundle = { state: ShopState; meta: ShopMeta; savedTab?: 'love' | 'like'; /** Later server clarify objects, played one by one by the dev page (progressive questions). */ frames?: Clarify[] }
 
 export const fixtureBundles: Record<string, FixtureBundle> = {
   ...Object.fromEntries(Object.entries(fixtureStates).map(([k, state]) => [k, { state, meta: { ...clear, usage: limitUsage } } satisfies FixtureBundle])),
   askprogress: { state: fixtureStates.askprogress, meta: { ...clear, usage: limitUsage }, frames: progressFrames() },
-  askfiltersfew: { state: fixtureStates.askfiltersfew, meta: { ...clear, usage: limitUsage }, filters: fixtureFiltersFewSelection },
   savedliked: { state: fixtureStates.saved, meta: clear, savedTab: 'like' },
   savedempty: { state: fixtureStates.savedempty, meta: clear },
   limit: { state: fixtureStates.limit, meta: { usage: limitUsage, blocked: { search: true, again: true }, maintenance: false } },

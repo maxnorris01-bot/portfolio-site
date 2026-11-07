@@ -3,7 +3,7 @@ import PageHeader from '../components/PageHeader'
 import { useWide } from './wide.ts'
 import FiltersModal from './FiltersModal.tsx'
 import WaitScreensaver from './WaitScreensaver.tsx'
-import { activeCount, applyFilters, cleanSelection, fewLine, filterChips, NO_FILTERS, refineTextFor, toggleOption, viewFacets, type Selection } from './filters.ts'
+import { activeCount, filterChips, filterChoices, matchCount, NO_FILTERS, sameSelection, serverSelection, toggleOption, viewFacets, type Selection } from './filters.ts'
 import type { Pattern } from './screensaver.ts'
 import { prefersReducedMotion } from './autoscroll.ts'
 import {
@@ -13,9 +13,10 @@ import {
   CLARIFY_SIDE_PROGRESS,
   EXAMPLE_REQUESTS,
   FILTERS_BUTTON,
-  FILTERS_CLEAR,
-  FILTERS_NONE,
-  FILTERS_AGAIN,
+  AGAIN_HINT,
+  FILTERS_SEARCH_LINE,
+  filtersMatchLine,
+  filtersMatching,
   GUARDRAILS_LABEL,
   GUARDRAILS_NOTE,
   NO_RESULTS_MESSAGE,
@@ -36,7 +37,7 @@ import { openTarget, savedLists, type SavedItem } from './saved.ts'
 import { COMMENT_MAX, RATING_LABELS, RATING_ORDER, nextRatingForKey, ratedCount, shopAgainBlock, type ItemRating } from './ratings.ts'
 import { alsoAtLine, formatPrice, ratingLine, safeHref, shortfallLine, stepSummary, type ShopState } from './state.ts'
 import type { ShopViewProps } from './viewprops.ts'
-import type { Rating, ResolvedLink, ShopItem } from './types.ts'
+import type { FilterChoice, Rating, ResolvedLink, ShopItem } from './types.ts'
 
 export function ProductImageView({ src, alt, failed, onError }: { src: string; alt: string; failed: boolean; onError?: () => void }) {
   return (
@@ -258,11 +259,16 @@ export default function ShopView(props: ShopViewProps) {
   const windowWide = useWide()
   // From 1280px the wait panel has two columns (the animation, then the steps); below it they stack.
   const side = props.wide ?? windowWide
-  // Filters F1: the chosen options belong to one batch (its results) and reset when another loads.
-  const batchKey = state.status === 'done' ? `${state.batch}:${(state.view.search?.results ?? []).map((i) => i.id).join('|')}` : null
-  const [chosen, setChosen] = useState<{ key: string | null; sel: Selection }>({ key: null, sel: props.initialFilters ?? NO_FILTERS })
-  const selection = batchKey !== null && (chosen.key === batchKey || chosen.key === null) ? chosen.sel : NO_FILTERS
-  const setSelection = (sel: Selection) => batchKey !== null && setChosen({ key: batchKey, sel })
+  // Refine search: the chosen options are the NEXT search's. The backend's `filter` chips (refine list) are the source of truth; with none
+  // (an older service, a fixture) the choice is local. They survive Shop Again, and reset when the server's chips change or the category does.
+  const view = state.status === 'done' ? state.view : null
+  const serverSel = serverSelection(view?.refine)
+  const category = view?.search?.query?.category ?? null
+  const syncKey = `${category ?? ''}|${JSON.stringify(serverSel)}`
+  const [chosen, setChosen] = useState<{ key: string; category: string | null; sel: Selection }>({ key: syncKey, category, sel: serverSel ?? props.initialFilters ?? NO_FILTERS })
+  if (chosen.key !== syncKey) setChosen({ key: syncKey, category, sel: serverSel ?? (chosen.category === null || chosen.category === category ? chosen.sel : NO_FILTERS) })
+  const selection = chosen.sel
+  const setSelection = (sel: Selection) => setChosen({ ...chosen, sel })
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (!running && !blocked && value.trim()) onSubmit()
@@ -353,7 +359,7 @@ export default function ShopView(props: ShopViewProps) {
             </div>
           )}
 
-          {state.status === 'done' && <Results state={state} props={props} selection={selection} onSelection={setSelection} />}
+          {state.status === 'done' && <Results state={state} props={props} selection={selection} serverSel={serverSel} onSelection={setSelection} />}
         </section>
 
         <SearchPipeline usage={props.meta.usage} />
@@ -424,7 +430,7 @@ function emptyMessage(search: Extract<ShopState, { status: 'done' }>['view']['se
   return ownWords || search?.note || NO_RESULTS_MESSAGE
 }
 
-function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; extra: MergedChip[]; onRemoveFilter: (dimension: string, value: string) => void }) {
+function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; extra: MergedChip[]; onRemoveFilter: (dimension: string) => void }) {
   const [expanded, setExpanded] = useState(false)
   const listId = useId()
   const own = mergeChips(requestChips(state.view.search?.query), state.view.clarify_answers ?? [], state.view.refine ?? [])
@@ -446,7 +452,7 @@ function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopSta
                     type="button"
                     className="shop-chip-x"
                     aria-label={c.title ? `Remove ${c.label} (${c.title})` : `Remove ${c.label}`}
-                    onClick={() => (remove.type === 'filter' ? onRemoveFilter(remove.dimension, remove.value) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
+                    onClick={() => (remove.type === 'filter' ? onRemoveFilter(remove.dimension) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
                   >
                     ×
                   </button>
@@ -468,24 +474,28 @@ function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopSta
   )
 }
 
-function AgainBar({ state, props }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps }) {
-  const refineId = useId()
+/** Shop Again's own reasons for being off (running is handled by the wait panel: the page has no bar then). */
+function againBlockFor(state: Extract<ShopState, { status: 'done' }>, props: ShopViewProps): string | null {
   const items = state.view.search?.results ?? []
-  const saving = Object.values(state.ratings).some((r) => r.save === 'saving')
-  const block = shopAgainBlock({
+  return shopAgainBlock({
     running: false,
-    saving,
+    saving: Object.values(state.ratings).some((r) => r.save === 'saving'),
     rated: ratedCount(items.map((i) => i.id), state.ratings),
     used: state.view.shop_agains_used,
     cap: state.view.shop_agains_cap,
     limited: props.meta.blocked.again ? 'Shop Again is not available right now.' : null,
+    canShopAgain: state.view.can_shop_again,
   })
+}
+
+function AgainBar({ block, filters, props }: { block: string | null; filters: FilterChoice[] | undefined; props: ShopViewProps }) {
+  const refineId = useId()
   return (
     <form
       className="shop-again"
       onSubmit={(e) => {
         e.preventDefault()
-        if (!block) props.onShopAgain()
+        if (!block) props.onShopAgain(filters)
       }}
     >
       <label className="shop-label" htmlFor={refineId}>
@@ -507,7 +517,7 @@ function AgainBar({ state, props }: { state: Extract<ShopState, { status: 'done'
         </button>
       </div>
       <p id={`${refineId}-why`} className="shop-card-meta">
-        {block ?? 'Uses your ratings to find a new batch. Items you have seen are not repeated.'}
+        {block ?? AGAIN_HINT}
       </p>
     </form>
   )
@@ -593,14 +603,13 @@ function SavedPanel({ state, props, open }: { state: Extract<ShopState, { status
   )
 }
 
-function Results({ state, props, selection, onSelection }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; selection: Selection; onSelection: (sel: Selection) => void }) {
+function Results({ state, props, selection, serverSel, onSelection }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; selection: Selection; serverSel: Selection | null; onSelection: (sel: Selection) => void }) {
   const search = state.view.search
   const all = search?.results ?? []
   const { facets, unknown: facetsUnknown } = viewFacets(state.view)
-  const sel = cleanSelection(selection, facets)
-  const items = applyFilters(all, sel)
-  const active = activeCount(sel)
+  const active = activeCount(selection)
   const short = shortfallLine(search)
+  const match = search?.filters_match
   const top = useRef<HTMLDivElement>(null)
   const filtersButton = useRef<HTMLButtonElement>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -612,27 +621,20 @@ function Results({ state, props, selection, onSelection }: { state: Extract<Shop
   }, [state.fresh, state.batch, state.view])
   const handlers = { onRate: props.onRate, onComment: props.onComment, onCommentBlur: props.onCommentBlur, onRetryRating: props.onRetryRating }
   const open = { resolved: state.view.resolved, onResolve: props.onResolve }
-  const chips: MergedChip[] = filterChips(sel, facets).map((c) => ({ key: c.key, label: c.label, remove: { type: 'filter', dimension: c.dimension, value: c.value } }))
-  const few = fewLine(items.length, sel)
-  // The few-matches button goes through Shop Again with a text refinement, so Shop Again's own limits apply.
-  const againBlock = shopAgainBlock({
-    running: false,
-    saving: Object.values(state.ratings).some((r) => r.save === 'saving'),
-    rated: ratedCount(all.map((i) => i.id), state.ratings),
-    used: state.view.shop_agains_used,
-    cap: state.view.shop_agains_cap,
-    limited: props.meta.blocked.again ? 'Shop Again is not available right now.' : null,
-  })
-  const again = { block: againBlock, onSearch: () => props.onSearchFilters(refineTextFor(sel, facets)) }
+  // The server's chips (in the refine list) show the choices; the local ones show only when the server has none.
+  const chips: MergedChip[] = serverSel ? [] : filterChips(selection, facets).map((c) => ({ key: c.key, label: c.label, remove: { type: 'filter', dimension: c.dimension } }))
+  const block = againBlockFor(state, props)
+  // The choices to send: the page's selection when it differs from what the server holds ([] clears them); nothing when they agree.
+  const filters = serverSel ? (sameSelection(selection, serverSel) ? undefined : filterChoices(selection)) : active > 0 ? filterChoices(selection) : undefined
+  const searchAgain = () => props.onSearchFilters(filterChoices(selection))
   const clear = () => onSelection({})
+  const matching = matchCount(all, selection)
   return (
     <div className="shop-results" ref={top}>
       {state.banner && <Banner banner={state.banner} />}
       <div className="shop-count-row">
         <p className="shop-count" role="status" aria-live="polite">
-          {all.length === 0
-            ? '0 results'
-            : `${active > 0 ? `${items.length} of ${all.length}` : all.length} result${all.length === 1 ? '' : 's'} for “${state.request}”`}
+          {all.length === 0 ? '0 results' : `${all.length} result${all.length === 1 ? '' : 's'} for “${state.request}”`}
           {all.length > 0 && <span className="shop-batch"> · Batch {state.batch}</span>}
         </p>
         {facets.length > 0 && all.length > 0 && (
@@ -641,46 +643,42 @@ function Results({ state, props, selection, onSelection }: { state: Extract<Shop
             {active > 0 && (
               <span className="filters-badge">
                 {active}
-                <span className="visually-hidden"> active</span>
+                <span className="visually-hidden"> chosen</span>
               </span>
             )}
           </button>
         )}
       </div>
+      {match && all.length > 0 && <p className="shop-match">{filtersMatchLine(match.satisfied_all, match.shown)}</p>}
       {short && all.length > 0 && <p className="shop-short">{short}</p>}
-      <Chips state={state} props={props} extra={chips} onRemoveFilter={(d, v) => onSelection(toggleOption(sel, d, v))} />
+      <Chips
+        state={state}
+        props={props}
+        extra={chips}
+        onRemoveFilter={(d) => {
+          const { [d]: _gone, ...rest } = selection
+          void _gone
+          onSelection(rest)
+        }}
+      />
       {all.length === 0 ? (
         <p className="shop-empty">{emptyMessage(search)}</p>
       ) : (
         <>
-          {items.length === 0 ? (
-            <div className="shop-filter-empty">
-              <p className="shop-empty" role="status">
-                {FILTERS_NONE}
-              </p>
-              <button type="button" className="btn btn-secondary" onClick={clear}>
-                {FILTERS_CLEAR}
+          <ul className="shop-grid">
+            {all.map((item) => (
+              <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} />
+            ))}
+          </ul>
+          {active > 0 && (
+            <p className="shop-few">
+              <button type="button" className="shop-link" disabled={block !== null} onClick={searchAgain}>
+                {FILTERS_SEARCH_LINE}
               </button>
-            </div>
-          ) : (
-            <ul className="shop-grid">
-              {items.map((item) => (
-                <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} />
-              ))}
-            </ul>
+              {block && <span className="filters-why"> ({block})</span>}
+            </p>
           )}
-          {few && (
-            <div className="shop-few">
-              <p>
-                {few}{' '}
-                <button type="button" className="shop-link" disabled={againBlock !== null} onClick={again.onSearch}>
-                  {FILTERS_AGAIN}
-                </button>
-                {againBlock && <span className="filters-why"> ({againBlock})</span>}
-              </p>
-            </div>
-          )}
-          <AgainBar state={state} props={props} />
+          <AgainBar block={block} filters={filters} props={props} />
         </>
       )}
       <SavedPanel state={state} props={props} open={open} />
@@ -688,13 +686,16 @@ function Results({ state, props, selection, onSelection }: { state: Extract<Shop
         <FiltersModal
           facets={facets}
           unknown={facetsUnknown}
-          selection={sel}
-          matching={items.length}
-          onToggle={(d, v) => onSelection(toggleOption(sel, d, v))}
+          selection={selection}
+          matchText={active > 0 ? filtersMatching(matching) : null}
+          onToggle={(d, v) => onSelection(toggleOption(selection, d, v))}
           onClear={clear}
           onClose={() => setFiltersOpen(false)}
-          few={few}
-          again={few ? again : null}
+          onSearch={() => {
+            setFiltersOpen(false)
+            searchAgain()
+          }}
+          block={block}
           returnFocus={filtersButton}
         />
       )}

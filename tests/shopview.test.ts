@@ -192,21 +192,26 @@ test('save indicators: Saved, Saving…, and a failed save with its reason and a
 
 const againButton = (html: string) => html.match(/<button type="submit"[^>]*>Shop Again/)?.[0] ?? 'NO BUTTON'
 
-test('Shop Again: refine box labelled with its placeholder; button off with nothing rated, on once something is rated, off while a save is pending', async () => {
+test('Shop Again: refine box labelled with its placeholder; on with nothing rated (with the hint), off while a save is pending', async () => {
   const { default: View } = await mod()
   const none = render(View, props(fixtureStates.results))
   assert.match(none, /<label[^>]*>Refine your search<\/label>/)
   assert.match(none, /placeholder="more wood, no glass"/)
-  assert.match(againButton(none), /disabled=""/)
-  assert.match(none, /Rate at least one result first\./)
+  assert.doesNotMatch(againButton(none), /disabled/)
+  assert.match(none, /Rate results to steer the next batch, or just search again\./)
+  assert.doesNotMatch(none, /Rate at least one result first\./)
   const rated = fixtureStates.rated
   assert.ok(rated.status === 'done')
-  const ready = render(View, props({ ...rated, ratings: { 'fx-1': { ...rated.ratings['fx-1'] } } }))
-  assert.doesNotMatch(againButton(ready), /disabled/)
-  assert.match(ready, /Items you have seen are not repeated/)
   const saving = render(View, props(rated))
   assert.match(saving, /Saving your ratings…/)
   assert.match(againButton(saving), /disabled=""/)
+  // The service's word: false is believed once something is rated; with nothing rated an older service's false is ignored.
+  const ready = { ...rated, ratings: { 'fx-1': { ...rated.ratings['fx-1'], save: 'saved' as const } } }
+  assert.doesNotMatch(againButton(render(View, props({ ...ready, view: { ...ready.view, can_shop_again: true } }))), /disabled/)
+  assert.match(againButton(render(View, props({ ...ready, view: { ...ready.view, can_shop_again: false } }))), /disabled=""/)
+  const unrated = fixtureStates.results
+  assert.ok(unrated.status === 'done')
+  assert.doesNotMatch(againButton(render(View, props({ ...unrated, view: { ...unrated.view, can_shop_again: false, shop_agains_used: 0, shop_agains_cap: 25 } }))), /disabled/)
 })
 
 test('chips: one row of what the search used: plain facts without a Remove button, removable terms and refinements with one', async () => {
