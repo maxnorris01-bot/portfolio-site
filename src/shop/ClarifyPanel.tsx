@@ -1,11 +1,14 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MutableRefObject, type ReactNode } from 'react'
 import { prefersReducedMotion } from './autoscroll.ts'
-import { ADVANCE_MS, choiceOutcome, chosen, clampStep, expectsPicture, firstUnanswered, NO_PREFERENCE, panelLocked, picks, roveTo, shouldAutoScroll, type ClarifyUi } from './clarify.ts'
+import { ADVANCE_MS, choiceOutcome, chosen, clampStep, firstUnanswered, MORE_WAIT_CAP_MS, NO_PREFERENCE, optionVisual, panelLocked, picks, questionLayout, roveTo, shouldAutoScroll, stepAfterGrowth, stepCount, waitingForMore, type ClarifyUi, type Visual } from './clarify.ts'
+import { hasIcon, iconUrl } from './icons/index.ts'
 import {
   CLARIFY_BACK,
   CLARIFY_CLOSED,
   CLARIFY_FAILED,
   CLARIFY_LIMIT,
+  CLARIFY_LOADING_MORE,
+  CLARIFY_WAITING,
   CLARIFY_NO_PREFERENCE,
   CLARIFY_PICKS_EMPTY,
   CLARIFY_PICKS_LABEL,
@@ -24,14 +27,35 @@ export type ClarifyHandlers = {
   onAnswer: (questionId: string, value: string | null) => void
   onSubmit: () => void
   onRetry: () => void
+  onTouch?: () => void
 }
 
 /**
- * The option's picture area (4:3). A picture fades in when it arrives; while the server still checks pictures the area is a quiet tint;
- * a picture that fails to load leaves the area empty (no jump). The label is the button's name, so the area is hidden from readers.
+ * The option's picture area. A picture fades in when it arrives; while the server still checks pictures the area is a quiet tint; a
+ * picture that fails to load leaves the area empty (no jump). Swatches are circles; an icon is an <img> of the shipped drawing (a
+ * missing file leaves the label alone). The label is the button's name, so the area is hidden from readers.
  */
-function OptionPicture({ url, label }: { url: string | null; label: string }) {
+function OptionVisual({ visual, label }: { visual: Visual; label: string }) {
   const [failed, setFailed] = useState(false)
+  if (visual.kind === 'swatch') {
+    return (
+      <span className="clarify-pic is-compact is-swatch" aria-hidden="true">
+        {visual.colors.map((c) => (
+          <span key={c} className="clarify-swatch" style={{ background: c }} />
+        ))}
+      </span>
+    )
+  }
+  if (visual.kind === 'icon') {
+    const url = iconUrl(visual.key)
+    if (!url || failed) return <span className="clarify-pic is-compact is-text" />
+    return (
+      <span className="clarify-pic is-compact is-icon" aria-hidden="true">
+        <img src={url} alt="" decoding="async" onError={() => setFailed(true)} />
+      </span>
+    )
+  }
+  const url = visual.kind === 'picture' ? visual.url : null
   return (
     <span className={`clarify-pic${url ? '' : ' is-pending'}`} aria-hidden="true">
       {url && !failed && <img src={url} alt={label} decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />}
@@ -48,6 +72,7 @@ function QuestionStep({ q, ui, locked, choose, titleRef }: { q: ClarifyQuestion;
   const current = chosen(ui, q.id)
   const refs = useRef<(HTMLButtonElement | null)[]>([])
   const n = q.options.length
+  const layout = questionLayout(ui.server, q, hasIcon)
   const chosenAt = q.options.findIndex((o) => o.value === current)
   const [focusAt, setFocusAt] = useState<number | null>(null)
   const tabStop = focusAt ?? (chosenAt >= 0 ? chosenAt : 0)
@@ -63,9 +88,17 @@ function QuestionStep({ q, ui, locked, choose, titleRef }: { q: ClarifyQuestion;
       <h3 id={headingId} ref={titleRef} tabIndex={-1} className="clarify-q-title">
         {q.text}
       </h3>
-      <div className="clarify-options" role="radiogroup" aria-labelledby={headingId} data-n={n} onKeyDown={onKey} style={{ '--clarify-n': n } as React.CSSProperties}>
+      <div
+        className={`clarify-options${layout === 'buttons' ? ' is-buttons' : ''}`}
+        role="radiogroup"
+        aria-labelledby={headingId}
+        data-n={n}
+        data-layout={layout}
+        onKeyDown={onKey}
+        style={{ '--clarify-n': n } as React.CSSProperties}
+      >
         {q.options.map((o, i) => {
-          const picture = expectsPicture(ui.server, o.picture_url)
+          const visual = optionVisual(ui.server, q, o, hasIcon)
           return (
             <button
               key={o.value}
@@ -77,20 +110,12 @@ function QuestionStep({ q, ui, locked, choose, titleRef }: { q: ClarifyQuestion;
               aria-checked={current === o.value}
               tabIndex={tabStop === i ? 0 : -1}
               disabled={locked}
-              className={`clarify-tile${current === o.value ? ' is-on' : ''}`}
+              className={`${layout === 'buttons' ? 'clarify-btn' : 'clarify-tile'}${current === o.value ? ' is-on' : ''}${layout === 'tiles' && visual.kind === 'none' ? ' is-labelonly' : ''}`}
               onFocus={() => setFocusAt(i)}
               onClick={() => choose(o.value)}
             >
-              {picture ? (
-                <>
-                  <OptionPicture url={o.picture_url} label={o.label} />
-                  <span className="clarify-label">{o.label}</span>
-                </>
-              ) : (
-                <span className="clarify-pic is-text">
-                  <span className="clarify-label">{o.label}</span>
-                </span>
-              )}
+              {layout === 'tiles' && visual.kind !== 'none' && <OptionVisual visual={visual} label={o.label} />}
+              <span className="clarify-label">{o.label}</span>
             </button>
           )
         })}
@@ -112,6 +137,8 @@ export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }:
   const titleRef = useRef<HTMLHeadingElement>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const moved = useRef(false)
+  const touched = useRef(false)
+  const [cappedAt, setCappedAt] = useState<number | null>(null)
   const qs = ui.server.questions
   const total = qs.length
   const [at, setAt] = useState(() => firstUnanswered(ui))
@@ -120,8 +147,18 @@ export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }:
   const locked = panelLocked(ui)
   const note = ui.note ?? (ui.server.applied && !ui.submitted ? 'closed' : null)
   const current = chosen(ui, q.id)
+  const more = ui.server.more_coming === true
+  const capped = cappedAt === total // the cap is per question count: a new question restarts the wait
+  const gated = waitingForMore(ui, step, capped)
+  const prevTotal = useRef(total)
   const picked = picks(ui)
+  const waiting = ui.server.deadline.waiting && !locked && !more
 
+  const touch = () => {
+    if (touched.current) return
+    touched.current = true
+    handlers.onTouch?.()
+  }
   const goTo = (i: number) => {
     clearTimeout(timer.current)
     moved.current = true
@@ -132,6 +169,26 @@ export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }:
     moved.current = false
   }, [step])
   useEffect(() => () => clearTimeout(timer.current), [])
+
+  // Questions can arrive while the visitor answers: the current question, choice and scroll stay. Only a visitor who already answered the
+  // last question (and is waiting for the next) is moved on to the first new one.
+  useEffect(() => {
+    const before = prevTotal.current
+    prevTotal.current = total
+    const to = stepAfterGrowth({ step: clampStep(at, before), before, after: total, answered: chosen(ui, qs[clampStep(at, before)].id) !== null })
+    if (to !== null) {
+      moved.current = true
+      setAt(to)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total])
+
+  // The wait for one more question ends after the cap.
+  useEffect(() => {
+    if (!gated) return
+    const id = setTimeout(() => setCappedAt(total), MORE_WAIT_CAP_MS)
+    return () => clearTimeout(id)
+  }, [gated, total])
 
   // Once per search (the panel mounts once per search): scroll it into view when it arrives below the fold and the visitor has not scrolled.
   useEffect(() => {
@@ -156,7 +213,14 @@ export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }:
   }
 
   return (
-    <section ref={rootRef} className={`card clarify${side ? ' has-side' : ''}${locked ? ' is-locked' : ''}`} aria-labelledby={titleId}>
+    <section
+      ref={rootRef}
+      className={`card clarify${side ? ' has-side' : ''}${locked ? ' is-locked' : ''}`}
+      aria-labelledby={titleId}
+      onPointerEnter={touch}
+      onPointerDown={touch}
+      onFocus={touch}
+    >
       <div className="clarify-main">
         <header className="clarify-head">
           <div className="clarify-head-text">
@@ -167,7 +231,7 @@ export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }:
           </div>
           <div className="clarify-progress">
             <span className="clarify-count">
-              {step + 1} of {total}
+              {stepCount(step, total, more)}
             </span>
             <div className="clarify-dots" role="group" aria-label="Questions">
               {qs.map((x, i) => (
@@ -182,6 +246,7 @@ export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }:
                   <span aria-hidden="true" />
                 </button>
               ))}
+              {more && <span className="clarify-dot is-pending" aria-hidden="true"><span /></span>}
             </div>
           </div>
         </header>
@@ -204,12 +269,16 @@ export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }:
               {CLARIFY_NO_PREFERENCE}
             </button>
           </div>
-          <button type="button" className="btn btn-primary clarify-submit" disabled={locked} onClick={handlers.onSubmit}>
+          <button type="button" className="btn btn-primary clarify-submit" disabled={locked || gated} onClick={handlers.onSubmit}>
             {CLARIFY_SUBMIT}
           </button>
       </div>
       <p className="clarify-note" role="status" aria-live="polite">
-        {ui.submitted && note === null ? (
+        {gated && !locked ? (
+          CLARIFY_LOADING_MORE
+        ) : waiting && !side && !note ? (
+          CLARIFY_WAITING
+        ) : ui.submitted && note === null ? (
           CLARIFY_SUBMITTED
         ) : note ? (
           <>
@@ -246,6 +315,7 @@ export default function ClarifyPanel({ ui, scrolled, side = null, ...handlers }:
               </ul>
             )}
           </div>
+          {waiting && <p className="clarify-waiting">{CLARIFY_WAITING}</p>}
           <p className="clarify-side-note">{CLARIFY_SIDE_NOTE}</p>
         </div>
       )}

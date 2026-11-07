@@ -1,7 +1,7 @@
 // The clarifying questions' state (stage Q2): what the server last said, and what the visitor has chosen on this page.
 // Pure functions, so the reducer, the answer list and the panel's mode are tested without a browser.
 import { clarifyAny } from './copy.ts'
-import type { Clarify, ClarifyAnswer } from './types.ts'
+import type { Clarify, ClarifyAnswer, ClarifyOption, ClarifyQuestion } from './types.ts'
 
 export const NO_PREFERENCE = 'no_preference'
 
@@ -136,4 +136,64 @@ export function picks(ui: ClarifyUi): Pick[] {
     out.push({ id: q.id, question: q.text, label: option ? option.label : clarifyAny(q.dimension) })
   }
   return out
+}
+
+// ---- progressive questions (F2): the list can grow while the visitor answers ----
+
+/** If more_coming does not clear in this long the visitor may press Show results anyway. */
+export const MORE_WAIT_CAP_MS = 10_000
+
+/** True while the visitor is on the last question that exists and the service says another is on its way (unless the wait cap passed). Show results waits then. */
+export function waitingForMore(ui: ClarifyUi, step: number, capped: boolean): boolean {
+  return ui.server.more_coming === true && step >= ui.server.questions.length - 1 && !capped
+}
+
+/** The step label: "2 of 3", or "2 of 3+" while more questions are coming. */
+export function stepCount(step: number, total: number, more: boolean): string {
+  return `${step + 1} of ${total}${more ? '+' : ''}`
+}
+
+/** Where to go when questions arrive under a visitor who had already answered the last one (they are waiting for it): the first new question; otherwise stay put. */
+export function stepAfterGrowth(o: { step: number; before: number; after: number; answered: boolean }): number | null {
+  return o.after > o.before && o.step === o.before - 1 && o.answered ? o.before : null
+}
+
+// ---- icons, swatches and pictures in the options (F2) ----
+
+export type Visual =
+  | { kind: 'swatch'; colors: string[] }
+  | { kind: 'icon'; key: string }
+  | { kind: 'picture'; url: string }
+  | { kind: 'pending' }
+  | { kind: 'none' }
+
+const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i
+
+/** One to three safe CSS hex colours (anything else is dropped, so a payload cannot inject styles). */
+export function safeSwatches(swatches: readonly string[] | null | undefined): string[] {
+  return (swatches ?? []).filter((c) => typeof c === 'string' && HEX.test(c)).slice(0, 3)
+}
+
+/** Whether the service expects pictures for the question: its own flag, else a guess from the dimension. */
+export function pictureEligible(q: ClarifyQuestion): boolean {
+  return q.picture_eligible ?? ['color', 'shape', 'style', 'size'].includes(q.dimension)
+}
+
+/**
+ * What an option shows in its picture area. Swatches first, then a drawing that exists (`hasIcon`), then a verified picture; while the
+ * service still checks pictures an eligible option with none of those reserves its area; anything else is text.
+ */
+export function optionVisual(clarify: Clarify, q: ClarifyQuestion, o: ClarifyOption, hasIcon: (key: string) => boolean): Visual {
+  const colors = safeSwatches(o.swatches)
+  if (colors.length > 0) return { kind: 'swatch', colors }
+  if (o.icon && hasIcon(o.icon)) return { kind: 'icon', key: o.icon }
+  if (o.picture_url) return { kind: 'picture', url: o.picture_url }
+  if (clarify.pictures_state === 'pending' && pictureEligible(q) && !o.icon) return { kind: 'pending' }
+  return { kind: 'none' }
+}
+
+/** Tiles when at least half the options have (or will have) a visual; otherwise a row of buttons. */
+export function questionLayout(clarify: Clarify, q: ClarifyQuestion, hasIcon: (key: string) => boolean): 'tiles' | 'buttons' {
+  const withVisual = q.options.filter((o) => optionVisual(clarify, q, o, hasIcon).kind !== 'none').length
+  return withVisual > 0 && withVisual * 2 >= q.options.length ? 'tiles' : 'buttons'
 }

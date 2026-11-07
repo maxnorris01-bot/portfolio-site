@@ -75,13 +75,23 @@ export type SavedRow = ShopItem & { topic_label?: string }
 export type ResolvedLink = { status: 'resolved' | 'fallback'; link: string; link_kind?: string }
 
 /** Stage Q1 (docs/api-contract.md in room-redesign-agent): the clarifying questions a search job may carry. Absent when the backend flag is off. */
-export type ClarifyOption = { label: string; value: string; picture_url: string | null }
+export type ClarifyOption = {
+  label: string
+  value: string
+  picture_url: string | null
+  /** A key into src/shop/icons (a drawing shipped with the site). */
+  icon?: string | null
+  /** 1-3 CSS hex colours drawn as circular swatches. */
+  swatches?: string[] | null
+}
 export type ClarifyQuestion = {
   id: string
   text: string
   kind: 'choice' | 'size_range'
   dimension: 'color' | 'material' | 'shape' | 'style' | 'size' | 'feature'
   options: ClarifyOption[]
+  /** The service expects product pictures for this question (so tiles are worth reserving while they are checked). */
+  picture_eligible?: boolean
 }
 export type ClarifyAnswer = { question_id: string; option_value: string }
 export type Clarify = {
@@ -93,6 +103,10 @@ export type Clarify = {
   answers: ClarifyAnswer[]
   submitted: boolean
   applied: boolean
+  /** More questions will be added to `questions` (they arrive while the visitor answers). */
+  more_coming?: boolean
+  /** Server-side timings, for diagnostics only. */
+  timing?: Record<string, number | null>
   deadline: { idle_grace_s: number; max_wait_s: number; waiting: boolean; seconds_left: number | null; shown_s_ago: number | null }
 }
 

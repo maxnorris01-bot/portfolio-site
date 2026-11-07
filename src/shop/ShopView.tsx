@@ -3,7 +3,7 @@ import PageHeader from '../components/PageHeader'
 import { useScrolledSince } from './autoscroll.ts'
 import { useWide } from './wide.ts'
 import ClarifyPanel from './ClarifyPanel.tsx'
-import { panelVisible } from './clarify.ts'
+import { panelLocked, panelVisible } from './clarify.ts'
 import {
   CHIPS_FEWER,
   CHIPS_LABEL,
@@ -315,6 +315,7 @@ export default function ShopView(props: ShopViewProps) {
                       onAnswer={props.onAnswer}
                       onSubmit={props.onSubmitAnswers}
                       onRetry={props.onRetryAnswers}
+                      onTouch={props.onTouch}
                     />
                   )}
                 </>
@@ -334,6 +335,9 @@ export default function ShopView(props: ShopViewProps) {
             </div>
           )}
 
+          {state.status === 'done' && panelVisible(state.clarify) && !panelLocked(state.clarify) && (
+            <ClarifyPanel ui={state.clarify} onAnswer={props.onAnswer} onSubmit={props.onSubmitAnswers} onRetry={props.onRetryAnswers} onTouch={props.onTouch} />
+          )}
           {state.status === 'done' && <Results state={state} props={props} />}
         </section>
 

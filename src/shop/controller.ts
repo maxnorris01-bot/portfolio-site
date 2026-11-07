@@ -1,5 +1,5 @@
 import { ShopError, isAbort, type ShopClient } from './api.ts'
-import { answersToPost, panelLocked, type ClarifyNote, type ClarifyUi } from './clarify.ts'
+import { answersToPost, panelLocked, panelVisible, type ClarifyNote, type ClarifyUi } from './clarify.ts'
 import { limitBlocks, noBlocks, usageFrom, type Blocked } from './limits.ts'
 import { JobPoller } from './poller.ts'
 import { ratingBody } from './ratings.ts'
@@ -77,6 +77,15 @@ export class ShopController {
     this.dispatch({ type: 'fail', ...info, phase })
   }
 
+  private touchedSent = false
+
+  /** First interaction inside the question panel: tell the service once (no answers). Failures are ignored. */
+  touch = () => {
+    if (this.touchedSent || !this.jobId || !this.ui()) return
+    this.touchedSent = true
+    void this.client.postTouched(this.jobId, this.session).catch(() => undefined)
+  }
+
   private resetAnswers() {
     if (this.answerTimer !== null) clearTimeout(this.answerTimer)
     this.answerTimer = null
@@ -84,12 +93,13 @@ export class ShopController {
     this.answerAbort = null
     this.jobId = null
     this.posted = new Set()
+    this.touchedSent = false
     this.answerBusy = this.answerDirty = this.submitWanted = this.answersStopped = false
   }
 
   private ui(): ClarifyUi | null {
     const s = this.snapshot
-    return s.status === 'running' ? (s.clarify ?? null) : null
+    return s.status === 'running' || s.status === 'done' ? (s.clarify ?? null) : null
   }
 
   private async begin(request: string, kind: JobKind, start: (signal: AbortSignal) => Promise<{ job_id: string }>) {
@@ -108,7 +118,8 @@ export class ShopController {
         onClarify: (clarify) => this.dispatch({ type: 'clarify', action: { type: 'server', clarify } }),
         onSlow: () => this.dispatch({ type: 'slow' }),
         onDone: (view) => {
-          this.resetAnswers()
+          const keep = this.ui() !== null && panelVisible(this.ui()!) && !panelLocked(this.ui()!)
+          if (!keep) this.resetAnswers()
           this.session = view.session_id ?? this.session
           this.batch = nextBatch
           saveSession(this.session, this.batch)

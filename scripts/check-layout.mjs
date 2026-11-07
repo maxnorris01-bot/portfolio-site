@@ -360,7 +360,7 @@ async function interact(browser, base, w, h) {
   }
   const title = (page) => page.locator('.clarify-q-title').innerText()
   const count = (page) => page.locator('.clarify-count').innerText()
-  const checked = (page) => page.locator('.clarify-tile[aria-checked="true"]').count()
+  const checked = (page) => page.locator('.clarify-tile[aria-checked="true"], .clarify-btn[aria-checked="true"]').count()
   const focusIs = (page, cls) => page.evaluate((c) => document.activeElement?.classList.contains(c) ?? false, cls)
   const Q = ['Which colour do you like?', 'What should it be made of?', 'Which shape do you want?', 'Which look do you prefer?', 'How big should it be?']
   const page = await open()
@@ -371,7 +371,7 @@ async function interact(browser, base, w, h) {
   expect((await page.locator('.shop-timer').first().innerText()) !== t0, 'the timer does not update')
   expect(await page.locator('.clarify-back.is-hidden').count() === 1, 'Back is not hidden on question 1')
   // choose: advances after the pause, moves focus to the question text
-  await page.locator('.clarify-tile').first().click()
+  await page.locator('.clarify-tile, .clarify-btn').first().click()
   await page.waitForTimeout(600)
   expect((await title(page)) === Q[1] && (await count(page)) === '2 of 5', 'choosing a tile does not move on to question 2')
   expect(await focusIs(page, 'clarify-q-title'), 'focus does not move to the question text on advance')
@@ -384,14 +384,14 @@ async function interact(browser, base, w, h) {
     await page.waitForTimeout(100)
     expect((await page.locator('.clarify-picks li').count()) === 0 && (await page.locator('.clarify-picks-empty').count()) === 1 && (await page.locator('.clarify-dot.is-answered').count()) === 0, 'clearing a pick does not clear the answer')
     await page.locator('.clarify-back').click()
-    await page.locator('.clarify-tile').first().click()
+    await page.locator('.clarify-tile, .clarify-btn').first().click()
     await page.waitForTimeout(600)
   }
   // back: the answer is still there; choosing it again clears it and does not advance
   await page.locator('.clarify-back').click()
   await page.waitForTimeout(100)
   expect((await title(page)) === Q[0] && (await checked(page)) === 1, 'Back does not return to question 1 with its answer')
-  await page.locator('.clarify-tile').first().click()
+  await page.locator('.clarify-tile, .clarify-btn').first().click()
   await page.waitForTimeout(600)
   expect((await title(page)) === Q[0] && (await checked(page)) === 0, 'choosing the chosen tile again does not clear it in place')
   // keyboard: the arrows move focus without choosing; Enter chooses and advances
@@ -411,13 +411,13 @@ async function interact(browser, base, w, h) {
   expect((await title(page)) === Q[3], 'No preference does not choose and advance')
   await page.locator('.clarify-dot').nth(4).click()
   await page.waitForTimeout(100)
-  await page.locator('.clarify-tile').first().click()
+  await page.locator('.clarify-tile, .clarify-btn').first().click()
   await page.waitForTimeout(600)
   expect((await title(page)) === Q[4] && (await count(page)) === '5 of 5', 'the last question moved on')
   expect(await page.locator('.clarify-submit:not([disabled])').isVisible(), 'Show results is not visible and enabled on the last question')
   await page.locator('.clarify-submit').click()
   await page.waitForTimeout(100)
-  expect((await page.locator('.clarify-tile[disabled]').count()) > 0 && (await page.locator('.clarify-note').innerText()).length > 0, 'Show results does not lock the tiles and say so')
+  expect((await page.locator('.clarify-tile[disabled], .clarify-btn[disabled]').count()) > 0 && (await page.locator('.clarify-note').innerText()).length > 0, 'Show results does not lock the tiles and say so')
   await page.context().close()
   // reduced motion: no pause before moving on, no fade
   const rm = await open({ reducedMotion: 'reduce' })

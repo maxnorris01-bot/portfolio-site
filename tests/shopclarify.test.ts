@@ -11,6 +11,13 @@ import {
   clarifyReduce,
   expectsPicture,
   firstUnanswered,
+  MORE_WAIT_CAP_MS,
+  optionVisual,
+  questionLayout,
+  safeSwatches,
+  stepAfterGrowth,
+  stepCount,
+  waitingForMore,
   nextStep,
   NO_PREFERENCE,
   panelLocked,
@@ -38,7 +45,7 @@ import {
   STEP_LABELS,
   stepLabel,
 } from '../src/shop/copy.ts'
-import { fixtureBundles, fixtureStates, fixtureView, makeClarify } from '../src/shop/fixtures.ts'
+import { fixtureBundles, fixtureQuestions, fixtureStates, fixtureView, makeClarify, progressFrames } from '../src/shop/fixtures.ts'
 import { JobPoller, PICTURE_TAIL_POLLS, type PollHandlers } from '../src/shop/poller.ts'
 import { shopReducer, type ShopState } from '../src/shop/state.ts'
 import type { Clarify, JobStatus, SessionView } from '../src/shop/types.ts'
@@ -422,7 +429,7 @@ test('view: pending pictures show a quiet skeleton with the label below and no i
   assert.ok(!done.includes('is-text'))
   const mixed = await view('askmixed')
   assert.equal((mixed.match(/<img src="data:image/g) ?? []).length, 3, 'three picture options')
-  assert.match(mixed, /<span class="clarify-pic is-text"><span class="clarify-label">Leather<\/span><\/span>/, 'the text-only option puts its label inside the picture area')
+  assert.match(mixed, /<button[^>]*class="clarify-tile is-labelonly"><span class="clarify-label">Leather<\/span><\/button>/, 'the text-only option is a label-height tile, no empty box')
   assert.doesNotMatch(mixed.slice(mixed.indexOf('class="card clarify')), /loading="lazy"/, 'pictures are visible at once: no lazy loading')
   assert.match(mixed, /style="--clarify-n:4"/)
 })
@@ -727,4 +734,188 @@ test('layout: the wide width is 1280px in the hook and the stylesheet', async ()
   assert.match(css, /data-n='3'\][\s\S]*--clarify-max: 290px/)
   assert.match(css, /@media \(min-width: 1600px\) \{[\s\S]*data-n='3'\] \{\s*--clarify-max: 300px[\s\S]*aspect-ratio: 3 \/ 2/, 'from 1600px: 300px for three options and a 3:2 picture area')
   assert.match(css, /\.clarify-pic \{[^}]*aspect-ratio: 4 \/ 3/, '4:3 below 1600px')
+})
+
+// ---- F2: progressive questions, icons and swatches; F1: the panel stays and is clickable ----
+
+const qs = (n: number) => fixtureQuestions.slice(0, n)
+const yes = () => true
+const no = () => false
+
+test('progressive: new questions arriving keep the visitor\'s choices, submitted flag and note', () => {
+  const frames = progressFrames()
+  let u = ui({ questions: qs(1), more: true }, { q_color: 'navy' })
+  u = clarifyReduce(u, { type: 'note', note: 'failed' }) as ClarifyUi
+  u = clarifyReduce(u, { type: 'server', clarify: frames[2] }) as ClarifyUi
+  assert.equal(u.server.questions.length, 3)
+  assert.equal(chosen(u, 'q_color'), 'navy', 'the selected option stays')
+  assert.equal(u.note, 'failed')
+  assert.equal(firstUnanswered(u), 1, 'the first unanswered question is the next one')
+  u = clarifyReduce(u, { type: 'server', clarify: frames[3] }) as ClarifyUi
+  assert.equal(u.server.more_coming, false)
+  assert.equal(chosen(u, 'q_color'), 'navy')
+})
+
+test('progressive: the step never moves on its own when questions arrive, except for a visitor waiting on an answered last question', () => {
+  assert.equal(stepAfterGrowth({ step: 0, before: 3, after: 4, answered: true }), null, 'not on the last question: stay')
+  assert.equal(stepAfterGrowth({ step: 2, before: 3, after: 4, answered: false }), null, 'unanswered last question: stay')
+  assert.equal(stepAfterGrowth({ step: 2, before: 3, after: 3, answered: true }), null, 'nothing new')
+  assert.equal(stepAfterGrowth({ step: 2, before: 3, after: 4, answered: true }), 3, 'answered the last one and waiting: the first new question')
+})
+
+test('progressive: Show results waits for more_coming on the last question, for at most 10 s', () => {
+  const more = ui({ questions: qs(2), more: true })
+  assert.equal(waitingForMore(more, 1, false), true)
+  assert.equal(waitingForMore(more, 0, false), false, 'not on the last question')
+  assert.equal(waitingForMore(more, 1, true), false, 'the cap passed')
+  assert.equal(waitingForMore(ui({ questions: qs(2), more: false }), 1, false), false)
+  assert.equal(waitingForMore(ui({ questions: qs(2) }), 1, false), false, 'a backend without the field never waits')
+  assert.equal(MORE_WAIT_CAP_MS, 10_000)
+  assert.equal(stepCount(0, 3, true), '1 of 3+')
+  assert.equal(stepCount(1, 3, false), '2 of 3')
+})
+
+test('view: askprogress reads "2 of 3+" with a quiet pending dot; on the last question the line replaces the enabled button', async () => {
+  const mid = await view('askprogress')
+  assert.ok(mid.includes('2 of 3+') === false, 'the panel opens on question 1 of the frame')
+  assert.ok(mid.includes('1 of 2+'))
+  assert.equal(mid.match(/clarify-dot is-pending/g)?.length, 1)
+  assert.match(mid, /class="btn btn-primary clarify-submit">Show results/, 'enabled while on a question that has more after it')
+  const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
+  const base = fixtureStates.askprogress as Extract<ShopState, { status: 'running' }>
+  const one = render(View, props({ ...base, clarify: ui({ questions: qs(1), more: true }) }))
+  assert.ok(one.includes('1 of 1+'))
+  assert.match(one, /class="btn btn-primary clarify-submit" disabled/)
+  assert.ok(one.includes('Loading one more question…'))
+  const done = render(View, props({ ...base, clarify: ui({ questions: qs(1), more: false }) }))
+  assert.doesNotMatch(done, /clarify-submit" disabled/)
+  assert.ok(!done.includes('Loading one more question'))
+})
+
+test('layout: tiles when at least half the options have a visual, otherwise buttons', () => {
+  const icons = fixtureBundles.askicons.state as Extract<ShopState, { status: 'running' }>
+  const [material, color, care] = (icons.clarify as ClarifyUi).server.questions
+  const c = (icons.clarify as ClarifyUi).server
+  assert.equal(questionLayout(c, material, yes), 'tiles', 'icons')
+  assert.equal(questionLayout(c, color, yes), 'tiles', 'swatches')
+  assert.equal(questionLayout(c, care, yes), 'buttons', 'text only')
+  assert.equal(questionLayout(c, material, no), 'buttons', 'icon files missing: no empty boxes')
+  const mixed = makeClarify({ mixed: true })
+  assert.equal(questionLayout(mixed, mixed.questions[0], yes), 'tiles', 'three of four have pictures')
+  const rug = (fixtureBundles.asktextonly.state as Extract<ShopState, { status: 'running' }>).clarify as ClarifyUi
+  assert.equal(questionLayout(rug.server, rug.server.questions[0], yes), 'buttons')
+  const one = (fixtureBundles.askmixedpics.state as Extract<ShopState, { status: 'running' }>).clarify as ClarifyUi
+  assert.equal(questionLayout(one.server, one.server.questions[0], yes), 'buttons', 'one picture of four: buttons')
+  const pend = makeClarify({ pictures: 'pending', text: true })
+  assert.equal(questionLayout(pend, pend.questions[0], yes), 'tiles', 'eligible question with pictures pending reserves tiles')
+  assert.equal(optionVisual(pend, pend.questions[0], pend.questions[0].options[0], yes).kind, 'pending')
+})
+
+test('swatches: hex colours only, at most three', () => {
+  assert.deepEqual(safeSwatches(['#1f1f1f', '#8a8f98']), ['#1f1f1f', '#8a8f98'])
+  assert.deepEqual(safeSwatches(['red;background:url(x)', '#fff', 'javascript:1', '#a', '#abcdef', '#112233', '#445566']), ['#fff', '#abcdef', '#112233'])
+  assert.deepEqual(safeSwatches(null), [])
+})
+
+test('view: askicons shows icons through <img>, two swatches for "Black or gray", and a row of buttons for the text-only question', async () => {
+  const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
+  const base = fixtureBundles.askicons.state as Extract<ShopState, { status: 'running' }>
+  const html = render(View, props(base))
+  assert.equal(html.match(/class="clarify-pic is-compact is-icon"/g)?.length, 4)
+  assert.match(html, /<span class="clarify-pic is-compact is-icon" aria-hidden="true"><img src="[^"]+" alt=""/)
+  assert.ok(!html.includes('<svg'), 'never inline-injected')
+  const colorUi = { ...(base.clarify as ClarifyUi) }
+  const colorHtml = render(View, props({ ...base, clarify: { ...colorUi, selected: { q_material: 'wool' } } }))
+  assert.ok(colorHtml.includes('1 of 3'))
+  // The colour question: open it by answering the first.
+  const answered = { ...colorUi, server: { ...colorUi.server, answers: [{ question_id: 'q_material', option_value: 'wool' }] } }
+  const swatches = render(View, props({ ...base, clarify: answered }))
+  assert.equal(swatches.match(/class="clarify-swatch"/g)?.length, 1 + 2 + 1 + 3, 'one, two (Black or gray), one, three')
+  assert.ok(swatches.includes('Black or gray'))
+  const care = render(View, props({ ...base, clarify: { ...answered, server: { ...answered.server, answers: [{ question_id: 'q_material', option_value: 'wool' }, { question_id: 'q_color', option_value: 'blue' }] } } }))
+  assert.ok(care.includes('clarify-options is-buttons'))
+  assert.equal(care.match(/class="clarify-btn/g)?.length, 3)
+  assert.ok(!care.includes('clarify-pic'), 'no empty picture boxes')
+})
+
+test('view: a missing icon key falls back to a label-only tile without an image', async () => {
+  const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
+  const base = fixtureBundles.askicons.state as Extract<ShopState, { status: 'running' }>
+  const server = makeClarify({ questions: [{ ...fixtureQuestions[0], options: [{ label: 'Wool', value: 'wool', picture_url: null, icon: 'placeholder' }, { label: 'Odd', value: 'odd', picture_url: null, icon: 'no-such-drawing' }, { label: 'Jute', value: 'jute', picture_url: null, icon: 'placeholder' }] }] })
+  const html = render(View, props({ ...base, clarify: { ...(base.clarify as ClarifyUi), server } }))
+  assert.equal(html.match(/<img/g)?.length, 2, 'only the existing drawings are images')
+  assert.match(html, /class="clarify-tile is-labelonly"><span class="clarify-label">Odd/)
+})
+
+test('view: the picture-less rug question is buttons, a mixed one with one picture is buttons too', async () => {
+  const text = await view('asktextonly')
+  assert.ok(text.includes('clarify-options is-buttons') && !text.includes('clarify-pic'))
+  const mixed = await view('askmixedpics')
+  assert.ok(mixed.includes('is-buttons') === false || mixed.includes('clarify-pic') === false)
+})
+
+// F1: the panel stays and is always clickable
+
+test('regression: options are clickable the moment the panel shows, with pictures pending, while the pipeline is ready to rank', async () => {
+  const html = await view('asktext')
+  assert.equal(html.match(/role="radio"/g)?.length, 4)
+  assert.doesNotMatch(html, /role="radio"[^>]*disabled/, 'no tile is disabled while pictures are pending')
+  assert.equal(html.match(/class="clarify-pic is-pending"/g)?.length, 4, 'the picture areas are reserved')
+  const waiting = await view('askwaiting', { wide: true })
+  assert.doesNotMatch(waiting, /role="radio"[^>]*disabled/)
+  assert.ok(waiting.includes('Everything is ready. Pick your options and press Show results.'), 'the waiting note is in the right column')
+  assert.ok(waiting.indexOf('Everything is ready') > waiting.indexOf('clarify-side'))
+})
+
+test('regression: the timeline (questions, pictures, ready to rank, results) never removes or locks the panel', () => {
+  const run = fixtureStates.askpics as Extract<ShopState, { status: 'running' }>
+  let s: ShopState = { ...run, clarify: ui({ pictures: 'pending', text: true }) }
+  const server = (c: Clarify) => (s = shopReducer(s, { type: 'clarify', action: { type: 'server', clarify: c } }))
+  server(makeClarify({ pictures: 'done' }))
+  s = shopReducer(s, { type: 'clarify', action: { type: 'select', id: 'q_color', value: 'cream' } })
+  server(makeClarify({ pictures: 'done', waiting: true }))
+  assert.ok(s.status === 'running' && panelVisible(s.clarify) && !panelLocked(s.clarify as ClarifyUi))
+  s = shopReducer(s, { type: 'done', view: fixtureView })
+  assert.ok(s.status === 'done' && s.clarify && panelVisible(s.clarify) && !panelLocked(s.clarify), 'results arriving keep the open panel')
+  assert.equal(chosen(s.clarify as ClarifyUi, 'q_color'), 'cream', 'and the choice')
+  s = shopReducer(s, { type: 'clarify', action: { type: 'server', clarify: makeClarify({ applied: true }) } })
+  assert.ok(s.status === 'done' && panelLocked(s.clarify as ClarifyUi), 'applied locks it (the view then hides it)')
+  const closed = shopReducer({ ...run, clarify: ui({ applied: true }) }, { type: 'done', view: fixtureView })
+  assert.ok(closed.status === 'done' && !closed.clarify, 'an applied panel is not carried into the results')
+})
+
+test('view: results with an open panel show the panel above them; applied results do not', async () => {
+  const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
+  const base = fixtureStates.results as Extract<ShopState, { status: 'done' }>
+  const open = render(View, props({ ...base, clarify: ui({ waiting: true }) }))
+  assert.ok(open.includes('class="card clarify"'))
+  assert.ok(open.indexOf('class="card clarify"') < open.indexOf('shop-results') || !open.includes('shop-results'))
+  assert.ok(!render(View, props({ ...base, clarify: ui({ applied: true }) })).includes('class="card clarify'))
+})
+
+test('regression: the panel never auto-scrolls to the results (one scroll, to the panel, only when it arrives below the fold)', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const src = await readFile(new URL('../src/shop/ClarifyPanel.tsx', import.meta.url), 'utf8')
+  assert.equal(src.match(/scrollIntoView/g)?.length, 1, 'the panel scrolls itself into view, once')
+  assert.match(src, /\}, \[scrolled\]\)/, 'only on mount')
+})
+
+test('poller: a done job whose questions still wait for the visitor keeps being polled (bounded)', async () => {
+  const s = pollerSetup(() => ({ state: 'done', result: fixtureView, clarify: makeClarify({ waiting: true }) }))
+  s.poller.start('j', null, s.handlers)
+  for (let i = 0; i < PICTURE_TAIL_POLLS + 6; i++) await flush(1000)
+  assert.equal(s.polls(), PICTURE_TAIL_POLLS + 1)
+})
+
+test('controller: the first touch posts {touched:true} once, with no answers; failures are ignored', async () => {
+  const t = setup({ clarify: makeClarify(), hold: true, answers: (c) => (c.body?.touched ? json({ error: 'nope' }, 500) : json({ clarify: makeClarify() })) })
+  await asking(t)
+  t.controller.touch()
+  t.controller.touch()
+  await flush(0)
+  const touches = answerCalls(t.calls).filter((c) => c.body?.touched === true)
+  assert.equal(touches.length, 1)
+  assert.deepEqual(Object.keys(touches[0].body ?? {}).sort(), ['session_id', 'touched'].filter((k) => k in (touches[0].body ?? {})).sort())
+  assert.equal('answers' in (touches[0].body ?? {}), false)
+  assert.equal(uiOf(t).note, null, 'a failed touch shows nothing')
 })
