@@ -47,12 +47,16 @@
 @media (min-width: 1280px) {
   .wait-panel.has-side {
     grid-template-columns: minmax(0, 1fr) clamp(300px, 34%, 480px);
-    min-height: 300px;
+    /* One fixed height: the animation box is the panel's height, so the step list growing never resizes the canvas (and so never rescales the waves). */
+    height: 340px;
+  }
+
+  .wait-panel.has-side .wait-side {
+    overflow-y: auto;
   }
 
   .wait-panel.has-side .wait-anim {
     height: auto;
-    min-height: 300px;
     border-right: 1px solid var(--color-border);
     border-bottom: 0;
   }

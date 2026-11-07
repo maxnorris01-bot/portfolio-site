@@ -26,12 +26,12 @@ export function savedLists(saved: SavedRow[] | undefined, batch: ShopItem[], rat
 }
 
 const KEY = 'shop.saved.open'
-/** Whether the Saved panel is open; open unless the visitor hid it. Storage may be blocked. */
+/** Whether the Saved row's full list is expanded ("Show all"); collapsed unless the visitor expanded it. Storage may be blocked. */
 export function readSavedOpen(): boolean {
   try {
-    return sessionStorage.getItem(KEY) !== '0'
+    return sessionStorage.getItem(KEY) === '1'
   } catch {
-    return true
+    return false
   }
 }
 export function writeSavedOpen(open: boolean) {

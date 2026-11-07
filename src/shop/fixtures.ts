@@ -392,6 +392,10 @@ export const fixtureStates: Record<string, ShopState> = {
   // Part 3
   saved: done(savedView, 1, savedRatings),
   savedempty: done({ ...fixtureView, saved: [] }, 1, {}),
+  // The results top: three chosen options (the refine chips), three saved items (two loved, one liked).
+  topsaved: done({ ...fixtureRefine, saved: earlier }, 1, { 'ft-1': rated('love', '', 'saved', null, 3), 'old-1': rated('love', '', 'saved', null, 2), 'old-2': rated('like', '', 'saved', null, 1) }),
+  // Shop Again blocked: every Shop Again of the visit used.
+  topcap: done({ ...fixtureRefine, shop_agains_used: 25, shop_agains_cap: 25 }, 1),
   short: done(fixtureShort, 1),
   askfilters: done(fixtureFilters, 1),
   askrefine: done(fixtureRefine, 1),

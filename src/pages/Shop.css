@@ -192,11 +192,39 @@
 }
 
 .shop-head-right {
-  display: flex;
+  display: grid;
   flex: none;
+  justify-items: end;
+  gap: 6px;
+}
+
+.shop-head-cluster {
+  display: flex;
   flex-wrap: nowrap;
   align-items: center;
   gap: 12px;
+}
+
+/* Shop Again sits beside Refine search at the same height; neither wraps its label. */
+.shop-head-cluster .filters-button,
+.shop-head-cluster .shop-again-button {
+  box-sizing: border-box;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.shop-head-cluster .shop-again-button {
+  padding: 9px 18px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+/* Why Shop Again is off, one muted line under the cluster (only while it is). */
+.shop-head-why {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+  text-align: right;
 }
 
 .shop-count {
@@ -573,18 +601,6 @@
   cursor: pointer;
 }
 
-/* Shop Again and refine */
-.shop-again {
-  display: grid;
-  gap: var(--space-3);
-  max-width: 48rem;
-  margin-top: var(--space-5);
-  padding: var(--card-pad);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-}
-
 .shop-batch {
   padding: 2px 10px;
   border: 1px solid var(--color-border);
@@ -748,7 +764,33 @@
 
   .shop-head-right {
     flex-basis: 100%;
-    justify-content: flex-start;
+    justify-items: stretch;
+  }
+
+  .shop-head-cluster {
+    flex-wrap: wrap;
+  }
+
+  /* The usage chip on its own line, then Refine search and Shop Again side by side at equal widths. */
+  .shop-head-cluster > :first-child:not(button) {
+    flex: 1 1 100%;
+  }
+
+  .shop-head-cluster .filters-button,
+  .shop-head-cluster .shop-again-button {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    padding-inline: 12px;
+  }
+
+  /* Without the icon the two buttons fit at equal widths on a 390px phone. */
+  .shop-head-cluster .filters-icon {
+    display: none;
+  }
+
+  .shop-head-why {
+    text-align: left;
   }
 }
 
@@ -759,22 +801,26 @@
   font-size: var(--text-small);
 }
 
-/* Saved panel */
+/* Saved row: a card under the results header. Heading, tabs, one scrolling strip of compact items, "Show all ›". */
 .shop-saved {
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px var(--card-pad);
 }
 
-.shop-saved-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
+.shop-saved-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 16px;
 }
 
 .shop-saved-heading {
+  grid-column: 1;
+  margin: 0;
   font-size: var(--text-label);
+  white-space: nowrap;
 }
 
 .shop-saved-total {
@@ -785,13 +831,13 @@
 }
 
 .shop-saved-tabs {
+  grid-column: 2;
   display: flex;
   gap: 0.4rem;
-  margin: 0.9rem 0;
 }
 
 .shop-saved-tab {
-  padding: 0.45em 1em;
+  padding: 0.35em 0.9em;
   border: 1.5px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
@@ -799,6 +845,7 @@
   font: inherit;
   font-size: var(--text-small);
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -806,6 +853,157 @@
   border-color: var(--color-navy);
   background: var(--color-navy);
   color: var(--color-on-navy);
+}
+
+.shop-saved-strip {
+  grid-column: 3;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.shop-saved-toggle {
+  grid-column: 4;
+  white-space: nowrap;
+}
+
+.shop-saved-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
+.shop-mini-list {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 0;
+  list-style: none;
+}
+
+.shop-mini {
+  flex: none;
+}
+
+.shop-mini-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 224px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.shop-mini-link:hover {
+  border-color: var(--color-navy);
+}
+
+a.shop-mini-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.shop-mini-thumb {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.shop-mini-thumb .shop-thumb {
+  width: 40px;
+  height: 40px;
+  margin: 0;
+}
+
+.shop-mini-thumb .shop-thumb-empty {
+  font-size: 9px;
+  text-align: center;
+}
+
+.shop-mini-text {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.shop-mini-title {
+  overflow: hidden;
+  font-size: var(--text-small);
+  font-weight: var(--label-weight);
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shop-mini-price {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* The full list ("Show all ›") under the row. */
+.shop-saved-all[hidden] {
+  display: none;
+}
+
+.shop-saved-all {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Under 700px: heading and tabs on one line with "Show all ›" at its end, the strip scrolling below. */
+@media (max-width: 699px) {
+  .shop-saved-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .shop-saved-heading {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .shop-saved-tabs {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .shop-saved-toggle {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .shop-saved-strip {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .shop-saved-tabs {
+    min-width: 0;
+    gap: 0.25rem;
+  }
+
+  .shop-saved-row {
+    gap: 12px 8px;
+  }
+
+  /* The tabs carry the counts; the heading's total makes way so the tabs and "Show all ›" fit one line at 390px. */
+  .shop-saved-total {
+    display: none;
+  }
+
+  .shop-saved-tab {
+    padding-inline: 0.7em;
+  }
+
+  .shop-saved-toggle {
+    justify-self: end;
+  }
 }
 
 .shop-saved-list {

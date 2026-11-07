@@ -24,7 +24,7 @@ export type ShopViewProps = {
   onRemoveContext: (kind: ContextKind, value: string) => void
   /** The visit's limits and which buttons a refusal turned off. */
   meta: ShopMeta
-  /** The Saved panel: shown or hidden, and which tab. */
+  /** The Saved row: whether the full list below it is expanded ("Show all"), and which tab. */
   savedOpen: boolean
   onToggleSaved: () => void
   savedTab: 'love' | 'like'

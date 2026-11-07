@@ -191,15 +191,14 @@ test('save indicators: Saved, Saving…, and a failed save with its reason and a
   assert.match(html, /<button type="button" class="shop-link">Retry<\/button>/)
 })
 
-const againButton = (html: string) => html.match(/<button type="submit"[^>]*>Shop Again/)?.[0] ?? 'NO BUTTON'
+const againButton = (html: string) => html.match(/<button type="button" class="btn btn-primary shop-again-button"[^>]*>Shop Again/)?.[0] ?? 'NO BUTTON'
 
-test('Shop Again: refine box labelled with its placeholder; on with nothing rated (with the hint), off while a save is pending', async () => {
+test('Shop Again: on with nothing rated (the hint is its title), off while a save is pending; the old bottom bar is gone', async () => {
   const { default: View } = await mod()
   const none = render(View, props(fixtureStates.results))
-  assert.match(none, /<label[^>]*>Refine your search<\/label>/)
-  assert.match(none, /placeholder="more wood, no glass"/)
+  assert.doesNotMatch(none, /class="shop-again"|placeholder="more wood, no glass"/, 'the refine text box lives in the Refine search dialog now')
   assert.doesNotMatch(againButton(none), /disabled/)
-  assert.match(none, /Rate results to steer the next batch, or just search again\./)
+  assert.match(againButton(none), /title="Rate results to steer the next batch, or just search again\."/)
   assert.doesNotMatch(none, /Rate at least one result first\./)
   const rated = fixtureStates.rated
   assert.ok(rated.status === 'done')
@@ -278,35 +277,40 @@ test('the one shortfall line: shown for a missed typed finish, in plain words, o
   assert.doesNotMatch(await view('results'), /shop-short/)
 })
 
-test('Saved panel: a heading with the total, Loved and Liked tabs with counts, the loved items with image, title, price, seller and Open', async () => {
+test('Saved row: a heading with the total, Loved and Liked tabs with counts, compact items with picture, title and price, above the grid', async () => {
   const html = await view('saved')
   assert.match(html, /<h2[^>]*>Saved <span class="shop-saved-total">\(4\)<\/span><\/h2>/)
   assert.match(html, /role="tablist" aria-label="Saved results"/)
   assert.match(html, /role="tab" aria-selected="true"[^>]*tabindex="0"[^>]*>Loved \(2\)<\/button>/)
   assert.match(html, /role="tab" aria-selected="false"[^>]*tabindex="-1"[^>]*>Liked \(2\)<\/button>/)
-  const panel = html.split('role="tabpanel"')[1].split('</section>')[0]
-  assert.match(panel, /Example Home Co\./)
+  assert.ok(html.indexOf('class="card shop-saved"') < html.indexOf('class="shop-grid"'), 'the Saved row is above the results')
+  assert.ok(html.indexOf('</header>') < html.indexOf('class="card shop-saved"'), 'and under the header card')
+  const panel = html.split('role="tabpanel"')[1].split('</section>')[0].split('class="shop-saved-all"')[0]
   assert.match(panel, /Example Boho curtain panel set/)
-  assert.match(panel, /From “boho curtains”/)
   assert.match(panel, /\$64/)
   assert.doesNotMatch(panel, /Sample Arc velvet sofa/, 'liked items are on the other tab')
-  assert.match(panel, /rel="noopener noreferrer"/)
+  assert.match(panel, /<a class="shop-mini-link"[^>]*rel="noopener noreferrer"/)
   assert.match(panel, /<img /)
 })
 
-test('Saved panel: the Liked tab, the empty states, and the Show/Hide toggle with aria-expanded', async () => {
+test('Saved row: the Liked tab, the empty state, and "Show all ›" / "Show fewer ‹" with aria-expanded', async () => {
   const liked = await view('savedliked')
-  const panel = liked.split('role="tabpanel"')[1]
+  const panel = liked.split('role="tabpanel"')[1].split('class="shop-saved-all"')[0]
   assert.match(panel, /Sample Arc velvet sofa/)
   assert.match(panel, /Sample Linen curtains/)
   const empty = await view('savedempty')
   assert.match(empty, /Loved \(0\)/)
-  assert.match(empty, /Nothing loved yet\. Choose Love on a result to keep it here\./)
-  assert.match(await view('savedempty', { savedTab: 'like' }), /Nothing liked yet\./)
-  assert.match(await view('saved'), /aria-expanded="true"[^>]*>Hide<\/button>/)
-  const hidden = await view('saved', { savedOpen: false })
-  assert.match(hidden, /aria-expanded="false"[^>]*>Show<\/button>/)
-  assert.match(hidden, /<div id="[^"]+-body" hidden="">/)
+  assert.match(empty, /Love or like results to see them here\./)
+  assert.doesNotMatch(empty, /shop-saved-toggle/, 'nothing to expand')
+  assert.match(await view('savedempty', { savedTab: 'like' }), /Love or like results to see them here\./)
+  const closed = await view('saved', { savedOpen: false })
+  assert.match(closed, /aria-expanded="false"[^>]*>Show all ›<\/button>/)
+  assert.match(closed, /<div id="[^"]+-all" class="shop-saved-all" hidden="">/)
+  const open = await view('saved', { savedOpen: true })
+  assert.match(open, /aria-expanded="true"[^>]*>Show fewer ‹<\/button>/)
+  assert.doesNotMatch(open, /class="shop-saved-all" hidden/)
+  assert.match(open, /class="shop-saved-card"/, 'the full cards are the existing ones')
+  assert.doesNotMatch(closed, /<button[^>]*>(Hide|Show)<\/button>/)
 })
 
 test('guardrails: what the service reports for the visit (searches and Shop Agains allowed, the daily reset), else its defaults; never a dollar amount', async () => {
@@ -344,7 +348,8 @@ test('results page: the usage line under the form is hidden; the chip in the hea
   const css = readFileSync(new URL('../src/pages/Shop.css', import.meta.url), 'utf8')
   assert.match(css.match(/\.usage-chip \{[^}]*\}/)?.[0] ?? '', /white-space: nowrap/)
   assert.match(css.match(/\.usage-chip-text \{[^}]*\}/)?.[0] ?? '', /white-space: nowrap/)
-  assert.match(css.match(/\.shop-head-right \{[^}]*\}/)?.[0] ?? '', /flex: none;[^}]*flex-wrap: nowrap/s, 'the right cluster never shrinks or wraps inside')
+  assert.match(css.match(/\.shop-head-right \{[^}]*\}/)?.[0] ?? '', /flex: none/)
+  assert.match(css.match(/\.shop-head-cluster \{[^}]*\}/)?.[0] ?? '', /flex-wrap: nowrap/, 'the right cluster never wraps inside')
   assert.match(css, /@media \(max-width: 699px\) \{\s*\.shop-head-left \{\s*flex-basis: 100%;[^}]*\}\s*\.shop-head-right \{\s*flex-basis: 100%;/, 'under 700px the cluster drops under the headline')
 })
 

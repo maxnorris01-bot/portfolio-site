@@ -15,8 +15,9 @@ import {
   CLARIFY_SIDE_PROGRESS,
   EXAMPLE_REQUESTS,
   FILTERS_BUTTON,
+  AGAIN_BUTTON,
   AGAIN_HINT,
-  FILTERS_SEARCH_LINE,
+  SAVED_EMPTY,
   filtersMatchLine,
   filtersMatching,
   GUARDRAILS_LABEL,
@@ -32,7 +33,7 @@ import {
   SHOP_TITLE,
   WAIT_NOTE,
 } from './copy.ts'
-import { CHIP_LIMIT, mergeChips, requestChips, splitChips, type MergedChip } from './chips.ts'
+import { CHIP_LIMIT, mergeChips, refineTextChip, requestChips, splitChips, type MergedChip } from './chips.ts'
 import { defaultUsage, limitText, isLimit, localTime, usageLine, usageNumbers } from './limits.ts'
 import { openResolved } from './open.ts'
 import { openTarget, savedLists, type SavedItem } from './saved.ts'
@@ -225,11 +226,6 @@ function ProgressBlock({ state, compact = false }: { state: Extract<ShopState, {
 
 type RunningState = Extract<ShopState, { status: 'running' }>
 
-/** Completed steps (done or skipped) over all steps, 0..1; undefined before the list is known, so the screensaver falls back to time. */
-function stepProgress(steps: RunningState['steps']): number | undefined {
-  return steps.length ? steps.filter((s) => s.state === 'done' || s.state === 'skipped').length / steps.length : undefined
-}
-
 /**
  * The wait panel: one card while a search runs. The screensaver on the left (above from under 1280px), the step list with the timer and a
  * note on the right. When the results arrive it fades out over 300 ms on top of where the results appear (not with reduced motion).
@@ -248,7 +244,7 @@ function WaitPanel({ running, side }: { running: RunningState | null; side: bool
       onAnimationEnd={leaving ? () => setLast(null) : undefined}
     >
       <div className="wait-anim">
-        <WaitScreensaver key={shown.startedAt} progress={stepProgress(shown.steps)} />
+        <WaitScreensaver key={shown.startedAt} />
       </div>
       <div className="wait-side">
         <ProgressBlock state={shown} compact={side} />
@@ -467,7 +463,7 @@ function Chips({ state, props, extra, onRemoveFilter }: { state: Extract<ShopSta
             type="button"
             className="shop-chip-x"
             aria-label={c.title ? `Remove ${c.label} (${c.title})` : `Remove ${c.label}`}
-            onClick={() => (remove.type === 'filter' ? onRemoveFilter(remove.dimension) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
+            onClick={() => (remove.type === 'text' ? props.onRefineChange('') : remove.type === 'filter' ? onRemoveFilter(remove.dimension) : remove.type === 'refine' ? props.onRemoveRefine(remove.id) : props.onRemoveContext(remove.kind, remove.value))}
           >
             ×
           </button>
@@ -516,41 +512,6 @@ function againBlockFor(state: Extract<ShopState, { status: 'done' }>, props: Sho
   })
 }
 
-function AgainBar({ block, props }: { block: string | null; props: ShopViewProps }) {
-  const refineId = useId()
-  return (
-    <form
-      className="shop-again"
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (!block) props.onShopAgain()
-      }}
-    >
-      <label className="shop-label" htmlFor={refineId}>
-        Refine your search
-      </label>
-      <div className="shop-form-row">
-        <input
-          id={refineId}
-          className="shop-input"
-          type="text"
-          value={props.refineText}
-          maxLength={200}
-          autoComplete="off"
-          placeholder="more wood, no glass"
-          onChange={(e) => props.onRefineChange(e.target.value)}
-        />
-        <button type="submit" className="btn btn-primary shop-submit" disabled={block !== null} aria-describedby={block ? `${refineId}-why` : undefined}>
-          Shop Again
-        </button>
-      </div>
-      <p id={`${refineId}-why`} className="shop-card-meta">
-        {block ?? AGAIN_HINT}
-      </p>
-    </form>
-  )
-}
-
 function SavedCard({ item, open }: { item: SavedItem; open: OpenProps }) {
   const price = formatPrice(item.price, item.currency)
   return (
@@ -569,35 +530,74 @@ function SavedCard({ item, open }: { item: SavedItem; open: OpenProps }) {
   )
 }
 
+/** One saved result in the row: a 40px picture, the title on one line, the price. A link that opens like SavedCard's Open (the store link, looked up on click when it is Google's page). */
+function SavedMini({ item, open }: { item: SavedItem; open: OpenProps }) {
+  const price = formatPrice(item.price, item.currency)
+  const { href, needsResolve } = openTarget(item, open.resolved, safeHref)
+  const inner = (
+    <>
+      <span className="shop-mini-thumb">
+        <ProductImage src={item.thumbnail_url} alt="" />
+      </span>
+      <span className="shop-mini-text">
+        <span className="shop-mini-title">{item.title}</span>
+        <span className="shop-mini-price">{price ?? 'Price not listed'}</span>
+      </span>
+    </>
+  )
+  return (
+    <li className="shop-mini">
+      {href ? (
+        <a
+          className="shop-mini-link"
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={item.title}
+          onClick={needsResolve ? (e) => openResolved(e, item.link, () => open.onResolve(item.id)) : undefined}
+        >
+          {inner}
+          <span className="visually-hidden"> (opens in a new tab)</span>
+        </a>
+      ) : (
+        <span className="shop-mini-link" title={item.title}>
+          {inner}
+        </span>
+      )}
+    </li>
+  )
+}
+
 const SAVED_TABS = [
-  { id: 'love', label: 'Loved', empty: 'Nothing loved yet. Choose Love on a result to keep it here.' },
-  { id: 'like', label: 'Liked', empty: 'Nothing liked yet. Choose Like on a result to keep it here.' },
+  { id: 'love', label: 'Loved' },
+  { id: 'like', label: 'Liked' },
 ] as const
 
-function SavedPanel({ state, props, open }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; open: OpenProps }) {
+/**
+ * The Saved row, a card under the results header: the heading, the Loved / Liked tabs, one scrolling row of compact items, and "Show all ›",
+ * which opens the full list (cards) below the row. Always shown on the results page.
+ */
+function SavedRow({ state, props, open }: { state: Extract<ShopState, { status: 'done' }>; props: ShopViewProps; open: OpenProps }) {
   const id = useId()
   const lists = savedLists(state.view.saved, state.view.search?.results ?? [], state.ratings)
   const counts = { love: lists.loved.length, like: lists.liked.length }
   const shown = props.savedTab === 'like' ? lists.liked : lists.loved
   const tab = SAVED_TABS.find((t) => t.id === props.savedTab) ?? SAVED_TABS[0]
   const total = counts.love + counts.like
+  const expanded = props.savedOpen && shown.length > 0
   const onKey = (e: KeyboardEvent) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
     e.preventDefault()
-    props.onSavedTab(props.savedTab === 'love' ? 'like' : 'love')
-    document.getElementById(`${id}-tab-${props.savedTab === 'love' ? 'like' : 'love'}`)?.focus()
+    const next = props.savedTab === 'love' ? 'like' : 'love'
+    props.onSavedTab(next)
+    document.getElementById(`${id}-tab-${next}`)?.focus()
   }
   return (
-    <section className="shop-saved" aria-labelledby={`${id}-title`}>
-      <div className="shop-saved-head">
+    <section className="card shop-saved" aria-labelledby={`${id}-title`}>
+      <div className="shop-saved-row">
         <h2 id={`${id}-title`} className="shop-saved-heading">
           Saved <span className="shop-saved-total">({total})</span>
         </h2>
-        <button type="button" className="shop-link" aria-expanded={props.savedOpen} aria-controls={`${id}-body`} onClick={props.onToggleSaved}>
-          {props.savedOpen ? 'Hide' : 'Show'}
-        </button>
-      </div>
-      <div id={`${id}-body`} hidden={!props.savedOpen}>
         <div className="shop-saved-tabs" role="tablist" aria-label="Saved results" onKeyDown={onKey}>
           {SAVED_TABS.map((t) => (
             <button
@@ -615,17 +615,29 @@ function SavedPanel({ state, props, open }: { state: Extract<ShopState, { status
             </button>
           ))}
         </div>
-        <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-tab-${tab.id}`}>
+        <div id={`${id}-panel`} className="shop-saved-strip" role="tabpanel" aria-labelledby={`${id}-tab-${tab.id}`}>
           {shown.length === 0 ? (
-            <p className="shop-empty">{tab.empty}</p>
+            <p className="shop-saved-empty">{SAVED_EMPTY}</p>
           ) : (
-            <ul className="shop-saved-list">
+            <ul className="shop-mini-list">
               {shown.map((item) => (
-                <SavedCard key={item.id} item={item} open={open} />
+                <SavedMini key={item.id} item={item} open={open} />
               ))}
             </ul>
           )}
         </div>
+        {shown.length > 0 && (
+          <button type="button" className="shop-link shop-saved-toggle" aria-expanded={expanded} aria-controls={`${id}-all`} onClick={props.onToggleSaved}>
+            {expanded ? 'Show fewer ‹' : 'Show all ›'}
+          </button>
+        )}
+      </div>
+      <div id={`${id}-all`} className="shop-saved-all" hidden={!expanded}>
+        <ul className="shop-saved-list">
+          {shown.map((item) => (
+            <SavedCard key={item.id} item={item} open={open} />
+          ))}
+        </ul>
       </div>
     </section>
   )
@@ -635,10 +647,13 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
   const search = state.view.search
   const all = search?.results ?? []
   const { facets, unknown: facetsUnknown } = viewFacets(state.view)
-  const active = activeCount(selection)
+  // The refine text counts as one choice (it is shown as a chip and in the badge).
+  const textChip = refineTextChip(props.refineText)
+  const active = activeCount(selection) + (textChip ? 1 : 0)
   const short = shortfallLine(search)
   const match = search?.filters_match
   const top = useRef<HTMLDivElement>(null)
+  const whyId = useId()
   const filtersButton = useRef<HTMLButtonElement>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   // A new batch from Shop Again scrolls to its top (not after a page refresh).
@@ -650,15 +665,19 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
   const handlers = { onRate: props.onRate, onComment: props.onComment, onCommentBlur: props.onCommentBlur, onRetryRating: props.onRetryRating }
   const open = { resolved: state.view.resolved, onResolve: props.onResolve }
   // The server's chips (in the refine list) show the choices; the local ones show only when the server has none.
-  const chips: MergedChip[] = serverSel ? [] : filterChips(selection, facets).map((c) => ({ key: c.key, label: c.label, choice: true, remove: { type: 'filter', dimension: c.dimension } }))
+  const chips: MergedChip[] = [...(serverSel ? [] : filterChips(selection, facets).map((c): MergedChip => ({ key: c.key, label: c.label, choice: true, remove: { type: 'filter', dimension: c.dimension } }))), ...(textChip ? [textChip] : [])]
   const block = againBlockFor(state, props)
-  // The choices are saved (POST /refine) when the dialog closes or Search again is pressed, when they differ from what the server holds.
+  // The choices are saved (POST /refine) when the dialog closes or Shop Again with these is pressed, when they differ from what the server holds.
+  const changed = !sameSelection(selection, serverSel ?? {})
   const closeModal = () => {
     setFiltersOpen(false)
-    if (!sameSelection(selection, serverSel ?? {})) props.onSaveFilters(filterChoices(selection))
+    if (changed) props.onSaveFilters(filterChoices(selection))
   }
-  const searchAgain = () => props.onSearchFilters(filterChoices(selection))
-  const clear = () => onSelection({})
+  const shopAgainWithThese = () => (changed ? props.onSearchFilters(filterChoices(selection)) : props.onShopAgain())
+  const clear = () => {
+    onSelection({})
+    props.onRefineChange('')
+  }
   const matching = matchCount(all, selection)
   const usageFigures = usageNumbers(props.meta.usage, { searchCount: state.view.search_count, shopAgainsUsed: state.view.shop_agains_used })
   const limited = props.meta.blocked.search || props.meta.blocked.again || props.meta.maintenance || (usageFigures !== null && usageFigures.searches >= usageFigures.maxSearches)
@@ -675,18 +694,30 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
             {match && all.length > 0 && <p className="shop-match">{filtersMatchLine(match.satisfied_all)}</p>}
           </div>
           <div className="shop-head-right">
-            {usageFigures && <UsageChip figures={usageFigures} limited={limited} />}
-            {facets.length > 0 && all.length > 0 && (
-              <button ref={filtersButton} type="button" className="filters-button" aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)}>
-                <SlidersIcon />
-                {FILTERS_BUTTON}
-                {active > 0 && (
-                  <span className="filters-badge">
-                    {active}
-                    <span className="visually-hidden"> chosen</span>
-                  </span>
-                )}
-              </button>
+            <div className="shop-head-cluster">
+              {usageFigures && <UsageChip figures={usageFigures} limited={limited} />}
+              {all.length > 0 && (
+                <>
+                  <button ref={filtersButton} type="button" className="filters-button" aria-haspopup="dialog" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(true)}>
+                    <SlidersIcon />
+                    {FILTERS_BUTTON}
+                    {active > 0 && (
+                      <span className="filters-badge">
+                        {active}
+                        <span className="visually-hidden"> chosen</span>
+                      </span>
+                    )}
+                  </button>
+                  <button type="button" className="btn btn-primary shop-again-button" title={AGAIN_HINT} disabled={block !== null} aria-describedby={block ? whyId : undefined} onClick={props.onShopAgain}>
+                    {AGAIN_BUTTON}
+                  </button>
+                </>
+              )}
+            </div>
+            {block && all.length > 0 && (
+              <p id={whyId} className="shop-head-why">
+                {block}
+              </p>
             )}
           </div>
         </div>
@@ -702,39 +733,30 @@ function Results({ state, props, selection, serverSel, onSelection }: { state: E
           }}
         />
       </header>
+      <SavedRow state={state} props={props} open={open} />
       {all.length === 0 ? (
         <p className="shop-empty">{emptyMessage(search)}</p>
       ) : (
-        <>
-          <ul className="shop-grid">
-            {all.map((item) => (
-              <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} />
-            ))}
-          </ul>
-          {active > 0 && (
-            <p className="shop-few">
-              <button type="button" className="shop-link" disabled={block !== null} onClick={searchAgain}>
-                {FILTERS_SEARCH_LINE}
-              </button>
-              {block && <span className="filters-why"> ({block})</span>}
-            </p>
-          )}
-          <AgainBar block={block} props={props} />
-        </>
+        <ul className="shop-grid">
+          {all.map((item) => (
+            <ProductCard key={item.id} item={item} entry={state.ratings[item.id]} handlers={handlers} open={open} />
+          ))}
+        </ul>
       )}
-      <SavedPanel state={state} props={props} open={open} />
       {filtersOpen && (
         <FiltersModal
           facets={facets}
           unknown={facetsUnknown}
           selection={selection}
-          matchText={active > 0 ? filtersMatching(matching) : null}
+          refineText={props.refineText}
+          onRefineChange={props.onRefineChange}
+          matchText={activeCount(selection) > 0 ? filtersMatching(matching) : null}
           onToggle={(d, v) => onSelection(toggleOption(selection, d, v))}
           onClear={clear}
           onClose={closeModal}
           onSearch={() => {
             setFiltersOpen(false)
-            searchAgain()
+            shopAgainWithThese()
           }}
           block={block}
           returnFocus={filtersButton}

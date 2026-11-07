@@ -14,7 +14,7 @@ export const STILL_SECONDS = 10
 /** Scroll speed once the pen holds, in CSS px per second; it eases in over SCROLL_EASE seconds so nothing jumps. */
 export const SCROLL_SPEED = 60
 export const SCROLL_EASE = 2
-/** Peak amplitude, as a share of the canvas height. */
+/** Peak amplitude, as a share of the drawing height. */
 export const PEAK = 0.38
 
 export type Colors = { bg: string; navy: string; coral: string; slate: string; centre: string }
@@ -53,8 +53,6 @@ export type Deps = {
   reducedMotion: () => boolean
   random: () => number
   colors?: Colors
-  /** 0..1 from completed steps over all steps: each step raises the amplitude and spreads the frequencies a little. Without it, full amplitude. */
-  progress?: number
   /** Starting phase in radians (tests); otherwise drawn from `random`. */
   phase?: number
   /** Seconds the pen takes to reach 80% of the width. */
@@ -88,10 +86,7 @@ export function pen(t: number, w: number, ramp = RAMP_SECONDS): { x: number; scr
   return { x: stop, scroll: SCROLL_SPEED * (tau < SCROLL_EASE ? (tau * tau) / (2 * SCROLL_EASE) : tau - SCROLL_EASE / 2) }
 }
 
-/** Amplitude factor (of PEAK) and frequency spread for a progress of 0..1 (undefined: full, no spread). */
-export const progressLook = (p: number | undefined) => (p === undefined ? { amp: 1, spread: 0 } : { amp: 0.6 + 0.4 * Math.min(1, Math.max(0, p)), spread: 0.18 * Math.min(1, Math.max(0, p)) })
-
-export type Screensaver = { stop: () => void; setProgress: (p: number | undefined) => void }
+export type Screensaver = { stop: () => void }
 
 /** Starts the screensaver on the canvas. `stop` cancels the pending frame, disconnects the observer and the visibility listener. */
 export function startScreensaver(d: Deps): Screensaver {
@@ -100,8 +95,6 @@ export function startScreensaver(d: Deps): Screensaver {
   const reduced = d.reducedMotion()
   const ramp = d.rampSeconds ?? RAMP_SECONDS
   const phase0 = d.phase ?? d.random() * TAU
-  let progress = d.progress
-  let amp = progressLook(progress).amp // eased toward the target so a finished step swells the waves instead of jumping
   let id: number | null = null
   let last = -Infinity
   let stopped = false
@@ -110,8 +103,6 @@ export function startScreensaver(d: Deps): Screensaver {
   const draw = (t: number) => {
     if (!ctx) return
     const { w, h } = d.size()
-    const look = progressLook(progress)
-    amp += (look.amp - amp) * 0.08
     const { x: penX, scroll } = pen(t, w, ramp)
     const cy = h / 2
     ctx.globalAlpha = 1
@@ -129,10 +120,9 @@ export function startScreensaver(d: Deps): Screensaver {
     ctx.setLineDash([])
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
-    WAVES.forEach((wave, i) => {
-      const freq = wave.freq * (1 + look.spread * i * 0.5)
-      const k = TAU * freq / BASE_WAVELENGTH
-      const a = PEAK * h * amp * wave.amp
+    WAVES.forEach((wave) => {
+      const k = TAU * wave.freq / BASE_WAVELENGTH
+      const a = PEAK * h * wave.amp
       const y = (x: number) => {
         const u = x + scroll
         return cy + a * envelope(u) * Math.sin(k * u + phase0 + wave.phase)
@@ -160,10 +150,8 @@ export function startScreensaver(d: Deps): Screensaver {
     d.canvas.width = Math.max(1, Math.round(w * dpr))
     d.canvas.height = Math.max(1, Math.round(h * dpr))
     ctx?.setTransform(dpr, 0, 0, dpr, 0, 0) // a resize clears the canvas; the next frame redraws it (reduced motion: redraw now)
-    if (reduced) {
-      amp = progressLook(progress).amp
-      draw(STILL_SECONDS)
-    } else if (n > 0) draw((n - 1) / MAX_FPS)
+    if (reduced) draw(STILL_SECONDS)
+    else if (n > 0) draw((n - 1) / MAX_FPS)
   }
   const frame = (t: number) => {
     id = null
@@ -191,9 +179,6 @@ export function startScreensaver(d: Deps): Screensaver {
   start()
 
   return {
-    setProgress: (p) => {
-      progress = p
-    },
     stop: () => {
       stopped = true
       if (id !== null) d.caf(id)

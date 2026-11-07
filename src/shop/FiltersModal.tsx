@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { FILTERS_CLEAR_ALL, FILTERS_CLOSE, FILTERS_INTRO, FILTERS_SEARCH, FILTERS_TITLE } from './copy.ts'
+import { AGAIN_HINT, FILTERS_CLEAR_ALL, FILTERS_CLOSE, FILTERS_INTRO, FILTERS_SEARCH, FILTERS_TITLE, REFINE_LABEL, REFINE_PLACEHOLDER, REFINE_TEXT_MAX } from './copy.ts'
 import { trapTab, unknownLine, type Selection } from './filters.ts'
 import { hasIcon, iconUrl } from './icons/index.ts'
 import type { Facet, FacetOption } from './types.ts'
@@ -47,18 +47,22 @@ export type FiltersModalProps = {
   selection: Selection
   /** "N of the current results match" (null with nothing chosen: no line). */
   matchText: string | null
+  /** The refine box (the same text the header's Shop Again sends). */
+  refineText: string
+  onRefineChange: (value: string) => void
   onToggle: (dimension: string, value: string) => void
   onClear: () => void
   onClose: () => void
-  /** Search again with the choices; `block` says why it is off (Shop Again's own reasons), null when on. */
+  /** Shop Again with the choices and the text (Enter in the text box does the same); `block` says why it is off (Shop Again's own reasons), null when on. */
   onSearch: () => void
   block: string | null
   /** Where focus returns when the dialog closes. */
   returnFocus: RefObject<HTMLElement | null>
 }
 
-/** The dialog's markup (the modal below adds the portal, focus and keys): sections from the facets, toggle tiles, a fixed footer with Search again. */
+/** The dialog's markup (the modal below adds the portal, focus and keys): sections from the facets, toggle tiles, a fixed footer with Shop Again with these. */
 export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: FiltersModalProps; titleId: string; dialogRef?: RefObject<HTMLDivElement | null>; onKeyDown?: (e: KeyboardEvent) => void }) {
+  const textId = `${titleId}-text`
   return (
     <div className="filters-backdrop" onMouseDown={(e) => e.target === e.currentTarget && p.onClose()}>
       <div ref={dialogRef} className="filters-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onKeyDown={onKeyDown}>
@@ -67,6 +71,30 @@ export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: Filters
             {FILTERS_TITLE}
           </h2>
           <p className="filters-intro">{FILTERS_INTRO}</p>
+          <div className="filters-text">
+            <label className="shop-label" htmlFor={textId}>
+              {REFINE_LABEL}
+            </label>
+            <input
+              id={textId}
+              className="shop-input"
+              type="text"
+              value={p.refineText}
+              maxLength={REFINE_TEXT_MAX}
+              autoComplete="off"
+              placeholder={REFINE_PLACEHOLDER}
+              aria-describedby={`${textId}-hint`}
+              onChange={(e) => p.onRefineChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return
+                e.preventDefault()
+                if (p.block === null) p.onSearch()
+              }}
+            />
+            <p id={`${textId}-hint`} className="filters-hint">
+              {AGAIN_HINT}
+            </p>
+          </div>
         </header>
         <div className="filters-body">
           {p.facets.map((f) => {
@@ -92,7 +120,7 @@ export function FiltersDialog({ p, titleId, dialogRef, onKeyDown }: { p: Filters
           )}
           {p.block && <p className="filters-why">{p.block}</p>}
           <div className="filters-actions">
-            <button type="button" className="btn btn-secondary" onClick={p.onClear} disabled={Object.keys(p.selection).length === 0}>
+            <button type="button" className="btn btn-secondary" onClick={p.onClear} disabled={Object.keys(p.selection).length === 0 && p.refineText === ''}>
               {FILTERS_CLEAR_ALL}
             </button>
             <button type="button" className="btn btn-secondary" onClick={p.onClose}>

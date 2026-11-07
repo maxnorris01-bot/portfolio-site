@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { DEFAULT_COLORS, envelope, MAX_FPS, pen, PEN_STOP, PEAK, progressLook, RAMP_SECONDS, startScreensaver, STILL_SECONDS, type Ctx, type Deps } from '../src/shop/screensaver.ts'
+import { DEFAULT_COLORS, envelope, MAX_FPS, pen, PEN_STOP, PEAK, RAMP_SECONDS, startScreensaver, STILL_SECONDS, type Ctx, type Deps } from '../src/shop/screensaver.ts'
 
 function seeded(seed: number) {
   let a = seed >>> 0
@@ -14,7 +14,7 @@ function seeded(seed: number) {
 }
 
 // A fake browser: frames run when the test says so, the observer and the visibility listener are recorded, the context counts strokes.
-function fake(over: { reduced?: boolean; hidden?: boolean; random?: () => number; progress?: number; phase?: number | null; rampSeconds?: number } = {}) {
+function fake(over: { reduced?: boolean; hidden?: boolean; random?: () => number; phase?: number | null; rampSeconds?: number } = {}) {
   let nextId = 1
   const frames = new Map<number, (t: number) => void>()
   const cancelled: number[] = []
@@ -68,7 +68,6 @@ function fake(over: { reduced?: boolean; hidden?: boolean; random?: () => number
     doc,
     reducedMotion: () => over.reduced ?? false,
     random: over.random ?? seeded(5),
-    progress: over.progress,
     phase: over.phase === null ? undefined : (over.phase ?? 0.7),
     rampSeconds: over.rampSeconds,
   }
@@ -258,25 +257,16 @@ test('the waves are drawn left to right from the left edge, and never past the p
   assert.ok(reach <= pen(4, 400).x / 400 + 0.01 && reach >= 0.25 - 0.01, `${reach}`)
 })
 
-test('progress: each finished step swells the waves and spreads the frequencies; without it, full amplitude', () => {
-  assert.deepEqual(progressLook(undefined), { amp: 1, spread: 0 })
-  assert.ok(progressLook(0).amp < progressLook(0.5).amp && progressLook(0.5).amp < progressLook(1).amp)
-  assert.ok(Math.abs(progressLook(1).amp - progressLook(0.8).amp - 0.08) < 0.005, 'about 8% (of the peak) per step of five')
-  assert.ok(progressLook(1).spread > progressLook(0).spread)
-  const swing = (progress?: number) => {
-    const f = fake({ progress, reduced: true })
-    startScreensaver(f.deps)
-    return Math.max(...f.calls.pts.map(([, y]) => Math.abs(y - 110)))
-  }
-  assert.ok(swing(1) > swing(0), 'more progress, bigger waves')
-  const f = fake({ progress: 0 })
+test('no progress-driven change: the waves keep one scale (no progress prop, no setProgress, no amplitude or frequency steps)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../src/shop/screensaver.ts', import.meta.url), 'utf8')
+  assert.doesNotMatch(src, /progress|spread/i)
+  const f = fake({ phase: 1 })
   const s = startScreensaver(f.deps)
-  run(f, 30 * 5)
-  const peak = (n: number) => Math.max(...f.calls.pts.slice(-n).map(([, y]) => Math.abs(y - 110)))
-  const before = peak(1200)
-  s.setProgress(1)
-  for (let i = 0; i < 90; i++) f.tick(10000 + i * 34)
-  assert.ok(peak(1200) > before * 0.99, 'setProgress swells it (eased, not a jump)')
+  assert.deepEqual(Object.keys(s), ['stop'])
+  // Whatever the time, the drawn waves stay inside the one peak (PEAK of the height, the box is 220 tall): nothing swells past it.
+  run(f, 30 * 30)
+  assert.ok(f.calls.pts.every(([, y]) => Math.abs(y - 110) <= PEAK * 220 + 0.5))
 })
 
 test('a seeded phase (or seeded random) makes the picture the same every run; another phase changes it', () => {
@@ -299,9 +289,10 @@ test('the wait panel fades out over 300 ms, honours reduced motion, reserves the
   assert.match(css, /\.wait-anim \{[^}]*height: 220px/s)
   assert.match(css, /\.wait-panel \{[^}]*max-height: 460px/s)
   assert.match(css, /@media \(min-width: 1280px\)/)
+  assert.match(css, /\.wait-panel\.has-side \{[^}]*height: 340px/s, 'side by side the panel (so the animation box) has one fixed height: the step list growing cannot rescale the waves')
   const tsx = readFileSync(new URL('../src/shop/WaitScreensaver.tsx', import.meta.url), 'utf8')
-  assert.match(tsx, /started\.stop\(\)/)
-  assert.match(tsx, /setProgress\(progress\)/)
+  assert.match(tsx, /return started\.stop/)
+  assert.doesNotMatch(tsx, /progress/i)
   assert.match(tsx, /ResizeObserver/)
   assert.doesNotMatch(readFileSync(new URL('../src/shop/screensaver.ts', import.meta.url), 'utf8'), /shadow/i, 'no glow')
 })

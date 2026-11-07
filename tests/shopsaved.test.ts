@@ -64,21 +64,21 @@ function fakeStorage(fail = false) {
 }
 afterEach(() => Reflect.deleteProperty(globalThis, 'sessionStorage'))
 
-test('the Saved toggle is open by default and remembers hiding it', () => {
+test('the Saved row\'s full list is collapsed by default and remembers "Show all"', () => {
   fakeStorage()
-  assert.equal(readSavedOpen(), true)
-  writeSavedOpen(false)
   assert.equal(readSavedOpen(), false)
   writeSavedOpen(true)
   assert.equal(readSavedOpen(), true)
+  writeSavedOpen(false)
+  assert.equal(readSavedOpen(), false)
 })
 
-test('the Saved toggle works when storage throws: open, and no error', () => {
+test('the Saved row works when storage throws: collapsed, and no error', () => {
   fakeStorage(true)
-  assert.equal(readSavedOpen(), true)
-  assert.doesNotThrow(() => writeSavedOpen(false))
+  assert.equal(readSavedOpen(), false)
+  assert.doesNotThrow(() => writeSavedOpen(true))
   Reflect.deleteProperty(globalThis, 'sessionStorage')
-  assert.equal(readSavedOpen(), true, 'no storage at all')
+  assert.equal(readSavedOpen(), false, 'no storage at all')
 })
 
 test('Open target: the store link once resolved; else the result link, to be looked up on click when it is Google\'s page', () => {
