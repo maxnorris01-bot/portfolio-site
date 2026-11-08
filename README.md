@@ -20,7 +20,7 @@ The personal portfolio of Max Norris, an aerospace engineer moving into applied 
 ## What this repo shows
 
 - Shared design tokens and one type scale (`src/styles/tokens.css`, `docs/style-audit.md`), with an automated layout check at several window sizes: `npm run check:layout` (needs Playwright with Chromium, which is not a dependency).
-- 753 unit tests (`npm test`: 737 passing, 16 skipped), including a test that fails if the owner's email address appears in the source or the built site (`tests/noemail.test.ts`; the downloadable PDF is the one place it is).
+- 753 unit tests (`npm test`: 737 passing, 16 skipped), including a test that fails if the owner's email address appears in the source or the built site (`tests/noemail.test.ts`).
 - Contact form limits (3 messages per visitor per hour, 5 per day, 30 sitewide per day), a honeypot field, and no raw addresses or message text stored.
 - ShopAI's spending caps (per session, per visitor and per day) are enforced in the backend repo, not here.
 
