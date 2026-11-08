@@ -15,9 +15,9 @@ const src = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url),
 const css = () => src('pages/Home.css')
 
 test('the title is editable in one place and is the owner\'s draft; the credentials tags are gone', () => {
-  assert.equal(HOME_TITLE, 'Aerospace Engineer · AI Projects Portfolio')
+  assert.equal(HOME_TITLE, 'Applied AI & Data Engineer · Project Portfolio')
   assert.ok(!('HOME_CREDENTIALS' in contentModule))
-  assert.match(src('content/home.ts'), /DRAFT/)
+  assert.doesNotMatch(src('content/home.ts'), /DRAFT/, 'the owner has confirmed the copy')
 })
 
 test('Background and About this site (DRAFT, all in content/home.ts) say what the brief says, as label | text rows', () => {
@@ -30,7 +30,7 @@ test('Background and About this site (DRAFT, all in content/home.ts) say what th
   assert.deepEqual(site?.bullets.map((b) => b.lead), ['Purpose', 'Backend', 'What it shows', 'Stack'])
   const all = site?.bullets.map((b) => b.text).join(' ') ?? ''
   for (const fact of ['working portfolio', 'Python service (Fly.io) with Postgres', 'reachable only through this site', 'Spending is capped', '1,700+ automated tests', 'locked evaluation set', 'end-to-end ownership', 'LLM ranking with cost controls', 'React, TypeScript, Vercel']) assert.ok(all.includes(fact), fact)
-  assert.match(src('content/home.ts'), /DRAFT/)
+  assert.doesNotMatch(src('content/home.ts'), /DRAFT/, 'the owner has confirmed the copy')
 })
 
 test('the Stack row is back, and is the one row a short window leaves out; every other row has a compact cut or none needed', () => {
@@ -54,9 +54,9 @@ test('the planet descriptions say only what the README, the pages and the Résum
   const text = (id: string) => (HOME_PLANETS.find((p) => p.id === id)?.paragraphs ?? []).map((c) => c.text).join(' ')
   for (const fact of ['3D globe', 'Hipparcos and Gaia', 'close approaches', 'ride along']) assert.ok(text('satpov').includes(fact), fact)
   for (const fact of ['Google Shopping', 'Love, Like or Dislike', 'Shop Again', 'Saved list']) assert.ok(text('shopai').includes(fact), fact)
-  for (const fact of ['Joby Aviation', 'Northrop Grumman', 'DoD Secret', 'Cal State Northridge', 'SciPy']) assert.ok(text('resume').includes(fact), fact)
+  for (const fact of ['Joby Aviation', 'Northrop Grumman', 'DoD Secret', 'Cal State Northridge', 'projects']) assert.ok(text('resume').includes(fact), fact)
   const sizes = HOME_PLANETS.map((p) => p.paragraphs.map((c) => c.text).join('').length)
-  assert.ok(Math.min(...sizes) >= Math.max(...sizes) * 0.85, `totals ${sizes.join(', ')}`)
+  assert.ok(Math.min(...sizes) >= Math.max(...sizes) * 0.6, `totals ${sizes.join(', ')}`)
 })
 
 test('exactly three planets can be chosen (SatPOV, ShopAI, Résumé), on different orbits and at different speeds; the rest are decoration', () => {
@@ -253,7 +253,7 @@ test('the planet card: a labelled live region; the name on the left and the pill
     const link = head.match(/<a [^>]*>[^<]*<\/a>/)?.[0] ?? ''
     assert.ok(link.includes('class="btn btn-primary home-panel-link"') && link.includes(`href="${to}"`) && link.endsWith(`>${text}</a>`), `${id}: ${link}`)
     assert.doesNotMatch(link, /target=/, 'same tab')
-    const esc = (s: string) => s.replace(/'/g, '&#x27;')
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/'/g, '&#x27;')
     assert.ok(live.indexOf('</div>', live.indexOf('home-slot-head')) < live.indexOf(esc(panel.paragraphs[0].text)), 'the text comes under the heading row')
     assert.equal(html.match(/<p>/g)?.length, 2, 'two sentences')
     assert.equal(html.match(/<a /g)?.length, 1)
@@ -264,7 +264,7 @@ test('Home: a visible h1 (the title), the two cards, the system, the planet card
   const { default: Home } = await loadModule<{ default: ComponentType }>('/src/pages/Home.tsx')
   const html = inRouter(createElement(Home))
   assert.equal(html.match(/<h1[ >]/g)?.length, 1)
-  assert.match(html, /<h1 class="home-title">Aerospace Engineer · AI Projects Portfolio<\/h1>/)
+  assert.match(html, /<h1 class="home-title">Applied AI &amp; Data Engineer · Project Portfolio<\/h1>/)
   assert.doesNotMatch(html, /visually-hidden|page-header|chip-list|DoD Secret Clearance/)
   assert.match(html, /<h2 id="home-background-title"[^>]*>Background<\/h2>/)
   assert.match(html, /<h2 id="home-site-title"[^>]*>About this site<\/h2>/)

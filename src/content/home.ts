@@ -1,8 +1,7 @@
 // The Home page's words, in one place.
-// DRAFT: the Background and About this site texts (supplied by the owner's layout spec; the 1,700+ tests figure is theirs), and the SatPOV, ShopAI and Résumé texts (from the README and the pages), are first drafts for the owner to edit.
 // Background and About this site are always on the page (left column); the planets (SatPOV, ShopAI, Résumé) each fill the card under the solar system (right column).
 
-export const HOME_TITLE = 'Aerospace Engineer · AI Projects Portfolio'
+export const HOME_TITLE = 'Applied AI & Data Engineer · Project Portfolio'
 
 export type InfoPanelId = 'background' | 'site'
 export type PlanetId = 'satpov' | 'shopai' | 'resume'
@@ -28,7 +27,6 @@ export const HOME_SLOT_LABEL = 'Explore the site'
 
 export const HOME_INFO: InfoPanel[] = [
   {
-    // DRAFT (to be confirmed): the rows of the Background card.
     id: 'background',
     label: 'Background',
     bullets: [
@@ -48,7 +46,6 @@ export const HOME_INFO: InfoPanel[] = [
         compact: 'ShopAI: Python on Fly.io with Postgres, spending caps, 1,700+ tests.',
       },
       { lead: 'What it shows', text: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment, and the physics background to sanity-check results.', compact: 'end-to-end ownership: pipelines, LLM ranking with cost controls, evaluation, deployment.' },
-      // DRAFT (to be confirmed): the stack row is back.
       { lead: 'Stack', text: 'Python, Fly.io, Postgres, React, TypeScript, Vercel.', compactHide: true },
     ],
   },
@@ -73,8 +70,8 @@ export const HOME_PLANETS: PlanetPanel[] = [
     paragraphs: [
       { text: 'ShopAI is a shopping search: describe a product in plain words and it searches Google Shopping for matches.' },
       {
-        text: 'An AI model ranks the matches. Rate results with Love, Like or Dislike, then press Shop Again for a new batch based on your ratings; loved and liked items are kept in a Saved list.',
-        compact: 'An AI model ranks the matches; rate them, then press Shop Again for a new batch based on your ratings.',
+        text: 'An AI model ranks the matches. Rate results with Love, Like or Dislike, narrow them with Refine search (colour, material, price), then press Shop Again for a new batch. Loved and liked items are kept in a Saved list you can print, email or text to yourself.',
+        compact: 'An AI model ranks the matches; rate them, refine by colour, material or price, then press Shop Again for a new batch.',
       },
     ],
     link: { to: '/shop', text: 'Open ShopAI' },
@@ -83,10 +80,10 @@ export const HOME_PLANETS: PlanetPanel[] = [
     id: 'resume',
     label: 'Résumé',
     paragraphs: [
-      { text: 'My Résumé: Senior Mass Properties Engineer at Joby Aviation and Mass Properties Engineer at Northrop Grumman.' },
+      { text: 'My Résumé: Applied AI & Data Engineer with 10+ years in aerospace, Senior Mass Properties Engineer at Joby Aviation and previously Northrop Grumman.' },
       {
-        text: "It also lists my DoD Secret clearance, my physics degree from Cal State Northridge, my skills (Python, SciPy, SGP4, orbital mechanics, data pipelines and mass properties) and this site's applied AI project.",
-        compact: 'It also lists my DoD Secret clearance, my physics degree from Cal State Northridge and my skills.',
+        text: 'It lists my projects, my DoD Secret clearance and my physics degrees from Cal State Northridge.',
+        compact: 'It lists my projects, my DoD Secret clearance and my physics degrees.',
       },
     ],
     link: { to: '/resume', text: 'Open Résumé' },
