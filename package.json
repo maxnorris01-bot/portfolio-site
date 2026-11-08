@@ -13,7 +13,9 @@
     "check:screensaver": "node scripts/check-screensaver.mjs"
   },
   "dependencies": {
+    "@types/nodemailer": "^8.0.2",
     "astronomy-engine": "^2.1.19",
+    "nodemailer": "^10.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",

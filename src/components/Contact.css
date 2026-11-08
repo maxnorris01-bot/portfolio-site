@@ -1,0 +1,130 @@
+/* The Contact dialog. Only the shared tokens; it follows the Refine modal's look (backdrop, card, header rule). It is rendered in the page body, so it uses plain space tokens. */
+.contact-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  background: rgb(11 27 51 / 0.45);
+}
+
+.contact-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--leading);
+}
+
+.contact-dialog:focus {
+  outline: none;
+}
+
+.contact-head {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.contact-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+}
+
+.contact-body {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.contact-field {
+  display: grid;
+  gap: 6px;
+}
+
+.contact-label {
+  font-weight: 600;
+}
+
+.contact-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.7em 0.9em;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.contact-input:focus-visible {
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+.contact-textarea {
+  resize: vertical;
+  min-height: 8rem;
+}
+
+.contact-count {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+  text-align: right;
+}
+
+/* The honeypot: off-screen, never seen or reached by a visitor. */
+.contact-trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.contact-note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+}
+
+.contact-error {
+  margin: 0;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.contact-sent {
+  margin: 0;
+  font-weight: 600;
+}
+
+.contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.contact-send,
+.contact-close {
+  cursor: pointer;
+}
+
+.contact-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
