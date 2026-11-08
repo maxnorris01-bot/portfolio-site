@@ -51,7 +51,7 @@ export default function Shop() {
   const fixtureUiNow = fixtureUi && frames && frameAt !== null ? clarifyReduce(fixtureUi, { type: 'server', clarify: frames[frameAt] }) : fixtureUi
   const fixtureState =
     fixture && fixture.state.status === 'running' && fixtureClarify ? { ...fixture.state, clarify: (frames && frameAt !== null ? clarifyReduce(fixtureUiNow ?? fixtureClarify, { type: 'server', clarify: frames[frameAt] }) : fixtureUi) ?? fixtureClarify } : fixture?.state
-  // Development fixtures that show results keep ratings and comments locally (no service), so the cards can be tried by hand.
+  // Development fixtures that show results keep ratings locally (no service), so the cards can be tried by hand.
   const [local, dispatchLocal] = useReducer((cur: RatingsState, a: RatingAction | { type: 'seed'; base: RatingsState }) => (a.type === 'seed' ? { ...a.base, ...cur } : ratingsReducer(cur, a)), {} as RatingsState)
   const fixtureDone = fixtureState?.status === 'done' ? fixtureState : null
   const fixtureRated = fixtureDone ? { ...fixtureDone.ratings, ...local } : null
@@ -81,9 +81,7 @@ export default function Shop() {
         void shop.shopAgain(refineText)
         setRefineText('')
       }}
-      onRate={fixtureDone ? (id, rating) => { withBase({ type: 'choose', id, rating, at: Date.now() }); withBase({ type: 'saved', id, rating, comment: fixtureRated?.[id]?.comment ?? '' }) } : shop.rate}
-      onComment={fixtureDone ? (id, text) => withBase({ type: 'comment', id, text }) : shop.setComment}
-      onCommentBlur={fixtureDone ? (id) => withBase({ type: 'saved', id, rating: fixtureRated?.[id]?.rating ?? null, comment: fixtureRated?.[id]?.comment ?? '' }) : shop.commentBlur}
+      onRate={fixtureDone ? (id, rating) => { withBase({ type: 'choose', id, rating, at: Date.now() }); withBase({ type: 'saved', id, rating }) } : shop.rate}
       onRetryRating={shop.retryRating}
       onRemoveRefine={(id) => void shop.removeRefine(id)}
       onRemoveContext={(kind, v) => void shop.removeContext(kind, v)}

@@ -243,15 +243,15 @@ export class ShopController {
     if (await this.saveFilters(filters, price)) await this.shopAgain(refineText)
   }
 
-  private async persist(id: string, part: { rating: Rating | null } | { comment: string }) {
+  private async persist(id: string, rating: Rating | null) {
     const sid = this.session
     if (!sid) return
     const n = (this.saves.get(id) ?? 0) + 1
     this.saves.set(id, n)
     this.dispatch({ type: 'ratings', action: { type: 'saving', id } })
     try {
-      const out = await this.client.rate(ratingBody(sid, id, part))
-      if (this.saves.get(id) === n) this.dispatch({ type: 'ratings', action: { type: 'saved', id, rating: out.rating, comment: out.comment } })
+      const out = await this.client.rate(ratingBody(sid, id, rating))
+      if (this.saves.get(id) === n) this.dispatch({ type: 'ratings', action: { type: 'saved', id, rating: out.rating } })
     } catch (e) {
       if (this.saves.get(id) !== n || isAbort(e)) return
       this.dispatch({ type: 'ratings', action: { type: 'failed', id, message: e instanceof ShopError ? e.message : 'Could not save.' } })
@@ -261,26 +261,16 @@ export class ShopController {
   /** Choosing a rating saves it at once (the rating alone is sent). */
   rate = (id: string, rating: Rating | null) => {
     this.dispatch({ type: 'ratings', action: { type: 'choose', id, rating, at: Date.now() } })
-    return this.persist(id, { rating })
+    return this.persist(id, rating)
   }
 
-  setComment = (id: string, text: string) => this.dispatch({ type: 'ratings', action: { type: 'comment', id, text } })
-
-  /** The comment is saved when its field loses focus, and only if it changed (the comment alone is sent). */
-  commentBlur = (id: string) => {
-    const s = this.snapshot
-    if (s.status !== 'done') return Promise.resolve()
-    const r = s.ratings[id]
-    return r && r.comment !== r.savedComment ? this.persist(id, { comment: r.comment }) : Promise.resolve()
-  }
-
-  /** After a failed save: send again what failed (an unsaved comment, else the rating). */
+  /** After a failed save: send the rating again. */
   retryRating = (id: string) => {
     const s = this.snapshot
     if (s.status !== 'done') return Promise.resolve()
     const r = s.ratings[id]
     if (!r) return Promise.resolve()
-    return this.persist(id, r.comment !== r.savedComment ? { comment: r.comment } : { rating: r.rating })
+    return this.persist(id, r.rating)
   }
 
   private note(e: unknown) {

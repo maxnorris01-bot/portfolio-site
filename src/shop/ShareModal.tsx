@@ -1,15 +1,16 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { trapTab } from './filters.ts'
-import type { RatingsState } from './ratings.ts'
 import type { SavedLists } from './saved.ts'
 import {
   canShare,
   copyText,
+  type CopyEnv,
   csvFilename,
   csvText,
   emailError,
   emailPlan,
+  isPhoneOrTablet,
   phoneError,
   plainText,
   readRemembered,
@@ -18,8 +19,13 @@ import {
   shareItems,
   shareText,
   smsPlan,
+  textOnComputer,
   writeRemembered,
   SHARE_FOOTER,
+  TEXT_COPIED,
+  TEXT_HINT_COMPUTER,
+  TEXT_HINT_PHONE,
+  TEXT_NOT_COPIED,
   type ShareItem,
   type ShareScope,
 } from './share.ts'
@@ -47,12 +53,13 @@ const ICONS = {
 
 export type ShareDialogProps = {
   lists: SavedLists
-  ratings: RatingsState
   resolved: Record<string, ResolvedLink> | undefined
   /** The request the list came from (in the subject and the heading). */
   query: string
   /** True when `navigator.share` exists (the Share… button is only then). */
   shareAvailable: boolean
+  /** A phone or tablet (Text opens the messaging app with the list in it); else a computer (Text copies the list, then opens the app). Read from the browser when left out. */
+  mobile?: boolean
   onClose: () => void
   /** Called when Print is pressed: the page then shows the print block and prints. */
   onPrint: (items: ShareItem[], date: Date) => void
@@ -73,6 +80,30 @@ function Row({ icon: ic, label, hint, onClick, disabled, children, extra }: { ic
   )
 }
 
+/** The browser's own word on phone or tablet (false when there is no browser, as in a test). */
+function browserIsMobile(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return isPhoneOrTablet(navigator.userAgent ?? '', (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData?.mobile)
+}
+
+/** The Clipboard API, with the old textarea + execCommand route behind it. */
+function browserCopyEnv(): CopyEnv {
+  return {
+    clipboard: typeof navigator === 'undefined' ? undefined : navigator.clipboard,
+    legacy: (t) => {
+      const area = document.createElement('textarea')
+      area.value = t
+      area.setAttribute('readonly', '')
+      area.style.cssText = 'position:fixed;top:0;left:0;opacity:0'
+      document.body.appendChild(area)
+      area.select()
+      const done = document.execCommand('copy')
+      area.remove()
+      return done
+    },
+  }
+}
+
 /** The dialog's markup (the modal below adds the portal, focus and keys). */
 export function ShareDialog({ p, titleId, dialogRef, onKeyDown }: { p: ShareDialogProps; titleId: string; dialogRef?: RefObject<HTMLDivElement | null>; onKeyDown?: (e: KeyboardEvent) => void }) {
   const id = useId()
@@ -81,11 +112,14 @@ export function ShareDialog({ p, titleId, dialogRef, onKeyDown }: { p: ShareDial
   const [phone, setPhone] = useState(() => readRemembered('phone'))
   const [tried, setTried] = useState<{ email: boolean; phone: boolean }>({ email: false, phone: false })
   const [said, setSaid] = useState('')
+  const [byHand, setByHand] = useState<string | null>(null)
+  const byHandRef = useRef<HTMLTextAreaElement>(null)
+  const mobile = p.mobile ?? browserIsMobile()
   const [date] = useState(() => p.now ?? new Date())
   const emailRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
   const counts = { both: p.lists.loved.length + p.lists.liked.length, love: p.lists.loved.length }
-  const items = useMemo(() => shareItems(p.lists, p.ratings, p.resolved, scope), [p.lists, p.ratings, p.resolved, scope])
+  const items = useMemo(() => shareItems(p.lists, p.resolved, scope), [p.lists, p.resolved, scope])
   const text = useMemo(() => plainText(items, p.query, date), [items, p.query, date])
   const emailProblem = emailError(to)
   const phoneProblem = phoneError(phone)
@@ -101,26 +135,23 @@ export function ShareDialog({ p, titleId, dialogRef, onKeyDown }: { p: ShareDial
     if (emailProblem) return emailRef.current?.focus()
     window.location.href = mailPlan.url
   }
-  const doText = () => {
+  // On a phone or tablet the text goes in the sms: link. On a computer Messages drops the body, so the list is copied first and the app opened with the number only.
+  const doText = async () => {
     setTried((t) => ({ ...t, phone: true }))
     if (phoneProblem) return phoneRef.current?.focus()
-    window.location.href = textPlan.url
+    if (mobile) {
+      window.location.href = textPlan.url
+      return
+    }
+    const { copied } = await textOnComputer({ text: textPlan.text, phone, copy: (t) => copyText(t, browserCopyEnv()), navigate: (url) => void (window.location.href = url) })
+    setSaid(copied ? TEXT_COPIED : TEXT_NOT_COPIED)
+    setByHand(copied ? null : textPlan.text)
   }
+  useEffect(() => {
+    if (byHand !== null) byHandRef.current?.select()
+  }, [byHand])
   const doCopy = async () => {
-    const ok = await copyText(text, {
-      clipboard: typeof navigator === 'undefined' ? undefined : navigator.clipboard,
-      legacy: (t) => {
-        const area = document.createElement('textarea')
-        area.value = t
-        area.setAttribute('readonly', '')
-        area.style.cssText = 'position:fixed;top:0;left:0;opacity:0'
-        document.body.appendChild(area)
-        area.select()
-        const done = document.execCommand('copy')
-        area.remove()
-        return done
-      },
-    })
+    const ok = await copyText(text, browserCopyEnv())
     setSaid(ok ? 'Copied' : 'Could not copy. Select the text in the preview and copy it by hand.')
   }
   const doCsv = () => {
@@ -162,7 +193,7 @@ export function ShareDialog({ p, titleId, dialogRef, onKeyDown }: { p: ShareDial
           ) : (
             <>
               <p className="share-count">
-                {items.length} item{items.length === 1 ? '' : 's'}: links, prices, stores and your notes.
+                {items.length} item{items.length === 1 ? '' : 's'}: links, prices and stores.
               </p>
               {p.shareAvailable && <Row icon={ICONS.share} label="Share…" hint="Opens the share sheet: AirDrop, Messages, Mail, Notes." onClick={() => void doShare()} />}
               <Row
@@ -199,9 +230,14 @@ export function ShareDialog({ p, titleId, dialogRef, onKeyDown }: { p: ShareDial
               <Row
                 icon={ICONS.text}
                 label="Text message"
-                hint="Opens Messages. If nothing happens, use Share… or Copy."
-                onClick={doText}
-                extra={textPlan.hidden > 0 ? <p className="share-notice">{textPlan.text.slice(textPlan.text.lastIndexOf('\n\n') + 2)}</p> : null}
+                hint={mobile ? TEXT_HINT_PHONE : TEXT_HINT_COMPUTER}
+                onClick={() => void doText()}
+                extra={
+                  <>
+                    {textPlan.hidden > 0 && <p className="share-notice">{textPlan.text.slice(textPlan.text.lastIndexOf('\n\n') + 2)}</p>}
+                    {byHand !== null && <textarea ref={byHandRef} className="share-preview-text" readOnly rows={6} value={byHand} aria-label="The text message, to copy by hand" />}
+                  </>
+                }
               >
                 <div className="share-field">
                   <label htmlFor={`${id}-phone`}>Phone number (optional)</label>
@@ -276,7 +312,6 @@ export function SharePrint({ items, query, date }: { items: readonly ShareItem[]
                   <p>{[i.price, i.store, i.storeRating === null ? null : `${i.storeRating.toFixed(1)} stars${i.ratingCount ? ` (${i.ratingCount.toLocaleString('en-US')})` : ''}`].filter(Boolean).join(' · ')}</p>
                   {i.size && <p>Size: {i.size}</p>}
                   {i.also && <p>{i.also}</p>}
-                  {i.comment && <p>Your note: {i.comment}</p>}
                   <p className="share-print-link">{i.link}</p>
                 </div>
               </li>

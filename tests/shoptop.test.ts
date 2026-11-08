@@ -13,7 +13,7 @@ after(closeServer)
 const noop = () => {}
 const props = (state: ShopViewProps['state'], over: Partial<ShopViewProps> = {}): ShopViewProps => ({
   state, value: '', onChange: noop, onSubmit: noop, onExample: noop, onRetry: noop, refineText: '', onRefineChange: noop, onShopAgain: noop,
-  onRate: noop, onComment: noop, onCommentBlur: noop, onRetryRating: noop, onRemoveRefine: noop, onRemoveContext: noop,
+  onRate: noop, onRetryRating: noop, onRemoveRefine: noop, onRemoveContext: noop,
   onAnswer: noop, onSubmitAnswers: noop, onRetryAnswers: noop, onSearchFilters: noop, onSaveFilters: noop,
   meta: { usage: null, blocked: { search: false, again: false }, maintenance: false },
   savedOpen: false, onToggleSaved: noop, savedTab: 'love', onSavedTab: noop, onResolve: async () => null, ...over,
@@ -53,7 +53,7 @@ test('blocked reason: the note shows only while blocked, tied to the button with
   const reasons: [Partial<ShopViewProps>, ShopViewProps['state'], string][] = [
     [{}, { ...st, view: { ...st.view, shop_agains_used: 25, shop_agains_cap: 25 } }, 'You have used every Shop Again for this visit.'],
     [{ meta: { usage: null, blocked: { search: false, again: true }, maintenance: false } }, st, 'Shop Again is not available right now.'],
-    [{}, { ...st, ratings: { 'fx-1': { rating: 'love', comment: '', savedComment: '', save: 'saving', error: null, touched: 1 } } }, 'Saving your ratings…'],
+    [{}, { ...st, ratings: { 'fx-1': { rating: 'love', save: 'saving', error: null, touched: 1 } } }, 'Saving your ratings…'],
   ]
   for (const [over, state, text] of reasons) {
     const html = await render(View, props(state, over))

@@ -15,7 +15,7 @@ const old: SavedRow[] = [
 const ids = (l: { id: string }[]) => l.map((i) => i.id)
 
 test('saved lists: loved and liked from every search; tabs count them; dislikes and unrated are left out', () => {
-  const ratings = ratingsFromView({ 'old-1': { rating: 'love', comment: '' }, 'old-2': { rating: 'like', comment: '' }, 'fx-1': { rating: 'love', comment: '' }, 'fx-2': { rating: 'dislike', comment: '' } })
+  const ratings = ratingsFromView({ 'old-1': { rating: 'love' }, 'old-2': { rating: 'like' }, 'fx-1': { rating: 'love' }, 'fx-2': { rating: 'dislike' } })
   const { loved, liked } = savedLists(old, fixtureItems, ratings)
   assert.deepEqual(ids(loved).sort(), ['fx-1', 'old-1'])
   assert.deepEqual(ids(liked), ['old-2'])

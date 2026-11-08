@@ -14,6 +14,6 @@ export function useShopSearch(client: ShopClient = defaultClient) {
     void controller.loadUsage()
     return controller.dispose
   }, [controller])
-  const { search, retry, shopAgain, saveFilters, searchAgain, rate, setComment, commentBlur, retryRating, removeRefine, removeContext, resolveLink, selectAnswer, submitAnswers, retryAnswers, touch } = controller
-  return { state, meta, resolveLink, search, retry, shopAgain, saveFilters, searchAgain, rate, setComment, commentBlur, retryRating, removeRefine, removeContext, selectAnswer, submitAnswers, retryAnswers, touch }
+  const { search, retry, shopAgain, saveFilters, searchAgain, rate, retryRating, removeRefine, removeContext, resolveLink, selectAnswer, submitAnswers, retryAnswers, touch } = controller
+  return { state, meta, resolveLink, search, retry, shopAgain, saveFilters, searchAgain, rate, retryRating, removeRefine, removeContext, selectAnswer, submitAnswers, retryAnswers, touch }
 }

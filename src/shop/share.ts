@@ -1,7 +1,6 @@
 // Share list: what the Saved items become as text, a mailto: or sms: link, a CSV file and a print block. All pure (the modal only calls them),
 // so tests drive them without a browser. Nothing here reads a session or an internal id: a shared list holds titles, prices, stores,
-// links and the shopper's own notes.
-import type { RatingsState } from './ratings.ts'
+// links and the shopper's own ratings.
 import type { SavedLists } from './saved.ts'
 import { alsoAtLine, formatPrice, safeHref } from './state.ts'
 import type { ResolvedLink } from './types.ts'
@@ -19,7 +18,6 @@ export type ShareItem = {
   /** The size line and the "Also at" line, when there are any. */
   size: string | null
   also: string | null
-  comment: string
   link: string
   linkKind: 'store' | 'item' | 'search'
   /** The picture, for the print block only (never in the text, the CSV or a link). */
@@ -52,7 +50,7 @@ export function shareLink(item: LinkFields, resolved: Record<string, ResolvedLin
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim()
 
 /** Loved first, then liked, each newest first as the Saved row shows them ("Loved only" drops the liked). */
-export function shareItems(lists: SavedLists, ratings: RatingsState, resolved: Record<string, ResolvedLink> | undefined, scope: ShareScope): ShareItem[] {
+export function shareItems(lists: SavedLists, resolved: Record<string, ResolvedLink> | undefined, scope: ShareScope): ShareItem[] {
   const rows = scope === 'love' ? lists.loved : [...lists.loved, ...lists.liked]
   return rows.map((r) => {
     const { href, kind } = shareLink(r, resolved)
@@ -65,7 +63,6 @@ export function shareItems(lists: SavedLists, ratings: RatingsState, resolved: R
       ratingCount: r.rating_count ?? null,
       size: r.size_hint ? oneLine(r.size_hint) : null,
       also: alsoAtLine(r),
-      comment: oneLine(ratings[r.id]?.comment ?? ''),
       link: href,
       linkKind: kind,
       thumb: r.thumbnail_url ?? '',
@@ -79,7 +76,7 @@ const stars = (i: Pick<ShareItem, 'storeRating' | 'ratingCount'>) =>
 export const shareDate = (d: Date) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d)
 export const shareHeading = (query: string) => `My saved list from ShopAI Tool: ${oneLine(query)}`
 
-/** The full plain-text list: sections LOVED and LIKED (numbered), details, the note, the link, and a footer. Never HTML. */
+/** The full plain-text list: sections LOVED and LIKED (numbered), details, the link, and a footer. Never HTML. */
 export function plainText(items: readonly ShareItem[], query: string, date: Date): string {
   const lines = [shareHeading(query), shareDate(date)]
   for (const [mine, name] of [['love', 'LOVED'], ['like', 'LIKED']] as const) {
@@ -91,7 +88,6 @@ export function plainText(items: readonly ShareItem[], query: string, date: Date
       lines.push(`   ${[i.price, i.store, stars(i)].filter(Boolean).join(' · ')}`)
       if (i.size) lines.push(`   Size: ${i.size}`)
       if (i.also) lines.push(`   ${i.also}`)
-      if (i.comment) lines.push(`   Your note: ${i.comment}`)
       lines.push(`   ${i.link}`)
     })
   }
@@ -132,8 +128,29 @@ export function phoneForSms(phone: string): string {
   return `${t.startsWith('+') ? '+' : ''}${t.replace(/\D/g, '')}`
 }
 
-export function smsUrl(phone: string, body: string): string {
-  return `sms:${phoneForSms(phone)}?&body=${encodeURIComponent(body)}`
+/** `sms:<number>?&body=<text>`; with no body just `sms:<number>` (or `sms:` with no number). */
+export function smsUrl(phone: string, body?: string): string {
+  return body === undefined ? `sms:${phoneForSms(phone)}` : `sms:${phoneForSms(phone)}?&body=${encodeURIComponent(body)}`
+}
+
+/** A phone or tablet: the user-agent client hint says mobile, or the user agent names an iPhone, an iPad or Android. */
+export function isPhoneOrTablet(userAgent: string, mobileHint?: boolean): boolean {
+  return mobileHint === true || /iPhone|iPad|Android/i.test(userAgent)
+}
+
+export const TEXT_HINT_PHONE = 'Opens Messages. If nothing happens, use Share… or Copy.'
+export const TEXT_HINT_COMPUTER = 'Copies the list, then opens your messaging app. Paste it in.'
+export const TEXT_COPIED = 'List copied. Paste it into the message (Cmd+V on Mac, Ctrl+V on Windows).'
+export const TEXT_NOT_COPIED = 'Could not copy the list. Select the text below and copy it by hand.'
+
+/**
+ * Text message on a computer: copy the short text first, then open the messaging app with the number only (a body is unreliable in
+ * Messages on a desktop). The app opens either way; `copied` says which note to show.
+ */
+export async function textOnComputer(args: { text: string; phone: string; copy: (text: string) => Promise<boolean>; navigate: (url: string) => void }): Promise<{ copied: boolean }> {
+  const copied = await args.copy(args.text)
+  args.navigate(smsUrl(args.phone))
+  return { copied }
 }
 
 export function emailPlan(items: readonly ShareItem[], query: string, date: Date, to: string) {
@@ -187,7 +204,7 @@ export function writeRemembered(which: keyof typeof KEYS, value: string, store: 
 
 // ---- CSV ----
 
-export const CSV_HEADER = ['Rating', 'Title', 'Price', 'Store', 'Store rating', 'Rating count', 'Size or note', 'Your comment', 'Link']
+export const CSV_HEADER = ['Rating', 'Title', 'Price', 'Store', 'Store rating', 'Rating count', 'Size or note', 'Link']
 
 /** One CSV field: quoted when it has a comma, quote or newline; a leading = + - @ is defused so a spreadsheet does not run it as a formula. */
 export function csvField(value: string | number | null): string {
@@ -198,7 +215,7 @@ export function csvField(value: string | number | null): string {
 
 /** UTF-8 with a byte order mark (so Excel reads the accents), CRLF line ends. */
 export function csvText(items: readonly ShareItem[]): string {
-  const rows = items.map((i) => [i.mine === 'love' ? 'Loved' : 'Liked', i.title, i.price, i.store, i.storeRating, i.ratingCount, [i.size, i.also].filter(Boolean).join('; '), i.comment, i.link])
+  const rows = items.map((i) => [i.mine === 'love' ? 'Loved' : 'Liked', i.title, i.price, i.store, i.storeRating, i.ratingCount, [i.size, i.also].filter(Boolean).join('; '), i.link])
   return `\uFEFF${[CSV_HEADER, ...rows].map((r) => r.map((v) => csvField(v)).join(',')).join('\r\n')}\r\n`
 }
 
