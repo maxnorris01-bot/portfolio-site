@@ -31,6 +31,7 @@ import {
   SHOP_CHIPS,
   SHOP_DESCRIPTION,
   SHOP_EYEBROW,
+  SHOP_REPO_URL,
   SHOP_TITLE,
   WAIT_NOTE,
 } from './copy.ts'
@@ -289,6 +290,11 @@ export default function ShopView(props: ShopViewProps) {
             </ul>
           }
           lead={SHOP_DESCRIPTION}
+          aside={
+            <a href={SHOP_REPO_URL} className="btn btn-secondary shop-github" target="_blank" rel="noreferrer">
+              View on GitHub ↗
+            </a>
+          }
         />
 
         {props.meta.maintenance && (

@@ -1107,3 +1107,27 @@ a.shop-mini-link:focus-visible {
 .shop-results {
   scroll-margin-top: calc(var(--site-header-height, 0px) + 8px);
 }
+
+/* The "View on GitHub" button, the same size as the satellite page's (.sat-github). From 1100px it sits at the top right, level with the
+   title, out of the grid, so the title, chips and description lay out exactly as without it; narrower, it goes under the title block. */
+.shop-github {
+  flex: none;
+  padding: 0.35em 0.9em;
+  font-size: var(--text-small);
+}
+
+@media (min-width: 1100px) {
+  .shop .page-header {
+    position: relative;
+  }
+
+  .shop .page-header.is-aside-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shop .page-header-aside {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+}

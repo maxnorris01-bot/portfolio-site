@@ -25,6 +25,9 @@ export const SHOP_TITLE = 'ShopAI Tool'
 /** The tech chips under the title: only what the shop really uses (room-redesign-agent: pyproject.toml, fly.toml, config.py, docs/deploy.md). */
 export const SHOP_CHIPS = ['Python', 'Claude', 'Google Shopping', 'Postgres (Neon)', 'Fly.io', 'React'] as const
 
+/** The ShopAI backend repo, the one place the page's "View on GitHub" button reads (the README links the same repo). */
+export const SHOP_REPO_URL = 'https://github.com/maxnorris01-bot/room-redesign-agent'
+
 export const SHOP_EYEBROW = 'Project · Personal shopping assistant'
 
 // DRAFT: the description under the title (checked against the service's code: it searches Google Shopping through a search API, a model
