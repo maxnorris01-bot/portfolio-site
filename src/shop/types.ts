@@ -40,7 +40,8 @@ export type FacetOption = { value: string; label: string; count: number; icon?: 
 export type Facet = { dimension: string; title: string; options: FacetOption[] }
 
 export type Rating = 'love' | 'like' | 'dislike'
-export type RatingEntry = { rating: Rating | null; comment: string }
+/** A saved rating. An old session may also carry a `comment`; it is read past and never shown or sent. */
+export type RatingEntry = { rating: Rating | null; comment?: string }
 
 /** What the server understood from the request (the parts this page shows). */
 export type ParsedQuery = {
@@ -149,7 +150,7 @@ export type SessionView = {
   resolved?: Record<string, ResolvedLink>
   /** Searches and Shop Agains recorded in the session. */
   search_count?: number
-  /** Result id to its rating and comment. */
+  /** Result id to its rating. */
   ratings?: Record<string, RatingEntry>
   refine?: RefineChip[]
   /** Only with the backend flag on. */

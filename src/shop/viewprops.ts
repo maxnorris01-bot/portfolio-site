@@ -18,8 +18,6 @@ export type ShopViewProps = {
   /** `filters`: the choices to send (a list replaces the stored ones, [] clears them); absent leaves them as they are. */
   onShopAgain: () => void
   onRate: (id: string, rating: Rating | null) => void
-  onComment: (id: string, text: string) => void
-  onCommentBlur: (id: string) => void
   onRetryRating: (id: string) => void
   onRemoveRefine: (id: string) => void
   onRemoveContext: (kind: ContextKind, value: string) => void

@@ -65,14 +65,14 @@ async function withResults(extra: Record<string, Handler | Handler[]> = {}, view
 }
 
 test('a search keeps the session id from its result for the later calls (and sessionStorage)', async () => {
-  const t = await withResults({ 'POST /rate': () => json({ result_id: 'fx-1', rating: 'love', comment: '' }) })
+  const t = await withResults({ 'POST /rate': () => json({ result_id: 'fx-1', rating: 'love' }) })
   await t.controller.rate('fx-1', 'love')
   assert.equal((t.calls.find((c) => c.path === '/rate')?.body as { session_id: string }).session_id, 'fixture-session')
   assert.equal(globalThis.sessionStorage.getItem('shop.session'), 'fixture-session')
 })
 
 test('rating: choosing sends the rating alone and marks Saved; clicking it again clears with rating null', async () => {
-  const t = await withResults({ 'POST /rate': (c) => json({ result_id: 'fx-1', rating: (c.body as { rating: string | null }).rating, comment: '' }) })
+  const t = await withResults({ 'POST /rate': (c) => json({ result_id: 'fx-1', rating: (c.body as { rating: string | null }).rating }) })
   await t.controller.rate('fx-1', 'love')
   const s = t.controller.getState()
   assert.equal(s.status === 'done' && s.ratings['fx-1'].save, 'saved')
@@ -84,22 +84,18 @@ test('rating: choosing sends the rating alone and marks Saved; clicking it again
   ])
 })
 
-test('comments are saved on blur (not on each keystroke), alone, and only when changed', async () => {
-  const t = await withResults({ 'POST /rate': (c) => json({ result_id: 'fx-1', rating: 'love', comment: (c.body as { comment?: string }).comment ?? '' }) })
+test('there is no comment path: the controller has no setComment or commentBlur, and a rating body never has a comment key', async () => {
+  const t = await withResults({ 'POST /rate': (c) => json({ result_id: 'fx-1', rating: (c.body as { rating: string | null }).rating, comment: 'from an old session' }) })
+  assert.ok(!('setComment' in t.controller) && !('commentBlur' in t.controller))
   await t.controller.rate('fx-1', 'love')
-  t.controller.setComment('fx-1', 'L')
-  t.controller.setComment('fx-1', 'Lovely')
-  await flush(2000)
-  assert.equal(t.calls.filter((c) => c.path === '/rate').length, 1, 'typing sends nothing')
-  await t.controller.commentBlur('fx-1')
-  assert.deepEqual(t.calls.filter((c) => c.path === '/rate').at(-1)?.body, { session_id: 'fixture-session', result_id: 'fx-1', comment: 'Lovely' })
-  await t.controller.commentBlur('fx-1')
-  assert.equal(t.calls.filter((c) => c.path === '/rate').length, 2, 'a blur with nothing new sends nothing')
+  for (const c of t.calls.filter((c) => c.path === '/rate')) assert.deepEqual(Object.keys(c.body as object).sort(), ['rating', 'result_id', 'session_id'])
+  const s = t.controller.getState()
+  assert.ok(s.status === 'done' && !('comment' in s.ratings['fx-1']), 'a comment in the reply is ignored')
 })
 
 test('a failed save keeps the local choice, shows the reason, and Retry sends it again', async () => {
   const t = await withResults({
-    'POST /rate': [() => json({ error: { code: 'server_error', message: 'Could not save right now.' } }, 500), () => json({ result_id: 'fx-1', rating: 'dislike', comment: '' })],
+    'POST /rate': [() => json({ error: { code: 'server_error', message: 'Could not save right now.' } }, 500), () => json({ result_id: 'fx-1', rating: 'dislike' })],
   })
   await t.controller.rate('fx-1', 'dislike')
   let s = t.controller.getState()
@@ -115,7 +111,7 @@ test('a failed save keeps the local choice, shows the reason, and Retry sends it
 test('a rating while an earlier save of the same card is slow: only the newest result updates the mark', async () => {
   let release: (r: Response) => void = () => {}
   const t = await withResults({
-    'POST /rate': [() => new Promise<Response>((r) => (release = r)), () => json({ result_id: 'fx-1', rating: 'like', comment: '' })],
+    'POST /rate': [() => new Promise<Response>((r) => (release = r)), () => json({ result_id: 'fx-1', rating: 'like' })],
   })
   const first = t.controller.rate('fx-1', 'love')
   await t.controller.rate('fx-1', 'like')
@@ -126,7 +122,7 @@ test('a rating while an earlier save of the same card is slow: only the newest r
   assert.deepEqual([s.ratings['fx-1'].rating, s.ratings['fx-1'].save], ['like', 'saved'])
 })
 
-test('restore after a refresh: results, ratings, comments and the batch number come back from GET /session', async () => {
+test('restore after a refresh: results, ratings and the batch number come back from GET /session', async () => {
   globalThis.sessionStorage.setItem('shop.session', 'fixture-session')
   globalThis.sessionStorage.setItem('shop.batch', '3')
   const restored: SessionView = { ...fixtureView, ratings: { 'fx-1': { rating: 'love', comment: 'Great colour' } } }
@@ -135,7 +131,7 @@ test('restore after a refresh: results, ratings, comments and the batch number c
   const s = t.controller.getState()
   assert.ok(s.status === 'done')
   assert.equal(s.batch, 3)
-  assert.deepEqual([s.ratings['fx-1'].rating, s.ratings['fx-1'].comment], ['love', 'Great colour'])
+  assert.deepEqual([s.ratings['fx-1'].rating, 'comment' in s.ratings['fx-1']], ['love', false], 'an old comment is read past')
   assert.equal(s.fresh, false, 'a restore does not scroll')
   assert.deepEqual([t.calls[0].path, t.calls[0].search], ['/session', '?id=fixture-session'])
 })
@@ -216,7 +212,7 @@ test('a Shop Again job that fails puts the earlier batch back with the reason', 
 test('session_required on rate and Shop Again starts a visit once and retries', async () => {
   const gone = () => json({ error: { code: 'session_required', message: 'Start a visit first.' } }, 401)
   const t = await withResults({
-    'POST /rate': [gone, () => json({ result_id: 'fx-1', rating: 'love', comment: '' })],
+    'POST /rate': [gone, () => json({ result_id: 'fx-1', rating: 'love' })],
     'POST /shop-again': [gone, () => json({ job_id: 'j2' }, 202)],
     'POST /auth/start': () => json({ ok: true }),
   })

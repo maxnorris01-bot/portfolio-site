@@ -45,7 +45,7 @@ const projects: {
   {
     title: 'ShopAI: LLM shopping-search agent',
     bullets: [
-      'Shipped an agent that retrieves Google Shopping results, ranks them with Claude, and re-ranks on user ratings and comments ("Shop Again"); Python service on Fly.io with Postgres, React/TypeScript front end on Vercel',
+      'Shipped an agent that retrieves Google Shopping results, ranks them with Claude, and re-ranks on user ratings ("Shop Again"); Python service on Fly.io with Postgres, React/TypeScript front end on Vercel',
       'Built a live evaluation harness with an LLM judge (checked for self-agreement), regression cases, and cost and latency gates; 1,700+ automated tests',
       'Added per-session, per-visitor and daily spending caps so a public demo stays within budget',
     ],

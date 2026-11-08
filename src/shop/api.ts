@@ -66,8 +66,8 @@ type RequestOptions = {
   autoStart?: boolean
 }
 
-/** POST /rate body: send `rating`, `comment` or both. */
-export type RateBody = { session_id: string; result_id: string; rating?: Rating | null; comment?: string }
+/** POST /rate body: the `rating` (`null` clears it). */
+export type RateBody = { session_id: string; result_id: string; rating: Rating | null }
 
 export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)) {
   async function send<T>(path: string, o: RequestOptions): Promise<T> {
@@ -107,9 +107,9 @@ export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)
       request<{ job_id: string }>('/search', { method: 'POST', body: { session_id: sessionId, request: text }, signal }),
     pollJob: (jobId: string, sessionId: string | null, signal?: AbortSignal) =>
       request<JobStatus>(`/job/${encodeURIComponent(jobId)}?session=${encodeURIComponent(sessionId ?? '')}`, { signal }),
-    /** Save a rating, a comment, or both (a missing field is left as it is; `rating: null` clears). */
+    /** Save a rating (`rating: null` clears). The reply may still carry a `comment` from an old session; it is ignored. */
     rate: (body: RateBody, signal?: AbortSignal) =>
-      request<{ result_id: string; rating: Rating | null; comment: string }>('/rate', { method: 'POST', body, signal }),
+      request<{ result_id: string; rating: Rating | null }>('/rate', { method: 'POST', body, signal }),
     shopAgain: (sessionId: string, refineText: string | null, signal?: AbortSignal) =>
       request<{ job_id: string }>('/shop-again', { method: 'POST', body: { session_id: sessionId, refine_text: refineText }, signal }),
     /** Save the refine choices for the next Shop Again: `filters` REPLACES the stored set ([] clears it), `price` replaces the stored price ({} clears it); a part left out stays as it is. Returns the refine chips. */

@@ -29,6 +29,12 @@ import {
   shortText,
   smsPlan,
   smsUrl,
+  isPhoneOrTablet,
+  textOnComputer,
+  TEXT_COPIED,
+  TEXT_HINT_COMPUTER,
+  TEXT_HINT_PHONE,
+  TEXT_NOT_COPIED,
   writeRemembered,
   type ShareItem,
 } from '../src/shop/share.ts'
@@ -40,7 +46,7 @@ after(closeServer)
 const st = fixtureBundles.asksaved12.state
 assert.ok(st.status === 'done')
 const lists = savedLists(st.view.saved, st.view.search?.results ?? [], st.ratings)
-const both = shareItems(lists, st.ratings, st.view.resolved, 'both')
+const both = shareItems(lists, st.view.resolved, 'both')
 const date = new Date(2026, 10, 7)
 
 test('the fixture: 12 saved items, 7 loved then 5 liked, newest first inside each', () => {
@@ -48,7 +54,7 @@ test('the fixture: 12 saved items, 7 loved then 5 liked, newest first inside eac
   assert.deepEqual([lists.loved.length, lists.liked.length], [7, 5])
   assert.deepEqual(both.map((i) => i.mine), [...Array(7).fill('love'), ...Array(5).fill('like')])
   assert.equal(both[0].title, 'Wool Bengal Tiger Hand-Tufted Rug')
-  assert.equal(shareItems(lists, st.ratings, st.view.resolved, 'love').length, 7, 'Loved only')
+  assert.equal(shareItems(lists, st.view.resolved, 'love').length, 7, 'Loved only')
 })
 
 test('link rule: the resolved store link, else the result\'s own link, else a Google search for "<title> <store>"; never looked up here', () => {
@@ -63,18 +69,17 @@ test('link rule: the resolved store link, else the result\'s own link, else a Go
   assert.equal(searchLink('rug', ''), 'https://www.google.com/search?q=rug')
 })
 
-test('plain text: heading, date, LOVED and LIKED sections numbered from 1, details, size, Also at, your note, the link, a footer', () => {
+test('plain text: heading, date, LOVED and LIKED sections numbered from 1, details, size, Also at, the link, a footer; no note', () => {
   const text = plainText(both, 'nice rug', date)
   const lines = text.split('\n')
   assert.deepEqual(lines.slice(0, 7), ['My saved list from ShopAI Tool: nice rug', 'Nov 7, 2026', '', 'LOVED (7)', '1. Wool Bengal Tiger Hand-Tufted Rug by Anthropologie', '   $98 · Anthropologie · 4.8 stars (111)', "   Size: 3' x 5'"])
-  assert.ok(lines.includes('   Your note: love the colours'))
+  assert.ok(!text.includes('Your note') && !text.includes('love the colours'), 'no note line')
   assert.ok(lines.includes('   https://store.example.com/anthropologie/item-1'))
   assert.ok(lines.includes('LIKED (5)'))
   assert.ok(lines.includes('1. Multicolour boho rug by Demo Living'), 'liked numbering restarts')
   assert.ok(lines.includes('   Also at: Example Home Co. $109'))
   assert.equal(lines.at(-1), 'Prices and availability can change.')
   assert.ok(lines.includes('   $303 · Example Home Co.'), 'no star rating: nothing invented')
-  assert.ok(lines.includes('   Your note: for the kitchen, comma, "quotes" and a new line'), 'a note is one line')
 })
 
 test('no internal id, session id or HTML in anything shared', () => {
@@ -150,13 +155,14 @@ test('remembered fields: empty by default, kept in localStorage, and a missing, 
   assert.doesNotMatch(readFileSync(new URL('../src/shop/share.ts', import.meta.url), 'utf8') + readFileSync(new URL('../src/shop/ShareModal.tsx', import.meta.url), 'utf8'), /[\w.+-]+@(?!example)[\w-]+\.[a-z]{2,}/i)
 })
 
-test('CSV: UTF-8 BOM, the nine columns, commas, quotes and newlines escaped, formulas defused, the filename by local date', () => {
-  assert.deepEqual(CSV_HEADER, ['Rating', 'Title', 'Price', 'Store', 'Store rating', 'Rating count', 'Size or note', 'Your comment', 'Link'])
+test('CSV: UTF-8 BOM, the eight columns, commas, quotes and newlines escaped, formulas defused, the filename by local date', () => {
+  assert.deepEqual(CSV_HEADER, ['Rating', 'Title', 'Price', 'Store', 'Store rating', 'Rating count', 'Size or note', 'Link'])
   const csv = csvText(both)
   assert.equal(csv.charCodeAt(0), 0xfeff)
-  assert.ok(csv.startsWith('﻿Rating,Title,Price,Store,Store rating,Rating count,Size or note,Your comment,Link\r\n'))
-  assert.ok(csv.includes('Loved,Wool Bengal Tiger Hand-Tufted Rug,$98,Anthropologie,4.8,111,3\' x 5\',love the colours,https://store.example.com/anthropologie/item-1\r\n'))
-  assert.ok(csv.includes('"check the pile height, ""low"" is subjective"'))
+  assert.ok(csv.startsWith('﻿Rating,Title,Price,Store,Store rating,Rating count,Size or note,Link\r\n'))
+  assert.ok(csv.includes('Loved,Wool Bengal Tiger Hand-Tufted Rug,$98,Anthropologie,4.8,111,3\' x 5\',https://store.example.com/anthropologie/item-1\r\n'))
+  assert.ok(!csv.includes('Your comment') && !csv.includes('love the colours'), 'no comment column')
+  assert.equal(csv.split('\r\n')[0].split(',').length, 8, 'eight columns')
   assert.equal(csvField('a,b'), '"a,b"')
   assert.equal(csvField('say "hi"'), '"say ""hi"""')
   assert.equal(csvField('two\nlines'), '"two\nlines"')
@@ -199,7 +205,7 @@ test('Copy: the Clipboard API, else the textarea fallback; both failing is repor
 const noop = () => {}
 const dialog = async (over: Record<string, unknown> = {}) => {
   const { ShareDialog } = await loadModule<{ ShareDialog: ComponentType<{ p: Record<string, unknown>; titleId: string }> }>('/src/shop/ShareModal.tsx')
-  const p = { lists, ratings: st.ratings, resolved: st.view.resolved, query: 'nice rug', shareAvailable: false, onClose: noop, onPrint: noop, now: date, ...over }
+  const p = { lists, resolved: st.view.resolved, query: 'nice rug', shareAvailable: false, onClose: noop, onPrint: noop, now: date, ...over }
   return render(ShareDialog, { p, titleId: 'ttl' })
 }
 
@@ -212,7 +218,8 @@ test('dialog: labelled, scope toggle with counts, the five ways to share with a 
   assert.match(html, /aria-checked="false" class="share-scope-btn">Loved only \(7\)</)
   for (const label of ['Email', 'Text message', 'Print / Save as PDF', 'Copy as text', 'Download CSV']) assert.match(html, new RegExp(`<span>${label.replace(/[/]/g, '\\/')}<\\/span>`), label)
   assert.equal(html.match(/class="share-hint"/g)?.length, 5)
-  assert.match(html, /Opens Messages\. If nothing happens, use Share… or Copy\./)
+  assert.ok(html.includes(TEXT_HINT_COMPUTER), 'a computer (and a test) gets the copy-then-open hint')
+  assert.match(html, /links, prices and stores\.<\/p>/, 'the count line no longer mentions notes')
   assert.match(html, /<details class="share-preview"><summary>Preview the text<\/summary><textarea[^>]*readOnly=""[^>]*>My saved list from ShopAI Tool: nice rug\nNov 7, 2026/)
   assert.doesNotMatch(html, /<details[^>]* open/)
   // The optional fields are labelled, empty by default.
@@ -221,7 +228,7 @@ test('dialog: labelled, scope toggle with counts, the five ways to share with a 
   assert.match(html, /type="email"[^>]*value=""/)
   assert.match(html, /type="tel"[^>]*value=""/)
   // The "N more" notice is in the dialog before anything opens.
-  assert.match(html, /<p class="share-notice">8 more not shown\. Use Copy, Print or Download for the full list\.<\/p>/)
+  assert.match(html, /<p class="share-notice">7 more not shown\. Use Copy, Print or Download for the full list\.<\/p>/)
   assert.match(html, /<p class="share-notice">6 more not shown\./)
 })
 
@@ -233,7 +240,7 @@ test('dialog: Share… only when navigator.share exists', async () => {
 })
 
 test('dialog: no saved items says so and offers nothing to share', async () => {
-  const empty = await dialog({ lists: { loved: [], liked: [] }, ratings: {}, resolved: undefined })
+  const empty = await dialog({ lists: { loved: [], liked: [] }, resolved: undefined })
   assert.match(empty, /<p class="share-empty" role="status">Love or like some results first\.<\/p>/)
   assert.doesNotMatch(empty, /share-action|share-preview/)
   assert.match(empty, /Loved and liked \(0\)/)
@@ -243,7 +250,7 @@ test('Saved row: "Share list (N)" with N = loved + liked, enabled with none, bes
   const { default: View } = await loadModule<{ default: ComponentType<ShopViewProps> }>('/src/shop/ShopView.tsx')
   const props = (key: string): ShopViewProps => ({
     state: fixtureBundles[key].state, value: '', onChange: noop, onSubmit: noop, onExample: noop, onRetry: noop, refineText: '', onRefineChange: noop, onShopAgain: noop,
-    onRate: noop, onComment: noop, onCommentBlur: noop, onRetryRating: noop, onRemoveRefine: noop, onRemoveContext: noop,
+    onRate: noop, onRetryRating: noop, onRemoveRefine: noop, onRemoveContext: noop,
     onAnswer: noop, onSubmitAnswers: noop, onRetryAnswers: noop, onSearchFilters: noop, onSaveFilters: noop,
     meta: fixtureBundles[key].meta, savedOpen: false, onToggleSaved: noop, savedTab: 'love', onSavedTab: noop, onResolve: async () => null,
   })
@@ -254,7 +261,7 @@ test('Saved row: "Share list (N)" with N = loved + liked, enabled with none, bes
   assert.doesNotMatch(none.match(/class="shop-saved-share"[^>]*>/)?.[0] ?? '', /disabled/)
 })
 
-test('print block: sections, one row per item with a thumbnail, title, price, store, rating, your note, the link; no ids; hidden on screen', async () => {
+test('print block: sections, one row per item with a thumbnail, title, price, store, rating, the link, no note; no ids; hidden on screen', async () => {
   const { SharePrint } = await loadModule<{ SharePrint: ComponentType<{ items: ShareItem[]; query: string; date: Date }> }>('/src/shop/ShareModal.tsx')
   const html = render(SharePrint, { items: both, query: 'nice rug', date })
   assert.match(html, /<h1 class="share-print-title">Saved list from ShopAI Tool: nice rug<\/h1><p class="share-print-date">Nov 7, 2026<\/p>/)
@@ -263,7 +270,7 @@ test('print block: sections, one row per item with a thumbnail, title, price, st
   assert.equal(html.match(/class="share-print-item"/g)?.length, 12)
   assert.equal(html.match(/<img class="share-print-thumb"/g)?.length, 12)
   assert.match(html, /<p class="share-print-link">https:\/\/store\.example\.com\/anthropologie\/item-1<\/p>/)
-  assert.match(html, /Your note: love the colours/)
+  assert.doesNotMatch(html, /Your note|love the colours/)
   assert.match(html, /<p class="share-print-foot">Prices and availability can change\.<\/p>/)
   assert.doesNotMatch(html, /\bsv-\d/)
   const css = readFileSync(new URL('../src/shop/Share.css', import.meta.url), 'utf8')
@@ -287,4 +294,88 @@ test('dialog shell: the Refine dialog\'s classes, focus trap and Esc; a full-hei
   assert.match(modal, /e\.key === 'Escape'/)
   assert.match(modal, /back\?\.focus\(\)/, 'focus goes back to the button')
   assert.match(readFileSync(new URL('../src/shop/Filters.css', import.meta.url), 'utf8'), /@media \(max-width: 699px\)[^]*\.filters-dialog \{[^}]*width: 100%;[^}]*max-height: none;/)
+})
+
+// ---- Text message: phones keep the sms: body, computers copy first ----
+
+test('smsUrl: with a body it is sms:<number>?&body=<text>; without one it is the number alone, or sms: with no number', () => {
+  assert.equal(smsUrl('555 123 4567', 'Hi there'), 'sms:5551234567?&body=Hi%20there')
+  assert.equal(smsUrl('+1 (555) 123-4567'), 'sms:+15551234567')
+  assert.equal(smsUrl(''), 'sms:')
+  assert.equal(smsUrl('   '), 'sms:')
+  assert.equal(smsUrl('', ''), 'sms:?&body=', 'an empty body is still a body')
+  assert.equal(smsPlan(both, 'nice rug', '5551234567').url, smsUrl('5551234567', smsPlan(both, 'nice rug', '5551234567').text), 'the plan (phones) keeps the body')
+})
+
+test('platform: the client hint or an iPhone, iPad or Android user agent is a phone or tablet; anything else is a computer', () => {
+  const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+  const win = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+  const linux = 'Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0'
+  const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  const ipad = 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+  const android = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36'
+  for (const ua of [mac, win, linux, '']) assert.equal(isPhoneOrTablet(ua), false, ua)
+  for (const ua of [iphone, ipad, android]) assert.equal(isPhoneOrTablet(ua), true, ua)
+  assert.equal(isPhoneOrTablet(mac, true), true, 'the hint says mobile')
+  assert.equal(isPhoneOrTablet(android, false), true, 'a user agent that names Android still counts')
+  assert.equal(isPhoneOrTablet(mac, false), false)
+})
+
+test('computers: the short text is copied BEFORE the app is opened, and the app gets the number only', async () => {
+  const events: string[] = []
+  const plan = smsPlan(both, 'nice rug', '+1 (555) 123-4567')
+  const out = await textOnComputer({
+    text: plan.text,
+    phone: '+1 (555) 123-4567',
+    copy: async (t) => {
+      await Promise.resolve()
+      events.push(`copy:${t === plan.text}`)
+      return true
+    },
+    navigate: (url) => void events.push(`open:${url}`),
+  })
+  assert.deepEqual(events, ['copy:true', 'open:sms:+15551234567'])
+  assert.deepEqual(out, { copied: true })
+  assert.ok(!events.join().includes('body='), 'no body goes to Messages on a computer')
+  // No number typed: just sms:
+  const none: string[] = []
+  await textOnComputer({ text: 'x', phone: '', copy: async () => true, navigate: (u) => void none.push(u) })
+  assert.deepEqual(none, ['sms:'])
+})
+
+test('computers: a failed copy still opens the app and reports it, so the page can show the text to copy by hand', async () => {
+  const events: string[] = []
+  const out = await textOnComputer({ text: 'x', phone: '5551234567', copy: async () => (events.push('copy'), false), navigate: (u) => void events.push(u) })
+  assert.deepEqual(events, ['copy', 'sms:5551234567'])
+  assert.deepEqual(out, { copied: false })
+})
+
+test('computers: the copy uses the same clipboard route as Copy (the clipboard first, then the old route)', async () => {
+  const written: string[] = []
+  const ok = await copyText('short', { clipboard: { writeText: async (t) => void written.push(t) }, legacy: () => false })
+  assert.equal(ok, true)
+  assert.deepEqual(written, ['short'])
+  assert.equal(await copyText('short', { clipboard: { writeText: async () => Promise.reject(new Error('denied')) }, legacy: () => false }), false)
+})
+
+test('dialog: the Text hint says "Copies the list, then opens your messaging app. Paste it in." on a computer and keeps the old hint on a phone', async () => {
+  assert.equal(TEXT_HINT_COMPUTER, 'Copies the list, then opens your messaging app. Paste it in.')
+  assert.equal(TEXT_HINT_PHONE, 'Opens Messages. If nothing happens, use Share… or Copy.')
+  const computer = await dialog({ mobile: false })
+  assert.ok(computer.includes(TEXT_HINT_COMPUTER) && !computer.includes(TEXT_HINT_PHONE))
+  const phone = await dialog({ mobile: true })
+  assert.ok(phone.includes(TEXT_HINT_PHONE) && !phone.includes(TEXT_HINT_COMPUTER))
+  assert.ok(phone.match(/<p class="share-notice">/), 'the "N more" notice still shows on a phone')
+  assert.equal(SMS_LIMIT, 800)
+  assert.equal(TEXT_COPIED, 'List copied. Paste it into the message (Cmd+V on Mac, Ctrl+V on Windows).')
+  assert.match(TEXT_NOT_COPIED, /Could not copy the list\. Select the text below/)
+})
+
+test('the Text action (source): phones set the sms: link with the body; computers copy, open the number only, then show the note or the text by hand', () => {
+  const src = readFileSync(new URL('../src/shop/ShareModal.tsx', import.meta.url), 'utf8')
+  const doText = src.slice(src.indexOf('const doText'), src.indexOf('const doCopy'))
+  assert.match(doText, /if \(mobile\) \{\s*window\.location\.href = textPlan\.url/)
+  assert.match(doText, /await textOnComputer\(/)
+  assert.match(doText, /setSaid\(copied \? TEXT_COPIED : TEXT_NOT_COPIED\)/)
+  assert.match(doText, /setByHand\(copied \? null : textPlan\.text\)/)
 })

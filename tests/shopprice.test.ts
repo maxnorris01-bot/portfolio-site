@@ -158,7 +158,7 @@ test('Shop Again with these saves the price with POST /refine, then Shop Again w
 const noop = () => {}
 const props = (key: string, over: Partial<ShopViewProps> = {}): ShopViewProps => ({
   state: fixtureBundles[key].state, value: '', onChange: noop, onSubmit: noop, onExample: noop, onRetry: noop, refineText: '', onRefineChange: noop, onShopAgain: noop,
-  onRate: noop, onComment: noop, onCommentBlur: noop, onRetryRating: noop, onRemoveRefine: noop, onRemoveContext: noop,
+  onRate: noop, onRetryRating: noop, onRemoveRefine: noop, onRemoveContext: noop,
   onAnswer: noop, onSubmitAnswers: noop, onRetryAnswers: noop, onSearchFilters: noop, onSaveFilters: noop,
   meta: fixtureBundles[key].meta, savedOpen: true, onToggleSaved: noop, savedTab: 'love', onSavedTab: noop, onResolve: async () => null, ...over,
 })
