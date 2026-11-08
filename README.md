@@ -1,13 +1,37 @@
 # portfolio-site
 
-Personal portfolio for Max Norris. Built with Vite, React, TypeScript and React Router.
+The personal portfolio of Max Norris, an aerospace engineer moving into applied AI and data engineering. Live at https://portfolio-site-max-norris.vercel.app.
+
+## What is on the site
+
+- **Home**: an animated solar system whose planets link to the tools and the Résumé, beside short Background and About cards.
+- **Résumé** (`/resume`): experience, projects, skills and a downloadable PDF.
+- **Satellite Point-of-View Tool** (`/satellite-conjunction-screening`): a 3D viewer where you ride along with any tracked satellite and see what it sees, with millions of real stars from the Hipparcos and Gaia catalogues. It also shows a daily screening of public tracking data for satellite close approaches, which uses SGP4 orbital mechanics and makes no LLM calls. Pipeline repo: https://github.com/maxnorris01-bot/satellite-conjunction-screening
+- **ShopAI** (`/shop`): an LLM shopping-search agent. Describe a product, an AI model ranks Google Shopping results, you rate them, and Refine search and Shop Again shape the next batch. Backend repo: https://github.com/maxnorris01-bot/room-redesign-agent
+- **Contact**: a form that emails the owner without his address ever reaching the browser.
+
+## How it is built
+
+- Vite, React, TypeScript and React Router; three.js and satellite.js for the satellite viewer (lazy-loaded). Deployed on Vercel from `main`.
+- Two Vercel functions in `api/`: `satellite/summary.ts` (a small summary of the screening report) and `contact.ts` (the contact form, sent over Gmail SMTP).
+- `vercel.json` forwards `/api/shop/*` to the Python service on Fly.io (the ShopAI backend, in the repo above).
+- Satellite objects and the large Gaia star data are read from a public Tigris bucket (`src/globe/data.ts`, `src/globe/stardataurl.ts`).
+
+## What this repo shows
+
+- Shared design tokens and one type scale (`src/styles/tokens.css`, `docs/style-audit.md`), with an automated layout check at several window sizes: `npm run check:layout` (needs Playwright with Chromium, which is not a dependency).
+- 753 unit tests (`npm test`: 737 passing, 16 skipped), including a test that fails if the owner's email address appears in the source or the built site (`tests/noemail.test.ts`; the downloadable PDF is the one place it is).
+- Contact form limits (3 messages per visitor per hour, 5 per day, 30 sitewide per day), a honeypot field, and no raw addresses or message text stored.
+- ShopAI's spending caps (per session, per visitor and per day) are enforced in the backend repo, not here.
+
+Known limit: the bucket's CORS rule allows only the production origin and localhost (see Structure below), so the satellite data and stars are not expected to load on Vercel preview deployments.
 
 ## Routes
 
-- `/` — Home, in two columns from 1280px (49% / 2% / 49% of the content width, `Home.css`): on the left a visible title ("Applied AI & Data Engineer · Project Portfolio", `HOME_TITLE` in `src/content/home.ts`) over the Background and About cards, as label | text rows (Experience, Focus, Education; Purpose, Backend, What it shows, Stack) on the shared type scale in `src/styles/tokens.css` (see `docs/style-audit.md`); on the right the animated solar system (`src/components/SolarSystem.tsx`, geometry and timing in `solarmodel.ts`) and the chosen planet's card (its name and a pill Open link on one line, then two sentences). Three planets can be chosen, SatPOV (chosen when the page opens), ShopAI and Résumé. The page does not scroll at 1280×720 and up: the system is shortened (never under 40% of the width) and a compact cut of the copy shows when the window has less room. Below 1280px everything stacks: title, system, planet card, Background, About. The planets stand still while the pointer is over the picture or a planet has keyboard focus, in a hidden tab, and under reduced motion. All the words are in `src/content/home.ts` (drafts). `npm run check:layout` (Playwright with Chromium needed, not a dependency) measures the layout at four window sizes with each planet selected and fails when a target is missed.
+- `/` — Home: the page title and Background and About cards on the left, the animated solar system and the chosen planet's card (SatPOV, ShopAI or Résumé) on the right, in two columns from 1280px; below that everything stacks. The page does not scroll at 1280×720 and up. All the words live in `src/content/home.ts`; the type scale is in `src/styles/tokens.css` (see `docs/style-audit.md`), and `npm run check:layout` measures the layout at several window sizes with each planet selected.
 - `/resume` — Résumé
 - `/satellite-conjunction-screening` — the Satellite Point-of-View Tool (the satellite viewer, with the daily conjunction screening it grew out of). The address keeps its original name so existing links work; the name, intro and tags live in `src/data/satelliteTool.ts`.
-- `/shop` — Shop Mode (in the nav): type a product request, watch the job's steps, see a grid of results, rate them (Love / Like / Dislike), refine and press Shop Again for a new batch, with a Saved panel (loved and liked items from every search) and a usage line. The nav tabs are SatPOV and ShopAI. API client, polling and state in `src/shop/`; the page in `src/pages/Shop.tsx`. In development, `/shop?fixture=empty|running|slow|results|none|error` shows canned states (add `rated`, `again`, `batch2`, `cap`, `saved`, `savedliked`, `savedempty`, `short`, `limit`, `maintenance`) with no network (stripped from the production build).
+- `/shop` — Shop Mode (in the nav): type a product request, watch the job's steps, see a grid of results, rate them (Love / Like / Dislike), narrow the next batch with Refine search (choices, text and price limits) and press Shop Again for a new batch, with a Saved panel (loved and liked items from every search), a Share list and a usage line. The nav tabs are SatPOV and ShopAI. API client, polling and state in `src/shop/`; the page in `src/pages/Shop.tsx`. In development, `/shop?fixture=empty|running|slow|results|none|error` shows canned states (add `rated`, `again`, `batch2`, `cap`, `saved`, `savedliked`, `savedempty`, `short`, `limit`, `maintenance`) with no network (stripped from the production build).
 
 ## Shop Mode proxy
 
