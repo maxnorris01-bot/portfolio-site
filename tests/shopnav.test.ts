@@ -13,10 +13,10 @@ const nav = async (location: string) => {
 }
 const link = (html: string, label: string) => html.match(new RegExp(`<a [^>]*>(?:(?!</a>).)*${label}(?:(?!</a>).)*</a>`))?.[0] ?? ''
 
-test('the nav tabs are Home, Résumé, SatPOV and ShopAI; ShopAI links to /shop and SatPOV keeps its route', async () => {
+test('the nav tabs are Home, Résumé, Contact (a button), SatPOV and ShopAI; ShopAI links to /shop and SatPOV keeps its route', async () => {
   const html = await nav('/')
-  const labels = [...html.matchAll(/class="nav-(?:link|tool)[^"]*"[^>]*>(.*?)<\/a>/g)].map((m) => m[1].replace(/<[^>]+>/g, ''))
-  assert.deepEqual(labels, ['Home', 'Résumé', 'SatPOV', 'ShopAI'])
+  const labels = [...html.matchAll(/class="nav-(?:link|tool)[^"]*"[^>]*>(.*?)<\/(?:a|button)>/g)].map((m) => m[1].replace(/<[^>]+>/g, ''))
+  assert.deepEqual(labels, ['Home', 'Résumé', 'Contact', 'SatPOV', 'ShopAI'])
   // Home and Résumé are links next to the name; the two tools are the buttons at the right.
   assert.match(html, /<ul class="nav-links">.*Home.*Résumé.*<\/ul><ul class="nav-tools">.*SatPOV.*ShopAI.*<\/ul>/)
     assert.match(link(html, 'ShopAI'), /href="\/shop"/)

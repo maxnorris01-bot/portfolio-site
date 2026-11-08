@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 
 // Serves the Vercel functions in api/ from the Vite dev server, so `npm run dev`
-// works without `vercel dev`. Only GET handlers are needed so far.
+// works without `vercel dev`. GET handlers, and POST ones (the body is passed on).
 function apiRoutes(): Plugin {
   return {
     name: 'api-routes',
@@ -16,8 +16,18 @@ function apiRoutes(): Plugin {
         if (!existsSync(join(server.config.root, file))) return next()
         try {
           const mod = await server.ssrLoadModule(file)
-          if (req.method !== 'GET' || typeof mod.GET !== 'function') return next()
-          const response: Response = await mod.GET(new Request(url))
+          const method = req.method ?? 'GET'
+          const handler = mod[method]
+          if ((method !== 'GET' && method !== 'POST') || typeof handler !== 'function') return next()
+          let body: Buffer | undefined
+          if (method === 'POST') {
+            const chunks: Buffer[] = []
+            for await (const chunk of req) chunks.push(chunk as Buffer)
+            body = Buffer.concat(chunks)
+          }
+          const headers = new Headers()
+          for (const [key, value] of Object.entries(req.headers)) if (typeof value === 'string') headers.set(key, value)
+          const response: Response = await handler(new Request(url, { method, headers, body: body ? new Uint8Array(body) : undefined }))
           res.statusCode = response.status
           response.headers.forEach((value, key) => res.setHeader(key, value))
           res.end(Buffer.from(await response.arrayBuffer()))

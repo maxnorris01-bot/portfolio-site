@@ -70,7 +70,7 @@ export const HOME_PLANETS: PlanetPanel[] = [
     paragraphs: [
       { text: 'ShopAI is a shopping search: describe a product in plain words and it searches Google Shopping for matches.' },
       {
-        text: 'An AI model ranks the matches. Rate results with Love, Like or Dislike, narrow them with Refine search (colour, material, price), then press Shop Again for a new batch. Loved and liked items are kept in a Saved list you can print, email or text to yourself.',
+        text: 'An AI model ranks the matches. Rate results with Love, Like or Dislike, narrow them with Refine search, then press Shop Again for a new batch. Saved items can be printed, emailed or texted to yourself.',
         compact: 'An AI model ranks the matches; rate them, refine by colour, material or price, then press Shop Again for a new batch.',
       },
     ],
