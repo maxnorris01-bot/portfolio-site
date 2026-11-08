@@ -53,7 +53,7 @@ test('only three planets lead somewhere, each with an Open link to its route; th
 test('the planet descriptions say only what the README, the pages and the Résumé data say, and are about the same length', () => {
   const text = (id: string) => (HOME_PLANETS.find((p) => p.id === id)?.paragraphs ?? []).map((c) => c.text).join(' ')
   for (const fact of ['3D globe', 'Hipparcos and Gaia', 'close approaches', 'ride along']) assert.ok(text('satpov').includes(fact), fact)
-  for (const fact of ['Google Shopping', 'Love, Like or Dislike', 'Shop Again', 'Saved list']) assert.ok(text('shopai').includes(fact), fact)
+  for (const fact of ['Google Shopping', 'Love, Like or Dislike', 'Shop Again', 'Saved items']) assert.ok(text('shopai').includes(fact), fact)
   for (const fact of ['Joby Aviation', 'Northrop Grumman', 'DoD Secret', 'Cal State Northridge', 'projects']) assert.ok(text('resume').includes(fact), fact)
   const sizes = HOME_PLANETS.map((p) => p.paragraphs.map((c) => c.text).join('').length)
   assert.ok(Math.min(...sizes) >= Math.max(...sizes) * 0.6, `totals ${sizes.join(', ')}`)
