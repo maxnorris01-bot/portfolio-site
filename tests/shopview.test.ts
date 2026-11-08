@@ -412,3 +412,15 @@ test('Open links on Google pages say so only to the click handler: the link itse
   const html = await view('results')
   assert.match(html, /href="https:\/\/example\.com\/product\/loft-sofa" target="_blank" rel="noopener noreferrer"/)
 })
+
+test('the page has the same "View on GitHub ↗" button as SatPOV, opening the room-redesign-agent repo in a new tab', async () => {
+  const { SHOP_REPO_URL } = await loadModule<{ SHOP_REPO_URL: string }>('/src/shop/copy.ts')
+  assert.equal(SHOP_REPO_URL, 'https://github.com/maxnorris01-bot/room-redesign-agent')
+  const { default: View } = await mod()
+  const html = render(View, props(fixtureStates.empty))
+  const tag = html.match(/<a [^>]*class="btn btn-secondary shop-github"[^>]*>View on GitHub ↗<\/a>/)?.[0] ?? ''
+  assert.ok(tag, 'the button is rendered')
+  assert.ok(tag.includes(`href="${SHOP_REPO_URL}"`))
+  assert.match(tag, /target="_blank"/)
+  assert.match(tag, /rel="noreferrer"/)
+})
