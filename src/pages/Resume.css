@@ -126,30 +126,28 @@
   margin-top: var(--space-1);
 }
 
-.resume-project-card {
-  padding: var(--card-pad);
-  background: var(--color-bg);
-}
-
-.resume-project-card h3 {
-  margin-bottom: var(--space-2);
-  font-size: var(--text-label);
-  font-weight: var(--label-weight);
-}
-
-.resume-project-card p {
+.resume-profile {
   max-width: var(--measure-text);
-  margin-bottom: var(--space-3);
   color: var(--color-text-secondary);
 }
 
-/* A wide window: experience beside the projects instead of one long column. */
-@media (min-width: 1280px) {
-  .resume-main {
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 32rem);
-    column-gap: var(--space-6);
-    align-items: start;
-  }
+.resume-project-link {
+  display: inline-block;
+  margin-top: var(--space-2);
+}
+
+.resume-fact-line {
+  display: block;
+}
+
+.resume-link {
+  display: block;
+  color: var(--color-on-navy);
+  overflow-wrap: anywhere;
+}
+
+.resume-rail-heading-tools {
+  margin-top: var(--space-4);
 }
 
 @media (max-width: 760px) {
