@@ -200,6 +200,7 @@
 
 /* The tool: the map and its controls; its own sizing lives in SatelliteGlobe.css. */
 .sat-tool {
+  scroll-margin-top: calc(var(--site-header-height, 0px) + 8px);
   min-width: 0;
 }
 

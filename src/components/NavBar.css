@@ -1,4 +1,8 @@
 .nav {
+  /* Frozen at the top of the window on every page. In normal flow, so no page measurement moves. Above page content (ConjunctionsMenu 30, usage popover 20), below the modals (100) and the satellite full-screen view (1000). */
+  position: sticky;
+  top: 0;
+  z-index: 40;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg);
 }

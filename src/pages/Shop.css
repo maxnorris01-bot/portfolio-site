@@ -1102,3 +1102,8 @@ a.shop-mini-link:focus-visible {
   -webkit-line-clamp: 2;
   overflow-wrap: anywhere;
 }
+
+/* A new batch scrolls to the top of the results: leave room under the frozen site header. */
+.shop-results {
+  scroll-margin-top: calc(var(--site-header-height, 0px) + 8px);
+}

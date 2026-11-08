@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { after, test } from 'node:test'
 import { createElement, type ComponentType } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -42,4 +43,19 @@ test('Résumé is the active link on /resume, with the accent underline class, a
   assert.match(link(html, 'Résumé'), /class="nav-link is-active"/)
   assert.match(link(html, 'Résumé'), /href="\/resume"/)
   assert.doesNotMatch(link(html, 'SatPOV'), /is-active/)
+})
+
+test('the site header is frozen at the top on every page: sticky, above page content and below the modals; its height is shared for scroll-to', async () => {
+  const css = readFileSync(new URL('../src/components/NavBar.css', import.meta.url), 'utf8')
+  const rule = css.match(/(?:^|\n)\.nav \{([^}]*)\}/)?.[1] ?? ''
+  assert.match(rule, /position: sticky;/)
+  assert.match(rule, /top: 0;/)
+  const z = Number(rule.match(/z-index: (\d+);/)?.[1])
+  assert.ok(z > 30 && z < 100, `z-index ${z} is above the conjunctions menu (30) and below the modals (100)`)
+  assert.match(rule, /background: var\(--color-bg\)/)
+  assert.match(rule, /border-bottom: 1px solid var\(--color-border\)/)
+  const tsx = readFileSync(new URL('../src/components/NavBar.tsx', import.meta.url), 'utf8')
+  assert.match(tsx, /--site-header-height/)
+  assert.match(tsx, /<header ref=\{headerRef\} className="nav">/)
+  for (const f of ['pages/Shop.css', 'pages/SatelliteTool.css']) assert.match(readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8'), /scroll-margin-top: calc\(var\(--site-header-height, 0px\) \+ 8px\)/, f)
 })

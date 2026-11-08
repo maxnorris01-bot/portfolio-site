@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import ContactModal from './ContactModal.tsx'
 import { CONTACT_LABEL } from './contact.ts'
@@ -36,6 +36,22 @@ function Tabs({ tabs, className, linkClass, after }: { tabs: Tab[]; className: s
 export default function NavBar() {
   const [contactOpen, setContactOpen] = useState(false)
   const contactRef = useRef<HTMLButtonElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+  // The header's height (it wraps on narrow windows) as --site-header-height, so scrolled-to elements can leave room under the frozen header.
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const root = document.documentElement
+    const set = () => root.style.setProperty('--site-header-height', `${el.offsetHeight}px`)
+    set()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(set)
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      root.style.removeProperty('--site-header-height')
+    }
+  }, [])
   const contact = (
     <li>
       <button ref={contactRef} type="button" className="nav-link nav-link-button" aria-haspopup="dialog" onClick={() => setContactOpen(true)}>
@@ -44,7 +60,7 @@ export default function NavBar() {
     </li>
   )
   return (
-    <header className="nav">
+    <header ref={headerRef} className="nav">
       <div className="page-container nav-inner">
         <Link to="/" className="nav-wordmark">
           MAX NORRIS
