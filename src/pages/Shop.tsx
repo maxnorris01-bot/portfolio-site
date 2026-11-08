@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { clarifyReduce, type ClarifyUi } from '../shop/clarify'
 import { SHOP_PAGE_DESCRIPTION, SHOP_PAGE_TITLE } from '../shop/copy'
 import ShopView from '../shop/ShopView'
+import { ratingsReducer, type RatingAction, type RatingsState } from '../shop/ratings'
 import { readSavedOpen, writeSavedOpen } from '../shop/saved'
 import { useShopSearch } from '../shop/useShopSearch'
 import type { FixtureBundle } from '../shop/fixtures'
 import './Shop.css'
 import '../shop/ClarifyPanel.css'
 import '../shop/Filters.css'
+import '../shop/Share.css'
 import '../shop/WaitPanel.css'
 
 /** Development only: /shop?fixture=<name> shows canned states (see src/shop/fixtures.ts), no network. */
@@ -49,12 +51,21 @@ export default function Shop() {
   const fixtureUiNow = fixtureUi && frames && frameAt !== null ? clarifyReduce(fixtureUi, { type: 'server', clarify: frames[frameAt] }) : fixtureUi
   const fixtureState =
     fixture && fixture.state.status === 'running' && fixtureClarify ? { ...fixture.state, clarify: (frames && frameAt !== null ? clarifyReduce(fixtureUiNow ?? fixtureClarify, { type: 'server', clarify: frames[frameAt] }) : fixtureUi) ?? fixtureClarify } : fixture?.state
+  // Development fixtures that show results keep ratings and comments locally (no service), so the cards can be tried by hand.
+  const [local, dispatchLocal] = useReducer((cur: RatingsState, a: RatingAction | { type: 'seed'; base: RatingsState }) => (a.type === 'seed' ? { ...a.base, ...cur } : ratingsReducer(cur, a)), {} as RatingsState)
+  const fixtureDone = fixtureState?.status === 'done' ? fixtureState : null
+  const fixtureRated = fixtureDone ? { ...fixtureDone.ratings, ...local } : null
+  const localAct = (a: RatingAction) => dispatchLocal(a)
+  const withBase = (a: RatingAction) => {
+    if (fixtureDone) dispatchLocal({ type: 'seed', base: fixtureDone.ratings })
+    localAct(a)
+  }
   const answer = (id: string, choice: string | null) =>
     fixtureClarify ? setFixtureUi((u) => clarifyReduce(u ?? fixtureClarify, { type: 'select', id, value: choice })) : shop.selectAnswer(id, choice)
 
   return (
     <ShopView
-      state={fixtureState ?? shop.state}
+      state={fixtureDone && fixtureRated ? { ...fixtureDone, ratings: fixtureRated } : (fixtureState ?? shop.state)}
       meta={fixture?.meta ?? shop.meta}
       value={value}
       onChange={setValue}
@@ -70,9 +81,9 @@ export default function Shop() {
         void shop.shopAgain(refineText)
         setRefineText('')
       }}
-      onRate={shop.rate}
-      onComment={shop.setComment}
-      onCommentBlur={shop.commentBlur}
+      onRate={fixtureDone ? (id, rating) => { withBase({ type: 'choose', id, rating, at: Date.now() }); withBase({ type: 'saved', id, rating, comment: fixtureRated?.[id]?.comment ?? '' }) } : shop.rate}
+      onComment={fixtureDone ? (id, text) => withBase({ type: 'comment', id, text }) : shop.setComment}
+      onCommentBlur={fixtureDone ? (id) => withBase({ type: 'saved', id, rating: fixtureRated?.[id]?.rating ?? null, comment: fixtureRated?.[id]?.comment ?? '' }) : shop.commentBlur}
       onRetryRating={shop.retryRating}
       onRemoveRefine={(id) => void shop.removeRefine(id)}
       onRemoveContext={(kind, v) => void shop.removeContext(kind, v)}
@@ -87,11 +98,11 @@ export default function Shop() {
       onSubmitAnswers={() => (fixtureClarify ? setFixtureUi((u) => clarifyReduce(u ?? fixtureClarify, { type: 'submitted', value: true })) : void shop.submitAnswers())}
       onTouch={fixtureClarify ? undefined : shop.touch}
       onRetryAnswers={() => void shop.retryAnswers()}
-      onSearchFilters={(filters) => {
-        void shop.searchAgain(refineText, filters)
+      onSearchFilters={(filters, price) => {
+        void shop.searchAgain(refineText, filters, price)
         setRefineText('')
       }}
-      onSaveFilters={(filters) => void shop.saveFilters(filters)}
+      onSaveFilters={(filters, price) => void shop.saveFilters(filters, price)}
       onResolve={shop.resolveLink}
     />
   )

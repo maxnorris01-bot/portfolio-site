@@ -150,9 +150,9 @@ const ratedCards: RatingsState = {
   'fx-3': rated('dislike', 'Too small', 'failed', 'Could not save your rating. Check your connection and try again.'),
 }
 
-const done = (view: SessionView, batch: number, ratings: RatingsState = {}, banner: Banner | null = null): ShopState => ({
+const done = (view: SessionView, batch: number, ratings: RatingsState = {}, banner: Banner | null = null, request = 'modern couch under $1000'): ShopState => ({
   status: 'done',
-  request: 'modern couch under $1000',
+  request,
   view,
   batch,
   ratings,
@@ -339,6 +339,90 @@ export const fixturePolish: SessionView = {
   shop_agains_used: 1,
 }
 
+/** Product cards: eight results with deliberately uneven content (2 and 3 line titles, a 2 line store, a size line, "Also at", no rating), two rated with comments. */
+const cardRows: [string, string, string, string, Partial<ShopItem>][] = [
+  ['Wool Bengal Tiger Hand-Tufted Rug', '#c9b79c', 'Anthropologie', '#c9b79c', { rating: 4.8, rating_count: 111, size_hint: "3' x 5'" }],
+  ['Example Persian Vintage Medallion Area Rug in washed gray and faded blue with a very long product name that needs three lines', '#8c8c8c', 'Example Home Co.', '#8c8c8c', { rating: 4.2, rating_count: 380, also_at: [{ seller: 'Sample Furniture', price: 229 }, { seller: 'Demo Living', price: 239.5 }] }],
+  ['Sample Gray wool shag rug', '#3c5a87', 'Sample Furniture and Home Goods Warehouse Outlet of the Northwest', '#3c5a87', { rating: null, rating_count: null }],
+  ['Demo Blue cotton flatweave with a long two-line name for the row', '#9fb0a0', 'Demo Living', '#9fb0a0', { rating: 3.9, rating_count: 36, size_hint: "8' x 10' (also in runner sizes)", also_at: [{ seller: 'Placeholder Interiors', price: 149 }] }],
+  ['Cream jute round rug', '#e8dfd0', 'Placeholder Interiors', '#e8dfd0', { rating: 4.5, rating_count: 12 }],
+  ['Example Gray vintage oval rug, low pile, easy to clean, pet friendly, and a bit longer than the rest', '#8a6a4f', 'Example Home Co.', '#8a6a4f', { rating: 4.1, rating_count: 2210, size_hint: "5' x 8'" }],
+  ['Black and white striped rug', '#1f1f1f', 'Sample Furniture', '#1f1f1f', { rating: 4.7, rating_count: 58 }],
+  ['Multicolour boho rug', '#c0504d', 'Demo Living', '#c0504d', { rating: null, rating_count: null, also_at: [{ seller: 'Example Home Co.', price: 99 }] }],
+]
+export const cardItems: ShopItem[] = cardRows.map(([title, fill, seller, , extra], i) => ({
+  id: `cd-${i + 1}`,
+  title,
+  price: 98 + i * 41,
+  currency: 'USD',
+  seller,
+  thumbnail_url: art(fill),
+  link: `https://example.com/product/card-${i + 1}`,
+  link_kind: 'retailer',
+  rating: null,
+  rating_count: null,
+  ...extra,
+}))
+export const fixtureCards: SessionView = {
+  ...fixtureView,
+  search: { request: 'nice rug', headline: 'Eight rugs.', warnings: [], query: { search_text: 'nice rug', category: 'rug' }, results: cardItems },
+  refine: [],
+  can_shop_again: true,
+  shop_agains_used: 0,
+  shop_agains_cap: 25,
+}
+
+/** Price min/max: a Shop Again limited to $50-$200 (the server's price chip, the note, 4 results left out) after a request that said "under $300". */
+export const fixturePrice: SessionView = {
+  ...fixtureRefineMatch,
+  search: {
+    ...(fixtureRefineMatch.search as NonNullable<SessionView['search']>),
+    query: { search_text: 'wool rug under $300', category: 'rug', price_max: 300, style_terms: ['modern'] },
+    price_filter: { min: 50, max: 200, removed: 4 },
+  },
+  refine: [...refineChips, { id: 'price', kind: 'price', target: 'price:50-200', label: 'Price: $50-$200' }],
+  search_count: 2,
+}
+
+/**
+ * Share list: twelve saved items from earlier searches (7 loved, 5 liked, all with comments; two long titles; some with a size or Also at).
+ * Links: 4 are resolved to the store, 3 carry a store page, 2 carry Google's product page, 3 have no usable link (they share a search link).
+ */
+const savedRows: [string, string, string, number | null, Partial<ShopItem>, 'love' | 'like', string, 'resolved' | 'retailer' | 'google_panel' | 'none'][] = [
+  ['Wool Bengal Tiger Hand-Tufted Rug', '#c9b79c', 'Anthropologie', 98, { rating: 4.8, rating_count: 111, size_hint: "3' x 5'" }, 'love', 'love the colours', 'resolved'],
+  ['Example Persian Vintage Medallion Area Rug in washed gray and faded blue with a very long product name, low pile, easy to clean', '#8c8c8c', 'Example Home Co.', 229, { rating: 4.2, rating_count: 380, also_at: [{ seller: 'Sample Furniture', price: 239 }, { seller: 'Demo Living', price: 249.5 }] }, 'love', 'check the pile height, "low" is subjective', 'resolved'],
+  ['Sample Gray wool shag rug', '#3c5a87', 'Sample Furniture', 180, { rating: 4.5, rating_count: 12 }, 'love', '', 'retailer'],
+  ['Demo Blue cotton flatweave, washable, reversible, runner and area sizes', '#9fb0a0', 'Demo Living', 154, { rating: 3.9, rating_count: 36, size_hint: "8' x 10'" }, 'love', 'maybe for the hall, price is good', 'google_panel'],
+  ['Cream jute round rug', '#e8dfd0', 'Placeholder Interiors', 262, { rating: 4.5, rating_count: 12 }, 'love', 'too rough for bare feet?', 'resolved'],
+  ['Example Gray vintage oval rug', '#8a6a4f', 'Example Home Co.', 303, { rating: null, rating_count: null, size_hint: "5' x 8'" }, 'love', 'second choice', 'none'],
+  ['Black and white striped rug', '#1f1f1f', 'Sample Furniture', 205, { rating: 4.7, rating_count: 58 }, 'love', 'bold, line up with the sofa', 'retailer'],
+  ['Multicolour boho rug', '#c0504d', 'Demo Living', 99, { rating: 4.0, rating_count: 7, also_at: [{ seller: 'Example Home Co.', price: 109 }] }, 'like', 'fun but loud', 'resolved'],
+  ['Placeholder Cream wool rug', '#e8dfd0', 'Placeholder Interiors', 321, { rating: 4.6, rating_count: 90 }, 'like', 'pricey', 'retailer'],
+  ['Example Gray polyester runner', '#8c8c8c', 'Example Home Co.', 59.5, { rating: 3.5, rating_count: 22, size_hint: "2' x 8'" }, 'like', 'for the kitchen, comma, "quotes" and a\nnew line', 'google_panel'],
+  ['Sample Blue vintage medallion rug', '#3c5a87', 'Sample Furniture', 410, { rating: null, rating_count: null }, 'like', '', 'none'],
+  ['Demo Orange geometric rug', '#d98a4a', 'Demo Living', 140, { rating: 4.1, rating_count: 5 }, 'like', 'colour may be off in photos', 'none'],
+]
+const savedItems12: ShopItem[] = savedRows.map(([title, fill, seller, price, extra, , , kind], i) => ({
+  id: `sv-${i + 1}`,
+  title,
+  price,
+  currency: 'USD',
+  seller,
+  thumbnail_url: art(fill),
+  link: kind === 'none' ? '' : kind === 'google_panel' ? `https://www.google.com/shopping/product/${1000 + i}` : `https://example.com/product/saved-${i + 1}`,
+  link_kind: kind === 'resolved' ? 'google_panel' : kind,
+  rating: null,
+  rating_count: null,
+  ...extra,
+}))
+export const fixtureSaved12: SessionView = {
+  ...fixtureCards,
+  search: { ...(fixtureCards.search as NonNullable<SessionView['search']>), results: cardItems.slice(0, 4) },
+  saved: savedItems12,
+  resolved: Object.fromEntries(savedRows.flatMap(([, , seller, , , , , kind], i) => (kind === 'resolved' ? [[`sv-${i + 1}`, { status: 'resolved' as const, link: `https://store.example.com/${seller.toLowerCase().replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '')}/item-${i + 1}`, link_kind: 'retailer' }]] : []))),
+}
+const saved12Ratings: RatingsState = Object.fromEntries(savedRows.map(([, , , , , mine, comment], i) => [`sv-${i + 1}`, rated(mine, comment, 'saved', null, 100 - i)]))
+
 const limitUsage = { maxSearches: 8, maxShopAgains: 25, resetsAt: '2026-11-01T00:00:00+00:00' }
 const limitView: SessionView = { ...fixtureView, search_count: 9, shop_agains_used: 1, shop_agains_cap: 25 }
 
@@ -401,6 +485,10 @@ export const fixtureStates: Record<string, ShopState> = {
   askrefine: done(fixtureRefine, 1),
   askrefinematch: done(fixtureRefineMatch, 2),
   askpolish: done(fixturePolish, 2),
+  askprice: done(fixturePrice, 2),
+  asksaved12: done(fixtureSaved12, 1, saved12Ratings, null, 'nice rug'),
+  // Product cards: rated with a comment (cd-1, cd-5), rated without one (cd-2), the rest unrated.
+  askcards: done(fixtureCards, 1, { 'cd-1': rated('love', 'Love the colours.'), 'cd-5': rated('like', 'Check the pile height.'), 'cd-2': rated('like') }),
   limit: done(limitView, 1, {}, { message: 'Daily limit reached.', retryAfterS: null, resetsAt: '2026-11-01T00:00:00+00:00', code: 'cap_reached', limit: 'ip_day' }),
 }
 

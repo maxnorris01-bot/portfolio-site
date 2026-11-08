@@ -110,6 +110,12 @@ export const AGAIN_BUTTON = 'Shop Again'
 export const REFINE_LABEL = 'Refine your search'
 export const REFINE_PLACEHOLDER = 'more wood, no glass'
 export const REFINE_TEXT_MAX = 200
+/** Refine search: the price row. DRAFT. */
+export const PRICE_LABEL = 'Price'
+export const PRICE_MIN_LABEL = 'Min'
+export const PRICE_MAX_LABEL = 'Max'
+export const PRICE_MIN_PLACEHOLDER = 'No min'
+export const PRICE_MAX_PLACEHOLDER = 'No max'
 export const SAVED_EMPTY = 'Love or like results to see them here.'
 export const filtersMatching = (n: number) => `${n} of the current results match`
 /** The small mono label between the neutral chips and the choice chips. */

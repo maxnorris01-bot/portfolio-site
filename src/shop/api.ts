@@ -1,3 +1,4 @@
+import type { PriceBody } from './price.ts'
 import type { AuthSession, Clarify, ClarifyAnswer, ClarifyAnswerChip, ContextKind, FilterChoice, JobStatus, ParsedQuery, Rating, RefineChip, ResolvedLink, SessionView, ShopErrorCode } from './types.ts'
 
 const BASE = '/api/shop'
@@ -111,9 +112,9 @@ export function createShopClient(fetchImpl: typeof fetch = (...a) => fetch(...a)
       request<{ result_id: string; rating: Rating | null; comment: string }>('/rate', { method: 'POST', body, signal }),
     shopAgain: (sessionId: string, refineText: string | null, signal?: AbortSignal) =>
       request<{ job_id: string }>('/shop-again', { method: 'POST', body: { session_id: sessionId, refine_text: refineText }, signal }),
-    /** Save the refine choices for the next Shop Again: the list REPLACES the stored set ([] clears it). Returns the refine chips. */
-    setRefineFilters: (sessionId: string, filters: FilterChoice[], signal?: AbortSignal) =>
-      request<{ refine: RefineChip[]; notices?: string[]; refine_usd?: number }>('/refine', { method: 'POST', body: { session_id: sessionId, filters }, signal }),
+    /** Save the refine choices for the next Shop Again: `filters` REPLACES the stored set ([] clears it), `price` replaces the stored price ({} clears it); a part left out stays as it is. Returns the refine chips. */
+    setRefineFilters: (sessionId: string, filters: FilterChoice[] | undefined, price?: PriceBody, signal?: AbortSignal) =>
+      request<{ refine: RefineChip[]; notices?: string[]; refine_usd?: number }>('/refine', { method: 'POST', body: { session_id: sessionId, ...(filters ? { filters } : {}), ...(price ? { price } : {}) }, signal }),
     /**
      * Post the answers to a job's clarifying questions (all current answers; `option_value` is an option's value or "no_preference"),
      * and `submit: true` to rank now. Returns the server's clarify object. Not a search: it is not counted.

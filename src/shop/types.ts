@@ -64,7 +64,7 @@ export type RefineChip = {
   label: string
   approximate?: boolean
   text?: string
-  /** Kind `filter` (the chosen options of the Refine search dialog): id is `filter:<dimension>` and target is "dimension:v1,v2" (there is no `values` field). */
+  /** Kind `filter` (the chosen options of the Refine search dialog): id is `filter:<dimension>` and target is "dimension:v1,v2" (there is no `values` field). Kind `price`: id is `price` and target is "price:50-200", "price:-200" (under) or "price:50-" (over). */
   target?: string
 }
 
@@ -91,6 +91,8 @@ export type ShopSearch = {
   facets?: Facet[]
   facets_unknown?: Record<string, number>
   filters_match?: FiltersMatch | null
+  /** After a Shop Again with a price range (null or absent without one). `removed` = candidates the price rule dropped. */
+  price_filter?: { min: number | null; max: number | null; removed?: number } | null
 }
 
 /** The body of GET /session, and the `result` of a finished job. */

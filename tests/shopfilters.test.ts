@@ -9,7 +9,7 @@ import { closeServer, loadModule, render } from './helpers/ssr.ts'
 after(closeServer)
 
 // The dialog's props, as far as the test sets them (the component's own type lives in a .tsx file the test project does not compile).
-type FiltersModalProps = { facets: typeof facets; unknown?: Record<string, number>; selection: Selection; refineText: string; onRefineChange: () => void; matchText: string | null; onToggle: () => void; onClear: () => void; onClose: () => void; onSearch: () => void; block: string | null; returnFocus: { current: null } }
+type FiltersModalProps = { facets: typeof facets; unknown?: Record<string, number>; selection: Selection; refineText: string; onRefineChange: () => void; matchText: string | null; priceMin: string; priceMax: string; onPriceChange: () => void; priceErrors: { min?: string; max?: string }; onToggle: () => void; onClear: () => void; onClose: () => void; onSearch: () => void; block: string | null; returnFocus: { current: null } }
 const facets = viewFacets(fixtureFilters).facets
 const items = filterItemsFixture
 
@@ -277,7 +277,7 @@ test('view: wide puts the steps in the right column, narrow stacks them below th
 
 test('modal: role dialog, aria-modal, labelled by its title; the intro line; sections in the facets\' order; tiles are toggles with "Gray (4)"', async () => {
   const { FiltersDialog } = await loadModule<{ FiltersDialog: ComponentType<{ p: FiltersModalProps; titleId: string }> }>('/src/shop/FiltersModal.tsx')
-  const p: FiltersModalProps = { facets, unknown: viewFacets(fixtureFilters).unknown, selection: { color: ['gray'] }, refineText: '', onRefineChange: noop, matchText: '4 of the current results match', onToggle: noop, onClear: noop, onClose: noop, onSearch: noop, block: null, returnFocus: { current: null } }
+  const p: FiltersModalProps = { facets, unknown: viewFacets(fixtureFilters).unknown, selection: { color: ['gray'] }, refineText: '', onRefineChange: noop, matchText: '4 of the current results match', priceMin: '', priceMax: '', onPriceChange: noop, priceErrors: {}, onToggle: noop, onClear: noop, onClose: noop, onSearch: noop, block: null, returnFocus: { current: null } }
   const html = await render(FiltersDialog, { p, titleId: 'ttl' })
   assert.match(html, /role="dialog" aria-modal="true" aria-labelledby="ttl"/)
   assert.match(html, /<h2 id="ttl" class="filters-title">Refine search<\/h2>/)

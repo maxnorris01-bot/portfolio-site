@@ -243,11 +243,19 @@
   font-size: var(--text-small);
 }
 
+.shop-price-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+}
+
 .shop-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-  margin: var(--space-4) 0 0;
+  /* No row gap: each card spans nine rows of this grid (its own subgrid), so the space between rows of cards is the cards' bottom margin. */
+  row-gap: 0;
+  column-gap: var(--space-3);
+  margin: var(--space-4) 0 calc(-1 * var(--space-3));
   padding: 0;
   list-style: none;
 }
@@ -259,22 +267,48 @@
   }
 }
 
+/* A card takes nine row tracks from the grid, one per section (image, title, price, store, rating line, extra lines, Open, rating buttons,
+   comment line), so within one row of cards each section starts at the same height. Rows are as tall as the tallest card needs. Not clipped
+   (the comment popover hangs below the buttons); the picture rounds its own top corners. */
 .shop-card {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: grid;
+  grid-row: span 9;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: subgrid;
+  row-gap: 0;
   min-width: 0;
-  overflow: hidden;
+  margin-bottom: var(--space-3);
   padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
 }
 
+.shop-card.has-pop {
+  z-index: 20;
+}
+
+/* Without subgrid the card is a column and the Open button and the rating buttons sit at the bottom of it (cards stretch to the row). */
+@supports not (grid-template-rows: subgrid) {
+  .shop-card {
+    display: flex;
+    flex-direction: column;
+    grid-row: auto;
+  }
+
+  .shop-open-cell {
+    margin-top: auto;
+  }
+}
+
 .shop-thumb {
   /* The card shell has the padding; the picture still runs edge to edge across the top. */
   margin: calc(-1 * var(--card-pad)) calc(-1 * var(--card-pad)) 0;
   aspect-ratio: 1 / 1;
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
   background: var(--color-bg);
+  overflow: hidden;
 }
 
 .shop-thumb img {
@@ -294,15 +328,19 @@
   font-size: var(--text-small);
 }
 
-.shop-card-body {
+.shop-cell {
   display: grid;
-  flex: 1;
-  align-content: start;
   gap: var(--space-1);
-  padding: var(--space-3) 0 0;
+  min-width: 0;
+}
+
+/* An empty cell has no height, no margin: its row is as tall as the tallest card's content. */
+.shop-cell:not(:empty) {
+  margin-top: var(--space-1);
 }
 
 .shop-card-title {
+  margin-top: var(--space-3);
   display: -webkit-box;
   overflow: hidden;
   font-family: var(--font-body);
@@ -315,6 +353,7 @@
 }
 
 .shop-card-price {
+  margin-top: var(--space-1);
   font-family: var(--font-mono);
   font-weight: 600;
 }
@@ -325,9 +364,18 @@
   overflow-wrap: anywhere;
 }
 
+.shop-open-cell {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.shop-open-cell:not(:empty) {
+  margin-top: 0.5rem;
+}
+
 .shop-open {
   justify-self: start;
-  margin-top: 0.5rem;
   padding: 0.45em 0.9em;
   font-size: var(--text-small);
 }
@@ -506,23 +554,25 @@
 }
 
 /* Ratings (part 2) */
-.shop-rating {
-  display: grid;
-  gap: 0.5rem;
+/* The rating buttons: three equal columns, so the check on the chosen one never changes any width. */
+.shop-rate-cell {
+  position: relative;
+  min-width: 0;
   margin-top: 0.6rem;
   padding-top: 0.7rem;
   border-top: 1px solid var(--color-border);
 }
 
 .shop-rate {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
 }
 
 .shop-rate-btn {
-  flex: 1 1 auto;
+  min-width: 0;
   white-space: nowrap;
-  padding: 0.4em 0.3em;
+  padding: 0.4em 0.2em;
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -559,11 +609,87 @@
   content: '✓ ';
 }
 
-.shop-comment {
-  display: block;
+/* The one reserved line under the buttons: always 20px, empty before a rating. */
+.shop-comment-slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  height: 20px;
+  margin-top: 0.3rem;
+  overflow: hidden;
+  font-size: var(--text-small);
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.shop-comment-slot .shop-save {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shop-link.shop-comment-link {
+  color: var(--color-navy);
+}
+
+/* The popover: as wide as the card, under the buttons (above them near the bottom of the window), over the rows that follow. */
+.shop-pop {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 10px);
+  right: calc(-1 * var(--card-pad));
+  left: calc(-1 * var(--card-pad));
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1.5px solid var(--color-navy);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+}
+
+.shop-pop.is-above {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+
+/* The arrow points at the buttons. */
+.shop-pop::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: calc(var(--card-pad) + 1.5rem);
+  width: 12px;
+  height: 12px;
+  border-top: 1.5px solid var(--color-navy);
+  border-left: 1.5px solid var(--color-navy);
+  background: var(--color-surface);
+  transform: rotate(45deg);
+}
+
+.shop-pop.is-above::before {
+  top: auto;
+  bottom: -7px;
+  transform: rotate(225deg);
+}
+
+.shop-pop-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+}
+
+.shop-pop-status.is-empty::before {
+  content: '\00a0';
 }
 
 .shop-comment-input {
+  display: block;
   width: 100%;
   min-width: 0;
   padding: 0.5em 0.7em;
@@ -573,14 +699,15 @@
   color: var(--color-text);
   font: inherit;
   font-size: var(--text-small);
+  resize: none;
 }
 
 .shop-comment-input:focus-visible {
   border-color: var(--color-accent);
+  outline: none;
 }
 
 .shop-save {
-  min-height: 1.1em;
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-small);
@@ -861,8 +988,32 @@
   overflow-x: auto;
 }
 
-.shop-saved-toggle {
+.shop-saved-side {
+  display: flex;
   grid-column: 4;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.shop-saved-share {
+  padding: 0.35em 0.9em;
+  border: 1.5px solid var(--color-navy);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-navy);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shop-saved-share:hover {
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+}
+
+.shop-saved-toggle {
   white-space: nowrap;
 }
 
@@ -973,14 +1124,15 @@ a.shop-mini-link:focus-visible {
     grid-row: 1;
   }
 
-  .shop-saved-toggle {
-    grid-column: 3;
-    grid-row: 1;
+  .shop-saved-side {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: space-between;
   }
 
   .shop-saved-strip {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 3;
   }
 
   .shop-saved-tabs {
@@ -1001,9 +1153,6 @@ a.shop-mini-link:focus-visible {
     padding-inline: 0.7em;
   }
 
-  .shop-saved-toggle {
-    justify-self: end;
-  }
 }
 
 .shop-saved-list {
