@@ -39,13 +39,11 @@ const tools = [
 
 const projects: {
   title: string
-  meta: string
   bullets: string[]
   link?: { to: string; label: string }
 }[] = [
   {
     title: 'ShopAI: LLM shopping-search agent',
-    meta: 'Live',
     bullets: [
       'Shipped an agent that retrieves Google Shopping results, ranks them with Claude, and re-ranks on user ratings and comments ("Shop Again"); Python service on Fly.io with Postgres, React/TypeScript front end on Vercel',
       'Built a live evaluation harness with an LLM judge (checked for self-agreement), regression cases, and cost and latency gates; 1,700+ automated tests',
@@ -55,7 +53,6 @@ const projects: {
   },
   {
     title: 'Satellite Point-of-View Tool',
-    meta: 'Live',
     bullets: [
       'Daily screening of public tracking data for satellite close approaches using SGP4 propagation and scipy cKDTree spatial search; no LLM calls in the core',
       'Interactive 3D viewer (three.js) with Hipparcos and Gaia star catalogues',
@@ -64,22 +61,35 @@ const projects: {
   },
   {
     title: 'Claim Verification Agent',
-    meta: 'Agentic pipeline',
     bullets: [
       'Built a multi-tier agentic fact-checking pipeline with a claim classifier and eval suite; wrote a retrospective on the latency limits found and now validates cost and latency targets before scaling scope',
     ],
   },
 ]
 
-const experience = [
+type Bullet = { text: string; sub?: string[] }
+
+const experience: { title: string; company: string; dates: string; bullets: Bullet[] }[] = [
   {
     title: 'Senior / Lead Mass Properties Engineer',
     company: 'Joby Aviation',
     dates: 'March 2022 – Present',
     bullets: [
-      'Own weight and CG data for the S4 program: mass targets for each integrated product team, tracking, forecasting and reduction coordination',
-      'Built the mass properties database and reporting process, implementing ANSI S-120A and SAWE RP 7/8',
-      'Authored the Weight and Balance Manual and flight manual sections, and aircraft weighing procedures for flight test',
+      {
+        text: 'Responsible for Weight and CG management for S4 Program',
+        sub: ['IPT mass target development', 'Program mass tracking, reporting, forecasting', 'Mass reduction effort coordination'],
+      },
+      {
+        text: 'Mass Properties process development and execution',
+        sub: ['Database development, ANSI-S120A implementation', 'Mass Properties Reporting per SAWE-PR7/8'],
+      },
+      {
+        text: 'Flight Test and Operations support',
+        sub: [
+          'Authored the Weight and Balance Manual and Mass Properties portions of Aircraft Flight Manual / Pilot Operating Handbook',
+          'Produced aircraft weighing procedures, introduced the use of Form B / F, Chart A / C / E',
+        ],
+      },
     ],
   },
   {
@@ -87,9 +97,18 @@ const experience = [
     company: 'Northrop Grumman',
     dates: 'January 2015 – March 2022',
     bullets: [
-      'Conceptual design focal point in Advanced Flight Sciences: parametric weight estimation models, MDO mass properties lead, contributions to multiple contract captures',
-      'Detailed design weight and CG management, forecasting, reporting, and database development',
-      'Production vehicle mass properties on F/A-18 and F-35A/B/C',
+      {
+        text: 'One of main focal points for Conceptual Design Mass Properties within Advanced Flight Sciences Division',
+        sub: ['Advanced Design / Parametric Weight Estimation', 'MDO Mass Properties Lead', 'Contributed to multiple contract captures'],
+      },
+      {
+        text: 'Extensive Detailed Design Experience',
+        sub: ['Weight & CG Management, Reporting, Forecasting', 'Database Development & Management'],
+      },
+      {
+        text: 'Production Vehicle Mass Properties Experience',
+        sub: ['F/A-18, F-35A/B/C, Other'],
+      },
     ],
   },
 ]
@@ -110,7 +129,7 @@ export default function Resume() {
             <dl className="resume-facts">
               <div>
                 <dt>Location</dt>
-                <dd>Santa Cruz, CA / Open to Oregon / Washington</dd>
+                <dd>Santa Cruz, CA</dd>
               </div>
               <div>
                 <dt>Clearance</dt>
@@ -131,9 +150,6 @@ export default function Resume() {
                 <dd>
                   <a href="https://github.com/maxnorris01-bot" className="resume-link">
                     github.com/maxnorris01-bot
-                  </a>
-                  <a href="mailto:maxnorris01@gmail.com" className="resume-link">
-                    maxnorris01@gmail.com
                   </a>
                 </dd>
               </div>
@@ -179,7 +195,6 @@ export default function Resume() {
                   <li key={p.title} className="resume-job">
                     <div className="resume-job-header">
                       <h3>{p.title}</h3>
-                      <span className="resume-job-dates">{p.meta}</span>
                     </div>
                     <ul className="resume-job-bullets">
                       {p.bullets.map((b, i) => (
@@ -207,8 +222,17 @@ export default function Resume() {
                     </div>
                     <p className="resume-job-company">{job.company}</p>
                     <ul className="resume-job-bullets">
-                      {job.bullets.map((b, i) => (
-                        <li key={i}>{b}</li>
+                      {job.bullets.map((b) => (
+                        <li key={b.text}>
+                          {b.text}
+                          {b.sub && (
+                            <ul className="resume-job-sub">
+                              {b.sub.map((t) => (
+                                <li key={t}>{t}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
                       ))}
                     </ul>
                   </li>
