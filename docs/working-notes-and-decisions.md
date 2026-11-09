@@ -7,3 +7,6 @@ The header wraps on narrow windows, so its height varies: `NavBar` publishes it 
 
 ## 2026-11-08: ShopAI has the "View on GitHub ↗" button
 The ShopAI page has the same button as SatPOV, opening the backend repo `room-redesign-agent` in a new tab. The URL is `SHOP_REPO_URL` in `src/shop/copy.ts`. It is in the page header's `aside` slot, same size as SatPOV's (`.shop-github`). From 1100px it is taken out of the grid and sits top right, level with the title, so the title, chips and description wrap as before (the full-width description would otherwise have lost a column); below 1100px it sits under the title block. The idle `/shop` height is unchanged at 1440x900 (1117px, scrolls) and 1920x1080 (1080px, fits).
+
+## 2026-11-08: Claim Verification Agent removed from the Résumé page
+The Claim Verification Agent entry was removed from Applied AI Projects on the Résumé page because its repo is now private. The section lists ShopAI and the Satellite Point-of-View Tool. `public/Max_Norris_Resume.pdf` still lists it and is updated in a separate step.

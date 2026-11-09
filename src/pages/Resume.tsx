@@ -59,12 +59,6 @@ const projects: {
     ],
     link: { to: '/satellite-conjunction-screening', label: 'View project' },
   },
-  {
-    title: 'Claim Verification Agent',
-    bullets: [
-      'Built a multi-tier agentic fact-checking pipeline with a claim classifier and eval suite; wrote a retrospective on the latency limits found and now validates cost and latency targets before scaling scope',
-    ],
-  },
 ]
 
 type Bullet = { text: string; sub?: string[] }
