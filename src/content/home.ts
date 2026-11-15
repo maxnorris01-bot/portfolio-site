@@ -1,10 +1,13 @@
+import { uiEditor } from '../data/uiEditor.ts'
+import { UI_EDITOR_ON } from '../data/uiEditorFlag.ts'
+
 // The Home page's words, in one place.
 // Background and About this site are always on the page (left column); the planets (SatPOV, ShopAI, Résumé) each fill the card under the solar system (right column).
 
 export const HOME_TITLE = 'Applied AI & Data Engineer · Project Portfolio'
 
 export type InfoPanelId = 'background' | 'site'
-export type PlanetId = 'satpov' | 'shopai' | 'resume'
+export type PlanetId = 'satpov' | 'shopai' | 'resume' | 'uieditor'
 
 /**
  * Text in two cuts (see Home.css): `text` for a window tall enough for it, `compact` for a shorter one (under 880px), where the
@@ -51,7 +54,7 @@ export const HOME_INFO: InfoPanel[] = [
   },
 ]
 
-export const HOME_PLANETS: PlanetPanel[] = [
+const BASE_PLANETS: PlanetPanel[] = [
   {
     id: 'satpov',
     label: 'SatPOV',
@@ -89,3 +92,16 @@ export const HOME_PLANETS: PlanetPanel[] = [
     link: { to: '/resume', text: 'Open Résumé' },
   },
 ]
+
+/** The UI Editor's planet: it exists only while the page's flag is on. */
+const UI_EDITOR_PLANET: PlanetPanel = {
+  id: 'uieditor',
+  label: uiEditor.name,
+  paragraphs: uiEditor.planet,
+  link: { to: uiEditor.route, text: `Open ${uiEditor.name}` },
+}
+
+/** The planets a visitor can choose: the three of the site, and the UI Editor as a fourth when its flag is on. */
+export const homePlanets = (uiEditorOn: boolean): PlanetPanel[] => (uiEditorOn ? [...BASE_PLANETS, UI_EDITOR_PLANET] : BASE_PLANETS)
+
+export const HOME_PLANETS: PlanetPanel[] = homePlanets(UI_EDITOR_ON)
