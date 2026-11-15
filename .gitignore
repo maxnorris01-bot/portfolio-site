@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# UI Editor gate output (raw results, never committed)
+scripts/ui-editor-gate/out/
