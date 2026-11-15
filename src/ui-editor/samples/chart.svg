@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" width="480" height="320" role="img" aria-label="Visits per weekday">
+  <title>Visits per weekday</title>
+  <rect id="paper" x="0" y="0" width="480" height="320" fill="#f8f4ea"/>
+  <text id="heading" x="48" y="30" font-family="Georgia, serif" font-size="20" fill="#264653">Visits per weekday</text>
+  <g id="plot" transform="translate(48 50)">
+    <line id="axis" x1="0" y1="200" x2="384" y2="200" stroke="#3b3b3b" stroke-width="2"/>
+    <rect id="bar-mon" x="16" y="110" width="48" height="90" fill="#2a9d8f"/>
+    <rect id="bar-tue" x="96" y="70" width="48" height="130" fill="#2a9d8f"/>
+    <rect id="bar-wed" x="176" y="40" width="48" height="160" fill="#e9c46a"/>
+    <rect id="bar-thu" x="256" y="90" width="48" height="110" fill="#2a9d8f"/>
+    <rect id="bar-fri" x="336" y="130" width="48" height="70" fill="#2a9d8f"/>
+    <text x="40" y="222" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#3b3b3b">Mon</text>
+    <text x="120" y="222" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#3b3b3b">Tue</text>
+    <text x="200" y="222" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#3b3b3b">Wed</text>
+    <text x="280" y="222" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#3b3b3b">Thu</text>
+    <text x="360" y="222" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#3b3b3b">Fri</text>
+  </g>
+</svg>

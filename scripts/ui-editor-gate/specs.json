@@ -1,0 +1,2765 @@
+{
+ "version": 1,
+ "vocabulary": {
+  "steps": {
+   "load": "choose the sample in the Sample picker (value = id) and wait until the preview is ready",
+   "view": "click the Desktop, Tablet or Phone button",
+   "click": "a real mouse click on an element of the preview (found by a CSS selector inside the iframe): at \"center\", or at \"inset\" = 12 px in from its top-left corner (to hit the element itself, not its child)",
+   "clickBlank": "a real click on the empty page area under the content, 8 px above the bottom edge of the preview",
+   "drag": "pointer down at the element centre (handle null) or at the centre of the named resize handle, move in steps of about 4 px by (dx, dy) CSS px, pointer up",
+   "type": "click the labelled panel field, select its text, type the text and press Enter",
+   "uncheck": "click the labelled checkbox (it must be checked)",
+   "button": "click the button with this accessible name",
+   "selectFile": "choose a file in the File picker",
+   "snapshot": "record the preview (all widths) and the export under a name, for later comparison"
+  },
+  "asserts": {
+   "measure": "P1. Measure q (left, top, width, height, fontSize) of sel in the preview at width \"at\" (a number, or \"current\"). Modes: abs (equals value), delta (before + value), same (equals before), eqBefore (equals before(of, q)). Within tol. \"before\" is measured right after load.",
+   "order": "P1. After the action, q of \"first\" is less than q of \"second\" at width \"at\"",
+   "selection": "P1. The host [data-selection] box equals the box of the element in the preview, within tol",
+   "field": "P5. The text of the labelled field equals value (numeric within tol when tol > 0)",
+   "dot": "P5. The row [data-field=field] has (on) or has not a [data-dot]",
+   "review": "P5. The button \"Review unlinked (N)\" has this N",
+   "reviewList": "P5. The Review list has n items and the text of the first item contains every string",
+   "reviewJump": "P5. Click the list item at index: it selects that element",
+   "undo": "P5. The Undo button is enabled or not",
+   "redo": "P5. The Redo button is enabled or not",
+   "message": "P5. The \"Edit result\" region contains the text (case-insensitive)",
+   "selected": "P5. [data-selected-label] contains the text",
+   "noSelection": "P5. There is no [data-selection]",
+   "env": "P5. [data-env] reads the text",
+   "viewPressed": "P5. The named view button has aria-pressed=true",
+   "iframeWidth": "P5. The preview iframe is this many CSS px wide",
+   "checkbox": "P5. The labelled checkbox exists with this checked (and disabled) state",
+   "tabletSentence": "P5. A visible sentence containing the text",
+   "noHandles": "P5. No [data-handle] is present or enabled",
+   "fieldDisabled": "P5. The labelled field is disabled",
+   "buttonDisabled": "P5. The named button is disabled or not",
+   "copy": "P5. Click Copy code; the clipboard text equals the export of the file",
+   "status": "P5. The status region contains the text",
+   "downloadName": "P5. Click Download for the chosen file; the saved file name equals name"
+  },
+  "baseline": "Measured on the preview right after load, before any step. A mismatch fails the spec as a setup error (it means the sample changed).",
+  "p3": "target = the element the action edits (excluded); class and against as in docs/ui-editor-gate-rules.md section 2",
+  "p4": "files = the files allowed to change, with the most changed lines of each; every other file must be byte-identical. permutation = a reorder must be a pure permutation of whole lines. sameAs = the export is byte-identical to a named snapshot"
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "REFUSED",
+  "FAIL"
+ ],
+ "specs": [
+  {
+   "id": "S01",
+   "name": "Select by click (HTML): a headline, then click empty space",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 30,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "selection",
+     "sel": "#headline",
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "h1"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "headline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "44px",
+     "tol": 0
+    },
+    {
+     "do": "clickBlank"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noSelection"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "mustNotChange": "everything: no edit is made; the export is byte-identical to the source"
+  },
+  {
+   "id": "S02",
+   "name": "Select by click (email): the heading in a table cell",
+   "sample": "email",
+   "widths": [
+    1280,
+    481,
+    480,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#hello",
+     "q": "fontSize",
+     "value": 26,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "click",
+     "sel": "#hello",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "selection",
+     "sel": "#hello",
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "h1"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "hello"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "26px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#hello",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "mustNotChange": "everything: no edit is made; the export is byte-identical to the source"
+  },
+  {
+   "id": "S03",
+   "name": "Select by click (SVG): a bar of the chart, inside a transformed group",
+   "sample": "chart",
+   "widths": [
+    1280,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#bar-tue",
+     "q": "width",
+     "value": 48,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "selection",
+     "sel": "#bar-tue",
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "rect"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "bar-tue"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#bar-tue",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "mustNotChange": "everything: no edit is made; the export is byte-identical to the source"
+  },
+  {
+   "id": "S04",
+   "name": "Drag-move by about 40 px on Desktop (an unlinked offset)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#cta",
+     "q": "left",
+     "value": 90,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#cta",
+     "q": "top",
+     "value": 191.69,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#cta",
+     "q": "width",
+     "value": 195.34,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": null,
+     "dx": 40,
+     "dy": 24
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "left",
+     "mode": "delta",
+     "value": 40,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "top",
+     "mode": "delta",
+     "value": 24,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "width",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "height",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#cta",
+     "q": "left",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#cta",
+     "q": "top",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 640,
+     "sel": "#cta",
+     "q": "left",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 641,
+     "sel": "#cta",
+     "q": "left",
+     "mode": "delta",
+     "value": 40,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dot",
+     "field": "position",
+     "on": true
+    }
+   ],
+   "p3": {
+    "target": "#cta",
+    "class": "descendants",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    },
+    "permutation": false
+   },
+   "mustNotChange": "every other element at every width; the target at 390 and 640 px (the move is Desktop-only); the target's size"
+  },
+  {
+   "id": "S05",
+   "name": "Drag-resize from the east handle on Desktop (width 280 to 240)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "e",
+     "dx": -40,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 240,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 240,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Width",
+     "value": "240px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Height",
+     "value": "180px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dot",
+     "field": "width",
+     "on": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#art",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    },
+    "permutation": false
+   },
+   "mustNotChange": "the height of the target at every width; every other element's colours, fonts, margins and paddings at every width"
+  },
+  {
+   "id": "S06",
+   "name": "Drag-resize from the south handle on Desktop (height 180 to 210)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "s",
+     "dx": 0,
+     "dy": 30
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "mode": "abs",
+     "value": 210,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "mode": "abs",
+     "value": 210,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Height",
+     "value": "210px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Width",
+     "value": "280px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dot",
+     "field": "height",
+     "on": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#art",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    },
+    "permutation": false
+   },
+   "mustNotChange": "the width of the target at every width; every other element's colours, fonts, margins and paddings at every width"
+  },
+  {
+   "id": "S07",
+   "name": "Drag-resize from the south-east corner on Desktop (280x180 to 320x200)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "se",
+     "dx": 40,
+     "dy": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 320,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "mode": "abs",
+     "value": 200,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 320,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "mode": "abs",
+     "value": 200,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Width",
+     "value": "320px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Height",
+     "value": "200px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#art",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 2
+    },
+    "permutation": false
+   },
+   "mustNotChange": "every other element's colours, fonts, margins and paddings at every width"
+  },
+  {
+   "id": "S08",
+   "name": "Drag-resize on Phone (east handle, width 280 to 330), linked to Desktop",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "checkbox",
+     "label": "Link to Desktop",
+     "checked": true
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "e",
+     "dx": 50,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 330,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 330,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Width",
+     "value": "330px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#art",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    },
+    "permutation": false
+   },
+   "mustNotChange": "the height of the target at every width; every other element's colours, fonts, margins and paddings at every width"
+  },
+  {
+   "id": "S09",
+   "name": "Type a font size on Desktop with Link ON; the Phone view scaled it (44 to 52 gives 30 to 35.45)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 30,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 35.4545,
+     "tol": 0.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 641,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 640,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 35.4545,
+     "tol": 0.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "35.45px",
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "checkbox",
+     "label": "Link to Desktop",
+     "checked": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "env",
+     "text": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dot",
+     "field": "font-size",
+     "on": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 2
+    },
+    "permutation": false
+   },
+   "mustNotChange": "every other element's colours, fonts, margins and paddings at every width"
+  },
+  {
+   "id": "S10",
+   "name": "The same with Link OFF: Phone unchanged, a dot shows, Review lists it and counts it",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 30,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "uncheck",
+     "label": "Link to Phone"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dot",
+     "field": "font-size",
+     "on": true
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "button",
+     "name": "Review unlinked (1)"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "reviewList",
+     "contains": [
+      "font-size",
+      "52px",
+      "Desktop"
+     ],
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "reviewJump",
+     "index": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 641,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 640,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 30,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 30,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "headline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dot",
+     "field": "font-size",
+     "on": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "checkbox",
+     "label": "Link to Phone",
+     "checked": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    },
+    "permutation": false
+   },
+   "mustNotChange": "the headline at 640 px and below (Phone is unchanged); every other element's colours, fonts, margins and paddings at every width"
+  },
+  {
+   "id": "S11",
+   "name": "Switch Desktop to Tablet to Phone to Desktop (preview widths 1280, 768, 390; the editable environment follows)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 30,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "iframeWidth",
+     "value": 1280
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "iframeWidth",
+     "value": 390
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewPressed",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "env",
+     "text": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "checkbox",
+     "label": "Link to Desktop",
+     "checked": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 30,
+     "tol": 0.05
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "iframeWidth",
+     "value": 768
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewPressed",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "env",
+     "text": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabletSentence",
+     "contains": "view-only"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noHandles"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "iframeWidth",
+     "value": 1280
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewPressed",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "env",
+     "text": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "mustNotChange": "everything: switching the view is not an edit; the export is byte-identical to the source"
+  },
+  {
+   "id": "S12",
+   "name": "Reorder up in a flex row: the middle card moves before the first",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#card-plan",
+     "q": "left",
+     "value": 138,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#card-build",
+     "q": "left",
+     "value": 480.66,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#card-build",
+     "q": "left",
+     "mode": "eqBefore",
+     "value": 0,
+     "tol": 1.5,
+     "of": "#card-plan"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#card-plan",
+     "q": "left",
+     "mode": "eqBefore",
+     "value": 0,
+     "tol": 1.5,
+     "of": "#card-build"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#card-build",
+     "q": "top",
+     "mode": "eqBefore",
+     "value": 0,
+     "tol": 1.5,
+     "of": "#card-plan"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "order",
+     "at": 1280,
+     "first": "#card-build",
+     "second": "#card-plan",
+     "q": "left"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "order",
+     "at": 390,
+     "first": "#card-build",
+     "second": "#card-plan",
+     "q": "top"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Move up",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Move down",
+     "disabled": false
+    }
+   ],
+   "p3": {
+    "target": "#card-build",
+    "class": "reorder",
+    "against": "original",
+    "pair": "key"
+   },
+   "p4": {
+    "files": {
+     "landing.html": 7
+    },
+    "permutation": true
+   },
+   "mustNotChange": "the cards' text, colours and sizes; the stylesheet (it is byte-identical)"
+  },
+  {
+   "id": "S13",
+   "name": "Reorder up in a table cell row: the middle cell moves before the first (email)",
+   "sample": "email",
+   "widths": [
+    1280,
+    481,
+    480,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#pick-one",
+     "q": "left",
+     "value": 340,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#pick-two",
+     "q": "left",
+     "value": 540,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "click",
+     "sel": "#pick-two",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#pick-two",
+     "q": "left",
+     "mode": "eqBefore",
+     "value": 0,
+     "tol": 1.5,
+     "of": "#pick-one"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#pick-one",
+     "q": "left",
+     "mode": "eqBefore",
+     "value": 0,
+     "tol": 1.5,
+     "of": "#pick-two"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#pick-two",
+     "q": "top",
+     "mode": "eqBefore",
+     "value": 0,
+     "tol": 1.5,
+     "of": "#pick-one"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#pick-one",
+     "q": "top",
+     "mode": "eqBefore",
+     "value": 0,
+     "tol": 1.5,
+     "of": "#pick-two"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "order",
+     "at": 1280,
+     "first": "#pick-two",
+     "second": "#pick-one",
+     "q": "left"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "order",
+     "at": 390,
+     "first": "#pick-two",
+     "second": "#pick-one",
+     "q": "left"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Move up",
+     "disabled": true
+    }
+   ],
+   "p3": {
+    "target": "#pick-two",
+    "class": "reorder",
+    "against": "original",
+    "pair": "key"
+   },
+   "p4": {
+    "files": {
+     "email.html": 2
+    },
+    "permutation": true
+   },
+   "mustNotChange": "the cells' text and styles; the rest of the email"
+  },
+  {
+   "id": "S14",
+   "name": "SVG drag-move by about 40 px (a bar inside a transformed group)",
+   "sample": "chart",
+   "widths": [
+    1280,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#bar-tue",
+     "q": "width",
+     "value": 48,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "checkbox",
+     "label": "Link to Phone",
+     "checked": true,
+     "disabled": true
+    },
+    {
+     "do": "drag",
+     "sel": "#bar-tue",
+     "handle": null,
+     "dx": 40,
+     "dy": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#bar-tue",
+     "q": "left",
+     "mode": "delta",
+     "value": 40,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#bar-tue",
+     "q": "top",
+     "mode": "delta",
+     "value": 20,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#bar-tue",
+     "q": "width",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#bar-tue",
+     "q": "height",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#bar-tue",
+     "q": "left",
+     "mode": "delta",
+     "value": 40,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#bar-tue",
+     "q": "top",
+     "mode": "delta",
+     "value": 20,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    }
+   ],
+   "p3": {
+    "target": "#bar-tue",
+    "class": "svg-ancestors",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "chart.svg": 1
+    },
+    "permutation": false
+   },
+   "mustNotChange": "every other bar, label, line and the background; the bar's size"
+  },
+  {
+   "id": "S15",
+   "name": "REFUSAL: resize a flex item that grows (flex: 1)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "REFUSED",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#card-build",
+     "q": "width",
+     "value": 318.67,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "drag",
+     "sel": "#card-build",
+     "handle": "e",
+     "dx": 30,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "flex-grow is above 0"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#card-build",
+     "q": "width",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#card-build",
+     "q": "width",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "selection",
+     "sel": "#card-build",
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    }
+   ],
+   "p3": {
+    "target": "#card-build",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "mustNotChange": "everything: the preview, the export (byte-identical), the Undo and Redo state, the Review count"
+  },
+  {
+   "id": "S16",
+   "name": "REFUSAL: an unlinked reorder inside a block parent (the CSS order property needs flex or grid)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "REFUSED",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#card-plan p",
+     "q": "top",
+     "value": 414,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan p",
+     "at": "center"
+    },
+    {
+     "do": "uncheck",
+     "label": "Link to Phone"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "only works inside a flex or grid container"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "order",
+     "at": 1280,
+     "first": "#card-plan h3",
+     "second": "#card-plan p",
+     "q": "top"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#card-plan p",
+     "q": "top",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    }
+   ],
+   "p3": {
+    "target": "#card-plan p",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "mustNotChange": "everything: the preview, the export (byte-identical), the Undo and Redo state, the Review count"
+  },
+  {
+   "id": "S17",
+   "name": "Undo: a linked font-size edit is undone; the export is byte-identical to the source",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 30,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 30,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "44px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    }
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "mustNotChange": "everything: after the undo the preview and the export equal the original"
+  },
+  {
+   "id": "S18",
+   "name": "Redo: the undone edit comes back, and the export equals the export before the undo",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 30,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "snapshot",
+     "name": "afterEdit"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "button",
+     "name": "Redo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 35.4545,
+     "tol": 0.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "52px",
+     "tol": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    }
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "none",
+    "against": "snapshot:afterEdit"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 2
+    },
+    "permutation": false,
+    "sameAs": "snapshot:afterEdit"
+   },
+   "mustNotChange": "everything compared with the state before the undo: the preview and the export are identical to it"
+  },
+  {
+   "id": "S19",
+   "name": "Reset all after three edits (font size, a resize, a move): the export is byte-identical to the source",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 30,
+     "tol": 0.05
+    },
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "e",
+     "dx": -40,
+     "dy": 0
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": null,
+     "dx": 40,
+     "dy": 24
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "button",
+     "name": "Reset all"
+    },
+    {
+     "do": "button",
+     "name": "Discard edits"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 30,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "left",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "top",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    }
+   ],
+   "p3": {
+    "target": "#cta",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "mustNotChange": "everything: after the reset the preview and the export equal the original"
+  },
+  {
+   "id": "S20",
+   "name": "Copy and Download the result (a font-size edit: the stylesheet changes, the page file is only renamed)",
+   "sample": "landing",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "expected": "PASS",
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    },
+    {
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 30,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "selectFile",
+     "name": "landing.css"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "copy",
+     "file": "landing.css"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "status",
+     "contains": "Copied"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "downloadName",
+     "file": "landing.css",
+     "name": "landing.css"
+    },
+    {
+     "do": "selectFile",
+     "name": "landing.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "downloadName",
+     "file": "landing.html",
+     "name": "landing-edited.html"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 35.4545,
+     "tol": 0.5
+    }
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 2
+    },
+    "permutation": false
+   },
+   "mustNotChange": "the page file (its download is byte-identical to the source, only renamed); every other element's colours, fonts, margins and paddings at every width"
+  }
+ ]
+}
