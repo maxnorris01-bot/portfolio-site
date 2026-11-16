@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UI Editor gate, round 1: scorer-check stub</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 12px; }
+  button { min-height: 28px; }
+  [data-gallery] { display: flex; gap: 16px; margin-top: 12px; }
+  [data-gallery][hidden] { display: none; }
+  [data-sample-card] { width: 300px; border: 1px solid #ccc; padding: 8px; cursor: pointer; }
+  [data-sample-card] h3 { margin: 4px 0; font-size: 15px; }
+  .mini { position: relative; width: 300px; height: 187.5px; overflow: hidden; border: 1px solid #eee; }
+  .mini iframe { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; border: 0; transform: scale(0.234375); transform-origin: 0 0; pointer-events: none; }
+  [data-stage-area] { display: flex; justify-content: center; width: calc(100vw - 460px); margin-top: 8px; border: 1px solid #ccc; }
+  [data-device-scale] { flex: none; transform-origin: top center; }
+  .dev { box-sizing: border-box; background: #1b1b1f; position: relative; }
+  .dev:not([data-device-frame]) { background: none; padding: 0 !important; border-radius: 0 !important; }
+  #screen { position: relative; background: #fff; overflow: hidden; }
+  #cover { position: absolute; inset: 0; }
+  [data-selection] { position: absolute; outline: 2px solid #e85d3f; pointer-events: none; }
+  [data-handle] { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #fff; border: 2px solid #e85d3f; pointer-events: auto; }
+  .row { margin: 4px 0; }
+</style>
+</head>
+<body>
+<!--
+  The round 1 scorer-check stub (docs/ui-editor-gate-rules-round1.md): a deliberately small editor on the real engine that follows the
+  round 1 UI contract just far enough to run N01, N04, N05, N08 and N09 through the real gate runner, with faults ?fault=NAME:
+    no-scale       pointer deltas are not divided by the device scale (N08 and N09 must fail)
+    visible-undo   Undo is drawn in the bar on the first visit (N01 must fail, by P6)
+    blank-mini     the gallery miniatures are blank (N01 and N04 must fail)
+    off-centre     the device frame is pushed 30 px off the centre of the stage (N05 must fail)
+  It is not the product; it only lets the scorer be checked before the page is built.
+-->
+<div data-editor>
+  <div id="bar" role="group" aria-label="Editor controls" class="row">
+    <button type="button" id="samples" aria-expanded="false">Samples</button>
+    <button type="button">Paste</button>
+    <button type="button">Upload</button>
+    <span id="more" hidden>
+      <span role="group" aria-label="View"><button type="button" aria-pressed="true">Desktop</button><button type="button" aria-pressed="false">Tablet</button><button type="button" aria-pressed="false">Phone</button></span>
+      <button type="button" id="rotate" aria-label="Rotate" hidden>&#8635;</button>
+      <button type="button" id="undo" aria-label="Undo" disabled>U</button><button type="button" id="redo" aria-label="Redo" disabled>R</button>
+      <button type="button" id="reset" aria-label="Reset all" disabled>X</button>
+      <button type="button" id="review" aria-label="Review unlinked (0)" disabled>0</button>
+      <label for="file">File</label> <select id="file"></select>
+      <button type="button" id="copy" aria-label="Copy code">C</button>
+      <button type="button" id="download" aria-label="Download">D</button>
+    </span>
+  </div>
+  <div id="confirm" role="group" aria-label="Confirm" hidden><p>Replace what is open? Your edits will be lost.</p><button type="button" id="discard">Discard edits</button><button type="button" id="keep">Keep editing</button></div>
+  <div data-gallery role="region" aria-label="Sample gallery"></div>
+  <div id="work" hidden>
+    <div data-stage-area><div data-device-scale><div class="dev" id="dev"><div id="screen"><div id="host"></div><div id="cover"></div></div></div></div></div>
+    <p data-device-note hidden>Previewed at a typical phone width (390 px). Other phones show the same code at their own width.</p>
+    <aside aria-label="Selected element">
+      <div data-selected-label></div><span data-env>Desktop</span>
+    </aside>
+  </div>
+  <div role="status" aria-label="Edit result" id="msg"></div>
+</div>
+<script type="module">
+import * as E from '/engine.js'
+const fault = new URLSearchParams(location.search).get('fault')
+const FILES = { landing: ['landing.html', 'landing.css'], email: ['email.html'], chart: ['chart.svg'] }
+const KIND = { landing: 'html', email: 'html', chart: 'svg' }
+const TITLES = { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart' }
+const DESCS = { landing: 'A hero, three cards and a footer.', email: 'A table-based newsletter.', chart: 'A small bar chart.' }
+const SIZES = { desktop: { portrait: [1280, null] }, tablet: { portrait: [768, 1024], landscape: [1024, 768] }, phone: { portrait: [390, 844], landscape: [844, 390] } }
+const BEZEL = { phone: { portrait: [28, 12, 24, 12], landscape: [12, 24, 12, 28] }, tablet: { portrait: [12, 12, 12, 12], landscape: [12, 12, 12, 12] } }
+const $ = (s) => document.querySelector(s)
+let sample = null, originals = {}, edits = [], redo = [], preview = null, session = null, sel = null, view = 'desktop', orient = 'portrait', scale = 1, drag = null
+
+if (fault === 'visible-undo') $('#bar').insertBefore($('#undo'), $('#more'))
+const textOf = async (f) => (await fetch('/samples/' + f)).text()
+const modelOf = (files, id = sample) => { const [main, ...rest] = FILES[id]; return E.createModel(files[main], KIND[id], Object.fromEntries(rest.map((r) => [r, files[r]])), main) }
+
+// ---- the gallery ----
+for (const id of Object.keys(FILES)) {
+  const files = {}
+  for (const f of FILES[id]) files[f] = await textOf(f)
+  const c = document.createElement('div')
+  c.setAttribute('data-sample-card', id); c.setAttribute('role', 'button'); c.tabIndex = 0
+  c.innerHTML = `<div class="mini"><iframe data-miniature sandbox="allow-same-origin" tabindex="-1" title="Miniature of ${TITLES[id]}"></iframe></div><h3>${TITLES[id]}</h3><p>${DESCS[id]}</p>`
+  c.querySelector('iframe').srcdoc = fault === 'blank-mini' ? '' : E.previewSource(modelOf(files, id))
+  c.addEventListener('click', () => pick(id))
+  c.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(id) })
+  $('[data-gallery]').appendChild(c)
+}
+let pending = null
+function pick(id) {
+  if (edits.length) { pending = id; $('#confirm').hidden = false; return }
+  load(id)
+}
+$('#keep').addEventListener('click', () => { pending = null; $('#confirm').hidden = true })
+$('#discard').addEventListener('click', () => { const id = pending; pending = null; $('#confirm').hidden = true; load(id) })
+$('#samples').addEventListener('click', () => { const g = $('[data-gallery]'); g.hidden = !g.hidden; $('#samples').setAttribute('aria-expanded', String(!g.hidden)) })
+
+async function load(id) {
+  sample = id; originals = {}; edits = []; redo = []; sel = null; view = 'desktop'; orient = 'portrait'
+  for (const f of FILES[id]) originals[f] = await textOf(f)
+  $('[data-gallery]').hidden = true; $('#samples').setAttribute('aria-expanded', 'false')
+  $('#more').hidden = false; $('#work').hidden = false
+  document.querySelectorAll('[aria-label="View"] button').forEach((x) => x.setAttribute('aria-pressed', String(x.textContent.toLowerCase() === 'desktop')))
+  await rebuild()
+}
+
+// ---- the device: size, frame, scale to fit ----
+function layout() {
+  const [w, h] = SIZES[view][orient]
+  const framed = view !== 'desktop'
+  const [bt, br, bb, bl] = framed ? BEZEL[view][orient] : [0, 0, 0, 0]
+  const ih = h ?? 800
+  const frameW = w + bl + br, frameH = ih + bt + bb
+  const area = $('[data-stage-area]').clientWidth
+  scale = Math.min(1, area / frameW, framed ? (innerHeight - 16) / frameH : 1)
+  const sc = $('[data-device-scale]'), dev = $('#dev')
+  Object.assign(sc.style, { width: frameW + 'px', transform: `scale(${scale})`, marginBottom: -(frameH * (1 - scale)) + 'px', marginLeft: fault === 'off-centre' ? '30px' : '0' })
+  dev.toggleAttribute('data-device-frame', framed)
+  if (framed) { dev.dataset.device = view; dev.dataset.orientation = orient } else { delete dev.dataset.device; delete dev.dataset.orientation }
+  Object.assign(dev.style, { width: frameW + 'px', height: frameH + 'px', padding: `${bt}px ${br}px ${bb}px ${bl}px`, borderRadius: framed ? '24px' : '0' })
+  Object.assign($('#screen').style, { width: w + 'px', height: ih + 'px' })
+  if (preview) { preview.iframe.style.height = ih + 'px'; preview.setWidth(w) }
+  $('#rotate').hidden = !framed
+  $('[data-device-note]').hidden = view !== 'phone'
+}
+addEventListener('resize', () => { if (preview) { layout(); paint() } })
+
+async function rebuild(list = edits) {
+  $('[data-editor]').setAttribute('aria-busy', 'true')
+  preview?.dispose()
+  const model = modelOf(originals)
+  preview = await E.createPreview(model, $('#host'), { width: SIZES[view][orient][0], height: SIZES[view][orient][1] ?? 800 })
+  preview.iframe.title = 'Preview'
+  const pair = (e) => ({ ...e, target: typeof e.target === 'string' ? E.select(preview.model, e.target) : e.target })
+  session = E.applyEditSteps(preview, list.map(pair))
+  const last = session.results[session.results.length - 1]
+  $('[data-editor]').removeAttribute('aria-busy')
+  layout(); paint()
+  return last
+}
+
+const idxOf = (e) => preview.elements.indexOf(e)
+function paint() {
+  $('#screen').querySelectorAll('[data-selection]').forEach((n) => n.remove())
+  $('#undo').disabled = !edits.length; $('#redo').disabled = !redo.length; $('#reset').disabled = !edits.length
+  const pins = E.listUnlinked(session?.state ?? E.emptyState())
+  $('#review').setAttribute('aria-label', `Review unlinked (${pins.length})`); $('#review').textContent = String(pins.length)
+  $('[data-env]').textContent = view[0].toUpperCase() + view.slice(1)
+  $('#file').innerHTML = FILES[sample]?.map((f) => `<option>${f}</option>`).join('') ?? ''
+  if (sel !== null && preview.elements[sel]) {
+    const el = preview.elements[sel]; const b = el.getBoundingClientRect()
+    const box = document.createElement('div')
+    box.setAttribute('data-selection', '')
+    Object.assign(box.style, { left: b.left + 'px', top: b.top + 'px', width: b.width + 'px', height: b.height + 'px' })
+    for (const [h, fx, fy] of [['nw', 0, 0], ['n', .5, 0], ['ne', 1, 0], ['e', 1, .5], ['se', 1, 1], ['s', .5, 1], ['sw', 0, 1], ['w', 0, .5]]) {
+      const hd = document.createElement('div'); hd.setAttribute('data-handle', h)
+      Object.assign(hd.style, { left: fx * 100 + '%', top: fy * 100 + '%' })
+      hd.addEventListener('pointerdown', (ev) => startDrag(ev, h)); box.appendChild(hd)
+    }
+    $('#screen').appendChild(box)
+    $('[data-selected-label]').textContent = el.localName + (el.id ? ' #' + el.id : '')
+  } else $('[data-selected-label]').textContent = ''
+}
+
+// ---- the pointer layer: screen px in, CSS px out (the fault leaves them as screen px) ----
+const k = () => (fault === 'no-scale' ? 1 : scale)
+$('#cover').addEventListener('pointerdown', (ev) => {
+  const r = $('#cover').getBoundingClientRect()
+  const x = (ev.clientX - r.left) / scale, y = (ev.clientY - r.top) / scale
+  const e = preview.doc.elementFromPoint(x, y)
+  if (!e || ['html', 'body'].includes(e.localName)) { sel = null; paint(); return }
+  if (sel !== null && preview.elements[sel] === e) return startDrag(ev, 'move')
+  sel = idxOf(e); paint()
+})
+function startDrag(ev, kind) {
+  ev.stopPropagation(); ev.target.setPointerCapture?.(ev.pointerId)
+  const cs = preview.doc.defaultView.getComputedStyle(preview.elements[sel])
+  drag = { kind, x: ev.clientX, y: ev.clientY, w: parseFloat(cs.width), h: parseFloat(cs.height) }
+  const up = async (u) => {
+    removeEventListener('pointerup', up)
+    const dx = (u.clientX - drag.x) / k(), dy = (u.clientY - drag.y) / k()
+    const d = drag; drag = null
+    const environment = view === 'phone' ? 'phone' : 'desktop'
+    if (d.kind === 'move') await apply({ op: 'offset', target: sel, dx: Math.round(dx), dy: Math.round(dy), environment, link: KIND[sample] === 'svg' })
+    else {
+      const props = {}
+      if (d.kind.includes('e')) props.width = Math.round(d.w + dx) + 'px'
+      if (d.kind.includes('s')) props.height = Math.round(d.h + dy) + 'px'
+      await apply({ op: 'set', target: sel, properties: props, environment, link: true })
+    }
+  }
+  addEventListener('pointerup', up)
+}
+async function apply(edit) {
+  const path = E.describe(preview.model, edit.target)
+  const list = [...edits, { ...edit, target: path }]
+  const keep = sel !== null ? path : null
+  const last = await rebuild(list)
+  if (last && !last.ok) { $('#msg').textContent = 'Not applied: ' + last.refusal.message; await rebuild(edits); return }
+  edits = list; redo = []
+  sel = keep ? E.select(preview.model, keep) : null
+  paint()
+}
+
+document.querySelectorAll('[aria-label="View"] button').forEach((b) => b.addEventListener('click', () => {
+  view = b.textContent.toLowerCase(); orient = 'portrait'
+  document.querySelectorAll('[aria-label="View"] button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+  layout(); paint()
+}))
+$('#rotate').addEventListener('click', () => { orient = orient === 'portrait' ? 'landscape' : 'portrait'; layout(); paint() })
+$('#undo').addEventListener('click', async () => { redo.push(edits.pop()); await rebuild(); sel = null; paint() })
+$('#redo').addEventListener('click', async () => { edits.push(redo.pop()); await rebuild() })
+$('#reset').addEventListener('click', async () => { edits = []; redo = []; await rebuild() })
+$('#download').addEventListener('click', () => {
+  const name = $('#file').value
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([session.files[name]])); a.download = name === FILES[sample][0] ? name.replace(/(\.[^.]+)$/, '-edited$1') : name
+  document.body.appendChild(a); a.click(); a.remove()
+})
+</script>
+</body>
+</html>

@@ -117,3 +117,13 @@ export function outcomeOf(r) {
   if (!allOk) return 'FAIL'
   return r.expected === 'REFUSED' ? 'REFUSED' : 'PASS'
 }
+
+/** Round 1 (docs/ui-editor-gate-rules-round1.md): the outcome of one N spec from the checks it lists (P2 to P4 only where the spec lists them). PASS or FAIL. */
+export function outcomeOfRound1(r) {
+  if (r.notes.length || r.setup.some((c) => !c.ok)) return 'FAIL'
+  const lists = { P1: r.P1, P5: r.P5, P6: r.P6 }
+  for (const k of r.checks) {
+    if (k === 'P2' || k === 'P3' || k === 'P4') { if (!r[k]?.ok) return 'FAIL' } else if (!lists[k].length || !lists[k].every((c) => c.ok)) return 'FAIL'
+  }
+  return 'PASS'
+}

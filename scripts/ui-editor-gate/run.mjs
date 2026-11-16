@@ -1,6 +1,8 @@
 // The UI Editor gate runner (rules: docs/ui-editor-gate-rules.md, specs: scripts/ui-editor-gate/specs.json).
 //   node scripts/ui-editor-gate/run.mjs --url http://127.0.0.1:4173/ui-editor            the real page (vite preview, flag ON)
 //   node scripts/ui-editor-gate/run.mjs --stub [--fault half-drag] [--only S04,S05]      the scorer-check stub (see reference/)
+//   node scripts/ui-editor-gate/run.mjs --stub2 [--fault no-scale] [--only N01,N05]       the round 1 scorer-check stub (reference/round1.html)
+// Both spec files run: specs.json (S01 to S20) and specs-round1.json (N01 to N11; rules in docs/ui-editor-gate-rules-round1.md). --only picks ids.
 //   node scripts/ui-editor-gate/run.mjs --url ... --noop                                  load each sample, export, compare to the source
 // Needs Playwright with Chromium (not a dependency of this repo): installed here, or in PLAYWRIGHT_DIR (a folder whose node_modules has it).
 // Headless Chromium, a fresh context per action, real mouse events, no retries. Results go to UI_GATE_OUT (default scripts/ui-editor-gate/out, git-ignored).
@@ -9,7 +11,7 @@ import { createServer } from 'node:http'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { diffLines, sameShape, p3Violations, p2Violations, outcomeOf } from './checks.mjs'
+import { diffLines, sameShape, p3Violations, p2Violations, outcomeOf, outcomeOfRound1 } from './checks.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..', '..')
@@ -28,6 +30,7 @@ try {
 }
 
 const specsFile = JSON.parse(readFileSync(join(here, 'specs.json'), 'utf8'))
+const round1File = JSON.parse(readFileSync(join(here, 'specs-round1.json'), 'utf8'))
 const { SAMPLE_FILES } = await import(new URL('../../src/ui-editor/samples/manifest.ts', import.meta.url))
 const sampleDir = join(root, 'src', 'ui-editor', 'samples')
 const sources = {}
@@ -53,14 +56,15 @@ const exportServer = createServer((q, r) => {
 const exportPort = await listen(exportServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (flag('--stub')) {
+if (flag('--stub') || flag('--stub2')) {
   const refDir = join(here, 'reference')
+  const page1 = flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
     try {
       let body
-      if (p === '/' || p === '/index.html') body = readFileSync(join(refDir, 'index.html'))
+      if (p === '/' || p === '/index.html') body = readFileSync(join(refDir, page1))
       else if (p === '/engine.js') body = readFileSync(engine)
       else if (p.startsWith('/samples/')) body = readFileSync(join(sampleDir, p.slice(9)))
       else { r.statusCode = 404; return r.end() }
@@ -128,19 +132,22 @@ const PAGE_HELPERS = `(() => {
       if (y > innerHeight - margin) window.scrollBy(0, y - (innerHeight - margin))
       else if (y < margin) window.scrollBy(0, y - margin)
     },
+    // A scaled device (round 1): the preview's own pixels are CSS px, the window's are screen px; k = screen px per CSS px (1 when not scaled).
+    scaleOf() { const f = frame(); return f.offsetWidth ? f.getBoundingClientRect().width / f.offsetWidth : 1 },
     point(sel, at) {
       const at2 = () => {
         const f = frame(); const fr = f.getBoundingClientRect(); const e = f.contentDocument.querySelector(sel)
         if (!e) return null
+        const k = this.scaleOf()
         const b = e.getBoundingClientRect()
-        return at === 'inset' ? { x: fr.left + b.left + 12, y: fr.top + b.top + 12 } : { x: fr.left + b.left + b.width / 2, y: fr.top + b.top + b.height / 2 }
+        return at === 'inset' ? { x: fr.left + (b.left + 12) * k, y: fr.top + (b.top + 12) * k } : { x: fr.left + (b.left + b.width / 2) * k, y: fr.top + (b.top + b.height / 2) * k }
       }
       const p0 = at2()
       if (!p0) return null
       this.reveal(() => at2().y)
       return at2()
     },
-    elementBox(sel) { const f = frame(); const fr = f.getBoundingClientRect(); const b = f.contentDocument.querySelector(sel).getBoundingClientRect(); return { left: fr.left + b.left, top: fr.top + b.top, width: b.width, height: b.height } },
+    elementBox(sel) { const f = frame(); const fr = f.getBoundingClientRect(); const k = this.scaleOf(); const b = f.contentDocument.querySelector(sel).getBoundingClientRect(); return { left: fr.left + b.left * k, top: fr.top + b.top * k, width: b.width * k, height: b.height * k } },
     blankPoint() { this.reveal(() => frame().getBoundingClientRect().bottom - 8); const fr = frame().getBoundingClientRect(); return { x: fr.left + 20, y: fr.bottom - 8 } },
   }
 })()`
@@ -153,11 +160,11 @@ const settle = async (page) => {
 // ---- running one spec ----
 async function runSpec(spec) {
   const src = sources[spec.sample]
-  const ctx = await browser.newContext({ viewport: specsFile.hostViewport, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
+  const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
-  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2: null, P3: null, P4: null, P5: [], setup: [], notes: [], errors }
+  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2: null, P3: null, P4: null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
   const snaps = {}
   let statusAtCopy = null
   let before = {}
@@ -192,6 +199,34 @@ async function runSpec(spec) {
   async function measureNum(at, sel, q) {
     return page.evaluate(([a, s, qq]) => window.__gate.measure(a, s, qq), [at, sel, q])
   }
+
+  // Open a sample: through the gallery card when the page has one (round 1), else through the Sample picker (the earlier page and its stub).
+  async function openSample(id) {
+    if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click()
+    else await page.getByLabel('Sample', { exact: true }).selectOption(id)
+    await page.waitForFunction((s) => { const f = document.querySelector('iframe[title="Preview"]'); return !!f?.contentDocument?.querySelector(s) }, READY[id])
+    await settle(page)
+  }
+  // The "before" values and the original dumps (once the sample is open).
+  async function captureBefore() {
+    for (const s of spec.steps.filter((x) => x.do === 'assert' && (x.k === 'measure' || x.k === 'measureScaled'))) {
+      for (const [sel] of [[s.sel], [s.of]].filter((p) => p[0])) before[`${s.at}|${sel}|${s.q}`] = await measureNum(s.at, sel, s.q)
+      if (s.mode === 'same' || s.mode === 'delta' || s.k === 'measureScaled') before[`${s.at}|${s.sel}|${s.q}`] = await measureNum(s.at, s.sel, s.q)
+    }
+    originalDump = widths ? await dumps() : {}
+    for (const b of spec.baseline ?? []) {
+      const v = await measureNum(b.at, b.sel, b.q)
+      rec('setup', `baseline ${b.sel} ${b.q} @${b.at}`, v !== null && Math.abs(v - b.value) <= b.tol, `got ${v}, want ${b.value} +-${b.tol}`)
+    }
+  }
+  const scaleNow = () => page.evaluate(() => { const e = document.querySelector('[data-device-scale]'); if (!e) return 1; const t = getComputedStyle(e).transform; const m = /matrix\(([^)]+)\)/.exec(t); return m ? parseFloat(m[1].split(',')[0]) : 1 })
+  let scaleAtDrag = 1
+  const found = async (item) => {
+    if (item.role) return page.getByRole(item.role, { name: item.name === 'Review unlinked' ? /^Review unlinked/ : item.name, exact: item.name === 'Review unlinked' ? undefined : true })
+    if (item.text) return page.getByText(item.text, { exact: true })
+    return page.locator(item.selector)
+  }
+  const label = (item) => item.name ?? item.text ?? item.selector
 
   async function doAssert(a) {
     const bucket = a.p
@@ -230,7 +265,9 @@ async function runSpec(spec) {
         return R((n > 0) === a.on, `dots on ${a.field}: ${n}, want ${a.on ? 'some' : 'none'}`)
       }
       case 'review': {
-        const t = await page.getByRole('button', { name: /^Review unlinked \(\d+\)$/ }).first().innerText().catch(() => '')
+        // The count is in the button's accessible name; an icon button draws it as a badge, so the name is read, not the text (round 1).
+        const btn = page.getByRole('button', { name: /^Review unlinked \(\d+\)$/ }).first()
+        const t = (await btn.getAttribute('aria-label').catch(() => null)) ?? (await btn.innerText().catch(() => ''))
         const n = Number(/\((\d+)\)/.exec(t)?.[1] ?? -1)
         return R(n === a.n, `Review unlinked count ${n}, want ${a.n}`)
       }
@@ -292,7 +329,7 @@ async function runSpec(spec) {
         const n = await page.locator('[data-handle]').count()
         return R(n === 0, `${n} handles`)
       }
-      case 'fieldDisabled': return R(await fieldOf(a.label).isDisabled(), 'field disabled')
+      case 'fieldDisabled': { const d = await fieldOf(a.label).isDisabled(); return R(d === (a.disabled !== false), `field disabled ${d}`) }
       case 'buttonDisabled': {
         const d = await page.getByRole('button', { name: a.name, exact: true }).isDisabled()
         return R(d === a.disabled, `disabled ${d}`)
@@ -312,6 +349,136 @@ async function runSpec(spec) {
         const dl = await grab(a.file)
         return R(dl.name === a.name, `saved as ${dl.name}`)
       }
+      // ---- round 1 (docs/ui-editor-gate-rules-round1.md) ----
+      case 'barButtons': {
+        const names = (await page.getByRole('group', { name: 'Editor controls' }).getByRole('button').evaluateAll((els) => els.filter((e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden').map((e) => e.getAttribute('aria-label') ?? e.textContent.trim()))).map((n) => (/^Review unlinked/.test(n) ? 'Review unlinked' : n))
+        const ok = a.includes ? a.names.every((n) => names.includes(n)) : names.length === a.names.length && a.names.every((n) => names.includes(n))
+        return R(ok, `visible buttons: ${names.join(', ')}`)
+      }
+      case 'absent': {
+        const bad = []
+        for (const it of a.items) {
+          const loc = await found(it)
+          const n = await loc.count()
+          for (let i = 0; i < n; i++) if (await loc.nth(i).isVisible()) { bad.push(label(it)); break }
+        }
+        return R(bad.length === 0, bad.length ? `visible: ${bad.join(', ')}` : `${a.items.length} controls hidden or absent`)
+      }
+      case 'present': {
+        const bad = []
+        for (const it of a.items) { const loc = await found(it); if (!(await loc.count()) || !(await loc.first().isVisible())) bad.push(label(it)) }
+        return R(bad.length === 0, bad.length ? `not visible: ${bad.join(', ')}` : 'all visible')
+      }
+      case 'cards': {
+        // Miniatures load after the page: give them a moment, then judge.
+        await page.waitForFunction((n) => [...document.querySelectorAll('[data-gallery] iframe[data-miniature]')].filter((f) => f.contentDocument?.body?.children.length > 0).length >= n, a.n, { timeout: 4000 }).catch(() => {})
+        const info = await page.evaluate(([markers]) => [...document.querySelectorAll('[data-gallery] [data-sample-card]')].map((c) => {
+          const id = c.getAttribute('data-sample-card'); const f = c.querySelector('iframe[data-miniature]'); const r = f?.getBoundingClientRect(); const d = f?.contentDocument
+          const m = d?.querySelector(markers[id])?.getBoundingClientRect()
+          return { id, text: c.innerText.trim(), sandbox: f?.getAttribute('sandbox') ?? null, w: r?.width ?? 0, h: r?.height ?? 0, offsetW: f?.offsetWidth ?? 0, kids: d?.body?.children.length ?? 0, mw: m?.width ?? 0, mh: m?.height ?? 0 }
+        }), [a.markers])
+        const problems = []
+        if (info.length !== a.n) problems.push(`${info.length} cards, want ${a.n}`)
+        for (const c of info) {
+          const title = a.titles[Object.keys(a.markers).indexOf(c.id)]
+          if (!c.text.includes(title)) problems.push(`${c.id}: no title "${title}"`)
+          if (c.text.replace(title, '').trim().length < 8) problems.push(`${c.id}: no description`)
+          if (c.sandbox === null || /allow-scripts/.test(c.sandbox)) problems.push(`${c.id}: sandbox "${c.sandbox}"`)
+          if (!(c.w > 0 && c.h > 0)) problems.push(`${c.id}: miniature box ${c.w} x ${c.h}`)
+          if (c.offsetW !== a.minWidth) problems.push(`${c.id}: miniature is ${c.offsetW} px wide, want ${a.minWidth}`)
+          if (!(c.kids > 0)) problems.push(`${c.id}: miniature body has no children`)
+          if (!(c.mw > 0 && c.mh > 0)) problems.push(`${c.id}: marker box ${c.mw} x ${c.mh}`)
+        }
+        return R(problems.length === 0, problems.length ? problems.slice(0, 4).join('; ') : `${info.length} cards, miniatures ${info.map((c) => `${Math.round(c.w)}x${Math.round(c.h)}`).join(', ')}`)
+      }
+      case 'markerIn': {
+        const has = await page.evaluate((s) => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector(s), a.sel)
+        return R(has === a.has, `preview ${has ? 'has' : 'lacks'} ${a.sel}`)
+      }
+      case 'miniFidelity': {
+        await page.waitForFunction((id) => !!document.querySelector(`[data-sample-card="${id}"] iframe[data-miniature]`)?.contentDocument?.body?.children.length, a.sample, { timeout: 4000 }).catch(() => {})
+        const mini = await page.evaluate(([id, sel]) => {
+          const f = document.querySelector(`[data-sample-card="${id}"] iframe[data-miniature]`)
+          const m = f?.contentDocument?.querySelector(sel)?.getBoundingClientRect()
+          return f && m ? { s: f.getBoundingClientRect().width / f.offsetWidth, w: f.offsetWidth, left: m.left, top: m.top, width: m.width, height: m.height } : null
+        }, [a.sample, a.sel])
+        await page.locator(`[data-sample-card="${a.sample}"]`).click()
+        await page.waitForFunction((s) => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector(s), a.sel)
+        await settle(page)
+        if (!mini) return R(false, 'no marker in the miniature')
+        const real = {}
+        for (const q of ['left', 'top', 'width', 'height']) real[q] = await measureNum('current', a.sel, q)
+        const d = ['left', 'top', 'width', 'height'].map((q) => Math.abs(mini[q] * mini.s - real[q] * mini.s))
+        return R(Math.max(...d) <= a.tol && mini.w === 1280, `scale ${mini.s.toFixed(4)}, miniature width ${mini.w}, largest difference ${Math.max(...d).toFixed(2)} px`)
+      }
+      case 'device': {
+        const m = await page.evaluate(() => {
+          const f = window.__gate.frame(); const area = document.querySelector('[data-stage-area]'); const sc = document.querySelector('[data-device-scale]'); const fr = document.querySelector('[data-device-frame]')
+          const t = sc ? getComputedStyle(sc).transform : 'none'; const mm = /matrix\(([^)]+)\)/.exec(t)
+          const box = (fr ?? f).getBoundingClientRect(); const ar = area?.getBoundingClientRect()
+          return { w: f.offsetWidth, h: f.offsetHeight, scale: mm ? parseFloat(mm[1].split(',')[0]) : 1, hasScale: !!sc, frame: !!fr, device: fr?.getAttribute('data-device') ?? null, orient: fr?.getAttribute('data-orientation') ?? null, dx: ar ? Math.abs(box.left + box.width / 2 - (ar.left + ar.width / 2)) : null }
+        })
+        const p = []
+        if (m.w !== a.iframeW) p.push(`iframe ${m.w} wide, want ${a.iframeW}`)
+        if (a.iframeH != null && m.h !== a.iframeH) p.push(`iframe ${m.h} tall, want ${a.iframeH}`)
+        if (!m.hasScale) p.push('no [data-device-scale]')
+        if (a.scale != null && Math.abs(m.scale - a.scale) > (a.scaleTol ?? 0.001)) p.push(`scale ${m.scale}, want ${a.scale}`)
+        if (a.scaleBelow != null && !(m.scale < a.scaleBelow)) p.push(`scale ${m.scale}, want below ${a.scaleBelow}`)
+        if (a.kind === 'desktop' ? m.frame : !m.frame || m.device !== a.kind || m.orient !== a.orientation) p.push(`frame ${m.frame ? `${m.device}/${m.orient}` : 'absent'}, want ${a.kind === 'desktop' ? 'none' : `${a.kind}/${a.orientation}`}`)
+        if (m.dx === null || m.dx > a.centredTol) p.push(`centre off by ${m.dx === null ? 'n/a (no [data-stage-area])' : m.dx.toFixed(2)} px`)
+        return R(p.length === 0, p.length ? p.join('; ') : `iframe ${m.w} x ${m.h}, scale ${m.scale.toFixed(3)}, centre off by ${m.dx.toFixed(2)} px`)
+      }
+      case 'measureScaled': {
+        const now = await measureNum(a.at, a.sel, a.q)
+        const b = before[`${a.at}|${a.sel}|${a.q}`]
+        const want = b + a.screen / scaleAtDrag
+        return R(now !== null && Math.abs(now - want) <= a.tol, `got ${now}, want ${want} (${b} + ${a.screen} / scale ${scaleAtDrag.toFixed(4)}) +-${a.tol}`)
+      }
+      case 'handles': {
+        const n = await page.locator('[data-handle]').count()
+        return R(n === a.n, `${n} handles, want ${a.n}`)
+      }
+      case 'noteText': {
+        const t = ((await page.locator('[data-device-note]').first().innerText().catch(() => '')) ?? '').trim()
+        return R(t === a.contains, `note "${t}"`)
+      }
+      case 'textAbsent': {
+        const t = (await page.locator('body').innerText()).toLowerCase()
+        return R(!t.includes(a.contains.toLowerCase()), 'sentence ' + (t.includes(a.contains.toLowerCase()) ? 'still shown' : 'not shown'))
+      }
+      case 'chips': {
+        const got = await page.locator('ul.chip-list.page-chips li.chip').allInnerTexts()
+        return R(got.join('|') === a.names.join('|'), `chips: ${got.join(', ')}`)
+      }
+      case 'ledeReach': {
+        const m = await page.evaluate(() => {
+          const l = document.querySelector('.page-lede')?.getBoundingClientRect(); const c = document.querySelector('main .page-container'); const cs = getComputedStyle(c); const r = c.getBoundingClientRect()
+          return l ? { lede: l.right, edge: r.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth) } : null
+        })
+        return R(!!m && Math.abs(m.edge - m.lede) <= a.tol, m ? `intro right edge ${m.lede.toFixed(1)}, container content edge ${m.edge.toFixed(1)}` : 'no intro paragraph')
+      }
+      case 'columns': {
+        const per = await page.evaluate(() => [...document.querySelectorAll('ul.ue-list')].map((ul) => new Set([...ul.children].map((li) => Math.round(li.getBoundingClientRect().left / 2) * 2)).size))
+        const ok = per.length === a.lists.length && per.every((n) => (a.exact !== undefined ? n === a.exact : n >= a.min))
+        return R(ok, `distinct column positions per list: ${per.join(', ')}`)
+      }
+      case 'lineLength': {
+        const items = await page.evaluate(() => [...document.querySelectorAll('ul.ue-list > li')].map((li) => {
+          const lines = new Map()
+          const w = document.createTreeWalker(li, NodeFilter.SHOW_TEXT)
+          for (let n = w.nextNode(); n; n = w.nextNode()) for (let i = 0; i < n.length; i++) {
+            const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1)
+            const b = r.getBoundingClientRect(); if (!b.width) continue
+            const k = Math.round(b.top / 3) * 3
+            lines.set(k, (lines.get(k) ?? 0) + 1)
+          }
+          const counts = [...lines.entries()].sort((x, y) => x[0] - y[0]).map((e) => e[1])
+          return counts.length >= 2 ? counts.slice(0, -1).reduce((x, y) => x + y, 0) / (counts.length - 1) : null
+        }))
+        const used = items.filter((v) => v !== null)
+        const bad = used.filter((v) => v < a.min || v > a.max)
+        return R(used.length > 0 && bad.length === 0, `${used.length} items with two or more lines, means ${Math.min(...used).toFixed(1)} to ${Math.max(...used).toFixed(1)}${bad.length ? `, ${bad.length} outside ${a.min}-${a.max}` : ''}`)
+      }
       default: return R(false, 'unknown assertion ' + a.k)
     }
   }
@@ -321,19 +488,29 @@ async function runSpec(spec) {
       if (step.do === 'load') {
         await page.goto(baseUrl)
         await page.evaluate(PAGE_HELPERS)
-        await page.getByLabel('Sample', { exact: true }).selectOption(step.sample)
-        await page.waitForFunction((s) => { const f = document.querySelector('iframe[title="Preview"]'); return !!f?.contentDocument?.querySelector(s) }, READY[step.sample])
-        await settle(page)
-        // The "before" values and the original dumps.
-        for (const s of spec.steps.filter((x) => x.do === 'assert' && x.k === 'measure')) {
-          for (const [sel] of [[s.sel], [s.of]].filter((p) => p[0])) before[`${s.at}|${sel}|${s.q}`] = await measureNum(s.at, sel, s.q)
-          if (s.mode === 'same' || s.mode === 'delta') before[`${s.at}|${s.sel}|${s.q}`] = await measureNum(s.at, s.sel, s.q)
-        }
-        originalDump = await dumps()
-        for (const b of spec.baseline ?? []) {
-          const v = await measureNum(b.at, b.sel, b.q)
-          rec('setup', `baseline ${b.sel} ${b.q} @${b.at}`, v !== null && Math.abs(v - b.value) <= b.tol, `got ${v}, want ${b.value} +-${b.tol}`)
-        }
+        await openSample(step.sample)
+        await captureBefore()
+      } else if (step.do === 'visit') {
+        // Round 1: a fresh load with nothing opened.
+        await page.goto(baseUrl)
+        await page.evaluate(PAGE_HELPERS)
+        await page.locator('[data-editor]').first().waitFor()
+        await page.waitForTimeout(0)
+        continue
+      } else if (step.do === 'openCard' || step.do === 'clickCard') {
+        await page.locator(`[data-sample-card="${step.sample}"]`).click()
+        if (step.do === 'openCard') {
+          await page.waitForFunction((s) => { const f = document.querySelector('iframe[title="Preview"]'); return !!f?.contentDocument?.querySelector(s) }, step.marker)
+          await settle(page)
+          if (!originalDump) await captureBefore()
+        } else await settle(page)
+        continue
+      } else if (step.do === 'waitMarker') {
+        await page.waitForFunction((s) => { const f = document.querySelector('iframe[title="Preview"]'); return !!f?.contentDocument?.querySelector(s) }, step.sel)
+      } else if (step.do === 'host') {
+        await page.setViewportSize({ width: step.width, height: step.height })
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+        continue
       } else if (step.do === 'view') {
         await page.getByRole('group', { name: 'View' }).getByRole('button', { name: step.name, exact: true }).click()
       } else if (step.do === 'click') {
@@ -352,6 +529,7 @@ async function runSpec(spec) {
           if (!b) { rec('setup', `drag ${step.sel} handle ${step.handle}`, false, 'handle not found'); continue }
           p = { x: b.x + b.width / 2, y: b.y + b.height / 2 }
         } else p = await page.evaluate(([s]) => window.__gate.point(s, 'center'), [step.sel])
+        scaleAtDrag = await scaleNow()
         await page.mouse.move(p.x, p.y)
         await page.mouse.down()
         const n = Math.max(2, Math.ceil(Math.max(Math.abs(step.dx), Math.abs(step.dy)) / 4))
@@ -378,7 +556,9 @@ async function runSpec(spec) {
       await settle(page)
     }
 
-    // ---- after the steps: P3 needs the preview now, P2 needs the export ----
+    // ---- after the steps: P3 needs the preview now, P2 needs the export (round 1 specs list the checks that apply) ----
+    const wants = (k) => !spec.checks || spec.checks.includes(k)
+    if (wants('P2') || wants('P3') || wants('P4')) {
     const afterDump = await dumps()
     const exports = await grabAll()
     for (const [f, t] of Object.entries(exports)) exported.set(f, t)
@@ -418,11 +598,12 @@ async function runSpec(spec) {
     }
     res.P4 = { ok: p4.length === 0, detail: p4 }
     res.exports = exports
+    }
   } catch (e) {
     res.notes.push('runner error: ' + (e?.stack ?? e))
   }
   await ctx.close()
-  res.outcome = outcomeOf(res)
+  res.outcome = spec.checks ? outcomeOfRound1(res) : outcomeOf(res)
   return res
 }
 
@@ -434,7 +615,9 @@ async function noop() {
     const page = await ctx.newPage()
     await page.goto(baseUrl)
     await page.evaluate(PAGE_HELPERS)
-    await page.getByLabel('Sample', { exact: true }).selectOption(id)
+    // Through the gallery card when the page has one (round 1), else through the Sample picker.
+    if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click()
+    else await page.getByLabel('Sample', { exact: true }).selectOption(id)
     await page.waitForFunction((s) => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector(s), READY[id])
     await settle(page)
     for (const f of sources[id].order) {
@@ -460,24 +643,31 @@ if (flag('--noop')) {
   writeFileSync(join(outDir, 'noop.json'), JSON.stringify(rows, null, 1))
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
-  const list = specsFile.specs.filter((s) => !only || only.includes(s.id))
+  const list = [...specsFile.specs, ...round1File.specs].filter((s) => !only || only.includes(s.id))
   const results = []
   for (const spec of list) {
     const r = await runSpec(spec)
     results.push(r)
-    const fails = [...r.setup, ...r.P1, ...r.P5].filter((c) => !c.ok)
+    const fails = [...r.setup, ...r.P1, ...r.P5, ...r.P6].filter((c) => !c.ok)
     const mark = (ok) => (ok === null ? '-' : ok ? 'ok' : 'XX')
     const pOf = (arr) => (arr.length ? (arr.every((c) => c.ok) ? 'ok' : 'XX') : '-')
-    console.log(`${r.id}  ${r.outcome.padEnd(7)} P1 ${pOf(r.P1)} P2 ${mark(r.P2?.ok ?? null)} P3 ${mark(r.P3?.ok ?? null)} P4 ${mark(r.P4?.ok ?? null)} P5 ${pOf(r.P5)}  ${r.name}`)
+    console.log(`${r.id}  ${r.outcome.padEnd(7)} P1 ${pOf(r.P1)} P2 ${mark(r.P2?.ok ?? null)} P3 ${mark(r.P3?.ok ?? null)} P4 ${mark(r.P4?.ok ?? null)} P5 ${pOf(r.P5)}${r.checks ? ` P6 ${pOf(r.P6)}` : ''}  ${r.name}`)
     for (const c of fails.slice(0, 4)) console.log(`      ${c.name}: ${c.detail}`)
     for (const k of ['P2', 'P3', 'P4']) if (r[k] && !r[k].ok) for (const d of (r[k].detail ?? []).slice(0, 3)) console.log(`      ${k}: ${d}`)
     for (const n of r.notes) console.log('      ' + n.split('\n')[0])
   }
   const count = (o) => results.filter((r) => r.outcome === o).length
-  const summary = { fault, url: baseUrl, pass: count('PASS'), refused: count('REFUSED'), fail: count('FAIL'), total: results.length }
-  console.log(`\nPASS ${summary.pass}  REFUSED ${summary.refused}  FAIL ${summary.fail}  of ${summary.total}`)
-  writeFileSync(join(outDir, `results${fault ? '-' + fault : ''}.json`), JSON.stringify({ summary, results: results.map(({ exports, ...r }) => r) }, null, 1))
-  exitCode = list.length === 20 ? (summary.pass + summary.refused >= 20 && summary.pass >= 18 && summary.fail === 0 ? 0 : 1) : 0
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks)
+  const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
+  const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length } }
+  if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
+  if (round1.length) console.log(`Round 1:   PASS ${summary.round1.pass}  FAIL ${summary.round1.fail}  of ${summary.round1.total}`)
+  writeFileSync(join(outDir, `results${fault ? '-' + fault : ''}${only ? '-' + only.join('') : ''}.json`), JSON.stringify({ summary, results: results.map(({ exports, ...r }) => r) }, null, 1))
+  // Pass line: originals 18 PASS + 2 REFUSED + 0 FAIL when all 20 ran; round 1 at least 10 PASS and 0 FAIL when all 11 ran.
+  const o = summary.originals, n = summary.round1
+  const origOk = orig.length !== 20 || (o.pass + o.refused >= 20 && o.pass >= 18 && o.fail === 0)
+  const r1Ok = round1.length !== 11 || (n.pass >= 10 && n.fail === 0)
+  exitCode = origOk && r1Ok ? 0 : 1
 }
 await browser.close()
 exportServer.close()
