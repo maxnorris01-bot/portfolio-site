@@ -20,7 +20,7 @@ The personal portfolio of Max Norris, an aerospace engineer moving into applied 
 ## What this repo shows
 
 - Shared design tokens and one type scale (`src/styles/tokens.css`, `docs/style-audit.md`), with an automated layout check at several window sizes: `npm run check:layout` (needs Playwright with Chromium, which is not a dependency).
-- 753 unit tests (`npm test`: 737 passing, 16 skipped), including a test that fails if the owner's email address appears in the source or the built site (`tests/noemail.test.ts`).
+- 790 unit tests (`npm test`: 774 passing, 16 skipped), including a test that fails if the owner's email address appears in the source or the built site (`tests/noemail.test.ts`).
 - Contact form limits (3 messages per visitor per hour, 5 per day, 30 sitewide per day), a honeypot field, and no raw addresses or message text stored.
 - ShopAI's spending caps (per session, per visitor and per day) are enforced in the backend repo, not here.
 
@@ -32,6 +32,18 @@ Known limit: the bucket's CORS rule allows only the production origin and localh
 - `/resume` — Résumé
 - `/satellite-conjunction-screening` — the Satellite Point-of-View Tool (the satellite viewer, with the daily conjunction screening it grew out of). The address keeps its original name so existing links work; the name, intro and tags live in `src/data/satelliteTool.ts`.
 - `/shop` — Shop Mode (in the nav): type a product request, watch the job's steps, see a grid of results, rate them (Love / Like / Dislike), narrow the next batch with Refine search (choices, text and price limits) and press Shop Again for a new batch, with a Saved panel (loved and liked items from every search), a Share list and a usage line. The nav tabs are SatPOV and ShopAI. API client, polling and state in `src/shop/`; the page in `src/pages/Shop.tsx`. In development, `/shop?fixture=empty|running|slow|results|none|error` shows canned states (add `rated`, `again`, `batch2`, `cap`, `saved`, `savedliked`, `savedempty`, `short`, `limit`, `maintenance`) with no network (stripped from the production build).
+
+- `/ui-editor` — the UI Editor, **behind a flag and not released** (see "The UI Editor and its flag" below). Paste or upload HTML or SVG (plus an optional `.css`), or load one of three samples; select an element in a sandboxed preview and change it from a side panel or with handles; copy or download the updated code. It runs entirely in the browser (no server, no LLM, no network call). Its words are in `src/data/uiEditor.ts`; the code is in `src/pages/UiEditor.tsx` and `src/ui-editor/`.
+
+## The UI Editor and its flag
+
+The UI Editor is hidden until Max releases it. `VITE_SHOW_UI_EDITOR` is a build-time Vite variable: exactly `true` turns it on, and unset (or anything else) is OFF. With it OFF there is no `/ui-editor` route (the NotFound page shows), no nav button and no Home planet, and the page's code (a lazy chunk) is never requested. With it ON the nav has a third tool button, Home has a fourth planet, and `/ui-editor` works (with a `noindex` meta tag and an `X-Robots-Tag: noindex` header rule in `vercel.json`).
+
+**The flag hides the page, not the code.** This repository is public, so the merged code (including the vendored engine, `src/ui-editor/vendor/engine.js`) is visible to anyone, whatever the flag says.
+
+To try it locally, put `VITE_SHOW_UI_EDITOR=true` in `.env.local` (gitignored by `*.local`) and run `npm run dev`; or `VITE_SHOW_UI_EDITOR=true npm run build && npm run preview`. On Vercel it is set for Preview only, never Production. How to release it is in `docs/working-notes-and-decisions.md`.
+
+The engine is vendored as one built file with strict types, not a dependency; `src/ui-editor/vendor/README.md` says which commit it came from and how to rebuild it. The page has its own scripted mouse test, `scripts/ui-editor-gate/` (rules in `docs/ui-editor-gate-rules.md`, baseline in `docs/ui-editor-baseline.md`): `node scripts/ui-editor-gate/run.mjs --url <page>` after building with the flag on and serving with `npm run preview` (needs Playwright with Chromium, like `check:layout`).
 
 ## Shop Mode proxy
 
@@ -47,6 +59,8 @@ npm test         # node:test unit tests in tests/
 npm run build    # type-check (app, vite config, api) + production build to dist/
 npm run preview  # serve the production build
 ```
+
+The UI Editor is off unless `VITE_SHOW_UI_EDITOR=true` is set (see above); `npm run check:layout` measures its page and the four-planet Home when it is.
 
 ## Structure
 

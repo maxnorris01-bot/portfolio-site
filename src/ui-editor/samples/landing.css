@@ -1,0 +1,25 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Georgia, "Times New Roman", serif; color: #1c2b29; background: #f6f3ea; }
+
+.hero { background: #1f5c4d; color: #f6f3ea; padding: 64px 48px; }
+.hero-inner { display: flex; align-items: center; gap: 40px; max-width: 1100px; margin: 0 auto; }
+.hero-copy { flex: 1; }
+.hero h1 { margin: 0 0 16px; font-size: 44px; line-height: 1.1; }
+.lead { margin: 0 0 24px; font-size: 20px; line-height: 1.5; }
+.cta { display: inline-block; padding: 12px 24px; background: #f2b84b; color: #1c2b29; border-radius: 6px; font-weight: bold; text-decoration: none; }
+.hero-art { width: 280px; height: 180px; background: #2f8a73; border-radius: 12px; }
+
+.cards { display: flex; gap: 24px; max-width: 1100px; margin: 0 auto; padding: 48px; }
+.card { flex: 1; padding: 24px; background: #ffffff; border: 1px solid #d9d3c0; border-radius: 8px; }
+.card h3 { margin: 0 0 8px; font-size: 22px; }
+.card p { margin: 0; font-size: 16px; line-height: 1.5; }
+
+.footer { padding: 32px 48px; border-top: 1px solid #d9d3c0; font-size: 14px; color: #5b6a67; }
+
+@media (max-width: 640px) {
+  .hero { padding: 40px 20px; }
+  .hero-inner { flex-direction: column; align-items: stretch; gap: 24px; }
+  .hero h1 { font-size: 30px; }
+  .cards { flex-direction: column; padding: 24px 20px; }
+  .footer { padding: 24px 20px; }
+}

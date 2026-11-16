@@ -30,7 +30,8 @@ import { createServer } from 'vite'
 const ALL = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080]]
 // CHECK_SIZES=1440x900,1920x1080 limits the run to some sizes.
 const SIZES = process.env.CHECK_SIZES ? ALL.filter(([w, h]) => process.env.CHECK_SIZES.split(',').includes(`${w}x${h}`)) : ALL
-const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
+// With VITE_SHOW_UI_EDITOR=true Home has a fourth planet (the UI Editor, behind a flag) and the check runs it too.
+const PLANETS = ['SatPOV', 'ShopAI', 'Résumé', ...(process.env.VITE_SHOW_UI_EDITOR === 'true' ? ['UI Editor'] : [])]
 const ASK = { panelMax: 460, panelMaxPhone: 560, tileMin: 140, tileMinPhone: 150, tileMax: 340, band: 48, rowDiff: 2, cover: 0.7, cover2: 0.5, sideGap: 24 } // the questions panel (one question at a time): heights and tile widths wanted
 const TARGET = { hFill: 0.85, vFill: 0.8, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4, rowPad: 16 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
@@ -156,6 +157,13 @@ const STYLE_PAGES = [
   { name: 'ShopAI (wait)', path: '/shop?fixture=running', ready: '.wait-panel', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.wait-side', paras: '', extra: 'shopWait', onScale: true },
   { name: 'ShopAI (wait, slow)', path: '/shop?fixture=slow', ready: '.wait-panel', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.wait-side', paras: '', extra: 'shopWait', onScale: true },
   { name: 'ShopAI (wait, again)', path: '/shop?fixture=again', ready: '.wait-panel', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.wait-side', paras: '', extra: 'shopWait', onScale: true },
+  // The UI Editor, behind a flag: measured only when it is on (VITE_SHOW_UI_EDITOR=true).
+  ...(process.env.VITE_SHOW_UI_EDITOR === 'true'
+    ? [
+        { name: 'Home (UI Editor)', path: '/', planet: 'UI Editor', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
+        { name: 'UI Editor', path: '/ui-editor', ready: '.ue-tool', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.ue-step', paras: '.ue-list li', onScale: true },
+      ]
+    : []),
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
 ]
 
@@ -442,7 +450,9 @@ async function interact(browser, base, w, h) {
 async function runStyle(browser, base) {
   const STYLE_SIZES = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080], [2000, 1100], [2560, 1440], [390, 844]]
   const rows = []
-  for (const cfg of STYLE_PAGES) {
+  // CHECK_PAGES="UI Editor,404" limits the style run to pages whose names are listed (exact names).
+  const only = process.env.CHECK_PAGES?.split(',')
+  for (const cfg of STYLE_PAGES.filter((c) => !only || only.includes(c.name))) {
     for (const [w, h] of STYLE_SIZES) {
       const page = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
       await page.goto(base + cfg.path.slice(1), { waitUntil: 'load' })
@@ -767,7 +777,8 @@ try {
     }
     await page.context().close()
   }
-  if (MODE === 'cards' || MODE === 'style' || MODE === 'all') await runCards(browser, url)
+  // With CHECK_PAGES set the run is about those pages only: the product cards check is left out.
+  if ((MODE === 'cards' || MODE === 'style' || MODE === 'all') && !process.env.CHECK_PAGES) await runCards(browser, url)
   if (MODE !== 'home' && MODE !== 'cards') await runStyle(browser, url)
 } finally {
   await browser.close()
