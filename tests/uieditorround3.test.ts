@@ -54,3 +54,24 @@ test('after an edit the view moves to the first changed file only when the shown
   // Nothing changed anywhere: nothing moves.
   assert.equal(fileToShow('landing.html', order, { 'landing.html': 0, 'landing.css': 0 }, false), 'landing.html')
 })
+
+// ---- the quick bar's look does not depend on the view (round 3, item 3) ----
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+const root = new URL('..', import.meta.url).pathname
+const read = (p: string) => readFileSync(join(root, p), 'utf8')
+
+test('the tool\'s buttons have no colour fade, so a view button that has just become selected is never caught half way (grey), in Tablet or anywhere', () => {
+  const css = read('src/ui-editor/UiEditorTool.css')
+  assert.match(css, /\.ue-tool \.btn \{[^}]*transition: none/)
+  assert.match(css, /\.ue-tool \.btn\.ue-icon\[aria-pressed='true'\] \{[^}]*background: var\(--color-navy\)/)
+})
+
+test('Samples, the view buttons, Copy code, Download and the File select are never disabled by the view or by a rebuild', () => {
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
+  for (const part of ['labels.samplesButton', 'icon={v.icon}', 'labels.copy}', 'labels.download}', 'id="ue-file"']) assert.ok(bar.includes(part), part)
+  const around = (token: string) => bar.slice(bar.lastIndexOf('<', bar.indexOf(token)), bar.indexOf('>', bar.indexOf(token) + 60) + 40)
+  for (const token of ['labels.copy}', 'labels.download}', 'icon={v.icon}']) assert.doesNotMatch(around(token), /disabled/, token)
+  assert.doesNotMatch(bar.slice(bar.indexOf('id="ue-file"'), bar.indexOf('id="ue-file"') + 120), /disabled/)
+})

@@ -437,7 +437,6 @@ export default function UiEditorTool() {
                 <select
                   id="ue-file"
                   value={file}
-                  disabled={files.length === 0}
                   onChange={(e) => {
                     handPicked.current = true
                     setFileName(e.currentTarget.value)
@@ -449,8 +448,8 @@ export default function UiEditorTool() {
                     </option>
                   ))}
                 </select>
-                <IconButton icon="copy" label={labels.copy} tip={labels.copyTip(file)} disabled={!session} onClick={() => void onCopy()} />
-                <IconButton icon="download" label={labels.download} tip={labels.downloadTip(file)} disabled={!session} onClick={onDownload} />
+                <IconButton icon="copy" label={labels.copy} tip={labels.copyTip(file)} onClick={() => void onCopy()} />
+                <IconButton icon="download" label={labels.download} tip={labels.downloadTip(file)} onClick={onDownload} />
               </div>
             </div>
           </>

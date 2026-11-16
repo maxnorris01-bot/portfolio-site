@@ -12,6 +12,9 @@
   padding: 0.4em 0.9em;
   font-size: var(--text-small);
   cursor: pointer;
+  /* No fade: the site's buttons fade their colours over 0.15 s, which catches a view button that has just become selected half way (a grey one),
+     and a busy main thread (the preview rebuilding for a larger device) holds it there. The selected look is applied at once. */
+  transition: none;
 }
 
 .ue-tool .btn:disabled {
