@@ -20,7 +20,7 @@ const tmp = mkdtempSync(join(tmpdir(), 'ue-'))
 const file = (name, text) => { const p = join(tmp, name); writeFileSync(p, text); return p }
 const status = (page) => page.getByRole('status', { name: 'Edit result' }).innerText()
 const point = (page, sel) => page.evaluate((s) => { const f = document.querySelector('iframe[title="Preview"]'); const fr = f.getBoundingClientRect(); const b = f.contentDocument.querySelector(s).getBoundingClientRect(); return { x: fr.left + b.left + b.width / 2, y: fr.top + b.top + b.height / 2 } }, sel)
-const pickSample = async (page, id) => { await page.locator('[data-editor]').first().waitFor(); if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click(); else await page.getByLabel('Sample', { exact: true }).selectOption(id) }
+const pickSample = async (page, id) => { await page.locator('[data-editor]').first().waitFor(); const samples = page.getByRole('button', { name: 'Samples', exact: true }); if (!(await page.locator('[data-sample-card]').count()) && (await samples.count())) await samples.click(); if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click(); else await page.getByLabel('Sample', { exact: true }).selectOption(id) }
 const open = async (ctx) => { const page = await ctx.newPage(); await page.goto(url); await page.locator('[data-editor]').first().waitFor(); return page }
 
 const browser = await chromium.launch({ headless: true })

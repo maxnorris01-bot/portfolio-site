@@ -35,7 +35,7 @@ const pick = async (page, sel, where = centre) => {
   if (p.y > vh - 80 || p.y < 80) { await page.evaluate((dy) => window.scrollBy(0, dy), p.y - vh / 2); p = await where(page, sel) }
   await page.mouse.click(p.x, p.y); await settle(page)
 }
-const pickSample = async (page, id) => { await page.locator('[data-editor]').first().waitFor(); if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click(); else await page.getByLabel('Sample', { exact: true }).selectOption(id) }
+const pickSample = async (page, id) => { await page.locator('[data-editor]').first().waitFor(); const samples = page.getByRole('button', { name: 'Samples', exact: true }); if (!(await page.locator('[data-sample-card]').count()) && (await samples.count())) await samples.click(); if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click(); else await page.getByLabel('Sample', { exact: true }).selectOption(id) }
 const choose = async (page, id) => { await pickSample(page, id); await page.waitForFunction(() => (document.querySelector('iframe[title="Preview"]')?.contentDocument?.documentElement?.getElementsByTagName('*').length ?? 0) > 3); await settle(page) }
 
 for (const [w, h] of [[1440, 900], [390, 844]]) {
