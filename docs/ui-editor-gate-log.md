@@ -35,3 +35,9 @@ Found at first contact with the real page (logged as the earlier S20 fix was; no
 | 9 | Opening a sample waits for `[data-editor]` before deciding between a gallery card and the Sample picker. | The page's chunk loads lazily: the first look found no cards yet and fell back to the picker, which no longer exists. The old stub has `[data-editor]` from the start, so its path is unchanged. |
 | 10 | "The miniature's body has rendered children" reads `body`, or the document element for an SVG document (which has no body). | The SVG sample's miniature is an SVG document, like the editor's own preview of it (the engine loads an SVG that way; an inline svg in an HTML page would lay out differently and fail N04). The blank-miniature fault is still caught: an empty HTML miniature has an empty body. |
 | 11 | `extras.mjs` and `screenshots.mjs` (not part of the pass line) open a sample through the gallery card when there is one. | Same mapping as #3, for the two helper scripts. |
+
+**Iteration 1 (after the scored run; labelled, both runs kept).** The scored run gave N06 a FAIL: its last check ("the view-only sentence is gone after rotating back") reads the whole page's text, and the Limits section (an existing text that an earlier test requires) says "Tablet is view-only", so it can never pass. That is a flaw in my locked spec, not in the page. The scored run stands; the iteration changes only the runner's reading:
+
+| # | Change | Why |
+|---|---|---|
+| 12 | `textAbsent` reads the text of the editor (`[data-editor]`), not the whole page. | See above. This is NOT a pure "same control, new UI" mapping: it changes what an assertion looks at, so Max decides whether it counts. Result: N06 PASS on the iteration run; nothing else changed. |

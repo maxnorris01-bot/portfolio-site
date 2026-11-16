@@ -444,7 +444,8 @@ async function runSpec(spec) {
         return R(t === a.contains, `note "${t}"`)
       }
       case 'textAbsent': {
-        const t = (await page.locator('body').innerText()).toLowerCase()
+        // ITERATION 1 (after the scored run, docs/ui-editor-gate-log.md #12): the editor's own text, not the whole page (the Limits section says "Tablet is view-only").
+        const t = (await page.locator('[data-editor]').first().innerText()).toLowerCase()
         return R(!t.includes(a.contains.toLowerCase()), 'sentence ' + (t.includes(a.contains.toLowerCase()) ? 'still shown' : 'not shown'))
       }
       case 'chips': {

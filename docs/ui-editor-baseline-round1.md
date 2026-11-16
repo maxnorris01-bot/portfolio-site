@@ -42,3 +42,8 @@ beat the `hidden` attribute), which N02 caught as a P6 failure; the stub was fix
 
 **Result: the scorer check passed.** Every injected fault is caught by the check meant to catch it, and the controls pass. The stubs are not the product.
 N06, N07, N10 and N11 are not part of the required fault list; they are exercised for the first time on the real page.
+
+## Step 3 final numbers (HEAD before the docs commit)
+
+Bundles, flag ON: main `244.31 kB / 77.04 kB gzip` before, `244.30 / 77.04` after; page chunk `302.06 / 88.42` before, `308.78 / 90.52` after; page CSS `9.13 / 2.07` before, `12.57 / 2.76` after. Flag OFF main: `244.28 / 77.03` before, `244.27 / 77.03` after.
+Gate: originals 18 PASS, 2 REFUSED, 0 FAIL; round 1 10 PASS, 1 FAIL (N06). Iteration 1: N06 PASS (see `docs/ui-editor-gate-log.md`).
