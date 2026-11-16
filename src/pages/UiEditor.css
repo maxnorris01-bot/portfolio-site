@@ -1,0 +1,115 @@
+/* The UI Editor page around the tool: the header link and the How it works, Limits and Data and credits sections (the Search-pipeline pattern of ShopAI). */
+.ue-howlink {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-small);
+}
+
+.ue-howlink a {
+  color: var(--color-navy);
+  text-underline-offset: 3px;
+}
+
+.ue-section {
+  margin-top: var(--space-6);
+  scroll-margin-top: calc(var(--site-header-height, 0px) + var(--space-3));
+}
+
+.ue-pipeline {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.ue-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--card-pad);
+}
+
+.ue-step-num {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.ue-step h3 {
+  margin: 0;
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+}
+
+.ue-step p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body);
+  line-height: var(--leading);
+}
+
+.ue-step:not(:last-child)::after {
+  position: absolute;
+  top: 50%;
+  right: calc(-1 * var(--space-4) / 2);
+  color: var(--color-accent);
+  content: '→';
+  font-family: var(--font-mono);
+  transform: translate(50%, -50%);
+}
+
+.ue-subtitle {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+}
+
+.ue-list {
+  max-width: var(--measure-text);
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--color-text-secondary);
+  font-size: var(--text-card);
+  line-height: var(--leading);
+}
+
+.ue-list li + li {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 1599px) {
+  .ue-pipeline {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ue-step:not(:last-child):nth-child(3n)::after {
+    content: none;
+  }
+}
+
+@media (max-width: 1099px) {
+  .ue-pipeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ue-step:nth-child(3n)::after {
+    content: '→';
+  }
+
+  .ue-step:nth-child(2n)::after {
+    content: none;
+  }
+}
+
+@media (max-width: 519px) {
+  .ue-pipeline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ue-step::after {
+    content: none !important;
+  }
+}

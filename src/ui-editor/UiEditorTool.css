@@ -1,0 +1,481 @@
+/* The UI Editor tool: the top bar, the preview with its pointer layer, the side panel and the messages. Tokens only (src/styles/tokens.css). */
+.ue-tool {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  font-size: var(--text-small);
+}
+
+.ue-tool .btn {
+  min-height: 36px;
+  padding: 0.4em 0.9em;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.ue-tool .btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ue-tool .btn.ue-view[aria-pressed='true'] {
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+}
+
+.ue-tool select,
+.ue-tool input[type='text'],
+.ue-tool textarea {
+  min-width: 0;
+  padding: 0.35em 0.55em;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.ue-tool select,
+.ue-tool input[type='text'] {
+  min-height: 36px;
+}
+
+.ue-tool label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.ue-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+  line-height: var(--leading);
+}
+
+.ue-note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-bg);
+  line-height: var(--leading);
+}
+
+/* ---- the bar ---- */
+.ue-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.ue-bar-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.ue-confirm,
+.ue-paste,
+.ue-warnings,
+.ue-review {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.ue-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  border-color: var(--color-accent);
+}
+
+.ue-confirm p {
+  flex: 1 1 18em;
+}
+
+.ue-paste {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.ue-paste textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+}
+
+.ue-paste-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: var(--space-2);
+}
+
+.ue-warnings,
+.ue-review {
+  padding-left: calc(var(--space-3) + 1em);
+  list-style: disc;
+  line-height: var(--leading);
+}
+
+.ue-review {
+  padding-left: var(--space-3);
+  list-style: none;
+}
+
+.ue-review-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ue-review-item:hover {
+  background: var(--color-bg);
+}
+
+/* ---- the work area: preview left, panel right (below the preview on a narrow window) ---- */
+.ue-work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 360px);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.ue-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ue-empty {
+  margin: 0;
+  padding: var(--space-6) var(--card-pad);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-card);
+  line-height: var(--leading);
+  text-align: center;
+}
+
+/* The preview is never scaled: it is as wide as its view (1280, 768 or 390 CSS px) and a narrower window scrolls it sideways. */
+.ue-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+
+.ue-scroll[hidden] {
+  display: none;
+}
+
+.ue-stage {
+  position: relative;
+  display: grid;
+  width: max-content;
+}
+
+.ue-frame,
+.ue-overlay {
+  grid-area: 1 / 1;
+}
+
+.ue-frame iframe {
+  display: block;
+  border: 0;
+  background: var(--color-surface);
+}
+
+.ue-overlay {
+  position: relative;
+  cursor: default;
+}
+
+.ue-overlay:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.ue-overlay.is-armed {
+  touch-action: none;
+}
+
+.ue-hover {
+  position: absolute;
+  outline: 1px solid var(--color-accent);
+  pointer-events: none;
+}
+
+.ue-selection {
+  position: absolute;
+  outline: 2px solid var(--color-accent);
+  pointer-events: none;
+}
+
+.ue-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-accent);
+  background: var(--color-surface);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* The handle is small to look at and 44 CSS px to hit. */
+.ue-handle::after {
+  position: absolute;
+  inset: -17px;
+  content: '';
+}
+
+.ue-handle.is-nw { top: 0; left: 0; transform: translate(-50%, -50%); cursor: nwse-resize; }
+.ue-handle.is-n { top: 0; left: 50%; transform: translate(-50%, -50%); cursor: ns-resize; }
+.ue-handle.is-ne { top: 0; left: 100%; transform: translate(-50%, -50%); cursor: nesw-resize; }
+.ue-handle.is-e { top: 50%; left: 100%; transform: translate(-50%, -50%); cursor: ew-resize; }
+.ue-handle.is-se { top: 100%; left: 100%; transform: translate(-50%, -50%); cursor: nwse-resize; }
+.ue-handle.is-s { top: 100%; left: 50%; transform: translate(-50%, -50%); cursor: ns-resize; }
+.ue-handle.is-sw { top: 100%; left: 0; transform: translate(-50%, -50%); cursor: nesw-resize; }
+.ue-handle.is-w { top: 50%; left: 0; transform: translate(-50%, -50%); cursor: ew-resize; }
+
+/* Drag feedback lives in the host layer only; the preview and the engine are not touched until the pointer is released. */
+.ue-ghost {
+  position: absolute;
+  outline: 2px dashed var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  pointer-events: none;
+}
+
+.ue-ghost-text {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius);
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+/* ---- the side panel ---- */
+.ue-side {
+  position: sticky;
+  top: calc(var(--site-header-height, 0px) + var(--space-3));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: calc(100vh - var(--site-header-height, 0px) - var(--space-5));
+}
+
+/* Only the panel scrolls; the result message stays in view under it. */
+.ue-side > .ue-panel {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ue-side > .ue-result {
+  flex: none;
+}
+
+.ue-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.ue-panel-title {
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+}
+
+.ue-env {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.ue-selected {
+  margin: 0;
+  min-height: 1.5em;
+  color: var(--color-navy);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ue-linkrow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 36px;
+}
+
+.ue-group {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.ue-group legend {
+  padding: 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ue-row {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-1) 0;
+}
+
+.ue-row label {
+  overflow-wrap: anywhere;
+}
+
+.ue-swatch {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.ue-moves {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ue-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  vertical-align: middle;
+}
+
+.ue-result {
+  min-height: 3.2em;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  line-height: var(--leading);
+}
+
+.ue-result.is-refusal {
+  border-color: var(--color-accent);
+  border-left-width: 4px;
+}
+
+.ue-result p {
+  margin: 0;
+}
+
+.ue-result ul {
+  margin: var(--space-1) 0 0;
+  padding-left: 1.2em;
+}
+
+.ue-result .ue-notes-lead {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+/* ---- the code ---- */
+.ue-code summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.ue-code textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+}
+
+@media (max-width: 1099px) {
+  .ue-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ue-side {
+    position: static;
+    max-height: none;
+  }
+
+  .ue-side > .ue-panel {
+    overflow-y: visible;
+  }
+
+  .ue-paste {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A phone: every control that can be tapped is at least 44 CSS px tall. */
+@media (max-width: 700px), (pointer: coarse) {
+  .ue-tool .btn,
+  .ue-tool select,
+  .ue-tool input[type='text'],
+  .ue-linkrow,
+  .ue-review-item,
+  .ue-code summary {
+    min-height: 44px;
+  }
+
+  .ue-linkrow input[type='checkbox'] {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ue-swatch {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ue-tool * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

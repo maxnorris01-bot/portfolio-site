@@ -121,14 +121,27 @@ const PAGE_HELPERS = `(() => {
     },
     dumpAt(w) { return this.withWidth(w, (doc) => dump(doc)) },
     keyFor(sel) { const e = frame().contentDocument.querySelector(sel); return e ? keyOf(e) : null },
+    // A real mouse can only reach what is in the window: scroll the page (not the preview) until the point is in view.
+    reveal(yOf) {
+      const margin = 80
+      const y = yOf()
+      if (y > innerHeight - margin) window.scrollBy(0, y - (innerHeight - margin))
+      else if (y < margin) window.scrollBy(0, y - margin)
+    },
     point(sel, at) {
-      const f = frame(); const fr = f.getBoundingClientRect(); const e = f.contentDocument.querySelector(sel)
-      if (!e) return null
-      const b = e.getBoundingClientRect()
-      return at === 'inset' ? { x: fr.left + b.left + 12, y: fr.top + b.top + 12 } : { x: fr.left + b.left + b.width / 2, y: fr.top + b.top + b.height / 2 }
+      const at2 = () => {
+        const f = frame(); const fr = f.getBoundingClientRect(); const e = f.contentDocument.querySelector(sel)
+        if (!e) return null
+        const b = e.getBoundingClientRect()
+        return at === 'inset' ? { x: fr.left + b.left + 12, y: fr.top + b.top + 12 } : { x: fr.left + b.left + b.width / 2, y: fr.top + b.top + b.height / 2 }
+      }
+      const p0 = at2()
+      if (!p0) return null
+      this.reveal(() => at2().y)
+      return at2()
     },
     elementBox(sel) { const f = frame(); const fr = f.getBoundingClientRect(); const b = f.contentDocument.querySelector(sel).getBoundingClientRect(); return { left: fr.left + b.left, top: fr.top + b.top, width: b.width, height: b.height } },
-    blankPoint() { const fr = frame().getBoundingClientRect(); return { x: fr.left + 20, y: fr.bottom - 8 } },
+    blankPoint() { this.reveal(() => frame().getBoundingClientRect().bottom - 8); const fr = frame().getBoundingClientRect(); return { x: fr.left + 20, y: fr.bottom - 8 } },
   }
 })()`
 
@@ -146,6 +159,7 @@ async function runSpec(spec) {
   page.on('pageerror', (e) => errors.push(String(e)))
   const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2: null, P3: null, P4: null, P5: [], setup: [], notes: [], errors }
   const snaps = {}
+  let statusAtCopy = null
   let before = {}
   let originalDump = null
   const rec = (bucket, name, ok, detail) => res[bucket].push({ name, ok, detail })
@@ -241,7 +255,7 @@ async function runSpec(spec) {
         return R(t.includes(a.contains.toLowerCase()), `message "${t.replace(/\s+/g, ' ')}"`)
       }
       case 'status': {
-        const t = (await region().innerText()).toLowerCase()
+        const t = statusAtCopy ?? (await region().innerText()).toLowerCase()
         return R(t.includes(a.contains.toLowerCase()), `status "${t.replace(/\s+/g, ' ')}"`)
       }
       case 'selected': {
@@ -288,6 +302,8 @@ async function runSpec(spec) {
         if (await f.count()) await f.selectOption({ label: a.file })
         await page.getByRole('button', { name: 'Copy code', exact: true }).click()
         await settle(page)
+        // What the page says right after the copy (the Download below, which the check also needs, says something else).
+        statusAtCopy = (await region().innerText()).toLowerCase()
         const clip = await page.evaluate(() => navigator.clipboard.readText())
         const dl = await grab(a.file)
         return R(clip === dl.text && clip.length > 0, `clipboard ${clip.length} chars, download ${dl.text.length} chars, equal ${clip === dl.text}`)
