@@ -1049,6 +1049,12 @@
     max-width: none;
   }
 
+  /* The four sides of an expanded padding or margin wrap too. */
+  .ue-rctl {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
   .ue-tool .btn,
   .ue-tool select,
   .ue-tool input[type='text'],

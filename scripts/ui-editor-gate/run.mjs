@@ -764,8 +764,8 @@ async function runSpec(spec) {
         return R(small.length === 0, small.length ? `${small.length} too small: ${small.slice(0, 4).join(', ')}` : 'every ribbon control is at least 44 px')
       }
       case 'noOverflowX': {
-        const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: innerWidth }))
-        return R(m.sw <= m.iw + 1, `scrollWidth ${m.sw}, window ${m.iw}`)
+        const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: innerWidth, wide: [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1 && e.getBoundingClientRect().width > 0 && !e.closest('iframe') && !e.closest('[data-code-view]')).slice(0, 3).map((e) => `${e.tagName}.${e.className} right ${Math.round(e.getBoundingClientRect().right)}`) }))
+        return R(m.sw <= m.iw + 1, `scrollWidth ${m.sw}, window ${m.iw}${m.wide.length ? `; wider than the window: ${m.wide.join(', ')}` : ''}`)
       }
       default: return R(false, 'unknown assertion ' + a.k)
     }

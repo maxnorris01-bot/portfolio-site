@@ -168,7 +168,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
   }
   const up = session && el && selected !== null ? moveTarget(session.preview.model, selected, 'up') : null
   const down = session && el && selected !== null ? moveTarget(session.preview.model, selected, 'down') : null
-  const stamp = `${nonce}-${rev}-${selected}-${view}`
+  const stamp = `${nonce}-${rev}-${selected}-${view}-${unit}`
 
   // What a stepper click acts on is read from the preview at that moment (a held button repeats on the value the last repeat made).
   const live$ = useRef({ session, selected, unit, svg })
