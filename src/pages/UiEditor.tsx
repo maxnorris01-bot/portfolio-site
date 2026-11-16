@@ -1,5 +1,5 @@
 import PageHeader from '../components/PageHeader'
-import { credits, how, limits, uiEditor, uiEditorPage } from '../data/uiEditor'
+import { credits, how, limits, techStack, uiEditor, uiEditorPage } from '../data/uiEditor'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { useNoIndex } from '../hooks/useNoIndex'
 import UiEditorTool from '../ui-editor/UiEditorTool'
@@ -13,7 +13,17 @@ export default function UiEditor() {
     <main className="page ue-page">
       <div className="page-container is-scaled">
         <PageHeader
+          className="has-chips"
           title={uiEditor.name}
+          titleMeta={
+            <ul className="chip-list page-chips" aria-label="Tech stack">
+              {techStack.map((t) => (
+                <li key={t} className="chip">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          }
           lead={uiEditorPage.lead}
           aside={
             uiEditor.repoUrl ? (

@@ -34,6 +34,10 @@ export const uiEditor: UiEditorInfo = {
   pageDescription: 'Paste or upload your own HTML or SVG, click an element and change it from a side panel or by dragging, then copy the updated code. Runs entirely in your browser.',
 }
 
+/** The chips under the title (the same kind of list as SatPOV's and ShopAI's). Only what is true: the page is React, the engine is TypeScript,
+ *  and the vendored engine bundles parse5 (reads HTML and SVG) and postcss (reads CSS) (src/ui-editor/vendor/README.md). */
+export const techStack = ['TypeScript', 'React', 'parse5', 'postcss']
+
 /** The page's header and the sections under the editor. */
 export const uiEditorPage = {
   lead: 'Paste or upload your own HTML or SVG, click an element and change it from a side panel or by dragging, then copy the updated code. It runs entirely in your browser.',
