@@ -80,3 +80,5 @@ changed by any entry below. The scorer check is in `docs/ui-editor-baseline-roun
 
 Covered by the scorer check: the twenty round 3 faults on `scripts/ui-editor-gate/reference/round3.html`, the twelve round 2 faults on `reference/round2.html` and the five original
 faults on `reference/index.html` (`docs/ui-editor-baseline-round3.md`).
+
+`scripts/ui-editor-gate/supplementary-snap.mjs` (not part of the pass line, not a runner change): the snapped resize of T10 on `#cta`, which is anchored at its left edge, because T10's own `#art` cannot have its east edge moved (`docs/ui-editor-baseline-round3.md`, spec flaw 1).
