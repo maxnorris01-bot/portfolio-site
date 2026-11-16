@@ -1,5 +1,5 @@
 import PageHeader from '../components/PageHeader'
-import { credits, how, limits, techStack, uiEditor, uiEditorPage } from '../data/uiEditor'
+import { credits, how, limits, paragraphs, techStack, uiEditor, uiEditorPage } from '../data/uiEditor'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { useNoIndex } from '../hooks/useNoIndex'
 import UiEditorTool from '../ui-editor/UiEditorTool'
@@ -56,7 +56,12 @@ export default function UiEditor() {
               </li>
             ))}
           </ol>
-          <h3 className="ue-subtitle">{how.measuredTitle}</h3>
+        </section>
+
+        <section id="ue-measured" className="ue-section" aria-labelledby="ue-measured-title">
+          <h2 id="ue-measured-title" className="section-title">
+            {how.measuredTitle}
+          </h2>
           <ul className="ue-list">
             {how.measured.map((t) => (
               <li key={t}>{t}</li>
@@ -69,7 +74,7 @@ export default function UiEditor() {
             {limits.title}
           </h2>
           <ul className="ue-list">
-            {limits.items.map((t) => (
+            {paragraphs(limits.items, limits.groups).map((t) => (
               <li key={t}>{t}</li>
             ))}
           </ul>

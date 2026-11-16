@@ -192,12 +192,14 @@ export const how = {
     { name: 'Preview', detail: 'Your page shows in a sandboxed frame with scripts off, at its real size: Desktop 1280 px, or Tablet 768 px or Phone 390 px in a plain device outline you can turn sideways. Your page is never scaled: in a small window the whole frame is shrunk to fit, and every pointer movement is converted back to your page’s own pixels, so a 40 px drag moves an element 40 px.' },
     { name: 'Edit', detail: 'Click one element. Change it from the ribbon above the preview, or drag its handles or the element. The engine decides where the change goes: the element’s own style, a rule that matches only that element, or a new rule at the end of your stylesheet. A class shared by several elements is never edited in place.' },
     { name: 'Adapt', detail: 'With Link on, a size change on Desktop also scales the page’s own Phone values by the same ratio, and the other way round; colours, fonts and order apply everywhere. With Link off, a change applies to the size you are in and is listed under Review unlinked. Dragging an element to move it is always unlinked in this version; smarter phone adaptation of moves is planned for a later version.' },
-    { name: 'Export', detail: 'Copy or download the updated code. Every character you did not change stays as you wrote it, and only the lines for your edits are added. Undo all your edits and the code is byte for byte the original. There is no change list: the code is the result.' },
+    { name: 'Export', detail: 'Copy or download the updated code. Every character you did not change stays as you wrote it, and only the lines for your edits are added. Undo all your edits and the code is byte for byte the original. The updated code view marks every line that changed against your original, and you can step from change to change.' },
   ],
   measuredTitle: 'What is measured, and what is not',
   measured: [
-    'Measured by the engine’s own test gate, not by this page: on 10 test pages, 40 of 40 scripted edits gave the right value in a real browser, changed nothing else and made the smallest possible change to the text. On five real files from other authors (two email templates, a Bootstrap one-page site and two SVGs), 18 of 20 edits passed and the other two were refused with a true reason.',
-    'Desktop and Phone linking was scored separately, on 20 scripted edits over nine test pages. Its first scored run missed on two of the 20 and its second on one; it was then re-scored under two later rule changes. Treat it as less proven than single edits.',
+    'Measured by the engine’s own test gate, not by this page: on 10 test pages, 40 of 40 scripted edits gave the right value in a real browser, changed nothing else and made the smallest possible change to the text.',
+    'On five real files from other authors (two email templates, a Bootstrap one-page site and two SVGs), 18 of 20 edits passed and the other two were refused with a true reason.',
+    'Desktop and Phone linking was scored separately, on 20 scripted edits over nine test pages. Its first scored run missed on two of the 20 and its second on one.',
+    'It was then re-scored under two later rule changes. Treat it as less proven than single edits.',
     'This page has its own scripted mouse test: 20 actions on the three samples in Chromium, scored by script (docs/ui-editor-gate-rules.md in the site’s repository).',
     'Not measured: real people using it, Safari or Firefox, touch dragging, JavaScript-driven pages, or any page outside those test pages. The test pages and this page’s test were written by the same person and tool that built the engine and the page.',
   ],
@@ -206,19 +208,36 @@ export const how = {
 /** The limits, in plain words (from the engine's list of known limits). */
 export const limits = {
   title: 'Limits',
+  /** One sentence each. The page shows them in `groups`: consecutive sentences joined into six short paragraphs, so a reader sees six items. */
   items: [
-    'The preview runs with scripts off, so content that JavaScript builds or changes will not show, and cannot be edited.',
-    'External fonts, images from other sites and any CSS you do not supply are missing: text uses fallback fonts and unsupplied styles are not applied.',
-    'React, Vue and other bundled or minified app code are not supported in this version: it edits static HTML and SVG source.',
-    'Only max-width and min-width media features are understood. Other conditions (dark mode, print, orientation) are left as you wrote them.',
-    'Desktop and Phone upright are the editable sizes. Tablet is view-only, and so is a phone turned sideways. In between, the page’s own rules decide.',
+    'The preview runs with scripts off, so content that JavaScript builds cannot show or be edited.',
+    'External fonts, images from other sites and any CSS you do not supply are missing.',
+    'React, Vue and other bundled or minified code are not supported.',
+    'Only max-width and min-width media features are understood; dark mode, print and orientation are left as written.',
+    'Desktop and Phone upright are the editable sizes.',
+    'Tablet is view-only, and so is a phone turned sideways; in between, the page’s own rules decide.',
     'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units (vw, vh) are left as the page wrote them, with a note when a Phone or Desktop value could not be scaled.',
     'A flex item that grows (flex-grow above 0, for example flex: 1) cannot be sized exactly, so a resize or width change on it is refused.',
-    'Dragging an element to move it applies to one size only (the one you are in), and it is listed under Review unlinked.',
-    'One element at a time: a shared class is never changed for everyone, and an element the browser invents (such as an implied table body) cannot be edited.',
-    'An edit the engine cannot make safely is refused with the reason, and nothing changes. Examples: an element under a transformed parent, an SVG element reused through use or defs, or a style that fights with an !important rule.',
-    'Tested in Chromium only. The numbers above come from the engine’s own test gate and a handful of real files, not from wide use.',
+    'Dragging an element to move it applies to one size only, and it is listed under Review unlinked.',
+    'One element at a time: a shared class is never changed for everyone, and an element the browser invents cannot be edited.',
+    'An edit the engine cannot make safely is refused with the reason, and nothing changes.',
+    'Refused, for example: an element under a transformed parent, an SVG element reused through use or defs, or a style that fights with an !important rule.',
+    'Tested in Chromium only; the numbers above come from the engine’s own gate and a handful of real files, not wide use.',
   ],
+  /** How many consecutive sentences make each paragraph shown. */
+  groups: [3, 3, 1, 2, 2, 2],
+}
+
+/** The paragraphs a list shows: `items` joined in runs of the given sizes (every item once, in order). */
+export function paragraphs(items: string[], groups: number[]): string[] {
+  const out: string[] = []
+  let at = 0
+  for (const n of groups) {
+    out.push(items.slice(at, at + n).join(' '))
+    at += n
+  }
+  if (at < items.length) out.push(items.slice(at).join(' '))
+  return out
 }
 
 /** "Data and credits". */
@@ -227,7 +246,7 @@ export const credits = {
   items: [
     'No external data: nothing is fetched or sent anywhere. Your code stays in your browser and is gone when you close the tab.',
     'The three samples (a landing page, an HTML email and an SVG chart) are original, written for this tool.',
-    'The editing engine is the author’s own code, kept in a private repository for now and shipped in this site as one built file. It bundles parse5 (reads HTML and SVG, with source positions) and postcss (reads CSS), with their small helpers; their licences are in src/ui-editor/vendor/THIRD-PARTY-NOTICES.md in the site’s repository.',
+    'The editing engine is the author’s own code, kept in a private repository for now and shipped in this site as one built file. It bundles parse5 (reads HTML and SVG, with source positions) and postcss (reads CSS); their licences are in src/ui-editor/vendor/THIRD-PARTY-NOTICES.md in the site’s repository.',
     'Engine caveats: SVG is read by the HTML parser, so SVG that is only valid as XML can be split wrongly; broken markup is read the way the parser reads it; a stylesheet without a final newline gets one before the added rules.',
   ],
 }

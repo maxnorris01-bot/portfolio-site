@@ -291,3 +291,23 @@ test('the code view shows the whole file line by line, marks changed lines with 
   assert.match(tool, /new Blob\(\[text\]/)
   assert.match(tool, /<CodeView key=\{file\}/)
 })
+
+test('the three bottom sections: one h2 class, at most six items each, each about 35 words (at most 50), no bullets, a rule between items, every fact kept', async () => {
+  const { how, limits, credits, paragraphs } = await import('../src/data/uiEditor.ts')
+  const lists = [how.measured, paragraphs(limits.items, limits.groups), credits.items]
+  for (const l of lists) {
+    assert.ok(l.length >= 3 && l.length <= 6, `${l.length} items`)
+    for (const t of l) assert.ok(t.split(/\s+/).length <= 50, `${t.split(/\s+/).length} words: ${t.slice(0, 40)}`)
+  }
+  assert.equal(paragraphs(limits.items, limits.groups).join(' '), limits.items.join(' '), 'every sentence is shown once, in order')
+  const measured = how.measured.join(' ')
+  for (const fact of ['10 test pages', '40 of 40', 'five real files', '18 of 20', 'two email templates', 'Bootstrap', 'two SVGs', 'nine test pages', 'missed on two of the 20', 'its second on one', 'two later rule changes', 'less proven', '20 actions', 'Not measured']) assert.ok(measured.includes(fact), fact)
+  const page = read('src/pages/UiEditor.tsx')
+  assert.match(page, /<h2 id="ue-measured-title" className="section-title">/)
+  assert.equal((page.match(/<h2 id="ue-\w+-title" className="section-title">/g) ?? []).length, 4, 'How it works, What is measured, Limits, Data and credits share one class')
+  assert.doesNotMatch(page, /<h3 className="ue-subtitle"/)
+  const css = read('src/pages/UiEditor.css')
+  assert.match(css, /\.ue-list \{[^}]*list-style: none/)
+  assert.match(css, /\.ue-list li \{[^}]*border-bottom: 1px solid/)
+  assert.doesNotMatch(read('src/data/uiEditor.ts') + page, /side panel/i)
+})
