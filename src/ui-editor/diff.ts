@@ -73,3 +73,37 @@ export const counterText = (current: number, count: number): string => (count ==
 
 /** Where change k's tick sits on the change map, as a share (0 to 1) of the strip's height: in proportion to its line number. */
 export const tickShare = (h: Hunk, lineCount: number): number => (lineCount > 0 ? h.after / lineCount : 0)
+
+// ---- over several files (round 3): which files changed, the changes in one order across all of them, and which file to show ----
+
+/** One change in the whole export: the file it is in and its number in that file (1-based). */
+export interface FileChange {
+  file: string
+  index: number
+}
+
+/** The File selector's text for a file: its name, with the number of changes in it when there are any ("landing.css (2)"). */
+export const fileMark = (file: string, count: number): string => (count > 0 ? `${file} (${count})` : file)
+
+/** Every change of every file in one order: files in selector order, changes in line order. */
+export const changeOrder = (order: string[], counts: Record<string, number>): FileChange[] =>
+  order.flatMap((file) => Array.from({ length: counts[file] ?? 0 }, (_, i) => ({ file, index: i + 1 })))
+
+/** How many changes come before the first change of this file (its changes are numbered offset + 1 and up in the whole walk). */
+export function offsetOfFile(order: string[], counts: Record<string, number>, file: string): number {
+  let n = 0
+  for (const f of order) {
+    if (f === file) return n
+    n += counts[f] ?? 0
+  }
+  return n
+}
+
+/**
+ * The file the code view shows after an edit. A file the visitor chose by hand stays, and so does a file that has changes of its own; a shown file with
+ * none gives way to the first file (in selector order) that has some.
+ */
+export function fileToShow(shown: string, order: string[], counts: Record<string, number>, handPicked: boolean): string {
+  if (handPicked || (counts[shown] ?? 0) > 0) return shown
+  return order.find((f) => (counts[f] ?? 0) > 0) ?? shown
+}

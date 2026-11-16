@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { MAX_BYTES, deviceNote, labels, messages, panel } from '../data/uiEditor'
 import CodeView, { type CodeViewHandle } from './CodeView'
+import { changeOrder, diffHunks, fileMark, fileToShow, offsetOfFile, stepChange, type Hunk } from './diff'
 import Gallery from './Gallery'
 import { canRotate, isEditable, viewport, type Orientation } from './devices'
 import { cssSizeFor, handleAxes } from './geometry'
@@ -47,6 +48,8 @@ export default function UiEditorTool() {
   const [holdHeight, setHoldHeight] = useState(0)
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [unitState, setUnitState] = useState<{ path: string | null; unit: WidthUnit }>({ path: null, unit: 'px' })
+  // The walk over the changes of all the files: the change last visited (0: none) belongs to the export it was visited in, so the next edit starts it again.
+  const [walk, setWalk] = useState<{ k: number; files: Record<string, string> | null; nonce: number }>({ k: 0, files: null, nonce: 0 })
 
   const frameHost = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLElement>(null)
@@ -62,6 +65,8 @@ export default function UiEditorTool() {
   const codeBox = useRef<HTMLDetailsElement>(null)
   const pasteMarkup = useRef<HTMLTextAreaElement>(null)
   const pasteCss = useRef<HTMLTextAreaElement>(null)
+  /** The visitor chose a file in the File select since this document was opened: the code view never switches files by itself after that. */
+  const handPicked = useRef(false)
 
   const setList = (next: EditList) => {
     listRef.current = next
@@ -134,6 +139,7 @@ export default function UiEditorTool() {
     setWarnings(warn)
     setGalleryOpen(false)
     setFileName(next.file)
+    handPicked.current = false
     setReviewOpen(false)
     setPasteOpen(false)
     show({ kind: 'info', text: messages.opened(next.name) })
@@ -305,8 +311,30 @@ export default function UiEditorTool() {
   const files = session ? Object.keys(session.files) : []
   const file = session && files.includes(fileName) ? fileName : (files[0] ?? '')
   const text = session && file ? (session.files[file] ?? '') : ''
-  // The file as it was opened, for the code view's marks (the primary file, or a companion stylesheet by the name the page links it by).
-  const original = !doc || !file ? '' : file === doc.file ? doc.source : (doc.companions[file] ?? text)
+  // The changes of every file against the file as it was opened (the primary file, or a companion stylesheet by the name the page links it by): the File
+  // selector marks the files that changed, and Previous and Next change walk all of them.
+  const hunksByFile = useMemo(() => {
+    const out: Record<string, Hunk[]> = {}
+    if (!session || !doc) return out
+    for (const f of Object.keys(session.files)) out[f] = diffHunks(f === doc.file ? doc.source : (doc.companions[f] ?? session.files[f]), session.files[f])
+    return out
+  }, [session?.files, doc]) // eslint-disable-line react-hooks/exhaustive-deps
+  const counts = Object.fromEntries(files.map((f) => [f, hunksByFile[f]?.length ?? 0]))
+  const countsKey = files.map((f) => counts[f]).join(',')
+  // Right after an edit: a shown file with no changes of its own gives way to the first file that has some (never after the visitor chose a file by hand).
+  useEffect(() => {
+    const target = fileToShow(file, files, counts, handPicked.current)
+    if (target !== file) setFileName(target)
+  }, [countsKey, file]) // eslint-disable-line react-hooks/exhaustive-deps
+  const changes = changeOrder(files, counts)
+  const walkK = session && walk.files === session.files ? Math.min(walk.k, changes.length) : 0
+  const visit = (k: number) => {
+    const t = changes[k - 1]
+    if (!t || !session) return
+    setFileName(t.file)
+    setWalk({ k, files: session.files, nonce: walk.nonce + 1 })
+  }
+  const walkTarget = session && walk.files === session.files && walkK > 0 && changes[walkK - 1]?.file === file ? { change: changes[walkK - 1].index, nonce: walk.nonce } : null
   const onCopy = async () => {
     if (!file) return
     try {
@@ -406,15 +434,23 @@ export default function UiEditorTool() {
               </div>
               <div className="ue-bar-group">
                 <label htmlFor="ue-file">{labels.file}</label>
-                <select id="ue-file" value={file} disabled={files.length === 0} onChange={(e) => setFileName(e.currentTarget.value)}>
+                <select
+                  id="ue-file"
+                  value={file}
+                  disabled={files.length === 0}
+                  onChange={(e) => {
+                    handPicked.current = true
+                    setFileName(e.currentTarget.value)
+                  }}
+                >
                   {files.map((f) => (
                     <option key={f} value={f}>
-                      {f}
+                      {fileMark(f, counts[f] ?? 0)}
                     </option>
                   ))}
                 </select>
-                <IconButton icon="copy" label={labels.copy} disabled={!session} onClick={() => void onCopy()} />
-                <IconButton icon="download" label={labels.download} disabled={!session} onClick={onDownload} />
+                <IconButton icon="copy" label={labels.copy} tip={labels.copyTip(file)} disabled={!session} onClick={() => void onCopy()} />
+                <IconButton icon="download" label={labels.download} tip={labels.downloadTip(file)} disabled={!session} onClick={onDownload} />
               </div>
             </div>
           </>
@@ -537,7 +573,7 @@ export default function UiEditorTool() {
       {hasDoc && (
         <details ref={codeBox} className="ue-code">
           <summary>{labels.code}</summary>
-          <CodeView key={file} ref={codeView} file={file} text={text} original={original} />
+          <CodeView key={file} ref={codeView} file={file} text={text} hunks={hunksByFile[file] ?? []} total={changes.length} current={walkK} offset={offsetOfFile(files, counts, file)} target={walkTarget} onStep={(dir) => visit(stepChange(walkK, changes.length, dir))} onJump={(i) => visit(offsetOfFile(files, counts, file) + i)} />
         </details>
       )}
     </section>

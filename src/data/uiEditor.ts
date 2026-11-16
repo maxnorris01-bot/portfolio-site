@@ -86,7 +86,10 @@ export const labels = {
   reviewList: 'Unlinked edits',
   file: 'File',
   copy: 'Copy code',
+  /** The tooltips (and so the accessible descriptions) of Copy code and Download name the file they act on; the accessible names stay `Copy code` and `Download`. */
+  copyTip: (file: string) => `Copy ${file} to the clipboard`,
   download: 'Download',
+  downloadTip: (file: string) => `Download ${file}`,
   code: 'Updated code',
   result: 'Edit result',
   preview: 'Preview',

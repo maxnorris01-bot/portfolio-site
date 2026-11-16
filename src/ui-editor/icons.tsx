@@ -69,15 +69,17 @@ interface Props {
   expanded?: boolean
   /** A small count drawn on the corner (Review unlinked); it is not part of the name's text in the DOM, the label carries it. */
   badge?: number
-  /** A word shown beside the icon (only Rotate has one). */
+  /** A word shown beside the icon. */
   text?: string
+  /** The tooltip, when it says more than the name (the name is the aria-label, and the tooltip then becomes the accessible description). */
+  tip?: string
   onClick: () => void
 }
 
 /** An icon button: aria-label for the name, title for the visible tooltip, a focus ring from the stylesheet. */
-export function IconButton({ icon, label, disabled, pressed, expanded, badge, text, onClick }: Props) {
+export function IconButton({ icon, label, tip, disabled, pressed, expanded, badge, text, onClick }: Props) {
   return (
-    <button type="button" className={`btn btn-secondary ue-icon${text ? ' has-text' : ''}`} aria-label={label} title={label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
+    <button type="button" className={`btn btn-secondary ue-icon${text ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
       <Icon name={icon} />
       {text && <span className="ue-icon-text">{text}</span>}
       {badge ? (
