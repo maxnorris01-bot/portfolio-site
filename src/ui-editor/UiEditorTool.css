@@ -298,8 +298,9 @@
   position: relative;
 }
 
-/* The preview is never scaled: it is as wide as its view (1280, 768 or 390 CSS px) and a narrower window scrolls it sideways. */
+/* The stage area: the device is centred in it. A phone or tablet sits in a plain dark outline (CSS only, no real model); Desktop has none. */
 .ue-scroll {
+  padding: var(--space-3);
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -308,6 +309,87 @@
 
 .ue-scroll[hidden] {
   display: none;
+}
+
+.ue-device-slot {
+  display: flex;
+}
+
+.ue-device-scale {
+  flex: none;
+  margin-inline: auto;
+  transform-origin: top center;
+}
+
+.ue-device {
+  position: relative;
+  box-sizing: border-box;
+}
+
+.ue-device[data-device-frame] {
+  background: #1b1d22;
+  box-shadow: 0 0 0 1px #3a3d45 inset;
+}
+
+.ue-device.is-phone[data-device-frame] {
+  border-radius: 38px;
+}
+
+.ue-device.is-tablet[data-device-frame] {
+  border-radius: 26px;
+}
+
+.ue-device[data-device-frame] .ue-stage {
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+/* The camera dot and the home bar sit in the bezel, never over the screen; they turn with the phone. */
+.ue-device[data-device-frame]::before,
+.ue-device.is-phone[data-device-frame]::after {
+  position: absolute;
+  background: #4a4e58;
+  content: '';
+}
+
+.ue-device[data-device-frame]::before {
+  top: 9px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.ue-device.is-tablet[data-device-frame]::before {
+  top: 3px;
+  width: 6px;
+  height: 6px;
+}
+
+.ue-device.is-phone[data-device-frame]::after {
+  bottom: 9px;
+  left: 50%;
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  transform: translateX(-50%);
+}
+
+.ue-device.is-phone[data-orientation='landscape']::before {
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+}
+
+.ue-device.is-phone[data-orientation='landscape']::after {
+  top: 50%;
+  right: 9px;
+  bottom: auto;
+  left: auto;
+  width: 4px;
+  height: 120px;
+  transform: translateY(-50%);
 }
 
 .ue-stage {

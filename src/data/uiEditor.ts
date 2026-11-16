@@ -52,8 +52,12 @@ export const uiEditorPage = {
   githubLabel: 'View on GitHub ↗',
 }
 
-/** Sizes of the three views, in CSS px. Desktop is the engine's desktop size (it scrolls sideways in a narrower window); Tablet is view-only. */
+/** Widths of the three views in portrait, in CSS px. Desktop is the engine's desktop size; Tablet is view-only. */
 export const VIEW_WIDTHS = { Desktop: 1280, Tablet: 768, Phone: 390 } as const
+/** Heights of the Tablet and Phone screens in portrait, in CSS px (turned sideways, width and height swap). Desktop has no fixed height. */
+export const DEVICE_HEIGHTS = { Tablet: 1024, Phone: 844 } as const
+/** Under the stage in the Phone view. */
+export const deviceNote = 'Previewed at a typical phone width (390 px). Other phones show the same code at their own width.'
 /** Most that Paste and Upload accept together, in bytes. */
 export const MAX_BYTES = 1_000_000
 
@@ -74,6 +78,7 @@ export const labels = {
   undo: 'Undo',
   redo: 'Redo',
   resetAll: 'Reset all',
+  rotate: 'Rotate',
   review: (n: number) => `Review unlinked (${n})`,
   reviewList: 'Unlinked edits',
   file: 'File',
@@ -104,6 +109,7 @@ export const panel = {
   linkHint: 'On: a size change also scales the other size by the same ratio. Off: the change applies to this size only and is listed under Review unlinked.',
   svgLink: 'An SVG has one size, so every edit applies everywhere.',
   tablet: 'Tablet is a view-only width, so its settings and handles are switched off. Switch to Desktop or Phone to edit.',
+  viewOnly: 'This size is view-only, so its settings and handles are switched off: turn the phone upright, or switch to Desktop, to edit.',
   dot: (env: string) => `Unlinked: applies to ${env} only`,
   groups: { text: 'Text', box: 'Box', colours: 'Colours', position: 'Position' },
   fonts: 'Font family',

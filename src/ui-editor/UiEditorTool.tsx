@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
-import { MAX_BYTES, VIEW_WIDTHS, labels, messages, panel } from '../data/uiEditor'
+import { MAX_BYTES, deviceNote, labels, messages, panel } from '../data/uiEditor'
 import Gallery from './Gallery'
+import { canRotate, isEditable, viewport, type Orientation } from './devices'
 import { cssSizeFor, handleAxes } from './geometry'
 import { IconButton, type IconName } from './icons'
 import { fromFiles, fromPaste, downloadName, type Doc, type Incoming } from './intake'
 import Panel, { type ViewName } from './Panel'
 import { SAMPLES, type SampleId } from './samples'
-import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, pathOf, setWidth, type Session } from './session'
+import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, pathOf, setViewport, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
@@ -27,6 +28,7 @@ export default function UiEditorTool() {
   const [doc, setDoc] = useState<Doc | null>(null)
   const [list, setListState] = useState<EditList>(emptyList())
   const [view, setView] = useState<ViewName>('Desktop')
+  const [orientation, setOrientation] = useState<Orientation>('portrait')
   const [link, setLink] = useState(true)
   const [selPath, setSelPath] = useState<string | null>(null)
   const [message, setMessage] = useState<Msg | null>(null)
@@ -48,6 +50,7 @@ export default function UiEditorTool() {
   const sessionRef = useRef<Session | null>(null)
   const listRef = useRef(list)
   const viewRef = useRef(view)
+  const orientRef = useRef(orientation)
   const busyRef = useRef(false)
   const generation = useRef(0)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -72,7 +75,7 @@ export default function UiEditorTool() {
   }
   const svgDoc = doc?.kind === 'svg'
   const environment: Environment = view === 'Phone' ? 'phone' : 'desktop'
-  const editable = view !== 'Tablet'
+  const editable = isEditable(view, orientation)
 
   // ---- the preview: built from the ORIGINAL document, with the edit list replayed on it ----
   useEffect(() => {
@@ -86,7 +89,7 @@ export default function UiEditorTool() {
     setSession(null)
     busyRef.current = true
     setBusy(true)
-    void openSession(doc, listRef.current.edits, host, VIEW_WIDTHS[viewRef.current]).then((r) => {
+    void openSession(doc, listRef.current.edits, host, viewport(viewRef.current, orientRef.current)).then((r) => {
       if (mine !== generation.current) {
         if (r.ok) closeSession(r.session)
         return
@@ -264,15 +267,20 @@ export default function UiEditorTool() {
   }
 
   // ---- views ----
-  const onView = (v: ViewName) => {
+  const showSize = (v: ViewName, o: Orientation) => {
     setView(v)
+    setOrientation(o)
     viewRef.current = v
+    orientRef.current = o
     const s = sessionRef.current
     if (s) {
-      setWidth(s, VIEW_WIDTHS[v])
+      setViewport(s, viewport(v, o))
       setRev((n) => n + 1)
     }
   }
+  /** Another view always starts upright. */
+  const onView = (v: ViewName) => showSize(v, 'portrait')
+  const onRotate = () => showSize(viewRef.current, orientRef.current === 'portrait' ? 'landscape' : 'portrait')
 
   // ---- export ----
   const files = session ? Object.keys(session.files) : []
@@ -365,6 +373,7 @@ export default function UiEditorTool() {
               {VIEWS.map((v) => (
                 <IconButton key={v.name} icon={v.icon} label={v.name} pressed={view === v.name} onClick={() => onView(v.name)} />
               ))}
+              {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} onClick={onRotate} />}
             </div>
             <div className="ue-bar-group">
               <IconButton icon="undo" label={labels.undo} disabled={!canUndo(list) || busy} onClick={onUndo} />
@@ -464,16 +473,21 @@ export default function UiEditorTool() {
         <div className="ue-work">
           <div className="ue-preview">
             {showGallery && <Gallery overlay onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
-            <div className="ue-scroll" inert={showGallery || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
-              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} />
+            <div className="ue-scroll" data-stage-area inert={showGallery || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
+              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} />
             </div>
             <p id="ue-preview-hint" className="ue-hint">
               {labels.previewHint}
             </p>
+            {view === 'Phone' && orientation === 'portrait' && (
+              <p data-device-note className="ue-hint">
+                {deviceNote}
+              </p>
+            )}
           </div>
           <div className="ue-side">
             {session ? (
-              <Panel session={session} rev={rev} nonce={nonce} selected={selIndex} view={view} link={link} onLink={setLink} pins={mine} onSet={onSet} onBadValue={onBadValue} onMove={onReorder} onNudge={onNudge} />
+              <Panel session={session} rev={rev} nonce={nonce} selected={selIndex} view={view} editable={editable} lockedNote={view === 'Tablet' ? panel.tablet : panel.viewOnly} link={link} onLink={setLink} pins={mine} onSet={onSet} onBadValue={onBadValue} onMove={onReorder} onNudge={onNudge} />
             ) : (
               <aside className="ue-panel" aria-label={panel.title}>
                 <p className="ue-hint">{messages.working}</p>

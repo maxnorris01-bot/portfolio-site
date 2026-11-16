@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import { labels } from '../data/uiEditor'
 import { HANDLES, arrowNudge, movedFar, resizedBox, type Box, type Handle } from './geometry'
+import { bezel, frameSize, type Orientation, type ViewName } from './devices'
 import { canResize, type Session } from './session'
 
 /** What a finished resize asks for: the border box the element should have (CSS px) and the handle's axes. */
@@ -16,8 +17,10 @@ interface Props {
   /** Changes whenever the preview did, so the boxes are measured again. */
   rev: number
   selected: number | null
-  /** False in the Tablet view: elements can be looked at and selected, but not changed. */
+  /** False in a view-only size: elements can be looked at and selected, but not changed. */
   editable: boolean
+  view: ViewName
+  orientation: Orientation
   onSelect: (index: number | null) => void
   onMove: (dx: number, dy: number) => void
   onResize: (req: ResizeRequest) => void
@@ -39,7 +42,7 @@ const place = (b: Box) => ({ left: b.left, top: b.top, width: b.width, height: b
  * never scaled, so a pointer delta is a CSS px delta. A drag changes nothing until the pointer is released: then the page makes ONE edit and
  * the preview is re-derived from the engine's result. Escape cancels a drag. Pointer events with pointer capture, so mouse, pen and touch work.
  */
-export default function Stage({ frameHost, session, rev, selected, editable, onSelect, onMove, onResize, onNudge }: Props) {
+export default function Stage({ frameHost, session, rev, selected, editable, view, orientation, onSelect, onMove, onResize, onNudge }: Props) {
   const overlay = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
   const [hover, setHover] = useState<Box | null>(null)
@@ -174,34 +177,46 @@ export default function Stage({ frameHost, session, rev, selected, editable, onS
   const el = elementOf(selected)
   const resizable = !!el && editable && canResize(el)
 
+  const framed = view !== 'Desktop'
+  const b = bezel(view, orientation)
   return (
-    <div className="ue-stage" data-stage>
-      <div ref={frameHost} className="ue-frame" />
-      <div
-        ref={overlay}
-        className={`ue-overlay${selected !== null && editable ? ' is-armed' : ''}`}
-        tabIndex={session ? 0 : -1}
-        role="group"
-        aria-label={labels.preview}
-        aria-describedby="ue-preview-hint"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={cancel}
-        onPointerLeave={() => !drag.current && setHover(null)}
-        onKeyDown={onKeyDown}
-      >
-        {hover && <div data-hover className="ue-hover" style={place(hover)} />}
-        {selBox && (
-          <div data-selection className="ue-selection" style={place(selBox)}>
-            {resizable && HANDLES.map((h) => <div key={h} data-handle={h} className={`ue-handle is-${h}`} aria-hidden="true" onPointerDown={(e) => onHandleDown(e, h)} />)}
+    <div className="ue-device-slot">
+      <div className="ue-device-scale" data-device-scale style={{ width: frameSize(view, orientation, 0).width }}>
+        <div
+          className={`ue-device is-${view.toLowerCase()}`}
+          {...(framed ? { 'data-device-frame': '', 'data-device': view.toLowerCase(), 'data-orientation': orientation } : {})}
+          style={framed ? { padding: `${b.top}px ${b.right}px ${b.bottom}px ${b.left}px` } : undefined}
+        >
+          <div className="ue-stage" data-stage>
+            <div ref={frameHost} className="ue-frame" />
+            <div
+              ref={overlay}
+              className={`ue-overlay${selected !== null && editable ? ' is-armed' : ''}`}
+              tabIndex={session ? 0 : -1}
+              role="group"
+              aria-label={labels.preview}
+              aria-describedby="ue-preview-hint"
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={cancel}
+              onPointerLeave={() => !drag.current && setHover(null)}
+              onKeyDown={onKeyDown}
+            >
+              {hover && <div data-hover className="ue-hover" style={place(hover)} />}
+              {selBox && (
+                <div data-selection className="ue-selection" style={place(selBox)}>
+                  {resizable && HANDLES.map((h) => <div key={h} data-handle={h} className={`ue-handle is-${h}`} aria-hidden="true" onPointerDown={(e) => onHandleDown(e, h)} />)}
+                </div>
+              )}
+              {ghost && (
+                <div className="ue-ghost" style={place(ghost.box)} aria-hidden="true">
+                  <span className="ue-ghost-text">{ghost.text}</span>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-        {ghost && (
-          <div className="ue-ghost" style={place(ghost.box)} aria-hidden="true">
-            <span className="ue-ghost-text">{ghost.text}</span>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )

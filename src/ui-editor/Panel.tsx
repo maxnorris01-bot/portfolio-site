@@ -2,10 +2,11 @@ import { useEffect, useRef, type KeyboardEvent, type ReactNode, type RefObject }
 import { panel as P } from '../data/uiEditor'
 import { htmlFields, rowOfPin, svgFields, type Computed, type Field, type Group } from './panelfields'
 import { canResize, isSvgElement, labelOf, moveTarget, type Session } from './session'
+import type { ViewName } from './devices'
 import { pickerValue } from './values'
 import type { UnlinkedItem } from './vendor/engine.js'
 
-export type ViewName = 'Desktop' | 'Tablet' | 'Phone'
+export type { ViewName }
 
 interface Props {
   session: Session
@@ -15,6 +16,9 @@ interface Props {
   nonce: number
   selected: number | null
   view: ViewName
+  /** False for the view-only sizes: fields and handles are off, and `lockedNote` says why. */
+  editable: boolean
+  lockedNote: string
   link: boolean
   onLink: (on: boolean) => void
   /** The unlinked values pinned on the selected element. */
@@ -113,9 +117,8 @@ const GROUPS: { id: Group; title: string }[] = [
   { id: 'colours', title: P.groups.colours },
 ]
 
-export default function Panel({ session, rev, nonce, selected, view, link, onLink, pins, onSet, onBadValue, onMove, onNudge }: Props) {
+export default function Panel({ session, rev, nonce, selected, view, editable, lockedNote, link, onLink, pins, onSet, onBadValue, onMove, onNudge }: Props) {
   const el = selected !== null ? (session.preview.elements[selected] ?? null) : null
-  const editable = view !== 'Tablet'
   const env = view === 'Phone' ? 'Phone' : 'Desktop'
   const other = view === 'Phone' ? 'Desktop' : 'Phone'
   const svg = !!el && isSvgElement(el)
@@ -171,7 +174,7 @@ export default function Panel({ session, rev, nonce, selected, view, link, onLin
       <p id="ue-link-hint" className="ue-hint">
         {svg ? P.svgLink : P.linkHint}
       </p>
-      {!editable && <p className="ue-note">{P.tablet}</p>}
+      {!editable && <p className="ue-note">{lockedNote}</p>}
       {!el && <p className="ue-hint">{P.none}</p>}
       {sections}
       {el && (

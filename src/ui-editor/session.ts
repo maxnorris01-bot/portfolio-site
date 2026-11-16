@@ -5,6 +5,7 @@
 import * as engine from './vendor/engine.js'
 import type { Edit, EditResult, EditState, ElementNode, Model, Preview, ScaleNote } from './vendor/engine.js'
 import type { Doc } from './intake.ts'
+import type { Viewport } from './devices.ts'
 
 export interface Session {
   doc: Doc
@@ -16,6 +17,8 @@ export interface Session {
   breakpoint: number
   /** Stylesheets the page links to that were not supplied. */
   missing: string[]
+  /** The screen's height when it has one (Tablet, Phone); null on Desktop, where the frame grows to the page's height. */
+  fixedHeight: number | null
 }
 
 /** The preview is at least this tall (CSS px); it grows to the page's height so the host, not the frame, scrolls. */
@@ -24,11 +27,11 @@ export const PREVIEW_MIN_HEIGHT = 800
 export type Opened = { ok: true; session: Session; results: EditResult[] } | { ok: false; message: string }
 
 /** Build a preview of the original document and replay `edits` on it. Never throws: a failure is a message. */
-export async function openSession(doc: Doc, edits: Edit[], host: HTMLElement, width: number): Promise<Opened> {
+export async function openSession(doc: Doc, edits: Edit[], host: HTMLElement, vp: Viewport): Promise<Opened> {
   let preview: Preview | null = null
   try {
     const model = engine.createModel(doc.source, doc.kind, doc.companions, doc.file)
-    preview = await engine.createPreview(model, host, { width, height: PREVIEW_MIN_HEIGHT })
+    preview = await engine.createPreview(model, host, { width: vp.width, height: vp.height ?? PREVIEW_MIN_HEIGHT })
     preview.iframe.title = 'Preview'
     const run = engine.applyEditSteps(preview, edits, engine.emptyState())
     const bad = run.results.find((r) => !r.ok)
@@ -36,7 +39,7 @@ export async function openSession(doc: Doc, edits: Edit[], host: HTMLElement, wi
       preview.dispose()
       return { ok: false, message: bad.refusal.message }
     }
-    const session: Session = { doc, preview, state: run.state, files: run.files, breakpoint: engine.breakpointOf(model), missing: model.missingStylesheets }
+    const session: Session = { doc, preview, state: run.state, files: run.files, breakpoint: engine.breakpointOf(model), missing: model.missingStylesheets, fixedHeight: vp.height }
     fitHeight(session)
     return { ok: true, session, results: run.results }
   } catch (e) {
@@ -45,8 +48,12 @@ export async function openSession(doc: Doc, edits: Edit[], host: HTMLElement, wi
   }
 }
 
-/** The preview's height follows the page's: the frame never scrolls (the pointer layer covers it), the host does. */
+/** On Desktop the preview's height follows the page's: the frame never scrolls (the pointer layer covers it), the host does. A device keeps its screen height. */
 export function fitHeight(s: Session): void {
+  if (s.fixedHeight !== null) {
+    s.preview.iframe.style.height = `${s.fixedHeight}px`
+    return
+  }
   const root = s.preview.doc.documentElement
   const h = Math.max(PREVIEW_MIN_HEIGHT, Math.ceil(root.getBoundingClientRect().height), s.doc.kind === 'svg' ? 0 : root.scrollHeight)
   s.preview.iframe.style.height = `${h}px`
@@ -69,8 +76,10 @@ export function applyOne(s: Session, edit: Edit): Applied {
   }
 }
 
-export const setWidth = (s: Session, width: number): void => {
-  s.preview.setWidth(width)
+/** Another size for the same preview: Desktop grows to the page, a device keeps its own screen height. */
+export const setViewport = (s: Session, vp: Viewport): void => {
+  s.fixedHeight = vp.height
+  s.preview.setWidth(vp.width)
   fitHeight(s)
 }
 
