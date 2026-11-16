@@ -147,6 +147,12 @@ export default function UiEditorTool() {
   const onPickSample = (id: SampleId) => replaceDocument(() => load(SAMPLES[id], []))
   /** The Samples button: over an open document it shows or hides the gallery; on a first visit the gallery is already there, so it takes the visitor to it. */
   const onSamples = () => {
+    // The paste area is closed by the gallery: Samples with it open shows the gallery again, it never leaves the area on screen.
+    if (pasteOpen) {
+      setPasteOpen(false)
+      setGalleryOpen(true)
+      return
+    }
     if (doc) setGalleryOpen((o) => !o)
     else rootRef.current?.querySelector<HTMLElement>('[data-sample-card]')?.focus()
   }
@@ -337,6 +343,8 @@ export default function UiEditorTool() {
 
   const hasDoc = !!doc
   const showGallery = !hasDoc || galleryOpen
+  // The paste area takes the gallery's place while it is open.
+  const galleryShown = showGallery && !pasteOpen
   const result = (
     <div role="status" aria-label={labels.result} className={`ue-result${message ? ` is-${message.kind}` : ''}`}>
       {message && <p>{message.text}</p>}
@@ -356,7 +364,7 @@ export default function UiEditorTool() {
     <section ref={rootRef} className="ue-tool" data-editor aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
       <div className="ue-bar" role="group" aria-label={labels.bar}>
         <div className="ue-bar-group">
-          <button type="button" className="btn btn-secondary" aria-expanded={showGallery} onClick={onSamples}>
+          <button type="button" className="btn btn-secondary" aria-expanded={galleryShown} onClick={onSamples}>
             {labels.samplesButton}
           </button>
           <button type="button" className="btn btn-secondary" aria-expanded={pasteOpen} onClick={() => setPasteOpen((o) => !o)}>
@@ -373,7 +381,7 @@ export default function UiEditorTool() {
               {VIEWS.map((v) => (
                 <IconButton key={v.name} icon={v.icon} label={v.name} pressed={view === v.name} onClick={() => onView(v.name)} />
               ))}
-              {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} onClick={onRotate} />}
+              {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} onClick={onRotate} />}
             </div>
             <div className="ue-bar-group">
               <IconButton icon="undo" label={labels.undo} disabled={!canUndo(list) || busy} onClick={onUndo} />
@@ -467,13 +475,13 @@ export default function UiEditorTool() {
 
       {!hasDoc && result}
 
-      {!hasDoc && showGallery && <Gallery overlay={false} onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
+      {!hasDoc && galleryShown && <Gallery overlay={false} onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
 
       {hasDoc && (
         <div className="ue-work">
           <div className="ue-preview">
-            {showGallery && <Gallery overlay onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
-            <div className="ue-scroll" data-stage-area inert={showGallery || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
+            {galleryShown && <Gallery overlay onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
+            <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
               <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} />
             </div>
             <p id="ue-preview-hint" className="ue-hint">

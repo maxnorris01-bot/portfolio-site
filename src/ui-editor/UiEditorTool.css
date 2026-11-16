@@ -101,6 +101,13 @@
   flex: none;
 }
 
+/* Rotate is the one icon button that also shows its word. */
+.ue-tool .btn.ue-icon.has-text {
+  width: auto;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+}
+
 .ue-badge {
   position: absolute;
   top: -5px;

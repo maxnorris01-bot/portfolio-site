@@ -25,7 +25,8 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   undo: <path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />,
   redo: <path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />,
-  reset: <path d="M3 12a9 9 0 1 0 2.6-6.4L3 8M3 3v5h5" />,
+  // A page with a revert arrow in its corner (not the arrows of Undo and Redo, nor the turning device of Rotate).
+  reset: <path d="M13 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h5M13 3l5 5v2.5M17.5 21a4.5 4.5 0 1 0-3.2-7.7M14 13v3.2h3.2" />,
   review: <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-.8.8M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l.8-.8M3.5 3.5l17 17" />,
   copy: (
     <>
@@ -34,7 +35,13 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   download: <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />,
-  rotate: <path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5" />,
+  // A device outline with a small curved arrow over it.
+  rotate: (
+    <>
+      <rect x="8" y="10" width="8" height="11" rx="1.5" />
+      <path d="M6 7.5a8 8 0 0 1 12 0M18.3 4v3.8h-3.6" />
+    </>
+  ),
 }
 
 export function Icon({ name }: { name: IconName }) {
@@ -54,14 +61,17 @@ interface Props {
   expanded?: boolean
   /** A small count drawn on the corner (Review unlinked); it is not part of the name's text in the DOM, the label carries it. */
   badge?: number
+  /** A word shown beside the icon (only Rotate has one). */
+  text?: string
   onClick: () => void
 }
 
 /** An icon button: aria-label for the name, title for the visible tooltip, a focus ring from the stylesheet. */
-export function IconButton({ icon, label, disabled, pressed, expanded, badge, onClick }: Props) {
+export function IconButton({ icon, label, disabled, pressed, expanded, badge, text, onClick }: Props) {
   return (
-    <button type="button" className="btn btn-secondary ue-icon" aria-label={label} title={label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
+    <button type="button" className={`btn btn-secondary ue-icon${text ? ' has-text' : ''}`} aria-label={label} title={label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
       <Icon name={icon} />
+      {text && <span className="ue-icon-text">{text}</span>}
       {badge ? (
         <span className="ue-badge" aria-hidden="true">
           {badge}
