@@ -75,3 +75,72 @@ test('Samples, the view buttons, Copy code, Download and the File select are nev
   for (const token of ['labels.copy}', 'labels.download}', 'icon={v.icon}']) assert.doesNotMatch(around(token), /disabled/, token)
   assert.doesNotMatch(bar.slice(bar.indexOf('id="ue-file"'), bar.indexOf('id="ue-file"') + 120), /disabled/)
 })
+
+// ---- the grid and snap (round 3, item 4) ----
+import { DEFAULT_SPACING, gridLines, nearestLine, snapBox, snapMove, snaps } from '../src/ui-editor/snap.ts'
+
+test('the grid starts at 8 px, off and not remembered: the page keeps no storage for it', () => {
+  assert.equal(DEFAULT_SPACING, 8)
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  assert.match(tool, /useState\(false\)/)
+  assert.doesNotMatch(tool + read('src/ui-editor/Ribbon.tsx') + read('src/ui-editor/Stage.tsx'), /localStorage|sessionStorage|indexedDB/)
+})
+
+test('snap rounds to the NEAREST grid line, not down, and a tie goes up', () => {
+  assert.equal(nearestLine(127, 8), 128)
+  assert.equal(nearestLine(123, 8), 120)
+  assert.equal(nearestLine(124, 8), 128)
+  assert.equal(nearestLine(110.3, 8), 112)
+  assert.equal(nearestLine(0, 4), 0)
+  assert.equal(nearestLine(1000, 32), 992)
+  assert.equal(nearestLine(1010, 32), 1024)
+})
+
+test('a drag-move of 37 px from (90, 73.3) puts the top-left on (128, 112), reached exactly with a fractional offset', () => {
+  const m = snapMove({ left: 90, top: 73.296875, dx: 37, dy: 37, spacing: 8 })
+  assert.equal(m.dx, 38)
+  assert.equal(m.dy, 38.7031)
+  assert.ok(Math.abs(73.296875 + m.dy - 112) < 1e-3)
+  // Moving back (negative) and at every spacing
+  assert.equal(snapMove({ left: 128, top: 112, dx: -37, dy: -37, spacing: 8 }).dx, -40)
+  for (const s of [4, 8, 16, 32]) {
+    const r = snapMove({ left: 13.4, top: 29.9, dx: 21, dy: 17, spacing: s })
+    assert.ok(Math.abs(((13.4 + r.dx) % s) + s) % s < 1e-3 || Math.abs((((13.4 + r.dx) % s) + s) % s - s) < 1e-3, `left on a ${s} px line`)
+  }
+})
+
+test('a resize puts the dragged edges on grid lines and leaves the others where they are', () => {
+  const box = { left: 910, top: 64, width: 322.4, height: 180 }
+  assert.deepEqual(snapBox(box, 'e', 8), { left: 910, top: 64, width: 322, height: 180 }) // 1232.4 -> 1232
+  const se = snapBox({ left: 90, top: 191.6875, width: 230, height: 45 }, 'se', 8)
+  assert.equal(se.left + se.width, 320)
+  assert.equal(se.top + se.height, 240)
+  assert.equal(se.left, 90)
+  const w = snapBox({ left: 93, top: 10, width: 100, height: 20 }, 'w', 8) // the west edge 93 -> 96, the east edge stays at 193
+  assert.equal(w.left, 96)
+  assert.equal(w.left + w.width, 193)
+  assert.equal(snapBox({ left: 10, top: 10, width: 0.2, height: 5 }, 'e', 8).width >= 1, true)
+})
+
+test('Alt held during a drag, an SVG element or Snap off each turn snapping off', () => {
+  assert.equal(snaps({ snapOn: true, html: true, alt: false }), true)
+  assert.equal(snaps({ snapOn: true, html: true, alt: true }), false)
+  assert.equal(snaps({ snapOn: true, html: false, alt: false }), false)
+  assert.equal(snaps({ snapOn: false, html: true, alt: false }), false)
+})
+
+test('the grid lines are every spacing from 0 and cover the extent', () => {
+  assert.deepEqual(gridLines(32, 8), [0, 8, 16, 24, 32])
+  assert.equal(gridLines(1280, 16).length, 81)
+  assert.equal(gridLines(100, 32).at(-1), 96)
+  assert.deepEqual(gridLines(10, 0), [])
+})
+
+test('the grid is drawn by the page above the preview (a host element), never inside the previewed document', () => {
+  const stage = read('src/ui-editor/Stage.tsx')
+  assert.match(stage, /data-grid-overlay/)
+  assert.doesNotMatch(stage, /createElement|appendChild|insertAdjacent|innerHTML/, 'nothing is added to the previewed document')
+  const css = read('src/ui-editor/UiEditorTool.css')
+  assert.match(css, /\.ue-grid \{[^}]*pointer-events: none/)
+  assert.match(css, /\.ue-grid \{[^}]*position: absolute/)
+})

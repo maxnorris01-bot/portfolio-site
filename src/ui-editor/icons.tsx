@@ -2,7 +2,7 @@
 // No icon library. Each icon is decoration: the button it sits in carries the accessible name (aria-label) and the tooltip (title).
 import type { ReactNode } from 'react'
 
-export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'expand'
+export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap'
 
 const PATHS: Record<IconName, ReactNode> = {
   desktop: (
@@ -35,14 +35,21 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   download: <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />,
-  // The ribbon's own: text alignment, order and the expand chevron.
+  // The ribbon's own: text alignment, order, the grid and snap.
   alignLeft: <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />,
   alignCentre: <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />,
   alignRight: <path d="M4 6h16M10 10h10M4 14h16M10 18h10" />,
   alignJustify: <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />,
   moveUp: <path d="M12 19V6M6 11l6-6 6 6" />,
   moveDown: <path d="M12 5v13M6 13l6 6 6-6" />,
-  expand: <path d="m6 9 6 6 6-6" />,
+  // Grid: a square cut in nine; Snap: a crosshair, something landing on a point.
+  grid: <path d="M4 4h16v16H4zM4 9.33h16M4 14.67h16M9.33 4v16M14.67 4v16" />,
+  snap: (
+    <>
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M12 3v4.5M12 16.5V21M3 12h4.5M16.5 12H21" />
+    </>
+  ),
   // A device outline with a small curved arrow over it.
   rotate: (
     <>
@@ -69,19 +76,22 @@ interface Props {
   expanded?: boolean
   /** A small count drawn on the corner (Review unlinked); it is not part of the name's text in the DOM, the label carries it. */
   badge?: number
-  /** A word shown beside the icon. */
+  /** A word shown beside the icon (Rotate, from round 2). */
   text?: string
+  /** Show the label itself beside the icon (the view buttons, Copy code, Download and Reset all, from round 3). */
+  showLabel?: boolean
   /** The tooltip, when it says more than the name (the name is the aria-label, and the tooltip then becomes the accessible description). */
   tip?: string
   onClick: () => void
 }
 
 /** An icon button: aria-label for the name, title for the visible tooltip, a focus ring from the stylesheet. */
-export function IconButton({ icon, label, tip, disabled, pressed, expanded, badge, text, onClick }: Props) {
+export function IconButton({ icon, label, tip, disabled, pressed, expanded, badge, text, showLabel, onClick }: Props) {
+  const word = text ?? (showLabel ? label : undefined)
   return (
-    <button type="button" className={`btn btn-secondary ue-icon${text ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
+    <button type="button" className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
       <Icon name={icon} />
-      {text && <span className="ue-icon-text">{text}</span>}
+      {word && <span className="ue-icon-text">{word}</span>}
       {badge ? (
         <span className="ue-badge" aria-hidden="true">
           {badge}

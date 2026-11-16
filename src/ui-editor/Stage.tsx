@@ -3,6 +3,7 @@ import { labels } from '../data/uiEditor'
 import { HANDLES, arrowNudge, handleAxes, movedFar, resizedBox, type Box, type Handle } from './geometry'
 import { HEIGHT_MARGIN, bezel, fitScale, frameSize, toCss, type Orientation, type ViewName } from './devices'
 import { canResize, isSvgElement, parentContentWidth, type Session } from './session'
+import { snapBox, snapMove, snaps } from './snap'
 import { fullWidthFits, snapsToParent } from './units'
 
 /** What a finished resize asks for: the border box the element should have (CSS px) and the handle's axes. */
@@ -28,10 +29,14 @@ interface Props {
   onMove: (dx: number, dy: number) => void
   onResize: (req: ResizeRequest) => void
   onNudge: (dx: number, dy: number) => void
+  /** The grid over the preview (drawn by this page, above the preview, in the preview's own px and scaled with the device), snapping to it, and the distance between lines. */
+  grid: boolean
+  snap: boolean
+  spacing: number
 }
 
 /** `snap` is set for a resize of an HTML element whose `width: 100%` would fit its parent: the parent's content width, which a drag near it snaps to. */
-type Drag = { kind: 'move' | Handle; startX: number; startY: number; pointer: number; moved: boolean; box: Box; hit: number | null; capture: Element; snap: number | null }
+type Drag = { kind: 'move' | Handle; startX: number; startY: number; pointer: number; moved: boolean; box: Box; hit: number | null; capture: Element; snap: number | null; html: boolean; scroll: { x: number; y: number } }
 
 const boxOf = (el: Element): Box => {
   const r = el.getBoundingClientRect()
@@ -48,7 +53,7 @@ const place = (b: Box) => ({ left: b.left, top: b.top, width: b.width, height: b
  * CSS px number for the engine. A drag changes nothing until the pointer is released: then the page makes ONE edit and
  * the preview is re-derived from the engine's result. Escape cancels a drag. Pointer events with pointer capture, so mouse, pen and touch work.
  */
-export default function Stage({ frameHost, session, rev, selected, editable, view, orientation, onSelect, onMove, onResize, onNudge }: Props) {
+export default function Stage({ frameHost, session, rev, selected, editable, view, orientation, onSelect, onMove, onResize, onNudge, grid, snap, spacing }: Props) {
   const overlay = useRef<HTMLDivElement>(null)
   const slot = useRef<HTMLDivElement>(null)
   const scaler = useRef<HTMLDivElement>(null)
@@ -167,16 +172,27 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     const parent = parentContentWidth(el)
     return fits && parent > 0 ? parent : null
   }
-  /** The box a resize drag gives: the dragged edges move, and a width within 2 px of the parent's content width becomes exactly that (a snap). */
-  const resizeBox = (d: Drag, kind: Handle, rx: number, ry: number): { box: Box; snapped: boolean } => {
+  /**
+   * The box a resize drag gives: the dragged edges move; a width within 2 px of the parent's content width becomes exactly that (the 100% snap, which wins);
+   * else, with Snap on (and Alt not held, and an HTML element), the dragged edges are put on grid lines of the preview's document.
+   */
+  const resizeBox = (d: Drag, kind: Handle, rx: number, ry: number, alt: boolean): { box: Box; snapped: boolean } => {
     const b = resizedBox(d.box, kind, rx, ry)
-    if (d.snap === null || !snapsToParent(b.width, d.snap)) return { box: b, snapped: false }
-    return { box: { ...b, width: d.snap, left: kind.includes('w') ? b.left + b.width - d.snap : b.left }, snapped: true }
+    if (d.snap !== null && handleAxes(kind).width && snapsToParent(b.width, d.snap)) return { box: { ...b, width: d.snap, left: kind.includes('w') ? b.left + b.width - d.snap : b.left }, snapped: true }
+    if (!snaps({ snapOn: snap, html: d.html, alt })) return { box: b, snapped: false }
+    const g = snapBox({ ...b, left: b.left + d.scroll.x, top: b.top + d.scroll.y }, kind, spacing)
+    return { box: { ...g, left: g.left - d.scroll.x, top: g.top - d.scroll.y }, snapped: false }
+  }
+  /** A move that has gone (rx, ry): the offset to ask for, which with Snap on puts the element's top-left on the nearest grid lines. */
+  const moveBy = (d: Drag, rx: number, ry: number, alt: boolean): { dx: number; dy: number } => {
+    if (!snaps({ snapOn: snap, html: d.html, alt })) return { dx: rx, dy: ry }
+    return snapMove({ left: d.box.left + d.scroll.x, top: d.box.top + d.scroll.y, dx: rx, dy: ry, spacing })
   }
 
   const arm = (e: ReactPointerEvent, kind: Drag['kind'], box: Box, h: number | null, capture: Element, el: Element | null = null) => {
     capture.setPointerCapture?.(e.pointerId)
-    drag.current = { kind, startX: e.clientX, startY: e.clientY, pointer: e.pointerId, moved: false, box, hit: h, capture, snap: snapWidthOf(el, kind) }
+    const win = session?.preview.doc.defaultView
+    drag.current = { kind, startX: e.clientX, startY: e.clientY, pointer: e.pointerId, moved: false, box, hit: h, capture, snap: snapWidthOf(el, kind), html: !!el && !isSvgElement(el), scroll: { x: win?.scrollX ?? 0, y: win?.scrollY ?? 0 } }
   }
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -196,7 +212,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     const target = onSelected ? current : h
     if (!onSelected) onSelect(h)
     const el = elementOf(target)
-    if (editable && el) arm(e, 'move', boxOf(el), h, e.currentTarget)
+    if (editable && el) arm(e, 'move', boxOf(el), h, e.currentTarget, el)
   }
 
   const onHandleDown = (e: ReactPointerEvent<HTMLDivElement>, handle: Handle) => {
@@ -215,9 +231,12 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       d.moved = true
       const k = kNow()
       const rx = Math.round(toCss(e.clientX - d.startX, k)), ry = Math.round(toCss(e.clientY - d.startY, k))
-      if (d.kind === 'move') setGhost({ box: { ...d.box, left: d.box.left + rx, top: d.box.top + ry }, text: `${rx >= 0 ? '+' : ''}${rx}, ${ry >= 0 ? '+' : ''}${ry}` })
-      else {
-        const { box: b, snapped } = resizeBox(d, d.kind, rx, ry)
+      if (d.kind === 'move') {
+        const m = moveBy(d, rx, ry, e.altKey)
+        const sh = (n: number) => `${n >= 0 ? '+' : ''}${Math.round(n * 10) / 10}`
+        setGhost({ box: { ...d.box, left: d.box.left + m.dx, top: d.box.top + m.dy }, text: `${sh(m.dx)}, ${sh(m.dy)}` })
+      } else {
+        const { box: b, snapped } = resizeBox(d, d.kind, rx, ry, e.altKey)
         setGhost({ box: b, text: snapped ? labels.fullWidth : `${Math.round(b.width)} × ${Math.round(b.height)}` })
       }
       return
@@ -240,9 +259,11 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     }
     const k = kNow()
     const dx = Math.round(toCss(e.clientX - d.startX, k)), dy = Math.round(toCss(e.clientY - d.startY, k))
-    if (d.kind === 'move') onMove(dx, dy)
-    else {
-      const { box, snapped } = resizeBox(d, d.kind, dx, dy)
+    if (d.kind === 'move') {
+      const m = moveBy(d, dx, dy, e.altKey)
+      onMove(m.dx, m.dy)
+    } else {
+      const { box, snapped } = resizeBox(d, d.kind, dx, dy, e.altKey)
       onResize({ handle: d.kind, box, fullWidth: snapped })
     }
   }
@@ -274,6 +295,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
         >
           <div className="ue-stage" data-stage>
             <div ref={frameHost} className="ue-frame" />
+            {grid && <div className="ue-grid" data-grid-overlay aria-hidden="true" style={{ backgroundSize: `${spacing}px ${spacing}px` }} />}
             <div
               ref={overlay}
               className={`ue-overlay${selected !== null && editable ? ' is-armed' : ''}`}

@@ -64,7 +64,8 @@
   line-height: var(--leading);
 }
 
-/* ---- the bar: five groups (open | view | history | review | file), separated by a thin rule, no large gaps ---- */
+/* ---- the quick bar: Samples at the left, then Undo, Redo and Review unlinked; the view group and Rotate in the middle; File, Copy code and Download; Reset all
+   alone at the far right (a destructive command is kept away from the frequent ones). Spacers share the free room, so nothing is pushed off the edge. ---- */
 .ue-bar {
   display: flex;
   flex-wrap: wrap;
@@ -83,27 +84,27 @@
   align-items: center;
 }
 
-/* Samples at the left edge; the icon groups (view, history, review, file) together at the right edge. */
 .ue-bar-tools {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: var(--space-2) 0;
+  gap: var(--space-2) var(--space-3);
   align-items: center;
   justify-content: flex-end;
+  min-width: 0;
   margin-left: auto;
 }
 
-.ue-bar-group + .ue-bar-group,
-.ue-bar-tools > .ue-bar-group {
-  padding-left: var(--space-3);
-  margin-left: var(--space-3);
-  border-left: 1px solid var(--color-border);
+.ue-flex {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
-.ue-bar-tools > .ue-bar-group:first-child {
-  padding-left: 0;
-  margin-left: 0;
-  border-left: 0;
+.ue-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 0 var(--space-3);
+  background: var(--color-border);
 }
 
 /* Icon buttons: 20 px glyphs in a 36 px square (44 px on a phone), a tooltip from the title, a visible focus ring, and a dimmed look when disabled. */
@@ -122,7 +123,7 @@
   flex: none;
 }
 
-/* Rotate is the one icon button that also shows its word. */
+/* An icon button that also shows its word (the view buttons, Rotate, Copy code, Download, Reset all). */
 .ue-tool .btn.ue-icon.has-text {
   width: auto;
   gap: var(--space-1);
@@ -473,6 +474,15 @@
   cursor: default;
 }
 
+/* The grid: this page's own layer over the preview (never inside the previewed document, so the code, the export and every element are as they were). It lies
+   in the device's wrapper, so it is drawn in the preview's px and scales with the frame; its lines are every `background-size` px from the preview's top-left. */
+.ue-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, color-mix(in srgb, var(--color-accent) 45%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--color-accent) 45%, transparent) 1px, transparent 1px);
+}
+
 .ue-overlay:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: -2px;
@@ -544,8 +554,9 @@
   white-space: nowrap;
 }
 
-/* ---- the editing ribbon: Text | Box | Colours | Position, then the selected element and the Link checkbox at the right end. Full width, at most two rows
-   from 1280 px, wrapping (with 44 px controls) below 1000 px. Tokens only; text is never under 14px. ---- */
+/* ---- the ribbon, Office-style: a tab bar (Home, Layout) and a panel of a fixed height, so nothing moves when a tab is switched or an element is selected.
+   Every group is a column with its name under it (11 px, muted); small controls are 28 px high, the large buttons 56 x 60. From 1000 px up the panel is one
+   row; below 1000 px the groups wrap onto more rows and every control is at least 44 px. Tokens only. ---- */
 .ue-sr {
   position: absolute;
   width: 1px;
@@ -556,28 +567,141 @@
 }
 
 .ue-tool .ue-ribbon {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-1) 0;
-  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
   font-size: var(--text-small);
 }
 
-.ue-rgroup {
+.ue-tabbar {
   display: flex;
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
-  gap: var(--space-1) 6px;
-  align-items: center;
-  min-width: 0;
+  box-sizing: border-box;
+  align-items: flex-end;
+  gap: var(--space-3);
+  height: 36px;
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ue-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.ue-tab {
+  margin-bottom: -1px;
+  padding: 6px var(--space-4);
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.ue-tab[aria-selected='true'] {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.ue-tab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* The one plain line when nothing can be edited: up to two lines in the tab bar, which keeps its height. */
+.ue-rnote {
+  flex: 1 1 0;
+  align-self: center;
+  max-height: 2.4em;
   margin: 0;
-  padding: 2px 6px;
-  border: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  line-height: 1.2;
+}
+
+.ue-rnote[hidden] {
+  display: none;
+}
+
+/* The right end of the tab bar: which element, which size, and the Link checkbox with its tooltip. */
+.ue-rend {
+  display: flex;
+  flex: none;
+  gap: var(--space-3);
+  align-items: center;
+  align-self: center;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.ue-rlabel {
+  color: var(--color-navy);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.ue-linkrow {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--color-text-secondary);
+  cursor: help;
+}
+
+.ue-rpanel {
+  display: flex;
+  box-sizing: border-box;
+  align-items: stretch;
+  height: 90px;
+  padding: 4px var(--space-1) 0;
+}
+
+.ue-rpanel[hidden] {
+  display: none;
+}
+
+.ue-rgroup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 0 var(--space-2);
   border-right: 1px solid var(--color-border);
+}
+
+.ue-rgroup:last-child {
+  border-right: 0;
+}
+
+.ue-gc {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-start;
+  height: 60px;
+}
+
+.ue-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ue-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  height: 28px;
+}
+
+.ue-glabel {
+  padding-bottom: 4px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
 }
 
 .ue-rctl {
@@ -586,29 +710,9 @@
   align-items: center;
 }
 
-.ue-rctl.is-sides {
-  gap: 3px;
-}
-
-/* Expanded, the four sides take a line of their own inside the Box group (the group keeps its width, so the ribbon stays two rows). */
-.ue-rgroup[data-ribbon-group='box'] {
-  flex: 0 0 39rem;
-  flex-wrap: wrap;
-}
-
-.ue-rctl.is-open {
-  flex: 0 0 100%;
-}
-
-.ue-sidec {
-  display: inline-flex;
-  gap: 2px;
-  align-items: center;
-}
-
 .ue-cap {
   color: var(--color-text-muted);
-  font-size: var(--text-small);
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -625,6 +729,7 @@
   color: var(--color-text);
   font: inherit;
   cursor: pointer;
+  transition: none;
 }
 
 .ue-tool .ue-ribbon .ue-rbtn:hover:not(:disabled) {
@@ -632,7 +737,7 @@
 }
 
 .ue-tool .ue-ribbon .ue-rbtn[aria-pressed='true'] {
-  background: var(--color-navy);
+  background: var(--color-text);
   color: var(--color-on-navy);
 }
 
@@ -646,8 +751,24 @@
   height: 16px;
 }
 
-.ue-tool .ue-ribbon .ue-expand[aria-expanded='true'] .ue-icon-svg {
-  transform: rotate(180deg);
+/* The large buttons: the icon above its word. */
+.ue-tool .ue-ribbon .ue-lg {
+  flex-direction: column;
+  gap: 2px;
+  width: 56px;
+  height: 60px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.ue-tool .ue-ribbon .ue-lg .ue-icon-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ue-tool .ue-ribbon .ue-sidesbtn {
+  padding: 0 var(--space-2);
 }
 
 /* A stepper: minus, the number (a real text input), plus, joined. */
@@ -733,49 +854,35 @@
   min-width: 24px;
 }
 
-/* The right end: which element, the Link checkbox with its tooltip, and the one plain line when nothing can be edited. */
-.ue-rend {
-  display: flex;
-  flex: 1 1 14em;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 12em;
-  max-width: 24em;
-  margin-left: auto;
-  padding: 0 var(--space-2);
+/* The Sides popover: the four sides of padding or margin, under the Spacing group; it opens over the preview. */
+.ue-popover {
+  position: absolute;
+  top: 66px;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: var(--space-2) var(--space-4);
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 4px 14px rgb(11 27 51 / 0.18);
 }
 
-.ue-rlabel {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 var(--space-2);
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
-.ue-rlabel [data-selected-label] {
-  color: var(--color-navy);
-  font-family: var(--font-mono);
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.ue-linkrow {
+.ue-sidec {
   display: inline-flex;
-  gap: var(--space-1);
+  gap: 3px;
   align-items: center;
-  color: var(--color-text-secondary);
-  cursor: help;
 }
 
-.ue-rnote {
+.ue-snapnote {
+  max-width: 11.5rem;
   margin: 0;
   color: var(--color-text-muted);
-  line-height: 1.3;
-}
-
-.ue-rnote[hidden] {
-  display: none;
+  font-size: 11px;
+  line-height: 1.25;
 }
 
 .ue-tool .ue-ribbon button:focus-visible,
@@ -991,30 +1098,90 @@
   }
 }
 
-/* A phone: every control that can be tapped is at least 44 CSS px tall. */
+/* A phone, or any pointer that is a finger: every control that can be tapped is at least 44 CSS px. */
 @media (max-width: 700px), (pointer: coarse) {
   .ue-tool .btn.ue-icon {
-    width: 44px;
     min-width: 44px;
   }
 
-  .ue-bar-group + .ue-bar-group,
-  .ue-bar-tools > .ue-bar-group {
-    padding-left: 0;
+  .ue-tool .btn.ue-icon:not(.has-text) {
+    width: 44px;
+  }
+
+  .ue-sep {
+    display: none;
+  }
+}
+
+/* Below 1000 px the ribbon's groups wrap onto more rows (nothing is collapsed into a menu), and every control is at least 44 x 44. */
+@media (max-width: 999px) {
+  .ue-tabbar {
+    flex-wrap: wrap;
+    align-items: center;
+    height: auto;
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .ue-tab {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-bottom: 0;
+    box-sizing: border-box;
+  }
+
+  .ue-rnote {
+    flex-basis: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .ue-rend {
+    flex-wrap: wrap;
     margin-left: 0;
-    border-left: 0;
+    white-space: normal;
   }
 
-  .ue-bar-tools {
-    gap: var(--space-2) var(--space-3);
+  .ue-rpanel {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 0;
   }
 
-  /* The ribbon wraps, and every control is at least 44 x 44. */
+  .ue-rgroup {
+    flex: 1 1 100%;
+    padding: var(--space-2);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ue-rgroup:last-child {
+    border-bottom: 0;
+  }
+
+  .ue-gc,
+  .ue-col,
+  .ue-row {
+    flex-wrap: wrap;
+    height: auto;
+  }
+
+  .ue-popover {
+    position: static;
+    grid-template-columns: minmax(0, max-content);
+    margin-top: var(--space-2);
+    box-shadow: none;
+  }
+
   .ue-tool .ue-ribbon .ue-rbtn,
   .ue-tool .ue-ribbon .ue-stp .ue-rbtn,
   .ue-tool .ue-ribbon .ue-unit {
     min-width: 44px;
     height: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-lg {
+    height: 60px;
   }
 
   .ue-tool .ue-ribbon .ue-num,
@@ -1033,31 +1200,6 @@
     min-height: 44px;
   }
 
-  .ue-rgroup {
-    border-right: 0;
-  }
-}
-
-/* Below 1000 px the ribbon's groups wrap, so no control is ever off the page. */
-@media (max-width: 999px) {
-  .ue-rgroup,
-  .ue-rgroup[data-ribbon-group='box'] {
-    flex: 1 1 100%;
-    flex-wrap: wrap;
-    max-width: 100%;
-  }
-
-  .ue-rend {
-    flex-basis: 100%;
-    max-width: none;
-  }
-
-  /* The four sides of an expanded padding or margin wrap too. */
-  .ue-rctl {
-    flex-wrap: wrap;
-    max-width: 100%;
-  }
-
   .ue-tool .btn,
   .ue-tool select,
   .ue-tool input[type='text'],
@@ -1065,7 +1207,6 @@
   .ue-code summary {
     min-height: 44px;
   }
-
 }
 
 @media (prefers-reduced-motion: reduce) {

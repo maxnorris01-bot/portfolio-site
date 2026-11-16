@@ -47,6 +47,10 @@ export default function UiEditorTool() {
   const [pasteOpen, setPasteOpen] = useState(false)
   const [holdHeight, setHoldHeight] = useState(0)
   const [galleryOpen, setGalleryOpen] = useState(false)
+  // The grid over the preview and snapping to it: both off at every page load, nothing remembered; the distance between lines in CSS px.
+  const [grid, setGrid] = useState(false)
+  const [snap, setSnap] = useState(false)
+  const [spacing, setSpacing] = useState(8)
   const [unitState, setUnitState] = useState<{ path: string | null; unit: WidthUnit }>({ path: null, unit: 'px' })
   // The walk over the changes of all the files: the change last visited (0: none) belongs to the export it was visited in, so the next edit starts it again.
   const [walk, setWalk] = useState<{ k: number; files: Record<string, string> | null; nonce: number }>({ k: 0, files: null, nonce: 0 })
@@ -418,20 +422,19 @@ export default function UiEditorTool() {
         {hasDoc && (
           <>
             <div className="ue-bar-tools">
+              <div className="ue-bar-group">
+                <IconButton icon="undo" label={labels.undo} tip={labels.undoTip} disabled={!canUndo(list) || busy} onClick={onUndo} />
+                <IconButton icon="redo" label={labels.redo} tip={labels.redoTip} disabled={!canRedo(list) || busy} onClick={onRedo} />
+                <IconButton icon="review" label={labels.review(pins.length)} tip={labels.reviewTip} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
+              </div>
+              <span className="ue-flex" />
               <div className="ue-bar-group" role="group" aria-label={labels.view}>
                 {VIEWS.map((v) => (
-                  <IconButton key={v.name} icon={v.icon} label={v.name} pressed={view === v.name} onClick={() => onView(v.name)} />
+                  <IconButton key={v.name} icon={v.icon} label={v.name} showLabel tip={labels.viewTip(v.name)} pressed={view === v.name} onClick={() => onView(v.name)} />
                 ))}
-                {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} onClick={onRotate} />}
+                {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} tip={labels.rotateTip} onClick={onRotate} />}
               </div>
-              <div className="ue-bar-group">
-                <IconButton icon="undo" label={labels.undo} disabled={!canUndo(list) || busy} onClick={onUndo} />
-                <IconButton icon="redo" label={labels.redo} disabled={!canRedo(list) || busy} onClick={onRedo} />
-                <IconButton icon="reset" label={labels.resetAll} disabled={!canUndo(list) || busy} onClick={onReset} />
-              </div>
-              <div className="ue-bar-group">
-                <IconButton icon="review" label={labels.review(pins.length)} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
-              </div>
+              <span className="ue-flex" />
               <div className="ue-bar-group">
                 <label htmlFor="ue-file">{labels.file}</label>
                 <select
@@ -448,9 +451,11 @@ export default function UiEditorTool() {
                     </option>
                   ))}
                 </select>
-                <IconButton icon="copy" label={labels.copy} tip={labels.copyTip(file)} onClick={() => void onCopy()} />
-                <IconButton icon="download" label={labels.download} tip={labels.downloadTip(file)} onClick={onDownload} />
+                <IconButton icon="copy" label={labels.copy} showLabel tip={labels.copyTip(file)} onClick={() => void onCopy()} />
+                <IconButton icon="download" label={labels.download} showLabel tip={labels.downloadTip(file)} onClick={onDownload} />
               </div>
+              <span className="ue-sep" aria-hidden="true" />
+              <IconButton icon="reset" label={labels.resetAll} showLabel tip={labels.resetTip} disabled={!canUndo(list) || busy} onClick={onReset} />
             </div>
           </>
         )}
@@ -545,6 +550,12 @@ export default function UiEditorTool() {
             onBadValue={onBadValue}
             onMove={onReorder}
             onNudge={onNudge}
+            grid={grid}
+            onGrid={setGrid}
+            snap={snap}
+            onSnap={setSnap}
+            spacing={spacing}
+            onSpacing={setSpacing}
           />
           {result}
         </>
@@ -555,7 +566,7 @@ export default function UiEditorTool() {
           <div className="ue-preview">
             {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
             <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
-              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} />
+              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} />
             </div>
             <p id="ue-preview-hint" className="ue-hint">
               {labels.previewHint}
