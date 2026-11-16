@@ -747,8 +747,8 @@
 }
 
 .ue-tool .ue-ribbon .ue-icon-svg {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
 }
 
 /* The large buttons: the icon above its word. */
@@ -760,11 +760,6 @@
   padding: 0;
   font-size: 11px;
   line-height: 14px;
-}
-
-.ue-tool .ue-ribbon .ue-lg .ue-icon-svg {
-  width: 20px;
-  height: 20px;
 }
 
 .ue-tool .ue-ribbon .ue-sidesbtn {
@@ -799,7 +794,7 @@
 }
 
 .ue-tool .ue-ribbon .ue-num.is-wide {
-  width: 4.5em;
+  width: 6em;
   padding: 0 6px;
   border-radius: 4px 0 0 4px;
   text-align: left;
