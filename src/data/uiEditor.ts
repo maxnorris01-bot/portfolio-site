@@ -21,8 +21,8 @@ export const uiEditor: UiEditorInfo = {
   route: '/ui-editor',
   planet: [
     {
-      text: 'UI Editor lets you paste or upload your own HTML or SVG, click an element and change its text, size, colours or position from a side panel or by dragging.',
-      compact: 'UI Editor lets you paste your own HTML or SVG, click an element and change it from a side panel or by dragging.',
+      text: 'UI Editor lets you paste or upload your own HTML or SVG, click an element and change its text, size, colours or position from the ribbon above the preview or by dragging.',
+      compact: 'UI Editor lets you paste your own HTML or SVG, click an element and change it from a ribbon or by dragging.',
     },
     {
       text: 'It writes each change back into your own code and leaves every other line as you wrote it, then you copy or download the updated code. Everything runs in your browser.',
@@ -31,7 +31,7 @@ export const uiEditor: UiEditorInfo = {
   ],
   repoUrl: null,
   pageTitle: 'UI Editor — Max Norris',
-  pageDescription: 'Paste or upload your own HTML or SVG, click an element and change it from a side panel or by dragging, then copy the updated code. Runs entirely in your browser.',
+  pageDescription: 'Paste or upload your own HTML or SVG, click an element and change it from a ribbon or by dragging, then copy the updated code. Runs entirely in your browser.',
 }
 
 /** The chips under the title (the same kind of list as SatPOV's and ShopAI's). Only what is true: the page is React, the engine is TypeScript,
@@ -47,7 +47,7 @@ export const sampleDescriptions = {
 
 /** The page's header and the sections under the editor. */
 export const uiEditorPage = {
-  lead: 'Paste or upload your own HTML or SVG, click an element and change it from a side panel or by dragging, then copy the updated code. It runs entirely in your browser.',
+  lead: 'Paste or upload your own HTML or SVG, click an element and change it from a ribbon or by dragging, then copy the updated code. It runs entirely in your browser.',
   howLink: 'How it works and limits',
   githubLabel: 'View on GitHub ↗',
 }
@@ -70,6 +70,7 @@ export const labels = {
   galleryHint: 'Pick a sample to start, or paste or upload your own HTML or SVG.',
   samples: { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart' },
   paste: 'Paste',
+  fullWidth: 'Full width',
   ownCode: 'Your own code',
   ownCodeDesc: 'Paste or upload your own HTML or SVG, up to 1 MB.',
   upload: 'Upload',
@@ -89,7 +90,7 @@ export const labels = {
   code: 'Updated code',
   result: 'Edit result',
   preview: 'Preview',
-  previewHint: 'Click an element to select it. Drag it to move it, or drag a handle to resize it. With an element selected, the arrow keys nudge it by 1 px (10 px with Shift). Handles are for the pointer; the panel fields and the arrow keys do the same from the keyboard.',
+  previewHint: 'Click an element to select it. Drag it to move it, or drag a handle to resize it. With an element selected, the arrow keys nudge it by 1 px (10 px with Shift). Handles are for the pointer; the ribbon controls and the arrow keys do the same from the keyboard.',
   discard: 'Discard edits',
   keep: 'Keep editing',
   openPaste: 'Open pasted code',
@@ -103,10 +104,11 @@ export const labels = {
   resetText: 'Reset every edit and go back to the original?',
 }
 
-/** The side panel. A field's `prop` is the CSS property it writes (SVG has its own mapping in the panel). */
+/** The editing ribbon. A field's `prop` is the CSS property it writes (SVG has its own mapping in the ribbon). */
 export const panel = {
   title: 'Selected element',
-  none: 'Nothing is selected. Click an element in the preview.',
+  ribbon: 'Formatting ribbon',
+  none: 'Click an element to edit it',
   linkTo: (other: string) => `Link to ${other}`,
   linkHint: 'On: a size change also scales the other size by the same ratio. Off: the change applies to this size only and is listed under Review unlinked.',
   svgLink: 'An SVG has one size, so every edit applies everywhere.',
@@ -132,6 +134,16 @@ export const panel = {
   nudgeX: 'Nudge X',
   nudgeY: 'Nudge Y',
   nudgeHint: 'Pixels to move by; press Enter.',
+  decrease: (label: string) => `Decrease ${label}`,
+  increase: (label: string) => `Increase ${label}`,
+  expand: (label: string) => `Expand ${label}`,
+  collapse: (label: string) => `Collapse ${label}`,
+  stepTip: (label: string, step: number, unit: string) => `${label}: click for ${step} ${unit}, Shift for ${step * 10}, hold to repeat`,
+  widthUnit: 'Width unit',
+  mixed: 'mixed',
+  sides: ['top', 'right', 'bottom', 'left'],
+  /** The short word drawn beside a control; the accessible name is the full label. */
+  caps: { 'Font size': 'Size', 'Text colour': 'Text', Width: 'W', Height: 'H', Padding: 'Pad', Margin: 'Mar', Background: 'Fill', 'Border colour': 'Line', 'Border width': 'Thick', 'Border radius': 'Round', 'Nudge X': 'X', 'Nudge Y': 'Y' } as Record<string, string>,
   pick: (label: string) => `Pick ${label.toLowerCase()}`,
   aligns: ['left', 'center', 'right', 'justify'],
   svgAligns: ['start', 'middle', 'end'],
@@ -169,7 +181,7 @@ export const how = {
   steps: [
     { name: 'Open', detail: 'Paste, upload or pick a sample. The editor reads your text once to learn where every element and style rule starts and ends, so later it can change only those characters.' },
     { name: 'Preview', detail: 'Your page shows in a sandboxed frame with scripts off, at its real size: Desktop 1280 px, or Tablet 768 px or Phone 390 px in a plain device outline you can turn sideways. Your page is never scaled: in a small window the whole frame is shrunk to fit, and every pointer movement is converted back to your page’s own pixels, so a 40 px drag moves an element 40 px.' },
-    { name: 'Edit', detail: 'Click one element. Change it in the side panel, or drag its handles or the element. The engine decides where the change goes: the element’s own style, a rule that matches only that element, or a new rule at the end of your stylesheet. A class shared by several elements is never edited in place.' },
+    { name: 'Edit', detail: 'Click one element. Change it from the ribbon above the preview, or drag its handles or the element. The engine decides where the change goes: the element’s own style, a rule that matches only that element, or a new rule at the end of your stylesheet. A class shared by several elements is never edited in place.' },
     { name: 'Adapt', detail: 'With Link on, a size change on Desktop also scales the page’s own Phone values by the same ratio, and the other way round; colours, fonts and order apply everywhere. With Link off, a change applies to the size you are in and is listed under Review unlinked. Dragging an element to move it is always unlinked in this version; smarter phone adaptation of moves is planned for a later version.' },
     { name: 'Export', detail: 'Copy or download the updated code. Every character you did not change stays as you wrote it, and only the lines for your edits are added. Undo all your edits and the code is byte for byte the original. There is no change list: the code is the result.' },
   ],

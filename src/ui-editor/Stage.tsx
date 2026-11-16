@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import { labels } from '../data/uiEditor'
-import { HANDLES, arrowNudge, movedFar, resizedBox, type Box, type Handle } from './geometry'
+import { HANDLES, arrowNudge, handleAxes, movedFar, resizedBox, type Box, type Handle } from './geometry'
 import { HEIGHT_MARGIN, bezel, fitScale, frameSize, toCss, type Orientation, type ViewName } from './devices'
-import { canResize, type Session } from './session'
+import { canResize, isSvgElement, parentContentWidth, type Session } from './session'
+import { fullWidthFits, snapsToParent } from './units'
 
 /** What a finished resize asks for: the border box the element should have (CSS px) and the handle's axes. */
 export interface ResizeRequest {
   handle: Handle
   box: Box
+  /** The new width is within 2 CSS px of the parent's content width: the page writes `width: 100%` (HTML only). */
+  fullWidth: boolean
 }
 
 interface Props {
@@ -27,7 +30,8 @@ interface Props {
   onNudge: (dx: number, dy: number) => void
 }
 
-type Drag = { kind: 'move' | Handle; startX: number; startY: number; pointer: number; moved: boolean; box: Box; hit: number | null; capture: Element }
+/** `snap` is set for a resize of an HTML element whose `width: 100%` would fit its parent: the parent's content width, which a drag near it snaps to. */
+type Drag = { kind: 'move' | Handle; startX: number; startY: number; pointer: number; moved: boolean; box: Box; hit: number | null; capture: Element; snap: number | null }
 
 const boxOf = (el: Element): Box => {
   const r = el.getBoundingClientRect()
@@ -154,9 +158,25 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     return () => window.removeEventListener('keydown', onKey)
   }, [cancel])
 
-  const arm = (e: ReactPointerEvent, kind: Drag['kind'], box: Box, h: number | null, capture: Element) => {
+  /** The parent's content width when a drag of this element may snap to it, else null. */
+  const snapWidthOf = (el: Element | null, kind: Drag['kind']): number | null => {
+    if (!el || kind === 'move' || !handleAxes(kind).width || isSvgElement(el)) return null
+    const cs = el.ownerDocument.defaultView!.getComputedStyle(el)
+    const num = (v: string) => parseFloat(v) || 0
+    const fits = fullWidthFits({ sizing: cs.boxSizing, paddingX: num(cs.paddingLeft) + num(cs.paddingRight), borderX: num(cs.borderLeftWidth) + num(cs.borderRightWidth) })
+    const parent = parentContentWidth(el)
+    return fits && parent > 0 ? parent : null
+  }
+  /** The box a resize drag gives: the dragged edges move, and a width within 2 px of the parent's content width becomes exactly that (a snap). */
+  const resizeBox = (d: Drag, kind: Handle, rx: number, ry: number): { box: Box; snapped: boolean } => {
+    const b = resizedBox(d.box, kind, rx, ry)
+    if (d.snap === null || !snapsToParent(b.width, d.snap)) return { box: b, snapped: false }
+    return { box: { ...b, width: d.snap, left: kind.includes('w') ? b.left + b.width - d.snap : b.left }, snapped: true }
+  }
+
+  const arm = (e: ReactPointerEvent, kind: Drag['kind'], box: Box, h: number | null, capture: Element, el: Element | null = null) => {
     capture.setPointerCapture?.(e.pointerId)
-    drag.current = { kind, startX: e.clientX, startY: e.clientY, pointer: e.pointerId, moved: false, box, hit: h, capture }
+    drag.current = { kind, startX: e.clientX, startY: e.clientY, pointer: e.pointerId, moved: false, box, hit: h, capture, snap: snapWidthOf(el, kind) }
   }
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -184,7 +204,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     e.preventDefault()
     const el = elementOf(sel.current)
     if (e.button !== 0 || !editable || !el) return
-    arm(e, handle, boxOf(el), null, e.currentTarget)
+    arm(e, handle, boxOf(el), null, e.currentTarget, el)
   }
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -197,8 +217,8 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       const rx = Math.round(toCss(e.clientX - d.startX, k)), ry = Math.round(toCss(e.clientY - d.startY, k))
       if (d.kind === 'move') setGhost({ box: { ...d.box, left: d.box.left + rx, top: d.box.top + ry }, text: `${rx >= 0 ? '+' : ''}${rx}, ${ry >= 0 ? '+' : ''}${ry}` })
       else {
-        const b = resizedBox(d.box, d.kind, rx, ry)
-        setGhost({ box: b, text: `${Math.round(b.width)} × ${Math.round(b.height)}` })
+        const { box: b, snapped } = resizeBox(d, d.kind, rx, ry)
+        setGhost({ box: b, text: snapped ? labels.fullWidth : `${Math.round(b.width)} × ${Math.round(b.height)}` })
       }
       return
     }
@@ -221,7 +241,10 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     const k = kNow()
     const dx = Math.round(toCss(e.clientX - d.startX, k)), dy = Math.round(toCss(e.clientY - d.startY, k))
     if (d.kind === 'move') onMove(dx, dy)
-    else onResize({ handle: d.kind, box: resizedBox(d.box, d.kind, dx, dy) })
+    else {
+      const { box, snapped } = resizeBox(d, d.kind, dx, dy)
+      onResize({ handle: d.kind, box, fullWidth: snapped })
+    }
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -273,7 +296,9 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
               )}
               {ghost && (
                 <div className="ue-ghost" style={place(ghost.box)} aria-hidden="true">
-                  <span className="ue-ghost-text">{ghost.text}</span>
+                  <span className="ue-ghost-text" data-drag-label>
+                    {ghost.text}
+                  </span>
                 </div>
               )}
             </div>

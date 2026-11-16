@@ -1,4 +1,4 @@
-/* The UI Editor tool: the top bar, the preview with its pointer layer, the side panel and the messages. Tokens only (src/styles/tokens.css). */
+/* The UI Editor tool: the top bar, the editing ribbon, the preview with its pointer layer and the messages. Tokens only (src/styles/tokens.css). */
 .ue-tool {
   display: flex;
   flex-direction: column;
@@ -223,12 +223,9 @@
   background: var(--color-bg);
 }
 
-/* ---- the work area: preview left, panel right (below the preview on a narrow window) ---- */
+/* ---- the work area: the preview, full width, under the ribbon ---- */
 .ue-work {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 360px);
-  gap: var(--space-4);
-  align-items: start;
+  display: block;
 }
 
 .ue-preview {
@@ -544,49 +541,216 @@
   white-space: nowrap;
 }
 
-/* ---- the side panel ---- */
-.ue-side {
-  position: sticky;
-  top: calc(var(--site-header-height, 0px) + var(--space-3));
+/* ---- the editing ribbon: Text | Box | Colours | Position, then the selected element and the Link checkbox at the right end. Full width, at most two rows
+   from 1280 px, wrapping (with 44 px controls) below 1000 px. Tokens only; text is never under 14px. ---- */
+.ue-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.ue-tool .ue-ribbon {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-height: calc(100vh - var(--site-header-height, 0px) - var(--space-5));
-}
-
-/* Only the panel scrolls; the result message stays in view under it. */
-.ue-side > .ue-panel {
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.ue-side > .ue-result {
-  flex: none;
-}
-
-.ue-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-1) 0;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
+  font-size: var(--text-small);
 }
 
-.ue-panel-title {
-  font-size: var(--text-label);
-  font-weight: var(--label-weight);
+.ue-rgroup {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: var(--space-1) 6px;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 6px;
+  border: 0;
+  border-right: 1px solid var(--color-border);
 }
 
-.ue-env {
+.ue-rctl {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.ue-rctl.is-sides {
+  gap: 3px;
+}
+
+/* Expanded, the four sides take a line of their own inside the Box group (the group keeps its width, so the ribbon stays two rows). */
+.ue-rgroup[data-ribbon-group='box'] {
+  flex: 0 0 39rem;
+  flex-wrap: wrap;
+}
+
+.ue-rctl.is-open {
+  flex: 0 0 100%;
+}
+
+.ue-sidec {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.ue-cap {
+  color: var(--color-text-muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.ue-tool .ue-ribbon .ue-rbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ue-tool .ue-ribbon .ue-rbtn:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.ue-tool .ue-ribbon .ue-rbtn[aria-pressed='true'] {
+  background: var(--color-navy);
+  color: var(--color-on-navy);
+}
+
+.ue-tool .ue-ribbon .ue-rbtn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ue-tool .ue-ribbon .ue-icon-svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ue-tool .ue-ribbon .ue-expand[aria-expanded='true'] .ue-icon-svg {
+  transform: rotate(180deg);
+}
+
+/* A stepper: minus, the number (a real text input), plus, joined. */
+.ue-stp {
+  display: inline-flex;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn {
+  min-width: 22px;
+  padding: 0;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.ue-tool .ue-ribbon .ue-num {
+  width: 3.9em;
+  min-height: 0;
+  height: 28px;
+  padding: 0 2px;
+  border-radius: 0;
+  text-align: center;
+}
+
+.ue-tool .ue-ribbon .ue-num.is-wide {
+  width: 4.5em;
+  padding: 0 6px;
+  border-radius: 4px 0 0 4px;
+  text-align: left;
+}
+
+.ue-tool .ue-ribbon select {
+  min-height: 0;
+  height: 28px;
+  max-width: 11em;
+  padding: 0 4px;
+}
+
+.ue-tool .ue-ribbon .ue-fam {
+  width: 8em;
+}
+
+/* The swatch is the browser's own colour input, sized like a button. */
+.ue-tool .ue-ribbon .ue-swatch {
+  width: 30px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 0 4px 4px 0;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.ue-tool .ue-ribbon .ue-swatch:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ue-seg {
+  display: inline-flex;
+}
+
+.ue-tool .ue-ribbon .ue-seg .ue-rbtn {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.ue-tool .ue-ribbon .ue-seg .ue-rbtn:first-child {
+  border-radius: 4px 0 0 4px;
+  margin-left: 0;
+}
+
+.ue-tool .ue-ribbon .ue-seg .ue-rbtn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.ue-tool .ue-ribbon .ue-unit {
+  min-width: 24px;
+}
+
+/* The right end: which element, the Link checkbox with its tooltip, and the one plain line when nothing can be edited. */
+.ue-rend {
+  display: flex;
+  flex: 1 1 14em;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 12em;
+  max-width: 24em;
+  margin-left: auto;
+  padding: 0 var(--space-2);
+}
+
+.ue-rlabel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
   margin: 0;
   color: var(--color-text-secondary);
 }
 
-.ue-selected {
-  margin: 0;
-  min-height: 1.5em;
+.ue-rlabel [data-selected-label] {
   color: var(--color-navy);
   font-family: var(--font-mono);
   font-weight: 600;
@@ -594,53 +758,30 @@
 }
 
 .ue-linkrow {
-  display: flex;
-  gap: var(--space-2);
+  display: inline-flex;
+  gap: var(--space-1);
   align-items: center;
-  min-height: 36px;
+  color: var(--color-text-secondary);
+  cursor: help;
 }
 
-.ue-group {
-  min-width: 0;
+.ue-rnote {
   margin: 0;
-  padding: var(--space-2) var(--space-3) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-}
-
-.ue-group legend {
-  padding: 0 var(--space-1);
   color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  line-height: 1.3;
 }
 
-.ue-row {
-  display: grid;
-  grid-template-columns: 7.5em minmax(0, 1fr) auto;
-  gap: var(--space-2);
-  align-items: center;
-  margin: var(--space-1) 0;
+.ue-rnote[hidden] {
+  display: none;
 }
 
-.ue-row label {
-  overflow-wrap: anywhere;
-}
-
-.ue-swatch {
-  width: 36px;
-  height: 36px;
-  padding: 2px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  background: var(--color-surface);
-}
-
-.ue-moves {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.ue-tool .ue-ribbon button:focus-visible,
+.ue-tool .ue-ribbon select:focus-visible,
+.ue-tool .ue-ribbon input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  position: relative;
+  z-index: 1;
 }
 
 .ue-dot {
@@ -703,19 +844,6 @@
 }
 
 @media (max-width: 1099px) {
-  .ue-work {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ue-side {
-    position: static;
-    max-height: none;
-  }
-
-  .ue-side > .ue-panel {
-    overflow-y: visible;
-  }
-
   .ue-paste {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -739,24 +867,57 @@
     gap: var(--space-2) var(--space-3);
   }
 
+  /* The ribbon wraps, and every control is at least 44 x 44. */
+  .ue-tool .ue-ribbon .ue-rbtn,
+  .ue-tool .ue-ribbon .ue-stp .ue-rbtn,
+  .ue-tool .ue-ribbon .ue-unit {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-num,
+  .ue-tool .ue-ribbon select,
+  .ue-tool .ue-ribbon .ue-swatch {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-linkrow input[type='checkbox'] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-linkrow {
+    min-height: 44px;
+  }
+
+  .ue-rgroup {
+    border-right: 0;
+  }
+}
+
+/* Below 1000 px the ribbon's groups wrap, so no control is ever off the page. */
+@media (max-width: 999px) {
+  .ue-rgroup,
+  .ue-rgroup[data-ribbon-group='box'] {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .ue-rend {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
   .ue-tool .btn,
   .ue-tool select,
   .ue-tool input[type='text'],
-  .ue-linkrow,
   .ue-review-item,
   .ue-code summary {
     min-height: 44px;
   }
 
-  .ue-linkrow input[type='checkbox'] {
-    width: 44px;
-    height: 44px;
-  }
-
-  .ue-swatch {
-    width: 44px;
-    height: 44px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

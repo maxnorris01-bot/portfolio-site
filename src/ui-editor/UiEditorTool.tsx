@@ -5,12 +5,13 @@ import { canRotate, isEditable, viewport, type Orientation } from './devices'
 import { cssSizeFor, handleAxes } from './geometry'
 import { IconButton, type IconName } from './icons'
 import { fromFiles, fromPaste, downloadName, type Doc, type Incoming } from './intake'
-import Panel, { type ViewName } from './Panel'
+import Ribbon, { type ViewName } from './Ribbon'
 import { SAMPLES, type SampleId } from './samples'
-import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, pathOf, setViewport, type Session } from './session'
+import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
+import { widthToWrite, type WidthUnit } from './units'
 import { listUnlinked, type Edit, type Environment } from './vendor/engine.js'
 import './UiEditorTool.css'
 
@@ -44,6 +45,7 @@ export default function UiEditorTool() {
   const [pasteOpen, setPasteOpen] = useState(false)
   const [holdHeight, setHoldHeight] = useState(0)
   const [galleryOpen, setGalleryOpen] = useState(false)
+  const [unitState, setUnitState] = useState<{ path: string | null; unit: WidthUnit }>({ path: null, unit: 'px' })
 
   const frameHost = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLElement>(null)
@@ -117,6 +119,8 @@ export default function UiEditorTool() {
     [],
   )
 
+  // The width unit belongs to the selected element: another selection starts in px again.
+  const widthUnit: WidthUnit = unitState.path === selPath ? unitState.unit : 'px'
   const selected = session && selPath ? indexOfPath(session.preview.model, selPath) : -1
   const selIndex = selected >= 0 ? selected : null
   const pins = session ? listUnlinked(session.state) : []
@@ -229,7 +233,7 @@ export default function UiEditorTool() {
     if (t === null) return
     run({ op: 'offset', target: t, dx, dy, ...scope() }, `nudged by ${dx}, ${dy} px`)
   }
-  const onResize = ({ handle, box }: ResizeRequest) => {
+  const onResize = ({ handle, box, fullWidth }: ResizeRequest) => {
     const t = target()
     const el = t !== null ? session?.preview.elements[t] : null
     if (t === null || !el || !session) return
@@ -237,9 +241,11 @@ export default function UiEditorTool() {
     const num = (v: string) => parseFloat(v) || 0
     const size = cssSizeFor(box, { sizing: cs.boxSizing, paddingX: num(cs.paddingLeft) + num(cs.paddingRight), paddingY: num(cs.paddingTop) + num(cs.paddingBottom), borderX: num(cs.borderLeftWidth) + num(cs.borderRightWidth), borderY: num(cs.borderTopWidth) + num(cs.borderBottomWidth) })
     const axes = handleAxes(handle)
-    const unit = isSvgElement(el) ? '' : 'px'
+    const svg = isSvgElement(el)
+    const unit = svg ? '' : 'px'
     const properties: Record<string, string> = {}
-    if (axes.width) properties.width = `${size.width}${unit}`
+    // A width is written in the unit the ribbon is in (px or % of the parent's content width), or as 100% when the drag snapped to the parent's edge.
+    if (axes.width) properties.width = svg ? `${size.width}` : widthToWrite({ unit: widthUnit, cssPx: size.width, parentPx: parentContentWidth(el), snapped: fullWidth })
     if (axes.height) properties.height = `${size.height}${unit}`
     run({ op: 'set', target: t, properties, ...scope() }, `resized to ${Object.values(properties).join(' × ')}`)
   }
@@ -480,6 +486,30 @@ export default function UiEditorTool() {
       {!hasDoc && galleryShown && <Gallery overlay={false} onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
 
       {hasDoc && (
+        <>
+          <Ribbon
+            session={session}
+            rev={rev}
+            nonce={nonce}
+            selected={selIndex}
+            view={view}
+            editable={editable}
+            lockedNote={view === 'Tablet' ? panel.tablet : panel.viewOnly}
+            link={link}
+            onLink={setLink}
+            unit={widthUnit}
+            onUnit={(u) => setUnitState({ path: selPath, unit: u })}
+            pins={mine}
+            onSet={onSet}
+            onBadValue={onBadValue}
+            onMove={onReorder}
+            onNudge={onNudge}
+          />
+          {result}
+        </>
+      )}
+
+      {hasDoc && (
         <div className="ue-work">
           <div className="ue-preview">
             {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
@@ -494,16 +524,6 @@ export default function UiEditorTool() {
                 {deviceNote}
               </p>
             )}
-          </div>
-          <div className="ue-side">
-            {session ? (
-              <Panel session={session} rev={rev} nonce={nonce} selected={selIndex} view={view} editable={editable} lockedNote={view === 'Tablet' ? panel.tablet : panel.viewOnly} link={link} onLink={setLink} pins={mine} onSet={onSet} onBadValue={onBadValue} onMove={onReorder} onNudge={onNudge} />
-            ) : (
-              <aside className="ue-panel" aria-label={panel.title}>
-                <p className="ue-hint">{messages.working}</p>
-              </aside>
-            )}
-            {result}
           </div>
         </div>
       )}

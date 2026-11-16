@@ -2,7 +2,7 @@
 // No icon library. Each icon is decoration: the button it sits in carries the accessible name (aria-label) and the tooltip (title).
 import type { ReactNode } from 'react'
 
-export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate'
+export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'expand'
 
 const PATHS: Record<IconName, ReactNode> = {
   desktop: (
@@ -35,6 +35,14 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   download: <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />,
+  // The ribbon's own: text alignment, order and the expand chevron.
+  alignLeft: <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />,
+  alignCentre: <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />,
+  alignRight: <path d="M4 6h16M10 10h10M4 14h16M10 18h10" />,
+  alignJustify: <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />,
+  moveUp: <path d="M12 19V6M6 11l6-6 6 6" />,
+  moveDown: <path d="M12 5v13M6 13l6 6 6-6" />,
+  expand: <path d="m6 9 6 6 6-6" />,
   // A device outline with a small curved arrow over it.
   rotate: (
     <>

@@ -1,5 +1,5 @@
 // The glue between the editor and the vendored engine. One Session is one open document with its live preview: the preview is built from the
-// ORIGINAL source and the ordered edit list is replayed on it, so the preview, the panel values and the export all come from the engine's own
+// ORIGINAL source and the ordered edit list is replayed on it, so the preview, the ribbon's values and the export all come from the engine's own
 // result. A new edit is applied to the live preview (the engine's DOM operations); anything that is not "one more edit" (Undo, Redo, Reset,
 // a merged move) replays the list on a fresh preview.
 import * as engine from './vendor/engine.js'
@@ -84,6 +84,14 @@ export const setViewport = (s: Session, vp: Viewport): void => {
 }
 
 export const closeSession = (s: Session | null): void => s?.preview.dispose()
+
+/** The content width of an element's parent in CSS px (its width less its padding): what a percent width resolves against. 0 without a parent. */
+export function parentContentWidth(el: Element): number {
+  const p = el.parentElement
+  if (!p) return 0
+  const c = el.ownerDocument.defaultView!.getComputedStyle(p)
+  return Math.max(0, p.clientWidth - (parseFloat(c.paddingLeft) || 0) - (parseFloat(c.paddingRight) || 0))
+}
 
 // ---- elements ----
 
