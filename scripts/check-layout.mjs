@@ -30,7 +30,8 @@ import { createServer } from 'vite'
 const ALL = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080]]
 // CHECK_SIZES=1440x900,1920x1080 limits the run to some sizes.
 const SIZES = process.env.CHECK_SIZES ? ALL.filter(([w, h]) => process.env.CHECK_SIZES.split(',').includes(`${w}x${h}`)) : ALL
-const PLANETS = ['SatPOV', 'ShopAI', 'Résumé']
+// With VITE_SHOW_UI_EDITOR=true Home has a fourth planet (the UI Editor, behind a flag) and the check runs it too.
+const PLANETS = ['SatPOV', 'ShopAI', 'Résumé', ...(process.env.VITE_SHOW_UI_EDITOR === 'true' ? ['UI Editor'] : [])]
 const ASK = { panelMax: 460, panelMaxPhone: 560, tileMin: 140, tileMinPhone: 150, tileMax: 340, band: 48, rowDiff: 2, cover: 0.7, cover2: 0.5, sideGap: 24 } // the questions panel (one question at a time): heights and tile widths wanted
 const TARGET = { hFill: 0.85, vFill: 0.8, cplMin: 45, cplMax: 80, slotFill: 0.85, system: 0.4, rowPad: 16 }
 const expectedFile = fileURLToPath(new URL('./check-layout.expected.json', import.meta.url))
@@ -156,6 +157,13 @@ const STYLE_PAGES = [
   { name: 'ShopAI (wait)', path: '/shop?fixture=running', ready: '.wait-panel', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.wait-side', paras: '', extra: 'shopWait', onScale: true },
   { name: 'ShopAI (wait, slow)', path: '/shop?fixture=slow', ready: '.wait-panel', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.wait-side', paras: '', extra: 'shopWait', onScale: true },
   { name: 'ShopAI (wait, again)', path: '/shop?fixture=again', ready: '.wait-panel', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.wait-side', paras: '', extra: 'shopWait', onScale: true },
+  // The UI Editor, behind a flag: measured only when it is on (VITE_SHOW_UI_EDITOR=true).
+  ...(process.env.VITE_SHOW_UI_EDITOR === 'true'
+    ? [
+        { name: 'Home (UI Editor)', path: '/', planet: 'UI Editor', ready: '.home-slot-live', h1: '.home-title', body: '.home-row-text', bodyToken: 'card', cards: '.home-info', paras: '.home-row-text, .home-slot p', onScale: true },
+        { name: 'UI Editor', path: '/ui-editor', ready: '.ue-tool', h1: '.page-title', body: '.page-lede', bodyToken: 'body', cards: '.ue-step', paras: '.ue-list li', onScale: true },
+      ]
+    : []),
   { name: '404', path: '/nope', ready: '.page-title', h1: '.page-title', body: '', bodyToken: 'body', cards: '', paras: '', onScale: true },
 ]
 

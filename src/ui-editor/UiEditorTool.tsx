@@ -39,6 +39,7 @@ export default function UiEditorTool() {
   const [holdHeight, setHoldHeight] = useState(0)
 
   const frameHost = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLElement>(null)
   const sessionRef = useRef<Session | null>(null)
   const listRef = useRef(list)
   const viewRef = useRef(view)
@@ -196,7 +197,13 @@ export default function UiEditorTool() {
     // Moving is unlinked in this version (an SVG has no environments, so there it applies everywhere).
     run({ op: 'offset', target: t, dx, dy, environment, link: !!svgDoc }, `moved by ${dx}, ${dy} px${svgDoc ? '' : ` (${view} only)`}`)
   }
+  // Keys that arrive while the preview is being rebuilt (a run of arrow presses is one merged edit) are added up and applied when it is ready.
+  const pendingNudge = useRef({ dx: 0, dy: 0 })
   const onNudge = (dx: number, dy: number) => {
+    if (busyRef.current) {
+      pendingNudge.current = { dx: pendingNudge.current.dx + dx, dy: pendingNudge.current.dy + dy }
+      return
+    }
     const t = target()
     if (t === null) return
     run({ op: 'offset', target: t, dx, dy, ...scope() }, `nudged by ${dx}, ${dy} px`)
@@ -300,9 +307,23 @@ export default function UiEditorTool() {
     setReviewOpen(false)
   }
 
+  const latestNudge = useRef(onNudge)
+  useEffect(() => {
+    latestNudge.current = onNudge
+  })
+  useEffect(() => {
+    const { dx, dy } = pendingNudge.current
+    // A button that was just used may have become disabled (Undo on the last edit): keep the focus in the editor so Ctrl-Z and the arrows still work.
+    if (!busy && session && document.activeElement === document.body) rootRef.current?.querySelector<HTMLElement>('.ue-overlay')?.focus({ preventScroll: true })
+    if (!busy && session && (dx !== 0 || dy !== 0)) {
+      pendingNudge.current = { dx: 0, dy: 0 }
+      latestNudge.current(dx, dy)
+    }
+  }, [busy, session])
+
   const hasDoc = !!doc
   return (
-    <section className="ue-tool" data-editor aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
+    <section ref={rootRef} className="ue-tool" data-editor aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
       <div className="ue-bar" role="group" aria-label={labels.bar}>
         <div className="ue-bar-group">
           <label htmlFor="ue-sample">{labels.sample}</label>
