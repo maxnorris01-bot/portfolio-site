@@ -377,31 +377,33 @@ export default function UiEditorTool() {
         </div>
         {hasDoc && (
           <>
-            <div className="ue-bar-group" role="group" aria-label={labels.view}>
-              {VIEWS.map((v) => (
-                <IconButton key={v.name} icon={v.icon} label={v.name} pressed={view === v.name} onClick={() => onView(v.name)} />
-              ))}
-              {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} onClick={onRotate} />}
-            </div>
-            <div className="ue-bar-group">
-              <IconButton icon="undo" label={labels.undo} disabled={!canUndo(list) || busy} onClick={onUndo} />
-              <IconButton icon="redo" label={labels.redo} disabled={!canRedo(list) || busy} onClick={onRedo} />
-              <IconButton icon="reset" label={labels.resetAll} disabled={!canUndo(list) || busy} onClick={onReset} />
-            </div>
-            <div className="ue-bar-group">
-              <IconButton icon="review" label={labels.review(pins.length)} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
-            </div>
-            <div className="ue-bar-group">
-              <label htmlFor="ue-file">{labels.file}</label>
-              <select id="ue-file" value={file} disabled={files.length === 0} onChange={(e) => setFileName(e.currentTarget.value)}>
-                {files.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
+            <div className="ue-bar-tools">
+              <div className="ue-bar-group" role="group" aria-label={labels.view}>
+                {VIEWS.map((v) => (
+                  <IconButton key={v.name} icon={v.icon} label={v.name} pressed={view === v.name} onClick={() => onView(v.name)} />
                 ))}
-              </select>
-              <IconButton icon="copy" label={labels.copy} disabled={!session} onClick={() => void onCopy()} />
-              <IconButton icon="download" label={labels.download} disabled={!session} onClick={onDownload} />
+                {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} onClick={onRotate} />}
+              </div>
+              <div className="ue-bar-group">
+                <IconButton icon="undo" label={labels.undo} disabled={!canUndo(list) || busy} onClick={onUndo} />
+                <IconButton icon="redo" label={labels.redo} disabled={!canRedo(list) || busy} onClick={onRedo} />
+                <IconButton icon="reset" label={labels.resetAll} disabled={!canUndo(list) || busy} onClick={onReset} />
+              </div>
+              <div className="ue-bar-group">
+                <IconButton icon="review" label={labels.review(pins.length)} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
+              </div>
+              <div className="ue-bar-group">
+                <label htmlFor="ue-file">{labels.file}</label>
+                <select id="ue-file" value={file} disabled={files.length === 0} onChange={(e) => setFileName(e.currentTarget.value)}>
+                  {files.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+                <IconButton icon="copy" label={labels.copy} disabled={!session} onClick={() => void onCopy()} />
+                <IconButton icon="download" label={labels.download} disabled={!session} onClick={onDownload} />
+              </div>
             </div>
           </>
         )}

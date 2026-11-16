@@ -63,3 +63,15 @@ test('the gallery has a fourth card, "Your own code", with a blank-page miniatur
   // Every route that replaces an open document still asks first.
   assert.equal((tool.match(/replaceDocument\(/g) ?? []).length, 3, 'a sample, an upload and a paste')
 })
+
+test('the bar puts Samples at the left edge and the icon groups together at the right edge', () => {
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  assert.match(tool, /<div className="ue-bar-tools">/)
+  const css = read('src/ui-editor/UiEditorTool.css')
+  assert.match(css, /\.ue-bar-tools \{[^}]*margin-left: auto/)
+  assert.match(css, /\.ue-bar-tools \{[^}]*justify-content: flex-end/)
+  // Samples is before the tools, and the tools hold View, history, Review and File.
+  const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
+  assert.ok(bar.indexOf('labels.samplesButton') < bar.indexOf('ue-bar-tools'))
+  for (const part of ['labels.view', 'labels.undo', 'labels.redo', 'labels.resetAll', 'labels.review(', 'labels.file', 'labels.copy', 'labels.download']) assert.ok(bar.indexOf('ue-bar-tools') < bar.indexOf(part), part)
+})

@@ -80,9 +80,27 @@
   align-items: center;
 }
 
-.ue-bar-group + .ue-bar-group {
+/* Samples at the left edge; the icon groups (view, history, review, file) together at the right edge. */
+.ue-bar-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) 0;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.ue-bar-group + .ue-bar-group,
+.ue-bar-tools > .ue-bar-group {
   padding-left: var(--space-3);
+  margin-left: var(--space-3);
   border-left: 1px solid var(--color-border);
+}
+
+.ue-bar-tools > .ue-bar-group:first-child {
+  padding-left: 0;
+  margin-left: 0;
+  border-left: 0;
 }
 
 /* Icon buttons: 20 px glyphs in a 36 px square (44 px on a phone), a tooltip from the title, a visible focus ring, and a dimmed look when disabled. */
@@ -710,9 +728,15 @@
     min-width: 44px;
   }
 
-  .ue-bar-group + .ue-bar-group {
+  .ue-bar-group + .ue-bar-group,
+  .ue-bar-tools > .ue-bar-group {
     padding-left: 0;
+    margin-left: 0;
     border-left: 0;
+  }
+
+  .ue-bar-tools {
+    gap: var(--space-2) var(--space-3);
   }
 
   .ue-tool .btn,
