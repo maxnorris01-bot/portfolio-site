@@ -19,7 +19,7 @@
   opacity: 0.45;
 }
 
-.ue-tool .btn.ue-view[aria-pressed='true'] {
+.ue-tool .btn.ue-icon[aria-pressed='true'] {
   background: var(--color-navy);
   color: var(--color-on-navy);
 }
@@ -61,11 +61,11 @@
   line-height: var(--leading);
 }
 
-/* ---- the bar ---- */
+/* ---- the bar: five groups (open | view | history | review | file), separated by a thin rule, no large gaps ---- */
 .ue-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3) var(--space-4);
+  gap: var(--space-2) var(--space-3);
   align-items: center;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
@@ -76,8 +76,55 @@
 .ue-bar-group {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   align-items: center;
+}
+
+.ue-bar-group + .ue-bar-group {
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--color-border);
+}
+
+/* Icon buttons: 20 px glyphs in a 36 px square (44 px on a phone), a tooltip from the title, a visible focus ring, and a dimmed look when disabled. */
+.ue-tool .btn.ue-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+
+.ue-icon-svg {
+  display: block;
+  flex: none;
+}
+
+.ue-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: var(--color-on-navy);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.ue-tool .btn:focus-visible,
+.ue-tool select:focus-visible,
+.ue-tool input:focus-visible,
+.ue-tool textarea:focus-visible,
+.ue-tool summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .ue-confirm,
@@ -453,6 +500,16 @@
 
 /* A phone: every control that can be tapped is at least 44 CSS px tall. */
 @media (max-width: 700px), (pointer: coarse) {
+  .ue-tool .btn.ue-icon {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .ue-bar-group + .ue-bar-group {
+    padding-left: 0;
+    border-left: 0;
+  }
+
   .ue-tool .btn,
   .ue-tool select,
   .ue-tool input[type='text'],

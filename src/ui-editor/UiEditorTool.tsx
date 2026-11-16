@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { MAX_BYTES, VIEW_WIDTHS, labels, messages, panel } from '../data/uiEditor'
 import { cssSizeFor, handleAxes } from './geometry'
+import { IconButton, type IconName } from './icons'
 import { fromFiles, fromPaste, downloadName, type Doc, type Incoming } from './intake'
 import Panel, { type ViewName } from './Panel'
 import { SAMPLES, type SampleId } from './samples'
@@ -14,7 +15,11 @@ import './UiEditorTool.css'
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[] }
 type Confirm = { text: string; run: () => void }
 
-const VIEWS: ViewName[] = ['Desktop', 'Tablet', 'Phone']
+const VIEWS: { name: ViewName; icon: IconName }[] = [
+  { name: 'Desktop', icon: 'desktop' },
+  { name: 'Tablet', icon: 'tablet' },
+  { name: 'Phone', icon: 'phone' },
+]
 const SAMPLE_IDS = Object.keys(SAMPLES) as SampleId[]
 
 /** The visitor-facing editor: open some HTML or SVG, select an element, change it, copy or download the updated code. */
@@ -345,24 +350,16 @@ export default function UiEditorTool() {
         </div>
         <div className="ue-bar-group" role="group" aria-label={labels.view}>
           {VIEWS.map((v) => (
-            <button key={v} type="button" className="btn btn-secondary ue-view" aria-pressed={view === v} onClick={() => onView(v)}>
-              {v}
-            </button>
+            <IconButton key={v.name} icon={v.icon} label={v.name} pressed={view === v.name} onClick={() => onView(v.name)} />
           ))}
         </div>
         <div className="ue-bar-group">
-          <button type="button" className="btn btn-secondary" disabled={!canUndo(list) || busy} onClick={onUndo}>
-            {labels.undo}
-          </button>
-          <button type="button" className="btn btn-secondary" disabled={!canRedo(list) || busy} onClick={onRedo}>
-            {labels.redo}
-          </button>
-          <button type="button" className="btn btn-secondary" disabled={!canUndo(list) || busy} onClick={onReset}>
-            {labels.resetAll}
-          </button>
-          <button type="button" className="btn btn-secondary" aria-expanded={reviewOpen} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)}>
-            {labels.review(pins.length)}
-          </button>
+          <IconButton icon="undo" label={labels.undo} disabled={!canUndo(list) || busy} onClick={onUndo} />
+          <IconButton icon="redo" label={labels.redo} disabled={!canRedo(list) || busy} onClick={onRedo} />
+          <IconButton icon="reset" label={labels.resetAll} disabled={!canUndo(list) || busy} onClick={onReset} />
+        </div>
+        <div className="ue-bar-group">
+          <IconButton icon="review" label={labels.review(pins.length)} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
         </div>
         <div className="ue-bar-group">
           <label htmlFor="ue-file">{labels.file}</label>
@@ -373,12 +370,8 @@ export default function UiEditorTool() {
               </option>
             ))}
           </select>
-          <button type="button" className="btn btn-secondary" disabled={!session} onClick={() => void onCopy()}>
-            {labels.copy}
-          </button>
-          <button type="button" className="btn btn-secondary" disabled={!session} onClick={onDownload}>
-            {labels.download}
-          </button>
+          <IconButton icon="copy" label={labels.copy} disabled={!session} onClick={() => void onCopy()} />
+          <IconButton icon="download" label={labels.download} disabled={!session} onClick={onDownload} />
         </div>
       </div>
 
