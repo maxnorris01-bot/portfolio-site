@@ -64,3 +64,19 @@ Covered by the scorer check: the twelve round 2 faults on `reference/round2.html
 | # | Change | Why |
 |---|---|---|
 | 19 | The `message` assert reads the last message the ACTION gave, as it stood before the runner's own Download (the runner downloads to read the export, and the page then says "Saved ..."). The memory is cleared by the next step that can edit. | R08 ends with "the message says applied" after export checks that download; the real page (as S20 requires) then says "Saved landing.css." The stub never changed its message on a download, so the scorer check could not see it. NOT a pure "same control, new UI" mapping: it changes what an assertion reads, so Max decides whether it counts. |
+
+## 2026-11-15, formatting round 3 (`feat/ui-editor-format1`, on top of round 2)
+
+Rules: `docs/ui-editor-gate-rules-round3.md`; specs: `scripts/ui-editor-gate/specs-round3.json` (locked in `808c111`). No spec, rule, sample or expected value was
+changed by any entry below. The scorer check is in `docs/ui-editor-baseline-round3.md`.
+
+| # | Change | Why |
+|---|---|---|
+| 20 | The runner loads the fourth spec file; `retiredChecks` of `specs-round3.json` skip exactly R07's steps 11 to 17 and R14's assert `onlyRotateText`, shown as `RETIRED CHECK` lines (never counted as passed); the pass line adds T01 to T16 all PASS. `--stub4` runs the round 3 stub. A file is chosen in the File select by its option **value** (the file name), and the select is left alone when the file is already shown. | Rules sections 2 and 6. **Mapping**: the option text now carries a count (`landing.css (1)`), so a label can no longer name the file; and a runner download through the select must not count as the visitor choosing a file. |
+| 21 | A step that acts on a control (`button`, `type`, `stepper`, `choose`, `unit`, `uncheck`) first clicks the ribbon tab that holds it when the control is not visible (`reveal`). New steps `tab`, `remember`, `key`, `reload`; `drag` takes `alt`. | **Mapping**: the same control, now on the Home or the Layout tab. Both panels stay in the DOM, so the asserts that read a state need no change. |
+| 22 | New asserts, all listed in `specs-round3.json` (`vocabulary`): ribbon structure, sizes, quick-bar order, view style, disabled rules, popover, grid, snap, file marks and the walk, tabs and focus, narrow window. **Reading of `gridAbove`:** the locked text says `elementsFromPoint` lists the overlay before the iframe, but an element with `pointer-events: none` (which the same assert requires) is never hit-tested, so it is read as "the overlay follows the iframe in document order and is positioned (absolute or fixed, no negative z-index)". | **My slip in the locked T08.** A reading, not an edit; Max decides. |
+| 23 | **Reading of `walkChanges`:** "the shown file did not change from the first changed file after the second edit" is read as "after the font size edit (which changes `landing.css` only: S09 and S20) and then the reorder (`landing.html`), the shown file is still `landing.css`". | The locked text does not say which file the first edit changed. |
+| 24 | A check listed by a spec that has no assert of that kind is reported as `VACUOUS` and not scored, for T specs and for R07 (its only P5 assert is a retired check). The earlier files keep the strict reading. | **My slip in the locked T11** (lists P5, has no P5 assert); and R07 once its retired steps are skipped. Max decides whether that counts. |
+
+Covered by the scorer check: the twenty round 3 faults on `scripts/ui-editor-gate/reference/round3.html`, the twelve round 2 faults on `reference/round2.html` and the five original
+faults on `reference/index.html` (`docs/ui-editor-baseline-round3.md`).

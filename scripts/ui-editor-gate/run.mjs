@@ -3,7 +3,8 @@
 //   node scripts/ui-editor-gate/run.mjs --stub [--fault half-drag] [--only S04,S05]      the scorer-check stub (see reference/)
 //   node scripts/ui-editor-gate/run.mjs --stub2 [--fault no-scale] [--only N01,N05]       the round 1 scorer-check stub (reference/round1.html)
 //   node scripts/ui-editor-gate/run.mjs --stub3 [--fault no-wrap] [--only R12]            the round 2 scorer-check stub (reference/round2.html)
-// Both spec files run: specs.json (S01 to S20) and specs-round1.json (N01 to N11; rules in docs/ui-editor-gate-rules-round1.md). --only picks ids.
+//   node scripts/ui-editor-gate/run.mjs --stub4 [--fault no-alt] [--only T09]             the round 3 scorer-check stub (reference/round3.html)
+// All four spec files run: specs.json (S01 to S20), specs-round1.json (N01 to N11), specs-round2.json (R01 to R16) and specs-round3.json (T01 to T16). --only picks ids.
 //   node scripts/ui-editor-gate/run.mjs --url ... --noop                                  load each sample, export, compare to the source
 // Needs Playwright with Chromium (not a dependency of this repo): installed here, or in PLAYWRIGHT_DIR (a folder whose node_modules has it).
 // Headless Chromium, a fresh context per action, real mouse events, no retries. Results go to UI_GATE_OUT (default scripts/ui-editor-gate/out, git-ignored).
@@ -34,6 +35,7 @@ try {
 const specsFile = JSON.parse(readFileSync(join(here, 'specs.json'), 'utf8'))
 const round1File = JSON.parse(readFileSync(join(here, 'specs-round1.json'), 'utf8'))
 const round2File = JSON.parse(readFileSync(join(here, 'specs-round2.json'), 'utf8'))
+const round3File = JSON.parse(readFileSync(join(here, 'specs-round3.json'), 'utf8'))
 const { SAMPLE_FILES } = await import(new URL('../../src/ui-editor/samples/manifest.ts', import.meta.url))
 const sampleDir = join(root, 'src', 'ui-editor', 'samples')
 const sources = {}
@@ -59,9 +61,9 @@ const exportServer = createServer((q, r) => {
 const exportPort = await listen(exportServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (flag('--stub') || flag('--stub2') || flag('--stub3')) {
+if (flag('--stub') || flag('--stub2') || flag('--stub3') || flag('--stub4')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -185,8 +187,7 @@ async function runSpec(spec) {
   const grab = async (file) => {
     const before = ((await region().innerText().catch(() => '')) ?? '').toLowerCase()
     if (before && !/^(saved|copied)/.test(before)) lastEditMessage = before
-    const sel = page.getByLabel('File', { exact: true })
-    if (await sel.count()) await sel.selectOption({ label: file })
+    await chooseFile(file)
     const dl = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Download', exact: true }).click()
     const d = await dl
@@ -194,6 +195,13 @@ async function runSpec(spec) {
     const chunks = []
     for await (const c of stream) chunks.push(c)
     return { name: d.suggestedFilename(), text: Buffer.concat(chunks).toString('utf8') }
+  }
+  // ROUND 3 (docs/ui-editor-gate-log.md #20): a file is chosen by its option VALUE (the file name; the text now carries a count), and the select is left alone when
+  // the file is already shown (a download must not count as the visitor choosing a file).
+  const chooseFile = async (file) => {
+    const sel = page.getByLabel('File', { exact: true })
+    if (!(await sel.count())) return
+    if ((await sel.inputValue()) !== file) await sel.selectOption({ value: file })
   }
   const grabAll = async () => {
     const out = {}
@@ -227,6 +235,11 @@ async function runSpec(spec) {
       if (s.mode === 'same' || s.mode === 'delta' || s.k === 'measureScaled') before[`${s.at}|${s.sel}|${s.q}`] = await measureNum(s.at, s.sel, s.q)
     }
     for (const s of spec.steps.filter((x) => x.do === 'assert' && x.k === 'css' && x.mode === 'delta')) before[`css|${s.sel}|${s.prop}`] = parseFloat(await page.evaluate(([sel, prop]) => window.__gate.cssOf('current', sel, prop), [s.sel, s.prop]))
+    for (const s of spec.steps.filter((x) => x.do === 'assert' && (x.k === 'snapMove' || x.k === 'snapEdge'))) {
+      const at = s.at ?? 'current'
+      const key = `pos|${at}|${s.sel}`
+      if (!(key in before)) before[key] = { left: await measureNum(at, s.sel, 'left'), top: await measureNum(at, s.sel, 'top'), width: await measureNum(at, s.sel, 'width') }
+    }
     for (const s of spec.steps.filter((x) => x.do === 'assert' && x.k === 'pctWidth')) {
       const w = await measureNum('current', s.sel, 'width'), pw = await page.evaluate((sel) => window.__gate.parentW('current', sel), s.sel)
       before[`pct|${s.sel}`] = (w / pw) * 100
@@ -246,6 +259,107 @@ async function runSpec(spec) {
     return page.locator(item.selector)
   }
   const label = (item) => item.name ?? item.text ?? item.selector
+  const memo = {}
+  const styles = {}
+  // ROUND 3 (log #21): a control on the other ribbon tab is reached by clicking its tab first (the same control, new UI). Both panels stay in the DOM.
+  const reveal = async (loc) => {
+    if (!(await loc.count().catch(() => 0))) return
+    const first = loc.first()
+    if (await first.isVisible().catch(() => true)) return
+    const tabId = await first.evaluate((e) => e.closest('[role=tabpanel]')?.getAttribute('aria-labelledby') ?? null).catch(() => null)
+    if (tabId) { await page.locator(`[id="${tabId}"]`).click(); await settle(page) }
+  }
+
+  // ---- round 3: numbers read from the page, and the file asserts (T13, T14). Each reads the page FIRST and downloads the files last (a download through the File select
+  // counts as the visitor choosing a file). The expected values come from the runner's own line diff of the downloaded export, never from the page. ----
+  const readNumber = (what) => page.evaluate((w) => {
+    if (w === 'panelHeight') { const p = [...document.querySelectorAll('[data-ribbon-panel]')].find((e) => e.getClientRects().length > 0); return p ? p.getBoundingClientRect().height : -1 }
+    if (w === 'ribbonHeight') return document.querySelector('[data-ribbon]')?.getBoundingClientRect().height ?? -1
+    if (w === 'stageTop') return (document.querySelector('[data-stage-area]')?.getBoundingClientRect().top ?? -1) + scrollY
+    if (w === 'elementCount') return window.__gate.frame().contentDocument.querySelectorAll('*').length
+    return NaN
+  }, what)
+  const readFileState = () => page.evaluate(() => {
+    const lab = [...document.querySelectorAll('label')].find((l) => l.textContent.trim() === 'File'), sel = lab ? document.getElementById(lab.htmlFor) : null
+    const btn = (n) => [...document.querySelectorAll('[role=group][aria-label="Editor controls"] button')].find((b) => (b.getAttribute('aria-label') ?? '') === n)
+    return {
+      value: sel?.value ?? null,
+      options: sel ? [...sel.options].map((o) => ({ value: o.value, text: o.textContent.trim() })) : [],
+      counter: document.querySelector('[data-change-counter]')?.textContent.trim() ?? '',
+      copy: { label: btn('Copy code')?.getAttribute('aria-label') ?? null, title: btn('Copy code')?.getAttribute('title') ?? '' },
+      dl: { label: btn('Download')?.getAttribute('aria-label') ?? null, title: btn('Download')?.getAttribute('title') ?? '' },
+      lines: [...document.querySelectorAll('[data-code-view] [data-line]')].map((l) => ({ n: Number(l.getAttribute('data-line')), change: l.getAttribute('data-change') })),
+      ticks: document.querySelectorAll('[data-change-map] button').length,
+    }
+  })
+  const fileDiffs = async (files) => { const out = {}; for (const f of files) out[f] = hunksOf(src.files[f], (await grab(f)).text); return out }
+  const marksProblems = (st, d, files) => {
+    const p = []
+    for (const f of files) {
+      const o = st.options.find((x) => x.value === f)
+      const want = d[f].length > 0 ? `${f} (${d[f].length})` : f
+      if (!o) p.push(`no option ${f}`)
+      else if (o.text !== want) p.push(`option "${o.text}", want "${want}"`)
+    }
+    return p
+  }
+  const groupsOfLines = (lines) => {
+    const by = new Map()
+    for (const l of lines) if (l.change !== null) by.set(l.change, [...(by.get(l.change) ?? []), l.n])
+    return [...by.values()].map((ns) => [Math.min(...ns), Math.max(...ns)]).sort((x, y) => x[0] - y[0])
+  }
+  async function fileAssert(a, R) {
+    const st = await readFileState()
+    const p = []
+    if (a.k === 'walkChanges') {
+      const m = /^0 of (\d+)$/.exec(st.counter)
+      const n0 = m ? Number(m[1]) : -1
+      const log = []
+      if (n0 < 1) p.push(`counter "${st.counter}", want "0 of N"`)
+      else {
+        const press = async (name) => { await page.getByRole('button', { name, exact: true }).click(); await settle(page); const s = await readFileState(); log.push({ counter: s.counter, shown: s.value, ticks: s.ticks }) }
+        for (let i = 0; i < n0 + 1; i++) await press('Next change')
+        await press('Previous change')
+      }
+      const d = await fileDiffs(a.files)
+      const all = a.files.flatMap((f) => d[f].map((h, i) => ({ f, i })))
+      const N = all.length
+      if (n0 >= 1 && n0 !== N) p.push(`the page counts ${n0} changes over all files, the diff has ${N}`)
+      // READING (docs/ui-editor-gate-log.md #23): "the shown file did not change from the first changed file after the second edit" is read as: after the font size edit
+      // (which changes landing.css only, S09 and S20) and then the reorder (landing.html), the shown file is still landing.css.
+      if (st.value !== 'landing.css') p.push(`the shown file is ${st.value}, want landing.css (it has changes, so the view stays)`)
+      p.push(...marksProblems(st, d, a.files))
+      if (n0 >= 1 && N >= 1 && n0 === N && log.length === N + 2) {
+        for (let k = 1; k <= N; k++) { const e = log[k - 1]; if (e.counter !== `${k} of ${N}` || e.shown !== all[k - 1].f) p.push(`Next ${k}: counter "${e.counter}" on ${e.shown}, want "${k} of ${N}" on ${all[k - 1].f}`) }
+        if (log[N].counter !== `1 of ${N}` || log[N].shown !== all[0].f) p.push(`Next past the end: "${log[N].counter}" on ${log[N].shown}, want "1 of ${N}" on ${all[0].f}`)
+        if (log[N + 1].counter !== `${N} of ${N}` || log[N + 1].shown !== all[N - 1].f) p.push(`Previous: "${log[N + 1].counter}" on ${log[N + 1].shown}, want "${N} of ${N}" on ${all[N - 1].f}`)
+        for (const e of log) if (e.ticks !== d[e.shown].length) p.push(`change map has ${e.ticks} ticks on ${e.shown}, want ${d[e.shown].length}`)
+      }
+      return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `${N} changes over ${a.files.length} files walked in order, wrapping both ways, the map follows the shown file`)
+    }
+    const d = await fileDiffs(a.files)
+    const changed = a.files.filter((f) => d[f].length > 0)
+    const N = changed.reduce((n, f) => n + d[f].length, 0)
+    p.push(...marksProblems(st, d, a.files))
+    if (a.k === 'codeShowsEdit') {
+      if (!changed.length) p.push('the export changed no file')
+      if (!changed.includes(st.value)) p.push(`the shown file ${st.value} is not a changed file (changed: ${changed.join(', ') || 'none'})`)
+      const got = groupsOfLines(st.lines), want = (d[st.value] ?? []).filter((h) => h.added > 0).map((h) => [h.after + 1, h.after + h.added])
+      if (!st.lines.some((l) => l.change !== null)) p.push('no highlighted line in the shown file')
+      else if (JSON.stringify(got) !== JSON.stringify(want)) p.push(`highlighted groups ${JSON.stringify(got)}, want ${JSON.stringify(want)}`)
+      if (/no changes yet/i.test(st.counter)) p.push('"No changes yet" is shown')
+    } else if (a.k === 'bugState') {
+      const first = changed[0]
+      if (!first || st.value !== first) p.push(`the shown file is ${st.value}, want the first changed file ${first}`)
+      if (st.copy.label !== 'Copy code' || st.dl.label !== 'Download') p.push(`accessible names "${st.copy.label}" and "${st.dl.label}"`)
+      if (!st.copy.title.includes(st.value ?? '\u0000') || !st.dl.title.includes(st.value ?? '\u0000')) p.push(`tooltips "${st.copy.title}" and "${st.dl.title}" do not name ${st.value}`)
+      if (st.counter !== `0 of ${N}`) p.push(`counter "${st.counter}", want "0 of ${N}"`)
+    } else if (a.k === 'handPick') {
+      if (st.value !== a.hand) p.push(`the shown file is ${st.value}, the visitor chose ${a.hand}`)
+      if (!changed.some((f) => f !== a.hand)) p.push('no other file changed, so nothing was tested')
+    }
+    return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `shown ${st.value}; ${a.files.map((f) => (d[f].length ? `${f} (${d[f].length})` : f)).join(', ')}`)
+  }
 
   async function doAssert(a0) {
     // R12's nine counter asserts were written with the change number in `k`, which overwrote the assert's name (my slip in the locked file, docs/ui-editor-gate-log.md):
@@ -357,8 +471,7 @@ async function runSpec(spec) {
         return R(d === a.disabled, `disabled ${d}`)
       }
       case 'copy': {
-        const f = page.getByLabel('File', { exact: true })
-        if (await f.count()) await f.selectOption({ label: a.file })
+        await chooseFile(a.file)
         await page.getByRole('button', { name: 'Copy code', exact: true }).click()
         await settle(page)
         // What the page says right after the copy (the Download below, which the check also needs, says something else).
@@ -767,12 +880,311 @@ async function runSpec(spec) {
         const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: innerWidth, wide: [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1 && e.getBoundingClientRect().width > 0 && !e.closest('iframe') && !e.closest('[data-code-view]')).slice(0, 3).map((e) => `${e.tagName}.${e.className} right ${Math.round(e.getBoundingClientRect().right)}`) }))
         return R(m.sw <= m.iw + 1, `scrollWidth ${m.sw}, window ${m.iw}${m.wide.length ? `; wider than the window: ${m.wide.join(', ')}` : ''}`)
       }
+      // ---- round 3 (docs/ui-editor-gate-rules-round3.md) ----
+      case 'sameAs': {
+        const now = await readNumber(a.what)
+        const want = memo[a.name]
+        return R(want !== undefined && Math.abs(now - want) <= a.tol, `${a.what} ${now}, remembered ${want} +-${a.tol}`)
+      }
+      case 'ribbonStructure': {
+        const m = await page.evaluate(([tabs, selected, groups]) => {
+          const p = []
+          const rib = document.querySelector('[data-ribbon]')
+          if (!rib) return ['no [data-ribbon]']
+          const nameOf = (e) => e.getAttribute('aria-label') || e.textContent.trim()
+          const tabEls = [...rib.querySelectorAll('[role=tab]')]
+          if (tabEls.map(nameOf).join('|') !== tabs.join('|')) p.push(`tabs ${tabEls.map(nameOf).join(', ')}, want ${tabs.join(', ')}`)
+          const list = rib.querySelector('[role=tablist]')
+          if (!list || tabEls.some((t) => !list.contains(t))) p.push('tabs are not inside a role=tablist')
+          tabEls.forEach((t) => { const sel = t.getAttribute('aria-selected'); if ((sel === 'true') !== (nameOf(t) === selected) || (sel !== 'true' && sel !== 'false')) p.push(`tab ${nameOf(t)} aria-selected ${sel}`) })
+          const all = []
+          for (const t of tabEls) {
+            const name = nameOf(t)
+            const panel = [...document.querySelectorAll('[role=tabpanel]')].find((e) => e.getAttribute('aria-labelledby') === t.id)
+            if (!panel) { p.push(`no tabpanel for ${name}`); continue }
+            const shown = panel.getClientRects().length > 0
+            if (shown !== (name === selected)) p.push(`panel ${name} ${shown ? 'shown' : 'hidden'}`)
+            const gs = [...panel.querySelectorAll('[data-ribbon-group]')]
+            const want = groups[name] ?? {}
+            if (gs.map((g) => g.getAttribute('aria-label')).join('|') !== Object.keys(want).join('|')) p.push(`${name} groups ${gs.map((g) => g.getAttribute('aria-label')).join(', ')}, want ${Object.keys(want).join(', ')}`)
+            for (const g of gs) {
+              if (g.getAttribute('role') !== 'group') p.push(`group ${g.getAttribute('aria-label')} has role ${g.getAttribute('role')}`)
+              const ctl = [...g.querySelectorAll('button, input:not([type=hidden]), select')].map(nameOf)
+              for (const n of want[g.getAttribute('aria-label')] ?? []) if (!ctl.includes(n)) p.push(`${name}/${g.getAttribute('aria-label')}: no control "${n}"`)
+            }
+            for (const c of panel.querySelectorAll('button, input:not([type=hidden]), select')) { if (!c.closest('[data-ribbon-group]')) p.push(`outside a group: ${nameOf(c)}`); all.push(nameOf(c)) }
+          }
+          const dup = all.filter((n, i) => all.indexOf(n) !== i)
+          if (dup.length) p.push(`twice: ${[...new Set(dup)].join(', ')}`)
+          return p
+        }, [a.tabs, a.selected, a.groups])
+        return R(m.length === 0, m.length ? m.slice(0, 4).join('; ') : `${a.tabs.length} tabs, ${Object.values(a.groups).reduce((n, g) => n + Object.keys(g).length, 0)} groups, every control once`)
+      }
+      case 'controlSizes': {
+        const m = await page.evaluate(([big, small, large, tol, labelSize]) => {
+          const p = []
+          const panel = [...document.querySelectorAll('[data-ribbon-panel]')].find((e) => e.getClientRects().length > 0)
+          if (!panel) return ['no visible [data-ribbon-panel]']
+          const nameOf = (e) => e.getAttribute('aria-label') || e.textContent.trim()
+          for (const c of panel.querySelectorAll('button, input:not([type=hidden]), select')) {
+            if (!c.getClientRects().length) continue
+            const r = c.getBoundingClientRect(), n = nameOf(c)
+            if (big.includes(n)) { if (r.height < large[0] - tol || r.height > large[1] + tol || r.width < 40) p.push(`${n} ${r.width.toFixed(0)}x${r.height.toFixed(1)}, want ${large[0]}-${large[1]} high`) }
+            else if (r.height < small[0] - tol || r.height > small[1] + tol) p.push(`${n} ${r.height.toFixed(1)} high, want ${small[0]}-${small[1]}`)
+          }
+          for (const g of panel.querySelectorAll('[data-ribbon-group]')) {
+            if (!g.getClientRects().length) continue
+            const lab = g.querySelector('[data-group-label]')
+            if (!lab || !lab.textContent.trim()) { p.push(`group ${g.getAttribute('aria-label')}: no label`); continue }
+            const lb = lab.getBoundingClientRect()
+            const bottom = Math.max(...[...g.querySelectorAll('button, input:not([type=hidden]), select')].filter((c) => c.getClientRects().length).map((c) => c.getBoundingClientRect().bottom))
+            if (lb.top < bottom - 0.5) p.push(`${g.getAttribute('aria-label')}: label top ${lb.top.toFixed(1)} above the controls' bottom ${bottom.toFixed(1)}`)
+            if (getComputedStyle(lab).fontSize !== labelSize) p.push(`${g.getAttribute('aria-label')}: label ${getComputedStyle(lab).fontSize}, want ${labelSize}`)
+          }
+          return p
+        }, [a.largeNames, a.small, a.large, a.tol, a.labelSize])
+        return R(m.length === 0, m.length ? m.slice(0, 4).join('; ') : `${a.tab} tab: small controls ${a.small.join('-')} px, large ${a.large.join('-')} px, labels ${a.labelSize} under the controls`)
+      }
+      case 'quickBarOrder': {
+        const m = await page.evaluate((o) => {
+          const bar = document.querySelector('[role=group][aria-label="Editor controls"]')
+          const nameOf = (e) => e.getAttribute('aria-label') || e.textContent.trim()
+          const find = (n) => [...bar.querySelectorAll('button')].find((b) => (n === 'Review unlinked' ? /^Review unlinked/.test(nameOf(b)) : nameOf(b) === n) && b.getClientRects().length > 0)
+          const els = o.order.map((n) => [n, find(n)])
+          const p = []
+          for (const [n, e] of els) if (!e) p.push(`${n} not visible`)
+          if (p.length) return p
+          const rs = els.map(([n, e]) => [n, e.getBoundingClientRect()])
+          for (let i = 1; i < rs.length; i++) if (!(rs[i][1].left + rs[i][1].width / 2 > rs[i - 1][1].left + rs[i - 1][1].width / 2)) p.push(`${rs[i][0]} is not right of ${rs[i - 1][0]}`)
+          const cy = rs.map((r) => r[1].top + r[1].height / 2)
+          if (Math.max(...cy) - Math.min(...cy) > o.rowTol) p.push(`not on one row (${(Math.max(...cy) - Math.min(...cy)).toFixed(0)} px apart)`)
+          const rightMost = Math.max(...[...bar.querySelectorAll('button, select')].filter((e) => e.getClientRects().length).map((e) => e.getBoundingClientRect().right))
+          const last = rs[rs.length - 1][1]
+          if (Math.abs(rightMost - last.right) > 1) p.push(`${rs[rs.length - 1][0]} is not the right-most control`)
+          const [x, y] = o.gapBetween.map((n) => rs.find((r) => r[0] === n)[1])
+          if (y.left - x.right < o.gapMin) p.push(`gap ${o.gapBetween.join(' to ')} is ${(y.left - x.right).toFixed(1)} px, want ${o.gapMin}`)
+          for (const [n, e] of els) if (e.closest('[aria-haspopup], [role=menu], [role=menuitem]')) p.push(`${n} is inside a menu`)
+          return p
+        }, a)
+        return R(m.length === 0, m.length ? m.slice(0, 4).join('; ') : `${a.order.length} controls in order on one row, Reset all last, gap at least ${a.gapMin} px`)
+      }
+      case 'viewStyle': {
+        const m = await page.evaluate((sel) => {
+          const probe = document.createElement('span'); probe.style.color = 'var(--color-text)'; document.body.appendChild(probe)
+          const text = getComputedStyle(probe).color; probe.remove()
+          const lum = (c) => { const v = c.match(/[\d.]+/g).slice(0, 3).map(Number).map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
+          const g = document.querySelector('[role=group][aria-label="View"]')
+          const bs = [...g.querySelectorAll('button')]
+          const pressed = bs.filter((b) => b.getAttribute('aria-pressed') === 'true')
+          const out = { p: [] }
+          if (pressed.length !== 1 || pressed[0].getAttribute('aria-label') !== sel) out.p.push(`pressed: ${pressed.map((b) => b.getAttribute('aria-label')).join(', ') || 'none'}, want ${sel}`)
+          const b = pressed[0]
+          if (!b) return out
+          const cs = getComputedStyle(b), svg = b.querySelector('svg')
+          out.sig = { bg: cs.backgroundColor, color: cs.color, stroke: svg ? getComputedStyle(svg).stroke : '' }
+          if (out.sig.bg !== text) out.p.push(`background ${out.sig.bg}, want the text colour ${text}`)
+          if (lum(out.sig.color) < 0.85) out.p.push(`text colour ${out.sig.color} is not light`)
+          if (svg && out.sig.stroke !== out.sig.color) out.p.push(`icon stroke ${out.sig.stroke}, text ${out.sig.color}`)
+          const borders = new Set(bs.filter((x) => x !== b).map((x) => getComputedStyle(x).borderTopColor))
+          if (borders.size > 1) out.p.push(`unselected view buttons have ${borders.size} border colours`)
+          return out
+        }, a.selected)
+        if (m.sig) styles[a.key] = m.sig
+        return R(m.p.length === 0, m.p.length ? m.p.join('; ') : `${a.key}: ${m.sig.bg} with ${m.sig.color}`)
+      }
+      case 'viewStylesSame': {
+        const sigs = a.keys.map((k) => styles[k])
+        const ok = sigs.every((x) => x) && sigs.every((x) => JSON.stringify(x) === JSON.stringify(sigs[0]))
+        return R(ok, ok ? `${a.keys.length} views alike` : a.keys.map((k) => `${k}: ${styles[k] ? `${styles[k].bg}/${styles[k].color}` : 'not read'}`).join('; '))
+      }
+      case 'liveButtons': {
+        const m = await page.evaluate((names) => {
+          const bar = document.querySelector('[role=group][aria-label="Editor controls"]')
+          const nameOf = (e) => e.getAttribute('aria-label') || e.textContent.trim()
+          const p = []
+          for (const n of names) {
+            const e = n === 'File' ? bar.querySelector('select') : [...bar.querySelectorAll('button')].find((b) => nameOf(b) === n)
+            if (!e || !e.getClientRects().length) { p.push(`${n} not visible`); continue }
+            if (e.disabled || e.hasAttribute('disabled')) p.push(`${n} disabled`)
+            if (e.getAttribute('aria-disabled') && e.getAttribute('aria-disabled') !== 'false') p.push(`${n} aria-disabled`)
+            for (let x = e; x && x.nodeType === 1 && !x.hasAttribute('data-editor'); x = x.parentElement) if (parseFloat(getComputedStyle(x).opacity) < 1) { p.push(`${n} opacity ${getComputedStyle(x).opacity}`); break }
+          }
+          return p
+        }, a.names)
+        return R(m.length === 0, m.length ? m.join('; ') : `${a.names.length} quick-bar controls live`)
+      }
+      case 'quickBarEnabled': {
+        const bad = []
+        for (const n of a.names) {
+          const loc = n === 'File' ? page.getByLabel('File', { exact: true }) : page.getByRole('group', { name: 'Editor controls' }).getByRole('button', { name: n, exact: true })
+          if (!(await loc.count()) || !(await loc.first().isEnabled())) bad.push(n)
+        }
+        return R(bad.length === 0, bad.length ? `not enabled: ${bad.join(', ')}` : `${a.names.length} quick-bar controls enabled`)
+      }
+      case 'shownTabEnabled': {
+        const m = await page.evaluate(() => {
+          const panel = [...document.querySelectorAll('[data-ribbon-panel]')].find((e) => e.getClientRects().length > 0)
+          const nameOf = (e) => e.getAttribute('aria-label') || e.textContent.trim()
+          const els = [...panel.querySelectorAll('button, input:not([type=hidden]), select')].filter((e) => e.getClientRects().length), link = document.querySelector('[data-ribbon] input[type=checkbox]')
+          return { n: els.length, off: [...els, link].filter((e) => e && e.matches(':disabled') && !['Move up', 'Move down'].includes(nameOf(e))).map(nameOf) }
+        })
+        return R(m.n > 0 && m.off.length === 0, m.off.length ? `disabled: ${m.off.slice(0, 5).join(', ')}` : `${m.n} controls of the ${a.tab} tab enabled`)
+      }
+      case 'popover': {
+        const m = await page.evaluate((o) => {
+          const d = [...document.querySelectorAll('[role=dialog], [data-sides-popover]')].find((e) => e.getAttribute('aria-label') === o.name)
+          const shown = !!d && d.getClientRects().length > 0
+          const out = { shown, inputs: [], inside: false }
+          if (d && shown) { const nm = (e) => e.getAttribute('aria-label') || ''; out.inputs = [...d.querySelectorAll('input')].map(nm); out.inside = d.contains(document.activeElement) }
+          return out
+        }, a)
+        const p = []
+        if (m.shown !== a.open) p.push(`popover ${a.name} ${m.shown ? 'shown' : 'not shown'}`)
+        if (a.open && m.shown) { for (const n of a.inputs) if (!m.inputs.includes(n)) p.push(`no input ${n}`); if (a.focusInside && !m.inside) p.push('focus is not inside') }
+        return R(p.length === 0, p.length ? p.join('; ') : a.open ? `popover open with ${a.inputs.length} steppers, focus inside` : 'popover closed')
+      }
+      case 'focusOn': {
+        const n = await page.evaluate(() => { const e = document.activeElement; return e ? (e.getAttribute('aria-label') || e.textContent.trim()) : '' })
+        return R(n === a.name, `focus is on "${n}", want "${a.name}"`)
+      }
+      case 'popoverFits': {
+        const m = await page.evaluate((name) => { const d = [...document.querySelectorAll('[role=dialog], [data-sides-popover]')].find((e) => e.getAttribute('aria-label') === name); if (!d || !d.getClientRects().length) return null; const r = d.getBoundingClientRect(); return { l: r.left, r: r.right, w: r.width, iw: innerWidth } }, a.name)
+        return R(!!m && m.l >= -0.5 && m.r <= m.iw + 0.5 && m.w <= m.iw, m ? `popover ${m.l.toFixed(0)}..${m.r.toFixed(0)} in a window ${m.iw} wide` : 'popover not shown')
+      }
+      case 'gridOverlay': {
+        const n = await page.evaluate(() => { const o = document.querySelector('[data-grid-overlay]'); return o ? (o.getClientRects().length > 0 && getComputedStyle(o).visibility !== 'hidden' ? 'shown' : 'hidden') : 'absent' })
+        return R((n === 'shown') === a.on, `grid overlay ${n}`)
+      }
+      case 'gridLines': {
+        const m = await page.evaluate(() => {
+          const o = document.querySelector('[data-grid-overlay]'); if (!o) return null
+          const bs = parseFloat(getComputedStyle(o).backgroundSize.split(/[ ,]/)[0])
+          const r = o.getBoundingClientRect(); const k = o.offsetWidth ? r.width / o.offsetWidth : 1
+          const d = document.querySelector('[data-device-scale]'); let ds = 1
+          if (d) { const mm = /matrix\(([^)]+)\)/.exec(getComputedStyle(d).transform); if (mm) ds = parseFloat(mm[1].split(',')[0]) }
+          return { bs, screen: bs * k, ds }
+        })
+        if (!m) return R(false, 'no [data-grid-overlay]')
+        const ok = Math.abs(m.bs - a.spacing) <= a.tol && Math.abs(m.screen - a.spacing * m.ds) <= a.tol
+        return R(ok, `declared spacing ${m.bs} px (want ${a.spacing}), on screen ${m.screen.toFixed(2)} (want ${(a.spacing * m.ds).toFixed(2)} at scale ${m.ds.toFixed(3)})`)
+      }
+      case 'gridCovers': {
+        const m = await page.evaluate(() => { const o = document.querySelector('[data-grid-overlay]'); const f = window.__gate.frame(); if (!o) return null; const x = o.getBoundingClientRect(), y = f.getBoundingClientRect(); return [x.left - y.left, x.top - y.top, x.width - y.width, x.height - y.height] })
+        return R(!!m && m.every((v) => Math.abs(v) <= a.tol), m ? `overlay minus preview: ${m.map((v) => v.toFixed(1)).join(', ')}` : 'no overlay')
+      }
+      case 'gridAbove': {
+        // READING (docs/ui-editor-gate-log.md #22): the locked text says "document.elementsFromPoint lists the overlay before the iframe", but an element with
+        // pointer-events none (which the same assert requires) is never hit-tested, so that cannot hold. Read as: the overlay follows the iframe in document order and is positioned.
+        const m = await page.evaluate(() => { const o = document.querySelector('[data-grid-overlay]'); const f = window.__gate.frame(); if (!o) return null; const cs = getComputedStyle(o); return { inDoc: !!f.contentDocument.querySelector('[data-grid-overlay]'), pe: cs.pointerEvents, pos: cs.position, z: cs.zIndex, after: !!(f.compareDocumentPosition(o) & Node.DOCUMENT_POSITION_FOLLOWING) } })
+        const ok = !!m && !m.inDoc && m.pe === 'none' && m.after && ['absolute', 'fixed'].includes(m.pos) && !(parseInt(m.z, 10) < 0)
+        return R(ok, m ? `in the preview document ${m.inDoc}, pointer-events ${m.pe}, position ${m.pos}, z-index ${m.z}, after the iframe ${m.after}` : 'no overlay')
+      }
+      case 'snapMove': case 'snapEdge': {
+        const at = a.at ?? 'current'
+        const b = before[`pos|${at}|${a.sel}`]
+        const left = await measureNum(at, a.sel, 'left'), top = await measureNum(at, a.sel, 'top'), width = await measureNum(at, a.sel, 'width')
+        let dx = a.dx, dy = a.dy
+        if (a.screenDx !== undefined) { dx = Math.round(a.screenDx / scaleAtDrag); dy = Math.round(a.screenDy / scaleAtDrag) }
+        const s = a.spacing
+        const okAt = (got, raw) => { const r = ((raw % s) + s) % s; const near = Math.round(raw / s) * s; const tie = Math.abs(r - s / 2) < 0.05; return Math.abs(got - near) <= a.tol || (tie && Math.abs(got - (near - s)) <= a.tol) }
+        if (a.k === 'snapEdge') {
+          const raw = b.left + b.width + dx
+          return R(okAt(left + width, raw), `right edge ${(left + width).toFixed(2)}, want the multiple of ${s} nearest ${raw.toFixed(2)} (${(Math.round(raw / s) * s)}) +-${a.tol}`)
+        }
+        const rx = b.left + dx, ry = b.top + dy
+        const ok = okAt(left, rx) && okAt(top, ry)
+        return R(ok, `left ${left.toFixed(2)} (nearest to ${rx.toFixed(2)}: ${Math.round(rx / s) * s}), top ${top.toFixed(2)} (nearest to ${ry.toFixed(2)}: ${Math.round(ry / s) * s}) +-${a.tol}`)
+      }
+      case 'snapDisabled': {
+        const btn = page.getByRole('button', { name: 'Snap', exact: true })
+        const dis = (await btn.count()) ? await btn.first().isDisabled() : false
+        const note = page.locator('[data-snap-note]').first()
+        const t = ((await note.innerText().catch(() => '')) ?? '').trim()
+        const vis = await note.isVisible().catch(() => false)
+        return R(dis && vis && t === a.text, `Snap ${dis ? 'disabled' : 'enabled'}, note ${vis ? 'shown' : 'not shown'}: "${t}"`)
+      }
+      case 'codeShowsEdit': case 'bugState': case 'walkChanges': case 'handPick': return fileAssert(a, R)
+      case 'tabArrows': {
+        await page.evaluate(() => { document.querySelectorAll('[data-ribbon] [role=tab]')[0].focus() })
+        const st = () => page.evaluate(() => [...document.querySelectorAll('[data-ribbon] [role=tab]')].map((t) => ({ sel: t.getAttribute('aria-selected'), idx: t.getAttribute('tabindex'), focus: document.activeElement === t })))
+        await page.keyboard.press('ArrowRight')
+        const right = await st()
+        await page.keyboard.press('ArrowLeft')
+        const left = await st()
+        const p = []
+        if (!(right[1]?.sel === 'true' && right[1].focus && right[1].idx === '0' && right[0].sel !== 'true')) p.push(`after ArrowRight: ${JSON.stringify(right)}`)
+        if (!(left[0]?.sel === 'true' && left[0].focus && left[1].sel !== 'true')) p.push(`after ArrowLeft: ${JSON.stringify(left)}`)
+        return R(p.length === 0, p.length ? p.join('; ') : 'ArrowRight selects and focuses the second tab, ArrowLeft goes back')
+      }
+      case 'tabReach': {
+        const problems = []
+        for (const tab of a.tabs) {
+          await page.getByRole('tab', { name: tab, exact: true }).click()
+          await settle(page)
+          await page.evaluate(() => { window.__vis = [] })
+          for (let i = 0; i < a.max; i++) {
+            await page.keyboard.press('Tab')
+            const inside = await page.evaluate(() => { const e = document.activeElement; const ok = !!e && !!e.closest('[data-ribbon]'); if (ok && e.getAttribute('role') !== 'tab') { const cs = getComputedStyle(e); window.__vis.push({ el: e, on: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor} ${cs.boxShadow}` }) } return ok })
+            if (!inside) break
+          }
+          const m = await page.evaluate(() => {
+            const sig = (e) => { const cs = getComputedStyle(e); return `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor} ${cs.boxShadow}` }
+            const nameOf = (e) => e.getAttribute('aria-label') || e.textContent.trim() || e.id
+            document.activeElement?.blur()
+            const panel = [...document.querySelectorAll('[data-ribbon-panel]')].find((e) => e.getClientRects().length > 0)
+            const want = [...panel.querySelectorAll('button, input:not([type=hidden]), select')].filter((e) => e.getClientRects().length && !e.matches(':disabled')); const link = document.querySelector('[data-ribbon] input[type=checkbox]'); if (link && !link.disabled) want.push(link)
+            const seen = window.__vis.map((v) => v.el)
+            return { missing: want.filter((e) => !seen.includes(e)).map(nameOf), flat: window.__vis.filter((v) => v.on === sig(v.el)).map((v) => nameOf(v.el)), n: want.length, seen: seen.length }
+          })
+          if (m.missing.length) problems.push(`${tab}: Tab did not reach ${m.missing.slice(0, 4).join(', ')} (${m.missing.length} of ${m.n})`)
+          if (m.flat.length) problems.push(`${tab}: no focus indicator on ${m.flat.slice(0, 4).join(', ')}`)
+          if (m.n === 0) problems.push(`${tab}: no enabled controls`)
+        }
+        return R(problems.length === 0, problems.length ? problems.join('; ') : `Tab reached every enabled control of both tabs, each with a focus indicator`)
+      }
+      case 'iconNames': {
+        const bad = await page.evaluate(() => {
+          const out = []
+          for (const b of document.querySelectorAll('[role=group][aria-label="Editor controls"] button, [data-ribbon] button')) {
+            if (!b.getClientRects().length) continue
+            const t = (b.innerText ?? '').trim()
+            if (t === '' || /^[^\p{L}\p{N}]$/u.test(t)) { if (!(b.getAttribute('aria-label') ?? '').trim() || !(b.getAttribute('title') ?? '').trim()) out.push(b.getAttribute('aria-label') || b.getAttribute('title') || '(unnamed)') }
+          }
+          return out
+        })
+        return R(bad.length === 0, bad.length ? `no name or tooltip: ${bad.slice(0, 5).join(', ')}` : 'every icon-only button has a name and a tooltip')
+      }
+      case 'ribbonWraps': {
+        const n = await page.evaluate(() => new Set([...document.querySelectorAll('[data-ribbon-group]')].filter((g) => g.getClientRects().length).map((g) => Math.round(g.getBoundingClientRect().top / 6))).size)
+        return R(n >= a.minRows, `${n} rows of groups, want at least ${a.minRows}`)
+      }
+      case 'noClipped': {
+        const bad = await page.evaluate((tol) => {
+          const out = []
+          const panel = [...document.querySelectorAll('[data-ribbon-panel]')].find((e) => e.getClientRects().length > 0)
+          const els = [...(panel ? panel.querySelectorAll('button, input:not([type=hidden]), select') : []), ...document.querySelectorAll('[data-ribbon] [role=tab]'), ...document.querySelectorAll('[role=group][aria-label="Editor controls"] button, [role=group][aria-label="Editor controls"] select')].filter((e) => e.getClientRects().length)
+          for (const e of els) {
+            const r = e.getBoundingClientRect(); const n = e.getAttribute('aria-label') || e.textContent.trim()
+            if (r.left < -tol || r.right > innerWidth + tol) { out.push(`${n} ${r.left.toFixed(0)}..${r.right.toFixed(0)} outside the window`); continue }
+            for (let x = e.parentElement; x && !x.hasAttribute('data-editor'); x = x.parentElement) { const cs = getComputedStyle(x); if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') { const b = x.getBoundingClientRect(); if (r.left < b.left - tol || r.right > b.right + tol || r.top < b.top - tol || r.bottom > b.bottom + tol) { out.push(`${n} is clipped by ${x.tagName}.${x.className}`); break } } }
+          }
+          return out
+        }, a.tol)
+        return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : 'no control is outside the window or clipped')
+      }
       default: return R(false, 'unknown assertion ' + a.k)
     }
   }
 
   try {
-    for (const step of spec.steps) {
+    const retired3 = round3File.retiredChecks?.[spec.id]
+    res.retiredChecks = []
+    for (const [stepIndex, step] of spec.steps.entries()) {
+      if (retired3?.steps?.includes(stepIndex) || (retired3?.asserts && step.do === 'assert' && retired3.asserts.includes(step.k))) {
+        if (!res.retiredChecks.includes(retired3.replacedBy)) res.retiredChecks.push(retired3.replacedBy)
+        res.retiredCount = (res.retiredCount ?? 0) + 1
+        continue
+      }
       if (!(step.do === 'assert' || step.do === 'tick' || step.do === 'openCode' || (step.do === 'button' && /change$/.test(step.name)))) exportMemo.clear()
       if (['load', 'visit', 'openCard', 'clickCard', 'click', 'clickBlank', 'drag', 'release', 'type', 'stepper', 'choose', 'fill', 'unit', 'uncheck', 'ownAction'].includes(step.do) || (step.do === 'button' && !/change$/.test(step.name))) lastEditMessage = null
       if (step.do === 'load') {
@@ -827,21 +1239,38 @@ async function runSpec(spec) {
           dxv = (g.edge - g.right - step.dxToParentEdge.short) * (await page.evaluate(() => window.__gate.scaleOf()))
         }
         await page.mouse.move(p.x, p.y)
+        if (step.alt) await page.keyboard.down('Alt')
         await page.mouse.down()
         const n = Math.max(2, Math.ceil(Math.max(Math.abs(dxv), Math.abs(dyv)) / 4))
         for (let i = 1; i <= n; i++) await page.mouse.move(p.x + (dxv * i) / n, p.y + (dyv * i) / n)
         if (!step.hold) await page.mouse.up()
+        if (step.alt) await page.keyboard.up('Alt')
+      } else if (step.do === 'tab') {
+        await page.getByRole('tab', { name: step.name, exact: true }).click()
+      } else if (step.do === 'remember') {
+        memo[step.name] = await readNumber(step.what)
+        continue
+      } else if (step.do === 'key') {
+        await page.keyboard.press(step.key)
+      } else if (step.do === 'reload') {
+        await page.reload()
+        await page.evaluate(PAGE_HELPERS)
+        await page.locator('[data-editor]').first().waitFor()
+        continue
       } else if (step.do === 'type') {
         const f = fieldOf(step.field)
+        await reveal(f)
         await f.click({ clickCount: 3 })
         await page.keyboard.type(step.text)
         await page.keyboard.press('Enter')
       } else if (step.do === 'uncheck') {
+        await reveal(fieldOf(step.label))
         await fieldOf(step.label).uncheck()
       } else if (step.do === 'button') {
+        await reveal(page.getByRole('button', { name: step.name, exact: true, includeHidden: true }))
         await page.getByRole('button', { name: step.name, exact: true }).click()
       } else if (step.do === 'selectFile') {
-        await page.getByLabel('File', { exact: true }).selectOption({ label: step.name })
+        await page.getByLabel('File', { exact: true }).selectOption({ value: step.name })
       } else if (step.do === 'ownAction') {
         const card = page.locator('[data-sample-card="own"]')
         if (!(await card.isVisible().catch(() => false))) await page.getByRole('button', { name: 'Samples', exact: true }).click()
@@ -854,14 +1283,17 @@ async function runSpec(spec) {
         await fieldOf(step.label).fill(step.text)
       } else if (step.do === 'stepper') {
         const b = page.locator('[data-ribbon]').getByRole('button', { name: `${step.dir === '+' ? 'Increase' : 'Decrease'} ${step.field}`, exact: true })
+        await reveal(page.locator('[data-ribbon]').getByRole('button', { name: `${step.dir === '+' ? 'Increase' : 'Decrease'} ${step.field}`, exact: true, includeHidden: true }))
         for (let i = 0; i < step.times; i++) { await b.click(step.shift ? { modifiers: ['Shift'] } : {}); await settle(page) }
         continue
       } else if (step.do === 'choose') {
+        await reveal(fieldOf(step.label))
         await fieldOf(step.label).selectOption({ label: step.option })
       } else if (step.do === 'openCode') {
         const d = page.locator('[data-editor] details').first()
         if (!(await d.evaluate((e) => e.open))) await d.locator('summary').click()
       } else if (step.do === 'unit') {
+        await reveal(page.getByRole('group', { name: 'Width unit', includeHidden: true }).getByRole('button', { name: step.unit, exact: true, includeHidden: true }))
         await page.getByRole('group', { name: 'Width unit' }).getByRole('button', { name: step.unit, exact: true }).click()
       } else if (step.do === 'tick') {
         await page.locator('[data-change-map]').getByRole('button', { name: new RegExp(`^Change ${step.k} of \\d+$`) }).click()
@@ -924,6 +1356,16 @@ async function runSpec(spec) {
     res.notes.push('runner error: ' + (e?.stack ?? e))
   }
   await ctx.close()
+  // READING (docs/ui-editor-gate-log.md #24): T11 lists P5 but has no P5 assert (my slip in the locked file). A listed check that no assert of the spec belongs to has nothing that
+  // can fail: it is reported as vacuous, not scored. Only round 3 specs; the earlier files keep the strict reading.
+  res.vacuous = []
+  // R07 too: its only P5 assert (step 12) is one of the retired checks, so what is left lists P5 without an assert.
+  if (spec.checks && (/^T\d+$/.test(spec.id) || round3File.retiredChecks?.[spec.id])) {
+    const ret = round3File.retiredChecks?.[spec.id]
+    const live = spec.steps.filter((x, i) => !(ret?.steps?.includes(i) || (ret?.asserts && x.do === 'assert' && ret.asserts.includes(x.k))))
+    res.vacuous = ['P1', 'P5', 'P6'].filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
+    res.checks = spec.checks.filter((k) => !res.vacuous.includes(k))
+  }
   res.outcome = spec.checks ? outcomeOfRound1(res) : outcomeOf(res)
   return res
 }
@@ -966,7 +1408,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs].filter((s) => !only || only.includes(s.id))
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs].filter((s) => !only || only.includes(s.id))
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -979,21 +1421,25 @@ if (flag('--noop')) {
     for (const c of fails.slice(0, 4)) console.log(`      ${c.name}: ${c.detail}`)
     for (const k of ['P2', 'P3', 'P4']) if (r[k] && !r[k].ok) for (const d of (r[k].detail ?? []).slice(0, 3)) console.log(`      ${k}: ${d}`)
     for (const n of r.notes) console.log('      ' + n.split('\n')[0])
+    if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
+    if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${round3File.retiredChecks[r.id].reason}`)
   }
   const count = (o) => results.filter((r) => r.outcome === o).length
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !r.id.startsWith('R')), round2 = results.filter((r) => r.id.startsWith('R'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !r.id.startsWith('R') && !r.id.startsWith('T')), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
-  const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length } }
+  const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), total: round3.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
   if (round1.length) console.log(`Round 1:   PASS ${summary.round1.pass}  FAIL ${summary.round1.fail}  of ${summary.round1.total} (N01 and N02 RETIRED, not run)`)
-  if (round2.length) console.log(`Round 2:   PASS ${summary.round2.pass}  FAIL ${summary.round2.fail}  of ${summary.round2.total}`)
+  if (round2.length) console.log(`Round 2:   PASS ${summary.round2.pass}  FAIL ${summary.round2.fail}  of ${summary.round2.total}${summary.round2.withRetiredChecks.length ? ` (retired checks skipped in ${summary.round2.withRetiredChecks.join(', ')})` : ''}`)
+  if (round3.length) console.log(`Round 3:   PASS ${summary.round3.pass}  FAIL ${summary.round3.fail}  of ${summary.round3.total}`)
   writeFileSync(join(outDir, `results${fault ? '-' + fault : ''}${only ? '-' + only.join('') : ''}.json`), JSON.stringify({ summary, results: results.map(({ exports, ...r }) => r) }, null, 1))
   // Pass line: originals 18 PASS + 2 REFUSED + 0 FAIL when all 20 ran; round 1 N03 to N11 all PASS (N01 and N02 retired); round 2 R01 to R16 all PASS.
   const o = summary.originals, n = summary.round1
   const origOk = orig.length !== 20 || (o.pass + o.refused >= 20 && o.pass >= 18 && o.fail === 0)
   const r1Ok = round1.length !== 9 || (n.pass === 9 && n.fail === 0)
   const r2Ok = round2.length !== 16 || (summary.round2.pass === 16 && summary.round2.fail === 0)
-  exitCode = origOk && r1Ok && r2Ok ? 0 : 1
+  const r3Ok = round3.length !== 16 || (summary.round3.pass === 16 && summary.round3.fail === 0)
+  exitCode = origOk && r1Ok && r2Ok && r3Ok ? 0 : 1
 }
 await browser.close()
 exportServer.close()
