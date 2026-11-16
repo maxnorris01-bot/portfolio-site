@@ -166,7 +166,7 @@ export const how = {
   title: 'How it works',
   steps: [
     { name: 'Open', detail: 'Paste, upload or pick a sample. The editor reads your text once to learn where every element and style rule starts and ends, so later it can change only those characters.' },
-    { name: 'Preview', detail: 'Your page shows in a sandboxed frame with scripts off, at its real size: Desktop 1280 px, Tablet 768 px or Phone 390 px. It is never scaled, so a 40 px drag moves an element 40 px.' },
+    { name: 'Preview', detail: 'Your page shows in a sandboxed frame with scripts off, at its real size: Desktop 1280 px, or Tablet 768 px or Phone 390 px in a plain device outline you can turn sideways. Your page is never scaled: in a small window the whole frame is shrunk to fit, and every pointer movement is converted back to your page’s own pixels, so a 40 px drag moves an element 40 px.' },
     { name: 'Edit', detail: 'Click one element. Change it in the side panel, or drag its handles or the element. The engine decides where the change goes: the element’s own style, a rule that matches only that element, or a new rule at the end of your stylesheet. A class shared by several elements is never edited in place.' },
     { name: 'Adapt', detail: 'With Link on, a size change on Desktop also scales the page’s own Phone values by the same ratio, and the other way round; colours, fonts and order apply everywhere. With Link off, a change applies to the size you are in and is listed under Review unlinked. Dragging an element to move it is always unlinked in this version; smarter phone adaptation of moves is planned for a later version.' },
     { name: 'Export', detail: 'Copy or download the updated code. Every character you did not change stays as you wrote it, and only the lines for your edits are added. Undo all your edits and the code is byte for byte the original. There is no change list: the code is the result.' },
@@ -188,7 +188,7 @@ export const limits = {
     'External fonts, images from other sites and any CSS you do not supply are missing: text uses fallback fonts and unsupplied styles are not applied.',
     'React, Vue and other bundled or minified app code are not supported in this version: it edits static HTML and SVG source.',
     'Only max-width and min-width media features are understood. Other conditions (dark mode, print, orientation) are left as you wrote them.',
-    'Desktop and Phone are the editable sizes. Tablet is view-only. In between, the page’s own rules decide.',
+    'Desktop and Phone upright are the editable sizes. Tablet is view-only, and so is a phone turned sideways. In between, the page’s own rules decide.',
     'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units (vw, vh) are left as the page wrote them, with a note when a Phone or Desktop value could not be scaled.',
     'A flex item that grows (flex-grow above 0, for example flex: 1) cannot be sized exactly, so a resize or width change on it is refused.',
     'Dragging an element to move it applies to one size only (the one you are in), and it is listed under Review unlinked.',

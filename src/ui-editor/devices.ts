@@ -51,3 +51,31 @@ export function viewOnlyReason(view: ViewName, orientation: Orientation): 'table
   if (isEditable(view, orientation)) return null
   return view === 'Tablet' ? 'tablet' : 'landscape'
 }
+
+/** Room taken off the window's height for the device (the page's own breathing space); the whole device should be in view. */
+export const HEIGHT_MARGIN = 16
+
+export interface FitInput {
+  /** The whole device, bezel included, in CSS px. */
+  frameWidth: number
+  frameHeight: number
+  /** The room the device is centred in: its width, and the window's height less the margin. */
+  areaWidth: number
+  availableHeight: number
+  /** A framed device must show whole, so its height counts too; Desktop grows with the page and scrolls, so only its width counts. */
+  framed: boolean
+}
+
+/**
+ * The scale that makes the whole device fit: never above 1 (a device is never blown up), shrunk by the tighter of the width and (for a framed device)
+ * the height. An area that has not been measured yet (zero or less) leaves the scale at 1.
+ */
+export function fitScale({ frameWidth, frameHeight, areaWidth, availableHeight, framed }: FitInput): number {
+  let s = 1
+  if (frameWidth > 0 && areaWidth > 0) s = Math.min(s, areaWidth / frameWidth)
+  if (framed && frameHeight > 0 && availableHeight > 0) s = Math.min(s, availableHeight / frameHeight)
+  return Number.isFinite(s) && s > 0 ? s : 1
+}
+
+/** A pointer distance in screen px as CSS px of the preview: the stage is drawn at `scale`, so a screen px is 1 / scale CSS px. */
+export const toCss = (screenPx: number, scale: number): number => (scale > 0 ? screenPx / scale : screenPx)

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import { labels } from '../data/uiEditor'
 import { HANDLES, arrowNudge, movedFar, resizedBox, type Box, type Handle } from './geometry'
-import { bezel, frameSize, type Orientation, type ViewName } from './devices'
+import { HEIGHT_MARGIN, bezel, fitScale, frameSize, toCss, type Orientation, type ViewName } from './devices'
 import { canResize, type Session } from './session'
 
 /** What a finished resize asks for: the border box the element should have (CSS px) and the handle's axes. */
@@ -38,12 +38,18 @@ const place = (b: Box) => ({ left: b.left, top: b.top, width: b.width, height: b
 
 /**
  * The preview with the host's own pointer layer over it. Hover and selection outlines, the eight resize handles and the drag feedback are
- * elements of THIS page, positioned from the preview element's bounding rect: nothing is injected into the preview document, and the preview is
- * never scaled, so a pointer delta is a CSS px delta. A drag changes nothing until the pointer is released: then the page makes ONE edit and
+ * elements of THIS page, positioned from the preview element's bounding rect: nothing is injected into the preview document. The device is drawn
+ * inside a wrapper that is scaled down (CSS transform) when it would not fit, and the pointer layer is inside that wrapper, so outlines and handles
+ * need no conversion for drawing; but a pointer moves in SCREEN px, so every pointer distance is divided by the scale (toCss) before it becomes a
+ * CSS px number for the engine. A drag changes nothing until the pointer is released: then the page makes ONE edit and
  * the preview is re-derived from the engine's result. Escape cancels a drag. Pointer events with pointer capture, so mouse, pen and touch work.
  */
 export default function Stage({ frameHost, session, rev, selected, editable, view, orientation, onSelect, onMove, onResize, onNudge }: Props) {
   const overlay = useRef<HTMLDivElement>(null)
+  const slot = useRef<HTMLDivElement>(null)
+  const scaler = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+  const [slotHeight, setSlotHeight] = useState<number | null>(null)
   const drag = useRef<Drag | null>(null)
   const [hover, setHover] = useState<Box | null>(null)
   const [selBox, setSelBox] = useState<Box | null>(null)
@@ -62,13 +68,62 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       setSelBox(el && el.isConnected ? boxOf(el) : null)
     }
     measure()
-    const root = session?.preview.doc.documentElement
-    if (!root || typeof ResizeObserver === 'undefined') return
+    const doc = session?.preview.doc
+    const root = doc?.documentElement
+    if (!doc || !root || typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(measure)
     ro.observe(root)
-    return () => ro.disconnect()
+    // A device with its own screen height scrolls inside the frame: the outline follows the element.
+    doc.addEventListener('scroll', measure, { passive: true })
+    return () => {
+      ro.disconnect()
+      doc.removeEventListener('scroll', measure)
+    }
   }, [session, rev, selected, elementOf])
 
+  // The pointer layer covers the frame, so the wheel is handed on to a screen that scrolls (a phone or tablet); at its end the page scrolls as usual.
+  useEffect(() => {
+    const layer = overlay.current
+    const win = session?.preview.doc.defaultView
+    if (!layer || !win) return
+    const onWheel = (e: WheelEvent) => {
+      const k = layer.offsetWidth ? layer.getBoundingClientRect().width / layer.offsetWidth : 1
+      const x = win.scrollX, y = win.scrollY
+      win.scrollBy(toCss(e.deltaX, k), toCss(e.deltaY, k))
+      if (win.scrollX !== x || win.scrollY !== y) e.preventDefault()
+    }
+    layer.addEventListener('wheel', onWheel, { passive: false })
+    return () => layer.removeEventListener('wheel', onWheel)
+  }, [session])
+
+  // Scale to fit: whenever the room, the window or the device changes, the whole device is shrunk to fit (never enlarged). The wrapper's layout box
+  // keeps its natural size, so the slot is given the scaled height. (Measured in the observer's callback, which also runs once on observe.)
+  const framedView = view !== 'Desktop'
+  useLayoutEffect(() => {
+    const room = slot.current, box = scaler.current
+    if (!room || !box || typeof ResizeObserver === 'undefined') return
+    const fit = () => {
+      const w = room.clientWidth
+      if (w <= 0) return // hidden (the gallery covers it): keep what was measured
+      const s = fitScale({ frameWidth: frameSize(view, orientation, 0).width, frameHeight: box.offsetHeight, areaWidth: w, availableHeight: window.innerHeight - HEIGHT_MARGIN, framed: framedView })
+      setScale(s)
+      setSlotHeight(box.offsetHeight * s)
+    }
+    const ro = new ResizeObserver(fit)
+    ro.observe(room)
+    ro.observe(box)
+    window.addEventListener('resize', fit)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', fit)
+    }
+  }, [view, orientation, framedView])
+
+  /** Screen px per CSS px of the stage as it is drawn now (1 when it is not scaled), read from the layout so it is the number the pointer really sees. */
+  const kNow = () => {
+    const o = overlay.current
+    return o && o.offsetWidth ? o.getBoundingClientRect().width / o.offsetWidth : 1
+  }
   const frameRect = () => overlay.current!.getBoundingClientRect()
 
   /** The element a point (in the frame's own coordinates) is over, as an index into the preview's elements; null over the empty page. */
@@ -107,8 +162,8 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || !session) return
     overlay.current?.focus({ preventScroll: true })
-    const r = frameRect()
-    const x = e.clientX - r.left, y = e.clientY - r.top
+    const r = frameRect(), k = kNow()
+    const x = toCss(e.clientX - r.left, k), y = toCss(e.clientY - r.top, k)
     const h = hit(x, y)
     const current = sel.current
     const selBoxNow = elementOf(current) ? boxOf(elementOf(current)!) : null
@@ -135,10 +190,11 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current
     if (d && d.pointer === e.pointerId) {
-      const dx = e.clientX - d.startX, dy = e.clientY - d.startY
-      if (!d.moved && !movedFar(dx, dy)) return
+      // Whether it is a drag at all is judged in screen px (how far the hand moved); what it asks for is in CSS px.
+      if (!d.moved && !movedFar(e.clientX - d.startX, e.clientY - d.startY)) return
       d.moved = true
-      const rx = Math.round(dx), ry = Math.round(dy)
+      const k = kNow()
+      const rx = Math.round(toCss(e.clientX - d.startX, k)), ry = Math.round(toCss(e.clientY - d.startY, k))
       if (d.kind === 'move') setGhost({ box: { ...d.box, left: d.box.left + rx, top: d.box.top + ry }, text: `${rx >= 0 ? '+' : ''}${rx}, ${ry >= 0 ? '+' : ''}${ry}` })
       else {
         const b = resizedBox(d.box, d.kind, rx, ry)
@@ -147,8 +203,8 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       return
     }
     if (e.pointerType !== 'mouse' || !session) return
-    const r = frameRect()
-    const h = hit(e.clientX - r.left, e.clientY - r.top)
+    const r = frameRect(), k = kNow()
+    const h = hit(toCss(e.clientX - r.left, k), toCss(e.clientY - r.top, k))
     const el = elementOf(h)
     setHover(el && h !== sel.current ? boxOf(el) : null)
   }
@@ -162,7 +218,8 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       if (d.kind === 'move' && d.hit !== null && d.hit !== sel.current) onSelect(d.hit)
       return
     }
-    const dx = Math.round(e.clientX - d.startX), dy = Math.round(e.clientY - d.startY)
+    const k = kNow()
+    const dx = Math.round(toCss(e.clientX - d.startX, k)), dy = Math.round(toCss(e.clientY - d.startY, k))
     if (d.kind === 'move') onMove(dx, dy)
     else onResize({ handle: d.kind, box: resizedBox(d.box, d.kind, dx, dy) })
   }
@@ -180,8 +237,13 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
   const framed = view !== 'Desktop'
   const b = bezel(view, orientation)
   return (
-    <div className="ue-device-slot">
-      <div className="ue-device-scale" data-device-scale style={{ width: frameSize(view, orientation, 0).width }}>
+    <div ref={slot} className="ue-device-slot" style={slotHeight !== null ? { height: slotHeight } : undefined}>
+      <div
+        ref={scaler}
+        className="ue-device-scale"
+        data-device-scale
+        style={{ width: frameSize(view, orientation, 0).width, transform: scale < 1 ? `scale(${scale})` : undefined, ['--ue-inv' as string]: String(1 / scale) }}
+      >
         <div
           className={`ue-device is-${view.toLowerCase()}`}
           {...(framed ? { 'data-device-frame': '', 'data-device': view.toLowerCase(), 'data-orientation': orientation } : {})}

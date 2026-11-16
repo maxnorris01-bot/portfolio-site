@@ -301,7 +301,7 @@
 /* The stage area: the device is centred in it. A phone or tablet sits in a plain dark outline (CSS only, no real model); Desktop has none. */
 .ue-scroll {
   padding: var(--space-3);
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-bg);
@@ -313,11 +313,12 @@
 
 .ue-device-slot {
   display: flex;
+  align-items: flex-start; /* the device keeps its own height; the slot is given the scaled height */
+  justify-content: center; /* centred even when the unscaled device is wider than the room: it then overflows both sides equally, and the scale pulls it in */
 }
 
 .ue-device-scale {
   flex: none;
-  margin-inline: auto;
   transform-origin: top center;
 }
 
@@ -425,16 +426,18 @@
 
 .ue-hover {
   position: absolute;
-  outline: 1px solid var(--color-accent);
+  outline: calc(1px * var(--ue-inv, 1)) solid var(--color-accent);
   pointer-events: none;
 }
 
 .ue-selection {
   position: absolute;
-  outline: 2px solid var(--color-accent);
+  outline: calc(2px * var(--ue-inv, 1)) solid var(--color-accent);
   pointer-events: none;
 }
 
+/* The device may be drawn smaller than it is (--ue-inv is 1 over the scale): outlines keep their width on the screen. The handles are drawn in the
+   device's own px, so they shrink with it and a handle's hit area never grows over a small element. */
 .ue-handle {
   position: absolute;
   width: 10px;
@@ -445,7 +448,7 @@
   touch-action: none;
 }
 
-/* The handle is small to look at and 44 CSS px to hit. */
+/* The handle is small to look at and 44 CSS px to hit (in a scaled device the hit area is scaled with it, so it never swallows a small element). */
 .ue-handle::after {
   position: absolute;
   inset: -17px;
@@ -464,7 +467,7 @@
 /* Drag feedback lives in the host layer only; the preview and the engine are not touched until the pointer is released. */
 .ue-ghost {
   position: absolute;
-  outline: 2px dashed var(--color-accent);
+  outline: calc(2px * var(--ue-inv, 1)) dashed var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 10%, transparent);
   pointer-events: none;
 }
@@ -473,13 +476,13 @@
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: var(--space-1);
-  padding: 2px var(--space-2);
+  margin-top: calc(var(--space-1) * var(--ue-inv, 1));
+  padding: calc(2px * var(--ue-inv, 1)) calc(var(--space-2) * var(--ue-inv, 1));
   border-radius: var(--radius);
   background: var(--color-navy);
   color: var(--color-on-navy);
   font-family: var(--font-mono);
-  font-size: var(--text-small);
+  font-size: calc(var(--text-small) * var(--ue-inv, 1));
   white-space: nowrap;
 }
 
