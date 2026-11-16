@@ -41,3 +41,20 @@ Found at first contact with the real page (logged as the earlier S20 fix was; no
 | # | Change | Why |
 |---|---|---|
 | 12 | `textAbsent` reads the text of the editor (`[data-editor]`), not the whole page. | See above. This is NOT a pure "same control, new UI" mapping: it changes what an assertion looks at, so Max decides whether it counts. Result: N06 PASS on the iteration run; nothing else changed. |
+
+## 2026-11-15, formatting round 2 (`feat/ui-editor-format1`, on top of round 1)
+
+Rules: `docs/ui-editor-gate-rules-round2.md`; specs: `scripts/ui-editor-gate/specs-round2.json` (locked in `5680880`). No spec, rule, sample or expected value was
+changed by any entry below. The scorer check is in `docs/ui-editor-baseline-round2.md`.
+
+| # | Change | Why |
+|---|---|---|
+| 13 | The runner loads the third spec file; **N01 and N02 are reported as RETIRED and not run** (the list is `retired` in `specs-round2.json`); the pass line is computed per file (originals 18 PASS, 2 REFUSED, 0 FAIL; round 1: N03 to N11 all 9 PASS; round 2: all 16 PASS). `--stub3` runs the round 2 stub. | Rules section 1 and 6 of round 2. |
+| 14 | New steps `ownAction` (Paste or Upload on the "Your own code" card, Upload through the real file chooser), `fill`, `stepper` (with Shift), `choose`, `openCode`, `unit`, `tick`, `release`; `drag` takes `dxToParentEdge` and `hold`. | The round 2 specs need them. **Mapping** for paste and upload: they are no longer toolbar buttons. |
+| 15 | New asserts, all listed in `specs-round2.json` (`vocabulary`): gallery, toolbar, ribbon, font select, computed CSS, percent and parent width, export patterns, code view diff, counter, change map, headings, markers, rules, window and hit-area checks. A pure line diff of the runner's own is in `hunks.mjs` (ties: remove the original line first). | Same. The page's diff is never called. |
+| 16 | An assert whose `k` is a number is the change-counter check for that change. | **My slip in the locked R12**: nine counter asserts were written with the change number in `k`, which is also the assert's name, so the name was lost from the JSON. A reading, not an edit; Max may want the file regenerated in a later round. |
+| 17 | The code asserts share one download per file and edit state. | Chromium blocks a page's many automatic downloads in a row (the R12 run downloaded 16 times). The export is still what the Download button saved. |
+| 18 | `captureBefore` also records the "before" of `css` (delta) and `pctWidth` asserts. | Same code, reused. |
+
+Covered by the scorer check: the twelve round 2 faults on `reference/round2.html` and the five original faults on `reference/index.html`
+(`docs/ui-editor-baseline-round2.md`).

@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UI Editor gate, round 2: scorer-check stub</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 12px; }
+  button, select, input { font: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  [data-editor] { position: relative; }
+  #bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid #ccc; }
+  #tools { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  #tools[hidden], [hidden] { display: none !important; }
+  #bar button svg { width: 20px; height: 20px; vertical-align: middle; }
+  [data-gallery] { display: flex; gap: 16px; margin-top: 12px; }
+  [data-sample-card] { width: 260px; border: 1px solid #ccc; padding: 8px; cursor: pointer; }
+  [data-sample-card] h3 { margin: 4px 0; font-size: 15px; }
+  .mini { position: relative; width: 260px; height: 162px; overflow: hidden; border: 1px solid #eee; }
+  .mini iframe { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; border: 0; transform: scale(0.203); transform-origin: 0 0; pointer-events: none; }
+  [data-blank-page] { width: 100%; height: 100%; background: #fff; }
+  #paste { margin-top: 12px; border: 1px solid #ccc; padding: 8px; }
+  [data-ribbon] { display: flex; flex-wrap: wrap; gap: 2px 6px; margin-top: 8px; padding: 4px 8px; border: 1px solid #ccc; font-size: 12px; align-items: center; }
+  [data-ribbon-group] { display: flex; flex-wrap: nowrap; align-items: center; gap: 3px; padding-right: 6px; border-right: 1px solid #ddd; }
+  [data-ribbon] button, [data-ribbon] select, [data-ribbon] input { min-height: 24px; font-size: 12px; }
+  [data-ribbon] input[type=text] { width: 42px; }
+  [data-ribbon] select { max-width: 110px; }
+  [data-ribbon] [data-field="color"] input[type=text], [data-ribbon] [data-hex] { width: 62px; }
+  [data-ribbon] input[type=color] { width: 26px; padding: 0; }
+  [data-ribbon] .step { display: inline-flex; align-items: center; gap: 1px; }
+  [data-ribbon] .step button { width: 22px; padding: 0; }
+  [data-ribbon] .step label, [data-ribbon] [data-field] > label { display: none; }
+  [data-ribbon-note] { flex: 1 1 100%; margin: 0; }
+  [data-stage-area] { display: flex; justify-content: center; margin-top: 8px; border: 1px solid #ccc; }
+  [data-device-scale] { flex: none; transform-origin: top center; }
+  .dev { box-sizing: border-box; background: #1b1b1f; position: relative; }
+  .dev:not([data-device-frame]) { background: none; padding: 0 !important; border-radius: 0 !important; }
+  #screen { position: relative; background: #fff; overflow: hidden; }
+  #cover { position: absolute; inset: 0; }
+  [data-selection] { position: absolute; outline: 2px solid #e85d3f; pointer-events: none; }
+  [data-handle] { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #fff; border: 2px solid #e85d3f; pointer-events: auto; }
+  [data-drag-label] { position: absolute; background: #123; color: #fff; padding: 2px 6px; z-index: 5; pointer-events: none; }
+  .code { display: flex; gap: 4px; }
+  [data-code-view] { flex: 1; height: 220px; overflow: auto; border: 1px solid #ccc; font: 12px/16px ui-monospace, monospace; white-space: pre; position: relative; }
+  [data-line] { display: flex; height: 16px; }
+  [data-line][data-change] { background: #fff2c9; }
+  [data-margin-marker] { width: 18px; flex: none; text-align: center; }
+  [data-removed] { height: 3px; background: #c33; margin: 0 0 -1px; }
+  [data-change-map] { position: relative; width: 14px; height: 220px; background: #eee; }
+  [data-change-map] button { position: absolute; left: 0; width: 14px; height: 3px; min-height: 0; padding: 0; margin-top: -1.5px; background: #e85d3f; border: 0; }
+  .ue-section { margin-top: 24px; }
+  .section-title { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+  ul.ue-list { columns: auto 26.5rem; column-gap: 24px; margin: 0; padding: 0; list-style: none; font-size: 16px; line-height: 1.5; }
+  ul.ue-list li { max-width: 34em; margin: 0 0 8px; padding: 0 0 8px; border-bottom: 1px solid #ccc; break-inside: avoid; }
+  body.bullets ul.ue-list { list-style: disc; padding-left: 1.2em; }
+  body.bullets ul.ue-list li { border-bottom: 0; }
+  @media (max-width: 999px) { ul.ue-list { columns: 1; } }
+</style>
+</head>
+<body>
+<!--
+  The round 2 scorer-check stub (docs/ui-editor-gate-rules-round2.md): a deliberately small editor on the real engine that follows the round 2 UI
+  contract just far enough to run R03 to R08, R11, R12, R14 and R15 through the real gate runner, with faults ?fault=NAME:
+    paste-stays   the paste area stays open after Samples (R03)
+    wrong-step    font size steps by 2, width and padding by 5 (R06, R07)
+    no-shift      Shift is ignored by steppers (R06, R10)
+    unit-px       the unit switch shows a percent but writes px (R08)
+    no-snap       a drag to the parent's edge does not snap (R08)
+    diff-off      the code view highlights the line below the changed one (R11)
+    diff-count    changes close together are merged into one (R11, R12)
+    no-wrap       Next at the last change stays there (R12)
+    same-icons    Undo and Redo draw the same icon (R14)
+    enabled-empty the ribbon controls are enabled with nothing selected (R04)
+    free-font     font family is a free-text input (R05)
+    bullets       the lists show bullet markers and no rules (R15)
+  It is not the product; it only lets the scorer be checked before the page is built.
+-->
+<div class="wrap">
+<div data-editor>
+  <div id="bar" role="group" aria-label="Editor controls">
+    <button type="button" id="samples" aria-expanded="false">Samples</button>
+    <span id="tools" hidden>
+      <span role="group" aria-label="View"><button type="button" aria-label="Desktop" aria-pressed="true" title="Desktop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="12"/></svg></button><button type="button" aria-label="Tablet" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="2" width="14" height="19"/></svg></button><button type="button" aria-label="Phone" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="7" y="2" width="10" height="19"/></svg></button></span>
+      <button type="button" id="rotate" aria-label="Rotate" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="6" width="6" height="12"/><path d="M20 8a8 8 0 0 0-3-3"/></svg> Rotate</button>
+      <button type="button" id="undo" aria-label="Undo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 14 4 9l5-5"/></svg></button>
+      <button type="button" id="redo" aria-label="Redo" disabled><svg id="redo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m15 14 5-5-5-5"/></svg></button>
+      <button type="button" id="reset" aria-label="Reset all" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 3h8l4 4v14H6zM9 12h6"/></svg></button>
+      <button type="button" id="review" aria-label="Review unlinked (0)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4l16 16"/></svg></button>
+      <label for="file" hidden>File</label><select id="file" aria-label="File"></select>
+      <button type="button" id="copy" aria-label="Copy code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="11" height="11"/></svg></button>
+      <button type="button" id="download" aria-label="Download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 4v11M7 11l5 5 5-5"/></svg></button>
+    </span>
+  </div>
+  <div id="confirm" role="group" aria-label="Confirm" hidden><p>Replace what is open? Your edits will be lost.</p><button type="button" id="discard">Discard edits</button><button type="button" id="keep">Keep editing</button></div>
+  <div data-gallery role="region" aria-label="Sample gallery"></div>
+  <div id="paste" role="group" aria-label="Paste code" hidden>
+    <label for="pm">HTML or SVG</label><textarea id="pm" rows="4"></textarea>
+    <label for="pc">Companion CSS (optional)</label><textarea id="pc" rows="2"></textarea>
+    <button type="button" id="openpaste">Open pasted code</button><button type="button" id="cancelpaste">Cancel</button>
+  </div>
+  <input type="file" id="upfile" accept=".html,.htm,.svg,.css" multiple hidden>
+  <div data-ribbon hidden></div>
+  <div id="work" hidden>
+    <div data-stage-area><div data-device-scale><div class="dev" id="dev"><div id="screen"><div id="host"></div><div id="cover"></div></div></div></div></div>
+  </div>
+  <details id="codebox" hidden><summary>Updated code</summary>
+    <div><button type="button" id="prevc">Previous change</button> <button type="button" id="nextc">Next change</button> <span data-change-counter>No changes yet</span></div>
+    <div class="code"><div data-code-view tabindex="0" aria-label="Updated code"></div><div data-change-map></div></div>
+  </details>
+  <div role="status" aria-label="Edit result" id="msg"></div>
+</div>
+
+<section class="ue-section"><h2 class="section-title">What is measured, and what is not</h2><ul class="ue-list" id="l0"></ul></section>
+<section class="ue-section"><h2 class="section-title">Limits</h2><ul class="ue-list" id="l1"></ul></section>
+<section class="ue-section"><h2 class="section-title">Data and credits</h2><ul class="ue-list" id="l2"></ul></section>
+</div>
+<script type="module">
+import * as E from '/engine.js'
+const fault = new URLSearchParams(location.search).get('fault')
+if (fault === 'bullets') document.body.classList.add('bullets')
+const $ = (s) => document.querySelector(s)
+const FILES = { landing: ['landing.html', 'landing.css'], email: ['email.html'], chart: ['chart.svg'] }
+const KIND = { landing: 'html', email: 'html', chart: 'svg' }
+const TITLES = { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart' }
+const SIZES = { desktop: { portrait: [1280, null] }, tablet: { portrait: [768, 1024], landscape: [1024, 768] }, phone: { portrait: [390, 844], landscape: [844, 390] } }
+const BEZEL = { phone: { portrait: [28, 12, 24, 12], landscape: [12, 24, 12, 28] }, tablet: { portrait: [12, 12, 12, 12], landscape: [12, 12, 12, 12] } }
+const textOf = async (f) => (await fetch('/samples/' + f)).text()
+let doc = null, originals = {}, edits = [], redo = [], preview = null, session = null, sel = null, view = 'desktop', orient = 'portrait', scale = 1, unit = 'px', jumpK = 0, expanded = { padding: false, margin: false }
+
+// ---- the bottom sections (a stand-in for the real copy; the same shapes) ----
+const item = (n) => `Item ${n}: a short paragraph of about thirty-five words, written only so the lists have realistic length, so that the columns, the line length and the rules under each item can be measured by script on this stand-in page.`
+for (let l = 0; l < 3; l++) for (let i = 1; i <= 4; i++) { const li = document.createElement('li'); li.textContent = item(i); $('#l' + l).appendChild(li) }
+
+// ---- the gallery: three samples and "Your own code" ----
+for (const id of Object.keys(FILES)) {
+  const files = {}
+  for (const f of FILES[id]) files[f] = await textOf(f)
+  const [main, ...rest] = FILES[id]
+  const model = E.createModel(files[main], KIND[id], Object.fromEntries(rest.map((r) => [r, files[r]])), main)
+  const c = document.createElement('div')
+  c.setAttribute('data-sample-card', id); c.setAttribute('role', 'button'); c.tabIndex = 0
+  c.innerHTML = `<div class="mini"><iframe data-miniature sandbox="allow-same-origin" tabindex="-1" title="Miniature of ${TITLES[id]}"></iframe></div><h3>${TITLES[id]}</h3><p>A sample.</p>`
+  c.querySelector('iframe').srcdoc = E.previewSource(model)
+  c.addEventListener('click', () => pick(() => loadSample(id)))
+  c.addEventListener('keydown', (e) => { if (e.key === 'Enter') pick(() => loadSample(id)) })
+  $('[data-gallery]').appendChild(c)
+}
+{
+  const c = document.createElement('div')
+  c.setAttribute('data-sample-card', 'own')
+  c.innerHTML = `<div class="mini"><div data-blank-page></div></div><h3>Your own code</h3><p>Paste or upload.</p><button type="button" id="own-paste">Paste</button> <button type="button" id="own-upload">Upload</button>`
+  $('[data-gallery]').appendChild(c)
+}
+let pending = null
+const pick = (run) => { if (edits.length) { pending = run; $('#confirm').hidden = false } else run() }
+$('#keep').addEventListener('click', () => { pending = null; $('#confirm').hidden = true })
+$('#discard').addEventListener('click', () => { const r = pending; pending = null; $('#confirm').hidden = true; r() })
+$('#samples').addEventListener('click', () => {
+  const g = $('[data-gallery]'); g.hidden = !g.hidden && !doc ? false : !g.hidden
+  if (fault !== 'paste-stays') $('#paste').hidden = true
+  if (!doc) g.hidden = false
+  $('#samples').setAttribute('aria-expanded', String(!g.hidden))
+  if (!g.hidden && doc) $('#paste').hidden = fault === 'paste-stays' ? $('#paste').hidden : true
+})
+$('#own-paste').addEventListener('click', () => { $('#paste').hidden = false; $('[data-gallery]').hidden = true })
+$('#cancelpaste').addEventListener('click', () => { $('#paste').hidden = true; if (!doc) $('[data-gallery]').hidden = false })
+$('#own-upload').addEventListener('click', () => $('#upfile').click())
+$('#openpaste').addEventListener('click', () => pick(() => loadText($('#pm').value, 'pasted.html')))
+$('#upfile').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; const t = await f.text(); e.target.value = ''; pick(() => loadText(t, f.name)) })
+
+async function loadSample(id) {
+  const files = {}
+  for (const f of FILES[id]) files[f] = await textOf(f)
+  open_({ id, order: FILES[id], files, kind: KIND[id], main: FILES[id][0] })
+}
+function loadText(text, name) { open_({ id: name, order: [name], files: { [name]: text }, kind: /\.svg$/i.test(name) ? 'svg' : 'html', main: name }) }
+async function open_(d) {
+  doc = d; originals = { ...d.files }; edits = []; redo = []; sel = null; view = 'desktop'; orient = 'portrait'; jumpK = 0; unit = 'px'
+  $('[data-gallery]').hidden = true; $('#paste').hidden = true; $('#samples').setAttribute('aria-expanded', 'false')
+  $('#tools').hidden = false; $('#work').hidden = false; $('[data-ribbon]').hidden = false; $('#codebox').hidden = false
+  document.querySelectorAll('[aria-label="View"] button').forEach((x) => x.setAttribute('aria-pressed', String(x.getAttribute('aria-label') === 'Desktop')))
+  await rebuild()
+}
+const modelOf = () => { const [main, ...rest] = doc.order; return E.createModel(originals[main], doc.kind, Object.fromEntries(rest.map((r) => [r, originals[r]])), main) }
+
+// ---- the device ----
+function layout() {
+  const [w, h] = SIZES[view][orient]
+  const framed = view !== 'desktop'
+  const [bt, br, bb, bl] = framed ? BEZEL[view][orient] : [0, 0, 0, 0]
+  const ih = h ?? 800
+  const frameW = w + bl + br, frameH = ih + bt + bb
+  const area = $('[data-stage-area]').clientWidth
+  scale = Math.min(1, area / frameW, framed ? (innerHeight - 16) / frameH : 1)
+  const sc = $('[data-device-scale]'), dev = $('#dev')
+  Object.assign(sc.style, { width: frameW + 'px', transform: `scale(${scale})`, marginBottom: -(frameH * (1 - scale)) + 'px' })
+  dev.toggleAttribute('data-device-frame', framed)
+  if (framed) { dev.dataset.device = view; dev.dataset.orientation = orient } else { delete dev.dataset.device; delete dev.dataset.orientation }
+  Object.assign(dev.style, { width: frameW + 'px', height: frameH + 'px', padding: `${bt}px ${br}px ${bb}px ${bl}px`, borderRadius: framed ? '24px' : '0' })
+  Object.assign($('#screen').style, { width: w + 'px', height: ih + 'px' })
+  if (preview) { preview.iframe.style.height = ih + 'px'; preview.setWidth(w) }
+  $('#rotate').hidden = !framed
+}
+addEventListener('resize', () => { if (preview) { layout(); paint() } })
+const editable = () => view === 'desktop' || (view === 'phone' && orient === 'portrait')
+
+async function rebuild(list = edits) {
+  $('[data-editor]').setAttribute('aria-busy', 'true')
+  preview?.dispose()
+  preview = await E.createPreview(modelOf(), $('#host'), { width: SIZES[view][orient][0], height: SIZES[view][orient][1] ?? 800 })
+  preview.iframe.title = 'Preview'
+  const pair = (e) => ({ ...e, target: typeof e.target === 'string' ? E.select(preview.model, e.target) : e.target })
+  session = E.applyEditSteps(preview, list.map(pair))
+  const last = session.results[session.results.length - 1]
+  $('[data-editor]').removeAttribute('aria-busy')
+  layout(); paint()
+  return last
+}
+const idxOf = (e) => preview.elements.indexOf(e)
+const scope = () => ({ environment: view === 'phone' ? 'phone' : 'desktop', link: doc.kind === 'svg' ? true : $('#link')?.checked !== false })
+async function apply(edit) {
+  const path = E.describe(preview.model, edit.target)
+  const list = [...edits, { ...edit, target: path }]
+  const keep = sel !== null && edit.op !== 'reorder' ? path : null
+  const last = await rebuild(list)
+  if (last && !last.ok) { $('#msg').textContent = 'Not applied: ' + last.refusal.message; await rebuild(edits); return }
+  edits = list; redo = []
+  sel = keep ? E.select(preview.model, keep) : null
+  $('#msg').textContent = 'Applied.'
+  paint()
+}
+
+// ---- the ribbon ----
+const FAMS = ['Georgia', 'Times New Roman', 'Arial', 'Helvetica', 'Verdana', 'Trebuchet MS', 'Tahoma', 'Courier New', 'system-ui', 'serif', 'sans-serif', 'monospace']
+const stepper = (name, field) => `<span class="step" data-field="${field}"><label for="i-${field}">${name}</label><button type="button" aria-label="Decrease ${name}" data-st="${name}|-1">-</button><input type="text" id="i-${field}" aria-label="${name}" data-num="${name}"><button type="button" aria-label="Increase ${name}" data-st="${name}|1">+</button></span>`
+const sides = (name, field) => stepper(name, field) + `<button type="button" aria-label="Expand ${name}" aria-expanded="false" data-exp="${name}">v</button><span data-sides="${name}" hidden>` + ['top', 'right', 'bottom', 'left'].map((s) => `<span class="step" data-field="${field}-${s}"><button type="button" aria-label="Decrease ${name} ${s}" data-st="${name} ${s}|-1">-</button><input type="text" aria-label="${name} ${s}" data-num="${name} ${s}"><button type="button" aria-label="Increase ${name} ${s}" data-st="${name} ${s}|1">+</button></span>`).join('') + '</span>'
+const colour = (name, field, pick) => `<span class="step" data-field="${field}"><label for="i-${field}">${name}</label><input type="text" id="i-${field}" aria-label="${name}" data-hex="${field}"><input type="color" aria-label="${pick}" data-pick="${field}"></span>`
+$('[data-ribbon]').innerHTML = `
+  <div data-ribbon-group="text">
+    <span data-field="font-family">${fault === 'free-font' ? '<label for="i-ff">Font family</label><input type="text" id="i-ff" aria-label="Font family">' : '<label for="i-ff">Font family</label><select id="i-ff" aria-label="Font family"></select>'}</span>
+    ${stepper('Font size', 'font-size')}
+    <span data-field="font-weight"><label for="i-fw">Font weight</label><select id="i-fw" aria-label="Font weight">${[100,200,300,400,500,600,700,800,900].map((w) => `<option>${w}</option>`).join('')}</select></span>
+    ${colour('Text colour', 'color', 'Pick text colour')}
+    <span data-field="text-align" role="group" aria-label="Alignment">${['left', 'centre', 'right'].map((a) => `<button type="button" aria-label="Align ${a}" aria-pressed="false" data-al="${a === 'centre' ? 'center' : a}">${a[0]}</button>`).join('')}<button type="button" aria-label="Justify" aria-pressed="false" data-al="justify">j</button></span>
+  </div>
+  <div data-ribbon-group="box">
+    ${stepper('Width', 'width')}<span role="group" aria-label="Width unit"><button type="button" aria-pressed="true" data-unit="px">px</button><button type="button" aria-pressed="false" data-unit="%">%</button></span>
+    ${stepper('Height', 'height')}${sides('Padding', 'padding')}${sides('Margin', 'margin')}
+  </div>
+  <div data-ribbon-group="colours">
+    ${colour('Background', 'background-color', 'Pick background')}${colour('Border colour', 'border-color', 'Pick border colour')}${stepper('Border width', 'border-width')}${stepper('Border radius', 'border-radius')}
+  </div>
+  <div data-ribbon-group="position">
+    <button type="button" id="up">Move up</button><button type="button" id="down">Move down</button>${stepper('Nudge X', 'nudge-x')}${stepper('Nudge Y', 'nudge-y')}
+  </div>
+  <span data-env>Desktop</span> <span data-selected-label></span>
+  <input type="checkbox" id="link" checked><label for="link" id="linklabel" title="On: a size change also scales the other size. Off: this size only, listed under Review unlinked.">Link to Phone</label>
+  <p data-ribbon-note></p>`
+const fam = $('#i-ff'); if (fam.tagName === 'SELECT') fam.innerHTML = ''
+const ribbonControls = () => [...document.querySelectorAll('[data-ribbon] button, [data-ribbon] input, [data-ribbon] select')]
+const px = (v) => Math.round(parseFloat(v) * 100) / 100
+function stepFor(name, shift) {
+  let s = { 'Font size': 1, Width: 4, Height: 4, Padding: 4, Margin: 4, 'Border width': 1, 'Border radius': 2, 'Nudge X': 1, 'Nudge Y': 1 }[name.replace(/ (top|right|bottom|left)$/, '')] ?? 1
+  if (fault === 'wrong-step') s = name === 'Font size' ? 2 : name.startsWith('Width') || name.startsWith('Padding') ? 5 : s
+  if (unit === '%' && name === 'Width') s = 1
+  return shift && fault !== 'no-shift' ? s * 10 : s
+}
+const cs = () => preview.doc.defaultView.getComputedStyle(preview.elements[sel])
+const parentW = () => { const e = preview.elements[sel], p = e.parentElement, c = preview.doc.defaultView.getComputedStyle(p); return p.clientWidth - parseFloat(c.paddingLeft) - parseFloat(c.paddingRight) }
+const doSet = (properties) => apply({ op: 'set', target: sel, properties, ...scope() })
+const doNudge = (dx, dy) => apply({ op: 'offset', target: sel, dx, dy, ...scope() })
+
+function current(name) {
+  const c = cs(), n = name.replace(/ (top|right|bottom|left)$/, ''), side = /(top|right|bottom|left)$/.exec(name)?.[1]
+  if (n === 'Font size') return px(c.fontSize)
+  if (n === 'Width') return unit === '%' ? Math.round((px(c.width) / parentW()) * 10000) / 100 : px(c.width)
+  if (n === 'Height') return px(c.height)
+  if (n === 'Padding') return px(c['padding' + (side ? side[0].toUpperCase() + side.slice(1) : 'Top')])
+  if (n === 'Margin') return px(c['margin' + (side ? side[0].toUpperCase() + side.slice(1) : 'Top')])
+  if (n === 'Border width') return px(c.borderTopWidth)
+  if (n === 'Border radius') return px(c.borderTopLeftRadius)
+  return 0
+}
+async function write(name, value) {
+  const n = name.replace(/ (top|right|bottom|left)$/, ''), side = /(top|right|bottom|left)$/.exec(name)?.[1]
+  if (n === 'Font size') return doSet({ 'font-size': value + 'px' })
+  if (n === 'Width') return doSet({ width: unit === '%' && fault !== 'unit-px' ? value + '%' : (unit === '%' ? Math.round((parentW() * value) / 100) : value) + 'px' })
+  if (n === 'Height') return doSet({ height: value + 'px' })
+  // The engine does not mix a shorthand with a longhand of the same property: a side is written as the whole shorthand.
+  if (n === 'Padding' || n === 'Margin') {
+    const key = n.toLowerCase(), c = cs(), v = Object.fromEntries(['Top', 'Right', 'Bottom', 'Left'].map((x) => [x.toLowerCase(), px(c[key + x])]))
+    if (side) v[side] = value; else for (const x of Object.keys(v)) v[x] = value
+    return doSet({ [key]: `${v.top}px ${v.right}px ${v.bottom}px ${v.left}px` })
+  }
+  if (n === 'Border width') return doSet({ 'border-width': value + 'px', ...(cs().borderTopStyle === 'none' ? { 'border-style': 'solid' } : {}) })
+  if (n === 'Border radius') return doSet({ 'border-radius': value + 'px' })
+}
+const ribbon = $('[data-ribbon]')
+ribbon.addEventListener('click', async (e) => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return
+  if (b.dataset.st) { const [name, dir] = b.dataset.st.split('|'); const nm = name.replace(/^(Nudge [XY])$/, '$1'); if (/^Nudge/.test(name)) { const st = stepFor(name, e.shiftKey) * Number(dir); return name.endsWith('X') ? doNudge(st, 0) : doNudge(0, st) } return write(name, current(name) + stepFor(name, e.shiftKey) * Number(dir)) }
+  if (b.dataset.al) return doSet({ 'text-align': b.dataset.al })
+  if (b.dataset.unit) { unit = b.dataset.unit; return paint() }
+  if (b.dataset.exp) { const k = b.dataset.exp.toLowerCase(); expanded[k] = !expanded[k]; return paint() }
+  if (b.id === 'up' || b.id === 'down') { const el = preview.elements[sel], sib = b.id === 'up' ? el.previousElementSibling : el.nextElementSibling; if (sib) return apply({ op: 'reorder', target: sel, placement: b.id === 'up' ? 'before' : 'after', sibling: idxOf(sib), ...scope() }) }
+})
+ribbon.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.matches('input[type=text]')) return
+  const t = e.target
+  if (t.dataset.num) { const name = t.dataset.num; const v = parseFloat(t.value); if (!Number.isFinite(v)) return; if (/^Nudge/.test(name)) return name.endsWith('X') ? doNudge(Math.round(v), 0) : doNudge(0, Math.round(v)); return write(name, v) }
+  if (t.dataset.hex) return doSet({ [t.dataset.hex]: t.value.trim() })
+  if (t.id === 'i-ff') return doSet({ 'font-family': t.value.trim() })
+})
+ribbon.addEventListener('change', (e) => {
+  const t = e.target
+  if (t.id === 'i-ff' && t.tagName === 'SELECT') return doSet({ 'font-family': /\s/.test(t.value) ? `"${t.value}"` : t.value })
+  if (t.id === 'i-fw') return doSet({ 'font-weight': t.value })
+  if (t.dataset.pick) return doSet({ [t.dataset.pick]: t.value })
+})
+
+function paintRibbon() {
+  const on = sel !== null && !!preview.elements[sel] && editable()
+  const el = on ? preview.elements[sel] : null
+  for (const c of ribbonControls()) c.disabled = fault === 'enabled-empty' ? false : !on
+  $('#link').disabled = fault === 'enabled-empty' ? false : !on
+  $('#linklabel').textContent = view === 'phone' ? 'Link to Desktop' : 'Link to Phone'
+  $('[data-ribbon-note]').textContent = sel === null || !preview.elements[sel] ? (editable() ? 'Click an element to edit it' : 'This size is view-only, so its settings are switched off.') : (editable() ? '' : 'This size is view-only, so its settings are switched off.')
+  $('[data-env]').textContent = view[0].toUpperCase() + view.slice(1)
+  $('[data-selected-label]').textContent = sel !== null && preview.elements[sel] ? preview.elements[sel].localName + (preview.elements[sel].id ? ' #' + preview.elements[sel].id : '') : ''
+  for (const b of document.querySelectorAll('[data-unit]')) b.setAttribute('aria-pressed', String(b.dataset.unit === unit))
+  for (const k of ['padding', 'margin']) { const open = expanded[k]; document.querySelector(`[data-sides="${k[0].toUpperCase() + k.slice(1)}"]`).hidden = !open; document.querySelector(`[data-exp="${k[0].toUpperCase() + k.slice(1)}"]`).setAttribute('aria-expanded', String(open)) }
+  const f = $('#i-ff')
+  if (el) {
+    const c = cs()
+    if (f.tagName === 'SELECT') { f.innerHTML = [c.fontFamily, ...FAMS].map((o) => `<option>${o.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</option>`).join(''); f.selectedIndex = 0 } else f.value = c.fontFamily
+    $('#i-fw').value = c.fontWeight
+    for (const i of ribbon.querySelectorAll('[data-num]')) { const n = i.dataset.num; i.value = /^Nudge/.test(n) ? '0' : (unit === '%' && n === 'Width' ? current(n) + '%' : current(n) + 'px') }
+    const hex = (v) => '#' + (v.match(/\d+/g) ?? [0, 0, 0]).slice(0, 3).map((x) => Number(x).toString(16).padStart(2, '0')).join('')
+    const map = { color: c.color, 'background-color': c.backgroundColor, 'border-color': c.borderTopColor }
+    for (const [k, v] of Object.entries(map)) { ribbon.querySelector(`[data-hex="${k}"]`).value = hex(v); ribbon.querySelector(`[data-pick="${k}"]`).value = hex(v) }
+    const ta = c.textAlign === 'start' ? 'left' : c.textAlign
+    for (const b of ribbon.querySelectorAll('[data-al]')) b.setAttribute('aria-pressed', String(b.dataset.al === ta))
+    $('#up').disabled = !el.previousElementSibling; $('#down').disabled = !el.nextElementSibling
+  }
+}
+
+// ---- paint: overlay, toolbar state, the code view ----
+function paint() {
+  $('#screen').querySelectorAll('[data-selection]').forEach((n) => n.remove())
+  $('#undo').disabled = !edits.length; $('#redo').disabled = !redo.length; $('#reset').disabled = !edits.length
+  if (fault === 'same-icons') $('#redo').innerHTML = $('#undo').innerHTML
+  const pins = E.listUnlinked(session?.state ?? E.emptyState())
+  $('#review').setAttribute('aria-label', `Review unlinked (${pins.length})`)
+  $('#file').innerHTML = doc.order.map((f) => `<option>${f}</option>`).join('')
+  if (sel !== null && preview.elements[sel]) {
+    const b = preview.elements[sel].getBoundingClientRect()
+    const box = document.createElement('div')
+    box.setAttribute('data-selection', '')
+    Object.assign(box.style, { left: b.left + 'px', top: b.top + 'px', width: b.width + 'px', height: b.height + 'px' })
+    if (editable()) for (const [h, fx, fy] of [['nw', 0, 0], ['n', .5, 0], ['ne', 1, 0], ['e', 1, .5], ['se', 1, 1], ['s', .5, 1], ['sw', 0, 1], ['w', 0, .5]]) {
+      const hd = document.createElement('div'); hd.setAttribute('data-handle', h)
+      Object.assign(hd.style, { left: fx * 100 + '%', top: fy * 100 + '%' })
+      hd.addEventListener('pointerdown', (ev) => startDrag(ev, h)); box.appendChild(hd)
+    }
+    $('#screen').appendChild(box)
+  }
+  paintRibbon()
+  paintCode()
+}
+
+// ---- the stub's own line diff and code view ----
+const linesOf = (t) => { const l = t.split('\n'); if (l.length > 1 && l[l.length - 1] === '') l.pop(); return l }
+function hunks(a, b) {
+  const x = linesOf(a), y = linesOf(b), m = x.length, n = y.length
+  const L = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+  for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1])
+  const out = []; let cur = null, i = 0, j = 0
+  while (i < m || j < n) {
+    if (i < m && j < n && x[i] === y[j]) { cur = null; i++; j++ }
+    else { if (!cur) { cur = { removed: 0, added: 0, after: j }; out.push(cur) } if (j >= n || (i < m && L[i + 1][j] >= L[i][j + 1])) { cur.removed++; i++ } else { cur.added++; j++ } }
+  }
+  if (fault === 'diff-count') { const merged = []; for (const h of out) { const p = merged[merged.length - 1]; if (p && h.after - (p.after + p.added) <= 3) { p.added += h.after - (p.after + p.added) + h.added; p.removed += h.removed } else merged.push({ ...h }) } return merged }
+  return out
+}
+let shownHunks = []
+function paintCode() {
+  const file = $('#file').value || doc.order[0]
+  const now = session.files[file] ?? originals[file]
+  const hs = hunks(originals[file], now); shownHunks = hs
+  const ls = linesOf(now)
+  const box = $('[data-code-view]'); box.innerHTML = ''
+  ls.forEach((t, i) => {
+    const n = i + 1
+    const k = hs.findIndex((h) => h.added > 0 && n >= h.after + 1 && n <= h.after + h.added) + 1
+    const marked = fault === 'diff-off' ? hs.findIndex((h) => h.added > 0 && n - 1 >= h.after + 1 && n - 1 <= h.after + h.added) + 1 : k
+    const row = document.createElement('div'); row.setAttribute('data-line', String(n))
+    if (marked) row.setAttribute('data-change', String(marked))
+    row.innerHTML = `<span data-margin-marker>${marked ? '+' : ''}</span><span data-code-text></span>`
+    row.querySelector('[data-code-text]').textContent = t
+    if (hs.some((h) => h.removed > 0 && h.after === n - 1 && !(fault === 'diff-off'))) { /* the marker goes before this line */ }
+    box.appendChild(row)
+  })
+  hs.forEach((h, idx) => {
+    if (!h.removed) return
+    const r = document.createElement('div'); r.setAttribute('data-removed', ''); r.setAttribute('data-removed-after', String(h.after)); r.setAttribute('data-change', String(idx + 1))
+    const anchor = box.querySelector(`[data-line="${h.after + 1}"]`)
+    box.insertBefore(r, anchor)
+  })
+  const map = $('[data-change-map]'); map.innerHTML = ''
+  hs.forEach((h, idx) => { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', `Change ${idx + 1} of ${hs.length}`); b.style.top = (h.after / ls.length) * 100 + '%'; b.addEventListener('click', () => jump(idx + 1)); map.appendChild(b) })
+  jumpK = Math.min(jumpK, hs.length)
+  counter()
+  $('#prevc').disabled = $('#nextc').disabled = hs.length === 0
+}
+const counter = () => { $('[data-change-counter]').textContent = shownHunks.length ? `${jumpK} of ${shownHunks.length}` : 'No changes yet' }
+function jump(k) {
+  jumpK = k; counter()
+  const box = $('[data-code-view]')
+  const el = box.querySelector(`[data-line][data-change="${k}"]`) ?? box.querySelector(`[data-removed][data-change="${k}"]`)
+  if (el) box.scrollTop = Math.max(0, el.offsetTop - box.clientHeight / 2)
+}
+$('#nextc').addEventListener('click', () => jump(jumpK >= shownHunks.length ? (fault === 'no-wrap' ? shownHunks.length : 1) : jumpK + 1))
+$('#prevc').addEventListener('click', () => jump(jumpK <= 1 ? shownHunks.length : jumpK - 1))
+$('#file').addEventListener('change', paintCode)
+
+// ---- pointer layer ----
+$('#cover').addEventListener('pointerdown', (ev) => {
+  const r = $('#cover').getBoundingClientRect()
+  const x = (ev.clientX - r.left) / scale, y = (ev.clientY - r.top) / scale
+  const e = preview.doc.elementFromPoint(x, y)
+  if (!e || ['html', 'body'].includes(e.localName)) { sel = null; paint(); return }
+  if (sel !== null && preview.elements[sel] === e) return startDrag(ev, 'move')
+  sel = idxOf(e); paint()
+})
+function startDrag(ev, kind) {
+  ev.stopPropagation(); ev.target.setPointerCapture?.(ev.pointerId)
+  const el = preview.elements[sel], c = cs()
+  const rect0 = el.getBoundingClientRect()
+  const d = { kind, x: ev.clientX, y: ev.clientY, w: parseFloat(c.width), h: parseFloat(c.height), right: rect0.right }
+  const pr = el.parentElement.getBoundingClientRect(), pc = preview.doc.defaultView.getComputedStyle(el.parentElement)
+  const edge = pr.left + el.parentElement.clientLeft + parseFloat(pc.paddingLeft) + parentW()
+  const label = document.createElement('div'); label.setAttribute('data-drag-label', ''); $('#screen').appendChild(label)
+  const move = (m) => {
+    const dx = (m.clientX - d.x) / scale
+    const nr = d.right + dx
+    label.textContent = fault !== 'no-snap' && kind.includes('e') && Math.abs(nr - edge) <= 2 ? 'Full width' : `${Math.round(d.w + dx)}`
+  }
+  addEventListener('pointermove', move)
+  const up = async (u) => {
+    removeEventListener('pointerup', up); removeEventListener('pointermove', move); label.remove()
+    const dx = (u.clientX - d.x) / scale, dy = (u.clientY - d.y) / scale
+    if (kind === 'move') return doNudge(Math.round(dx), Math.round(dy))
+    const props = {}
+    if (kind.includes('e')) {
+      const nr = d.right + dx
+      if (fault !== 'no-snap' && Math.abs(nr - edge) <= 2) props.width = '100%'
+      else props.width = unit === '%' ? Math.round(((d.w + dx) / parentW()) * 10000) / 100 + '%' : Math.round(d.w + dx) + 'px'
+    }
+    if (kind.includes('s')) props.height = Math.round(d.h + dy) + 'px'
+    await doSet(props)
+  }
+  addEventListener('pointerup', up)
+}
+
+// ---- view, history, export ----
+document.querySelectorAll('[aria-label="View"] button').forEach((b) => b.addEventListener('click', () => {
+  view = b.getAttribute('aria-label').toLowerCase(); orient = 'portrait'
+  document.querySelectorAll('[aria-label="View"] button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+  layout(); paint()
+}))
+$('#rotate').addEventListener('click', () => { orient = orient === 'portrait' ? 'landscape' : 'portrait'; layout(); paint() })
+$('#undo').addEventListener('click', async () => { const keep = sel !== null ? E.describe(preview.model, sel) : null; redo.push(edits.pop()); await rebuild(); sel = keep ? E.select(preview.model, keep) : null; paint() })
+$('#redo').addEventListener('click', async () => { edits.push(redo.pop()); await rebuild() })
+$('#reset').addEventListener('click', async () => { edits = []; redo = []; await rebuild() })
+const fileText = () => session.files[$('#file').value]
+$('#copy').addEventListener('click', async () => { await navigator.clipboard.writeText(fileText()); $('#msg').textContent = 'Copied ' + $('#file').value + '.' })
+$('#download').addEventListener('click', () => {
+  const name = $('#file').value
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([fileText()])); a.download = name === doc.order[0] ? name.replace(/(\.[^.]+)$/, '-edited$1') : name
+  document.body.appendChild(a); a.click(); a.remove()
+})
+</script>
+</body>
+</html>
