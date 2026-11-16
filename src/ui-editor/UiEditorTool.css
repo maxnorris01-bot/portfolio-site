@@ -288,6 +288,39 @@
   transform-origin: 0 0;
 }
 
+.ue-card.is-own {
+  cursor: default;
+}
+
+.ue-card.is-own:hover {
+  border-color: var(--color-border);
+}
+
+/* The blank page of the "Your own code" card: a plain white sheet on the same 16:10 ground as the sample miniatures. */
+.ue-blank {
+  position: absolute;
+  top: 12%;
+  bottom: 0;
+  left: 50%;
+  width: 46%;
+  border: 1px solid var(--color-border);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-bg);
+  transform: translateX(-50%);
+}
+
+.ue-mini:has(.ue-blank) {
+  background: var(--color-bg);
+}
+
+.ue-card-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
 .ue-card-title {
   margin: var(--space-1) 0 0;
   font-size: var(--text-label);

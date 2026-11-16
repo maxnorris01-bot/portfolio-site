@@ -156,6 +156,12 @@ export default function UiEditorTool() {
     if (doc) setGalleryOpen((o) => !o)
     else rootRef.current?.querySelector<HTMLElement>('[data-sample-card]')?.focus()
   }
+  /** "Your own code": Paste shows the paste area in place of the gallery; Upload opens the file chooser (the same types and limits as before). */
+  const onPasteCard = () => {
+    setPasteOpen(true)
+    setGalleryOpen(false)
+  }
+  const onUploadCard = () => fileInput.current?.click()
   const onFiles = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.currentTarget.files ?? [])
     e.currentTarget.value = ''
@@ -367,12 +373,6 @@ export default function UiEditorTool() {
           <button type="button" className="btn btn-secondary" aria-expanded={galleryShown} onClick={onSamples}>
             {labels.samplesButton}
           </button>
-          <button type="button" className="btn btn-secondary" aria-expanded={pasteOpen} onClick={() => setPasteOpen((o) => !o)}>
-            {labels.paste}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => fileInput.current?.click()}>
-            {labels.upload}
-          </button>
           <input ref={fileInput} type="file" accept=".html,.htm,.svg,.css" multiple hidden onChange={(e) => void onFiles(e)} />
         </div>
         {hasDoc && (
@@ -475,12 +475,12 @@ export default function UiEditorTool() {
 
       {!hasDoc && result}
 
-      {!hasDoc && galleryShown && <Gallery overlay={false} onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
+      {!hasDoc && galleryShown && <Gallery overlay={false} onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
 
       {hasDoc && (
         <div className="ue-work">
           <div className="ue-preview">
-            {galleryShown && <Gallery overlay onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
+            {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
             <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
               <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} />
             </div>

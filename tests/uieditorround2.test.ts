@@ -47,3 +47,19 @@ test('the Samples button closes the paste area: with it open, Samples shows the 
   assert.match(fn, /if \(pasteOpen\) \{\s*setPasteOpen\(false\)\s*setGalleryOpen\(true\)/)
   assert.match(tool, /const galleryShown = showGallery && !pasteOpen/)
 })
+
+test('the gallery has a fourth card, "Your own code", with a blank-page miniature and the Paste and Upload actions; the bar has neither button', async () => {
+  const { labels } = await import('../src/data/uiEditor.ts')
+  assert.equal(labels.ownCode, 'Your own code')
+  const g = read('src/ui-editor/Gallery.tsx')
+  assert.match(g, /data-sample-card="own"/)
+  assert.match(g, /data-blank-page/)
+  assert.match(g, /onClick=\{onPaste\}[\s\S]*labels\.paste/)
+  assert.match(g, /onClick=\{onUpload\}[\s\S]*labels\.upload/)
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
+  assert.doesNotMatch(bar, /labels\.paste|labels\.upload/, 'Paste and Upload are not toolbar buttons')
+  assert.match(bar, /type="file" accept="\.html,\.htm,\.svg,\.css" multiple hidden/, 'the same accepted types')
+  // Every route that replaces an open document still asks first.
+  assert.equal((tool.match(/replaceDocument\(/g) ?? []).length, 3, 'a sample, an upload and a paste')
+})

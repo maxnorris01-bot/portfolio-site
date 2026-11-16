@@ -70,6 +70,8 @@ export const labels = {
   galleryHint: 'Pick a sample to start, or paste or upload your own HTML or SVG.',
   samples: { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart' },
   paste: 'Paste',
+  ownCode: 'Your own code',
+  ownCodeDesc: 'Paste or upload your own HTML or SVG, up to 1 MB.',
   upload: 'Upload',
   view: 'View',
   desktop: 'Desktop',

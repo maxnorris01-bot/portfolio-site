@@ -50,11 +50,14 @@ interface Props {
   /** Over the open document's stage (the Samples button), not in the place of an empty page. */
   overlay: boolean
   onPick: (id: SampleId) => void
+  /** "Your own code": Paste shows the paste area in place of the gallery, Upload opens the file chooser. */
+  onPaste: () => void
+  onUpload: () => void
   onClose: () => void
 }
 
 /** The samples as cards, like templates: a live miniature, the title and one line. A click or Enter opens the sample. */
-export default function Gallery({ overlay, onPick, onClose }: Props) {
+export default function Gallery({ overlay, onPick, onPaste, onUpload, onClose }: Props) {
   const onKey = (e: KeyboardEvent<HTMLElement>, id: SampleId) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
@@ -76,6 +79,23 @@ export default function Gallery({ overlay, onPick, onClose }: Props) {
             </p>
           </div>
         ))}
+        <div data-sample-card="own" className="ue-card is-own" role="group" aria-labelledby="ue-card-t-own">
+          <div className="ue-mini" aria-hidden="true">
+            <div data-blank-page className="ue-blank" />
+          </div>
+          <h3 id="ue-card-t-own" className="ue-card-title">
+            {labels.ownCode}
+          </h3>
+          <p className="ue-card-desc">{labels.ownCodeDesc}</p>
+          <div className="ue-card-actions">
+            <button type="button" className="btn btn-secondary" onClick={onPaste}>
+              {labels.paste}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={onUpload}>
+              {labels.upload}
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   )
