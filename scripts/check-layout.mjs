@@ -450,7 +450,9 @@ async function interact(browser, base, w, h) {
 async function runStyle(browser, base) {
   const STYLE_SIZES = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080], [2000, 1100], [2560, 1440], [390, 844]]
   const rows = []
-  for (const cfg of STYLE_PAGES) {
+  // CHECK_PAGES="UI Editor,404" limits the style run to pages whose names are listed (exact names).
+  const only = process.env.CHECK_PAGES?.split(',')
+  for (const cfg of STYLE_PAGES.filter((c) => !only || only.includes(c.name))) {
     for (const [w, h] of STYLE_SIZES) {
       const page = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
       await page.goto(base + cfg.path.slice(1), { waitUntil: 'load' })
@@ -775,7 +777,8 @@ try {
     }
     await page.context().close()
   }
-  if (MODE === 'cards' || MODE === 'style' || MODE === 'all') await runCards(browser, url)
+  // With CHECK_PAGES set the run is about those pages only: the product cards check is left out.
+  if ((MODE === 'cards' || MODE === 'style' || MODE === 'all') && !process.env.CHECK_PAGES) await runCards(browser, url)
   if (MODE !== 'home' && MODE !== 'cards') await runStyle(browser, url)
 } finally {
   await browser.close()
