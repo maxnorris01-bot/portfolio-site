@@ -10,7 +10,7 @@ Decisions are in `docs/working-notes-and-decisions.md`; the gate rules, written 
 - Three original samples (a landing page with its own stylesheet, a table-based email, an SVG chart), the How it works, Limits and Data and credits sections.
 
 ## Gate and verdict (computed from the pass line only)
-1. 20 scripted real-mouse actions on the real build: **18 PASS, 2 REFUSED (the designed refusals), 0 FAIL**, on the final build and on an earlier run (see the report in the pull request description for the table). Met.
+1. 20 scripted real-mouse actions on the real build: **18 PASS, 2 REFUSED (the designed refusals), 0 FAIL**, on the final build and on an earlier run (the table is in the final report). Met.
 2. Regression: `npm test` 790 tests, 774 pass, 0 fail, 16 skipped (baseline 755 / 739 / 0 / 16); `tsc -b`, `eslint`, `vite build` clean. Met.
 3. Flag OFF and ON on production-style builds served with `vite preview`: 16 of 16 checks. Met.
 4. `check:layout`: Home with four planets meets every target at the four sizes (one explained miss added to `check-layout.expected.json`: the 17.8 px row padding at 1920x1080, as for SatPOV and ShopAI); the new page's style check is clean at all seven sizes. The product-cards step of the full sweep crashes in this environment on `main` too, and the SatPOV page needs live data, so those were not run (see below).
@@ -24,4 +24,4 @@ Decisions are in `docs/working-notes-and-decisions.md`; the gate rules, written 
 - The licence texts of the bundled packages contain three authors' email addresses; they are left out of the copy (the brief forbids email addresses anywhere).
 
 ## Not verified
-See the pull request description.
+See the final report ("could not verify").
