@@ -144,3 +144,13 @@ test('the grid is drawn by the page above the preview (a host element), never in
   assert.match(css, /\.ue-grid \{[^}]*pointer-events: none/)
   assert.match(css, /\.ue-grid \{[^}]*position: absolute/)
 })
+
+// ---- the Limits sentence about unscaled values (round 3, item 5) ----
+import { limits } from '../src/data/uiEditor.ts'
+
+test('the Limits sentence about values left as written no longer promises a note: the engine gives none for min and max sizes, aspect-ratio or a percentage width it leaves alone', () => {
+  const s = limits.items.find((i) => /aspect-ratio/.test(i)) ?? ''
+  assert.doesNotMatch(s, /with a note when/)
+  assert.match(s, /does not always say so/)
+  for (const part of ['min-width', 'max-width', 'min-height', 'max-height', 'aspect-ratio', 'percentages', 'viewport units', 'left as the page wrote them']) assert.ok(s.toLowerCase().includes(part), part)
+})

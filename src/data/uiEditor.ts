@@ -243,7 +243,7 @@ export const limits = {
     'Only max-width and min-width media features are understood; dark mode, print and orientation are left as written.',
     'Desktop and Phone upright are the editable sizes.',
     'Tablet is view-only, and so is a phone turned sideways; in between, the page’s own rules decide.',
-    'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units (vw, vh) are left as the page wrote them, with a note when a Phone or Desktop value could not be scaled.',
+    'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units (vw, vh) are left as the page wrote them, and the editor does not always say so when a Phone or Desktop value could not be scaled.',
     'A flex item that grows (flex-grow above 0, for example flex: 1) cannot be sized exactly, so a resize or width change on it is refused.',
     'Dragging an element to move it applies to one size only, and it is listed under Review unlinked.',
     'One element at a time: a shared class is never changed for everyone, and an element the browser invents cannot be edited.',
