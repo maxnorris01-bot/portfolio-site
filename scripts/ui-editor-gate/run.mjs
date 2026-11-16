@@ -179,7 +179,12 @@ async function runSpec(spec) {
   const rec = (bucket, name, ok, detail) => res[bucket].push({ name, ok, detail })
   const widths = spec.widths
 
+  // ITERATION 1 of round 2 (docs/ui-editor-gate-log.md #19): the runner's own Downloads (for P2, P4 and the export asserts) make the page say "Saved ...";
+  // the `message` assert reads the last message the ACTION gave, as it was before the runner downloaded. Cleared by the next step that is not an assert.
+  let lastEditMessage = null
   const grab = async (file) => {
+    const before = ((await region().innerText().catch(() => '')) ?? '').toLowerCase()
+    if (before && !/^(saved|copied)/.test(before)) lastEditMessage = before
     const sel = page.getByLabel('File', { exact: true })
     if (await sel.count()) await sel.selectOption({ label: file })
     const dl = page.waitForEvent('download')
@@ -305,7 +310,7 @@ async function runSpec(spec) {
         return R(en === a.enabled, `${a.k} enabled ${en}, want ${a.enabled}`)
       }
       case 'message': {
-        const t = (await region().innerText()).toLowerCase()
+        const t = lastEditMessage ?? (await region().innerText()).toLowerCase()
         return R(t.includes(a.contains.toLowerCase()), `message "${t.replace(/\s+/g, ' ')}"`)
       }
       case 'status': {
@@ -769,6 +774,7 @@ async function runSpec(spec) {
   try {
     for (const step of spec.steps) {
       if (!(step.do === 'assert' || step.do === 'tick' || step.do === 'openCode' || (step.do === 'button' && /change$/.test(step.name)))) exportMemo.clear()
+      if (['load', 'visit', 'openCard', 'clickCard', 'click', 'clickBlank', 'drag', 'release', 'type', 'stepper', 'choose', 'fill', 'unit', 'uncheck', 'ownAction'].includes(step.do) || (step.do === 'button' && !/change$/.test(step.name))) lastEditMessage = null
       if (step.do === 'load') {
         await page.goto(baseUrl)
         await page.evaluate(PAGE_HELPERS)

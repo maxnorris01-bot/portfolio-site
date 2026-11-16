@@ -58,3 +58,9 @@ changed by any entry below. The scorer check is in `docs/ui-editor-baseline-roun
 
 Covered by the scorer check: the twelve round 2 faults on `reference/round2.html` and the five original faults on `reference/index.html`
 (`docs/ui-editor-baseline-round2.md`).
+
+**Iteration 1 of round 2 (after the scored run; labelled, both runs kept).** The scored run had misses (see `docs/sessions/2026-11-15-ui-editor-format2.md`). Page fixes are listed there. One runner change:
+
+| # | Change | Why |
+|---|---|---|
+| 19 | The `message` assert reads the last message the ACTION gave, as it stood before the runner's own Download (the runner downloads to read the export, and the page then says "Saved ..."). The memory is cleared by the next step that can edit. | R08 ends with "the message says applied" after export checks that download; the real page (as S20 requires) then says "Saved landing.css." The stub never changed its message on a download, so the scorer check could not see it. NOT a pure "same control, new UI" mapping: it changes what an assertion reads, so Max decides whether it counts. |

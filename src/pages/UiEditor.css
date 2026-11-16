@@ -89,6 +89,13 @@
   }
 }
 
+/* A phone: one column, and text a size smaller so a line still holds about 45 characters in a 358 px column. */
+@media (max-width: 519px) {
+  .ue-list {
+    font-size: var(--text-small);
+  }
+}
+
 /* A narrow window: one column. */
 @media (max-width: 999px) {
   .ue-list {

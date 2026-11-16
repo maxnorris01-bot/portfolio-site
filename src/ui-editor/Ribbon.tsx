@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { htmlFields, rowOfPin, svgFields, type Computed, type Field } from './panelfields'
@@ -94,7 +94,7 @@ function RepeatButton({ label, tip, disabled, onFire, children }: { label: strin
 }
 
 /** The number between a stepper's buttons: always a real text input. Enter (or leaving it) commits what was typed. */
-function NumberInput({ name, shown, disabled, wide, describedBy, onCommit }: { name: string; shown: string; disabled: boolean; wide?: boolean; describedBy?: string; onCommit: (text: string) => void }) {
+function NumberInput({ name, shown, stamp, disabled, wide, describedBy, onCommit }: { name: string; shown: string; stamp: string; disabled: boolean; wide?: boolean; describedBy?: string; onCommit: (text: string) => void }) {
   const done = useRef(false)
   const input = useRef<HTMLInputElement>(null)
   const commit = (text: string) => {
@@ -111,6 +111,7 @@ function NumberInput({ name, shown, disabled, wide, describedBy, onCommit }: { n
   }, [name])
   return (
     <input
+      key={stamp}
       ref={input}
       id={rowId(name)}
       type="text"
@@ -135,13 +136,13 @@ function NumberInput({ name, shown, disabled, wide, describedBy, onCommit }: { n
 }
 
 /** minus, the number, plus: one click is one edit (and a hold is one per repeat). */
-function Stepper({ name, shown, disabled, step, unit, onStep, onCommit, describedBy }: { name: string; shown: string; disabled: boolean; step: number; unit: string; onStep: (dir: 1 | -1, shift: boolean) => void; onCommit: (text: string) => void; describedBy?: string }) {
+function Stepper({ name, shown, stamp, disabled, step, unit, onStep, onCommit, describedBy }: { name: string; shown: string; stamp: string; disabled: boolean; step: number; unit: string; onStep: (dir: 1 | -1, shift: boolean) => void; onCommit: (text: string) => void; describedBy?: string }) {
   return (
     <span className="ue-stp">
       <RepeatButton label={P.decrease(name)} tip={P.stepTip(P.decrease(name), step, unit)} disabled={disabled} onFire={(s) => onStep(-1, s)}>
         <span aria-hidden="true">−</span>
       </RepeatButton>
-      <NumberInput name={name} shown={shown} disabled={disabled} describedBy={describedBy} onCommit={onCommit} />
+      <NumberInput name={name} shown={shown} stamp={stamp} disabled={disabled} describedBy={describedBy} onCommit={onCommit} />
       <RepeatButton label={P.increase(name)} tip={P.stepTip(P.increase(name), step, unit)} disabled={disabled} onFire={(s) => onStep(1, s)}>
         <span aria-hidden="true">+</span>
       </RepeatButton>
@@ -258,7 +259,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       const picked = pickerValue(shown)
       return wrap(
         <>
-          <NumberInput key={`${stamp}-c`} name={f.label} shown={shown} disabled={!live} wide onCommit={(t) => cs && write(f, t, cs)} />
+          <NumberInput key={`${stamp}-c`} name={f.label} shown={shown} stamp={stamp} disabled={!live} wide onCommit={(t) => cs && write(f, t, cs)} />
           <ColourSwatch key={`${stamp}-s`} label={P.pick(f.label)} value={picked ?? '#000000'} disabled={!live} onPick={(hex) => cs && write(f, hex, cs)} />
         </>,
         'is-colour',
@@ -285,44 +286,46 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       const open = mixed || !!expanded[f.prop]
       const key = STEP_OF[f.prop]
       return (
-        <div key={f.prop} className={`ue-rctl is-sides${open ? ' is-open' : ''}`} data-field={f.prop}>
-          {open ? (
-            <>
+        <Fragment key={f.prop}>
+          <div className="ue-rctl is-sides" data-field={f.prop}>
+            <Cap label={f.label} />
+            <Stepper name={f.label} shown={sides ? showUniform(sides) : ''} stamp={stamp} disabled={!live} step={STEP[key]} unit="px" onStep={(d, s) => stepSides(f, d, s)} onCommit={(t) => cs && write(f, t, cs)} />
+            <button
+              type="button"
+              className="ue-rbtn ue-expand"
+              aria-label={P.expand(f.label)}
+              title={open ? P.collapse(f.label) : P.expand(f.label)}
+              aria-expanded={open}
+              disabled={!live}
+              onClick={() => setExpanded((x) => ({ ...x, [f.prop]: !x[f.prop] }))}
+            >
+              <Icon name="expand" />
+            </button>
+            {dot}
+          </div>
+          {open && (
+            <div className="ue-rctl is-sides is-open" data-sides={f.prop}>
               <Cap label={f.label} />
               {SIDES.map((side, i) => (
-              <span key={side} className="ue-sidec">
-                <span className="ue-cap" aria-hidden="true">{side[0].toUpperCase()}</span>
-                <Stepper
-                  name={`${f.label} ${side}`}
-                  shown={sides ? `${sides[i]}px` : ''}
-                  disabled={!live}
-                  step={STEP[key]}
-                  unit="px"
-                  onStep={(d, s) => stepSides(f, d, s, side)}
-                  onCommit={(t) => commitSide(f, side, t)}
-                />
-              </span>
+                <span key={side} className="ue-sidec">
+                  <span className="ue-cap" aria-hidden="true">
+                    {side[0].toUpperCase()}
+                  </span>
+                  <Stepper
+                    name={`${f.label} ${side}`}
+                    shown={sides ? `${sides[i]}px` : ''}
+                    stamp={stamp}
+                    disabled={!live}
+                    step={STEP[key]}
+                    unit="px"
+                    onStep={(d, s) => stepSides(f, d, s, side)}
+                    onCommit={(t) => commitSide(f, side, t)}
+                  />
+                </span>
               ))}
-            </>
-          ) : (
-            <>
-              <Cap label={f.label} />
-              <Stepper name={f.label} shown={sides ? showUniform(sides) : ''} disabled={!live} step={STEP[key]} unit="px" onStep={(d, s) => stepSides(f, d, s)} onCommit={(t) => cs && write(f, t, cs)} />
-            </>
+            </div>
           )}
-          <button
-            type="button"
-            className="ue-rbtn ue-expand"
-            aria-label={P.expand(f.label)}
-            title={open ? P.collapse(f.label) : P.expand(f.label)}
-            aria-expanded={open}
-            disabled={!live}
-            onClick={() => setExpanded((x) => ({ ...x, [f.prop]: !x[f.prop] }))}
-          >
-            <Icon name="expand" />
-          </button>
-          {dot}
-        </div>
+        </Fragment>
       )
     }
     // width (with its unit) and every other stepper
@@ -332,7 +335,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     const text = isWidth && el && cs ? showWidth(parseFloat(cs.width) || 0, parent, unit) : shown
     return wrap(
       <>
-        <Stepper name={f.label} shown={text} disabled={!live} step={key === 'width' && unit === '%' ? 1 : STEP[key]} unit={isWidth && unit === '%' ? '%' : 'px'} onStep={(d, s) => stepField(f, d, s)} onCommit={(t) => commitText(f, t)} />
+        <Stepper name={f.label} shown={text} stamp={stamp} disabled={!live} step={key === 'width' && unit === '%' ? 1 : STEP[key]} unit={isWidth && unit === '%' ? '%' : 'px'} onStep={(d, s) => stepField(f, d, s)} onCommit={(t) => commitText(f, t)} />
         {isWidth && (
           <span className="ue-seg" role="group" aria-label={P.widthUnit}>
             {(['px', '%'] as WidthUnit[]).map((u) => (
@@ -363,6 +366,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         key={`${stamp}-n${axis}`}
         name={label}
         shown="0"
+        stamp={stamp}
         disabled={!live}
         step={STEP.nudge}
         unit="px"

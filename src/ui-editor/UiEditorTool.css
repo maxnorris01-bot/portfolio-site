@@ -836,6 +836,12 @@
   font-weight: 600;
 }
 
+.ue-code,
+.ue-codeview,
+.ue-codebody {
+  min-width: 0;
+}
+
 .ue-codeview {
   display: flex;
   flex-direction: column;
