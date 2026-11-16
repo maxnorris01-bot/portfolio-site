@@ -38,7 +38,8 @@ test('Rotate is drawn as a device outline with a curved arrow, and is the one ic
   assert.match(d.rotate, /<path /, 'and an arrow')
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   assert.match(tool, /icon="rotate" label=\{labels\.rotate\} text=\{labels\.rotate\}/)
-  assert.equal((tool.match(/ text=\{/g) ?? []).length, 1, 'only Rotate has a visible label')
+  const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
+  assert.equal((bar.match(/ text=\{/g) ?? []).length, 1, 'only Rotate has a visible label')
 })
 
 test('the Samples button closes the paste area: with it open, Samples shows the gallery again, and the paste area takes the gallery\'s place while it is open', () => {
@@ -200,4 +201,93 @@ test('each field gets its control: select, colour with a swatch, segmented align
   assert.equal(kindOf('font-size', false), 'stepper')
   assert.equal(STEP_OF['border-width'], 'borderWidth')
   assert.equal(STEP_OF.rx, 'borderRadius')
+})
+
+// ---- the code view's diff ----
+import { changeOfLine, counterText, diffHunks, firstLine, linesOf, stepChange, tickShare } from '../src/ui-editor/diff.ts'
+
+test('the line diff: a changed line is one change; consecutive added lines are one change; a removal is shown between lines and counts as a change', () => {
+  assert.deepEqual(diffHunks('a\nb\nc\n', 'a\nb\nc\n'), [])
+  assert.deepEqual(diffHunks('a\nb\nc\n', 'a\nB\nc\n'), [{ removed: 1, added: 1, after: 1 }])
+  assert.deepEqual(diffHunks('a\nb\nc\n', 'a\nb\nx\ny\nz\nc\n'), [{ removed: 0, added: 3, after: 2 }])
+  assert.deepEqual(diffHunks('a\nb\nc\n', 'a\nc\n'), [{ removed: 1, added: 0, after: 1 }])
+  assert.deepEqual(diffHunks('a\nb\nc\nd\ne\n', 'A\nb\nc\nd\nE\n'), [{ removed: 1, added: 1, after: 0 }, { removed: 1, added: 1, after: 4 }])
+  // consecutive changed lines are ONE change
+  assert.deepEqual(diffHunks('a\nb\nc\nd\n', 'a\nX\nY\nd\n'), [{ removed: 2, added: 2, after: 1 }])
+  // a line added at the very top and at the very end
+  assert.deepEqual(diffHunks('b\n', 'a\nb\nc\n'), [{ removed: 0, added: 1, after: 0 }, { removed: 0, added: 1, after: 2 }])
+})
+
+test('a moved line is a removal where it was and an added line where it is; ties remove the original line first', () => {
+  // [one, two, three] -> [two, one, three]: the first original line goes, and comes back after the second.
+  assert.deepEqual(diffHunks('one\ntwo\nthree\n', 'two\none\nthree\n'), [{ removed: 1, added: 0, after: 0 }, { removed: 0, added: 1, after: 1 }])
+})
+
+test('a final newline is not a line; an empty original makes everything one added change', () => {
+  assert.deepEqual(linesOf('a\nb\n'), ['a', 'b'])
+  assert.deepEqual(linesOf('a\nb'), ['a', 'b'])
+  assert.deepEqual(linesOf(''), [''])
+  assert.deepEqual(diffHunks('a\nb', 'a\nb\n'), [], 'a missing final newline is not a change')
+  // an empty original is one empty line, which is replaced by the two new ones
+  assert.deepEqual(diffHunks('', 'a\nb\n'), [{ removed: 1, added: 2, after: 0 }])
+})
+
+test('every line of the updated file is accounted for: the lines of the changes plus the unchanged lines are all the lines', () => {
+  const a = 'h1\nh2\nh3\nh4\nh5\nh6\nh7\n'
+  const b = 'h1\nX\nh3\nh4\nY\nZ\nh7\nW\n'
+  const hunks = diffHunks(a, b)
+  const total = linesOf(b).length
+  const changed = hunks.reduce((n, h) => n + h.added, 0)
+  const marked = linesOf(b).filter((_, i) => changeOfLine(hunks, i + 1) !== null).length
+  assert.equal(marked, changed)
+  assert.ok(changed < total)
+  assert.equal(changeOfLine(hunks, 2), 1)
+  assert.equal(changeOfLine(hunks, 1), null)
+  assert.equal(changeOfLine(hunks, 5), 2)
+  assert.equal(changeOfLine(hunks, 6), 2)
+  assert.equal(changeOfLine(hunks, 8), 3)
+  assert.equal(firstLine(hunks[1]), 5)
+})
+
+test('Previous and Next walk the changes and wrap round; the counter says "k of n" or "No changes yet"', () => {
+  assert.equal(stepChange(0, 4, 1), 1)
+  assert.equal(stepChange(1, 4, 1), 2)
+  assert.equal(stepChange(4, 4, 1), 1, 'Next from the last goes to the first')
+  assert.equal(stepChange(1, 4, -1), 4, 'Previous from the first goes to the last')
+  assert.equal(stepChange(0, 4, -1), 4)
+  assert.equal(stepChange(3, 4, -1), 2)
+  assert.equal(stepChange(0, 0, 1), 0)
+  assert.equal(counterText(0, 0), 'No changes yet')
+  assert.equal(counterText(3, 7), '3 of 7')
+  assert.equal(counterText(0, 4), '0 of 4')
+  assert.equal(counterText(9, 4), '4 of 4', 'never past the count')
+})
+
+test('a change\'s tick is placed in proportion to its line number', () => {
+  assert.equal(tickShare({ removed: 0, added: 1, after: 0 }, 50), 0)
+  assert.equal(tickShare({ removed: 0, added: 1, after: 25 }, 50), 0.5)
+  assert.equal(tickShare({ removed: 1, added: 0, after: 49 }, 50), 0.98)
+  assert.equal(tickShare({ removed: 1, added: 0, after: 3 }, 0), 0)
+})
+
+test('the code view shows the whole file line by line, marks changed lines with text in the margin (not colour alone), keeps Copy and Download plain, and has Previous and Next change and a change map', () => {
+  const v = read('src/ui-editor/CodeView.tsx')
+  assert.match(v, /data-line=\{n\}/)
+  assert.match(v, /data-margin-marker/)
+  assert.match(v, /\{k !== null \? '\+' : ''\}/, 'a "+" in the margin')
+  assert.match(v, /data-removed-after=\{after\}/)
+  assert.match(v, /data-change-counter/)
+  assert.match(v, /data-change-map/)
+  assert.match(v, /data-code-view/)
+  assert.match(v, /data-code-text/)
+  assert.doesNotMatch(v, /only changes/i, 'no "Show only changes" toggle')
+  const css = read('src/ui-editor/UiEditorTool.css')
+  assert.match(css, /\.ue-gut \{[^}]*user-select: none/)
+  assert.match(css, /\.ue-mk \{[^}]*user-select: none/)
+  assert.match(css, /\.ue-tick \{[^}]*height: 3px/, 'thin ticks, so neighbouring changes\' buttons do not overlap')
+  // Copy and Download act on the exported text, never on the view's lines.
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  assert.match(tool, /navigator\.clipboard\.writeText\(text\)/)
+  assert.match(tool, /new Blob\(\[text\]/)
+  assert.match(tool, /<CodeView key=\{file\}/)
 })

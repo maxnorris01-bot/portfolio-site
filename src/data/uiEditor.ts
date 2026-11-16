@@ -149,6 +149,15 @@ export const panel = {
   svgAligns: ['start', 'middle', 'end'],
 }
 
+/** The updated code view (the whole file, changed lines marked, Previous and Next change, the change map). */
+export const codeView = {
+  previous: 'Previous change',
+  next: 'Next change',
+  changedLine: 'Changed or added line',
+  removed: (n: number) => (n === 1 ? '1 line removed here' : `${n} lines removed here`),
+  tick: (k: number, n: number) => `Change ${k} of ${n}`,
+}
+
 /** What the page says after an action. */
 export const messages = {
   refused: 'Not applied:',

@@ -829,18 +829,151 @@
   font-weight: 600;
 }
 
-/* ---- the code ---- */
+/* ---- the code: the whole updated file, changed lines tinted and marked with a "+" in the margin, a thin marker where lines were removed, Previous and
+   Next change, and a change map ---- */
 .ue-code summary {
   cursor: pointer;
   font-weight: 600;
 }
 
-.ue-code textarea {
-  display: block;
-  width: 100%;
+.ue-codeview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   margin-top: var(--space-2);
+}
+
+.ue-changes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.ue-counter {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.ue-codebody {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.ue-codebox {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-height: 26rem;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
   font-family: var(--font-mono);
   font-size: var(--text-small);
+  line-height: 1.5;
+}
+
+.ue-codebox:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.ue-line {
+  display: flex;
+  min-width: max-content;
+}
+
+/* The line number and the marker are not part of the code: they cannot be selected, so selecting the code by hand copies the file. */
+.ue-gut {
+  flex: none;
+  width: 3.4em;
+  padding-right: 0.8em;
+  color: var(--color-text-muted);
+  text-align: right;
+  user-select: none;
+}
+
+.ue-mk {
+  flex: none;
+  width: 1.6em;
+  color: var(--color-accent);
+  font-weight: 700;
+  text-align: center;
+  user-select: none;
+}
+
+.ue-ct {
+  white-space: pre;
+}
+
+.ue-line[data-change] {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.ue-line.is-flash {
+  animation: ue-flash 1.4s ease-out;
+}
+
+@keyframes ue-flash {
+  from {
+    background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+}
+
+/* Where lines were removed: a thin line between two lines, with a minus in the margin (the removed lines are not shown as text). */
+.ue-removed {
+  position: relative;
+  height: 4px;
+  background: color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+.ue-rm {
+  position: absolute;
+  top: 50%;
+  left: 3.4em;
+  width: 1.6em;
+  background: var(--color-surface);
+  color: var(--color-accent);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  transform: translateY(-50%);
+  user-select: none;
+}
+
+/* The change map: a narrow strip beside the code with one thin tick per change, placed in proportion to its line number. A pointer aid; the
+   Previous and Next buttons are the keyboard route. */
+.ue-map {
+  position: relative;
+  flex: none;
+  width: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+
+.ue-tick {
+  position: absolute;
+  right: 1px;
+  left: 1px;
+  height: 3px;
+  min-height: 0;
+  margin-top: -1.5px;
+  padding: 0;
+  border: 0;
+  background: var(--color-accent);
+  cursor: pointer;
+}
+
+.ue-tick.is-current {
+  background: var(--color-navy);
+}
+
+.ue-tick:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 1px;
 }
 
 @media (max-width: 1099px) {

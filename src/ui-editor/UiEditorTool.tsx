@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { MAX_BYTES, deviceNote, labels, messages, panel } from '../data/uiEditor'
+import CodeView, { type CodeViewHandle } from './CodeView'
 import Gallery from './Gallery'
 import { canRotate, isEditable, viewport, type Orientation } from './devices'
 import { cssSizeFor, handleAxes } from './geometry'
@@ -57,7 +58,7 @@ export default function UiEditorTool() {
   const generation = useRef(0)
   const fileInput = useRef<HTMLInputElement>(null)
   const keepRef = useRef<HTMLButtonElement>(null)
-  const codeRef = useRef<HTMLTextAreaElement>(null)
+  const codeView = useRef<CodeViewHandle>(null)
   const codeBox = useRef<HTMLDetailsElement>(null)
   const pasteMarkup = useRef<HTMLTextAreaElement>(null)
   const pasteCss = useRef<HTMLTextAreaElement>(null)
@@ -304,6 +305,8 @@ export default function UiEditorTool() {
   const files = session ? Object.keys(session.files) : []
   const file = session && files.includes(fileName) ? fileName : (files[0] ?? '')
   const text = session && file ? (session.files[file] ?? '') : ''
+  // The file as it was opened, for the code view's marks (the primary file, or a companion stylesheet by the name the page links it by).
+  const original = !doc || !file ? '' : file === doc.file ? doc.source : (doc.companions[file] ?? text)
   const onCopy = async () => {
     if (!file) return
     try {
@@ -312,8 +315,11 @@ export default function UiEditorTool() {
     } catch {
       // No clipboard: show the code, selected, so it can be copied by hand.
       if (codeBox.current) codeBox.current.open = true
-      codeRef.current?.focus()
-      codeRef.current?.select()
+      const b = codeView.current?.box()
+      if (b) {
+        b.focus()
+        window.getSelection()?.selectAllChildren(b)
+      }
       show({ kind: 'info', text: messages.copyFailed })
     }
   }
@@ -531,7 +537,7 @@ export default function UiEditorTool() {
       {hasDoc && (
         <details ref={codeBox} className="ue-code">
           <summary>{labels.code}</summary>
-          <textarea ref={codeRef} readOnly rows={12} spellCheck={false} aria-label={`${labels.code}: ${file}`} value={text} />
+          <CodeView key={file} ref={codeView} file={file} text={text} original={original} />
         </details>
       )}
     </section>
