@@ -27,3 +27,11 @@ sample or expected value was changed by any entry below. The scorer check is in 
 
 Covered by the scorer check: the five original faults on the original stub (S04, S05, S09) and the four new faults on
 `scripts/ui-editor-gate/reference/round1.html`, both in `docs/ui-editor-baseline-round1.md`.
+
+Found at first contact with the real page (logged as the earlier S20 fix was; no spec, rule, sample or expected value touched):
+
+| # | Change | Why |
+|---|---|---|
+| 9 | Opening a sample waits for `[data-editor]` before deciding between a gallery card and the Sample picker. | The page's chunk loads lazily: the first look found no cards yet and fell back to the picker, which no longer exists. The old stub has `[data-editor]` from the start, so its path is unchanged. |
+| 10 | "The miniature's body has rendered children" reads `body`, or the document element for an SVG document (which has no body). | The SVG sample's miniature is an SVG document, like the editor's own preview of it (the engine loads an SVG that way; an inline svg in an HTML page would lay out differently and fail N04). The blank-miniature fault is still caught: an empty HTML miniature has an empty body. |
+| 11 | `extras.mjs` and `screenshots.mjs` (not part of the pass line) open a sample through the gallery card when there is one. | Same mapping as #3, for the two helper scripts. |

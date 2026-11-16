@@ -202,6 +202,7 @@ async function runSpec(spec) {
 
   // Open a sample: through the gallery card when the page has one (round 1), else through the Sample picker (the earlier page and its stub).
   async function openSample(id) {
+    await page.locator('[data-editor]').first().waitFor()
     if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click()
     else await page.getByLabel('Sample', { exact: true }).selectOption(id)
     await page.waitForFunction((s) => { const f = document.querySelector('iframe[title="Preview"]'); return !!f?.contentDocument?.querySelector(s) }, READY[id])
@@ -371,11 +372,11 @@ async function runSpec(spec) {
       }
       case 'cards': {
         // Miniatures load after the page: give them a moment, then judge.
-        await page.waitForFunction((n) => [...document.querySelectorAll('[data-gallery] iframe[data-miniature]')].filter((f) => f.contentDocument?.body?.children.length > 0).length >= n, a.n, { timeout: 4000 }).catch(() => {})
+        await page.waitForFunction((n) => [...document.querySelectorAll('[data-gallery] iframe[data-miniature]')].filter((f) => ((f.contentDocument?.body ?? f.contentDocument?.documentElement)?.children.length ?? 0) > 0).length >= n, a.n, { timeout: 4000 }).catch(() => {})
         const info = await page.evaluate(([markers]) => [...document.querySelectorAll('[data-gallery] [data-sample-card]')].map((c) => {
           const id = c.getAttribute('data-sample-card'); const f = c.querySelector('iframe[data-miniature]'); const r = f?.getBoundingClientRect(); const d = f?.contentDocument
           const m = d?.querySelector(markers[id])?.getBoundingClientRect()
-          return { id, text: c.innerText.trim(), sandbox: f?.getAttribute('sandbox') ?? null, w: r?.width ?? 0, h: r?.height ?? 0, offsetW: f?.offsetWidth ?? 0, kids: d?.body?.children.length ?? 0, mw: m?.width ?? 0, mh: m?.height ?? 0 }
+          return { id, text: c.innerText.trim(), sandbox: f?.getAttribute('sandbox') ?? null, w: r?.width ?? 0, h: r?.height ?? 0, offsetW: f?.offsetWidth ?? 0, kids: (d?.body ?? d?.documentElement)?.children.length ?? 0, mw: m?.width ?? 0, mh: m?.height ?? 0 }
         }), [a.markers])
         const problems = []
         if (info.length !== a.n) problems.push(`${info.length} cards, want ${a.n}`)
@@ -396,7 +397,7 @@ async function runSpec(spec) {
         return R(has === a.has, `preview ${has ? 'has' : 'lacks'} ${a.sel}`)
       }
       case 'miniFidelity': {
-        await page.waitForFunction((id) => !!document.querySelector(`[data-sample-card="${id}"] iframe[data-miniature]`)?.contentDocument?.body?.children.length, a.sample, { timeout: 4000 }).catch(() => {})
+        await page.waitForFunction((id) => !!(document.querySelector(`[data-sample-card="${id}"] iframe[data-miniature]`)?.contentDocument?.body ?? document.querySelector(`[data-sample-card="${id}"] iframe[data-miniature]`)?.contentDocument?.documentElement)?.children.length, a.sample, { timeout: 4000 }).catch(() => {})
         const mini = await page.evaluate(([id, sel]) => {
           const f = document.querySelector(`[data-sample-card="${id}"] iframe[data-miniature]`)
           const m = f?.contentDocument?.querySelector(sel)?.getBoundingClientRect()
@@ -616,6 +617,7 @@ async function noop() {
     await page.goto(baseUrl)
     await page.evaluate(PAGE_HELPERS)
     // Through the gallery card when the page has one (round 1), else through the Sample picker.
+    await page.locator('[data-editor]').first().waitFor()
     if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click()
     else await page.getByLabel('Sample', { exact: true }).selectOption(id)
     await page.waitForFunction((s) => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector(s), READY[id])

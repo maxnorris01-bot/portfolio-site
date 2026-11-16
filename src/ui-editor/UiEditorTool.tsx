@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { MAX_BYTES, VIEW_WIDTHS, labels, messages, panel } from '../data/uiEditor'
+import Gallery from './Gallery'
 import { cssSizeFor, handleAxes } from './geometry'
 import { IconButton, type IconName } from './icons'
 import { fromFiles, fromPaste, downloadName, type Doc, type Incoming } from './intake'
@@ -20,12 +21,10 @@ const VIEWS: { name: ViewName; icon: IconName }[] = [
   { name: 'Tablet', icon: 'tablet' },
   { name: 'Phone', icon: 'phone' },
 ]
-const SAMPLE_IDS = Object.keys(SAMPLES) as SampleId[]
 
 /** The visitor-facing editor: open some HTML or SVG, select an element, change it, copy or download the updated code. */
 export default function UiEditorTool() {
   const [doc, setDoc] = useState<Doc | null>(null)
-  const [sampleId, setSampleId] = useState<'' | SampleId>('')
   const [list, setListState] = useState<EditList>(emptyList())
   const [view, setView] = useState<ViewName>('Desktop')
   const [link, setLink] = useState(true)
@@ -42,6 +41,7 @@ export default function UiEditorTool() {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [holdHeight, setHoldHeight] = useState(0)
+  const [galleryOpen, setGalleryOpen] = useState(false)
 
   const frameHost = useRef<HTMLDivElement>(null)
   const rootRef = useRef<HTMLElement>(null)
@@ -120,11 +120,11 @@ export default function UiEditorTool() {
   const mine = pins.filter((p) => p.selector === selPath)
 
   // ---- opening something ----
-  const load = (next: Doc, warn: string[], sample: '' | SampleId) => {
+  const load = (next: Doc, warn: string[]) => {
     setList(emptyList())
     setSelPath(null)
     setWarnings(warn)
-    setSampleId(sample)
+    setGalleryOpen(false)
     setFileName(next.file)
     setReviewOpen(false)
     setPasteOpen(false)
@@ -141,10 +141,11 @@ export default function UiEditorTool() {
     if (confirm) keepRef.current?.focus()
   }, [confirm])
 
-  const onSample = (e: ChangeEvent<HTMLSelectElement>) => {
-    const id = e.currentTarget.value as '' | SampleId
-    if (!id) return
-    replaceDocument(() => load(SAMPLES[id], [], id))
+  const onPickSample = (id: SampleId) => replaceDocument(() => load(SAMPLES[id], []))
+  /** The Samples button: over an open document it shows or hides the gallery; on a first visit the gallery is already there, so it takes the visitor to it. */
+  const onSamples = () => {
+    if (doc) setGalleryOpen((o) => !o)
+    else rootRef.current?.querySelector<HTMLElement>('[data-sample-card]')?.focus()
   }
   const onFiles = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.currentTarget.files ?? [])
@@ -154,12 +155,12 @@ export default function UiEditorTool() {
     const incoming: Incoming[] = await Promise.all(files.map(async (f) => ({ name: f.name, text: await f.text(), bytes: f.size })))
     const r = fromFiles(incoming)
     if (!r.ok) return show({ kind: 'refusal', text: r.message })
-    replaceDocument(() => load(r.doc, r.warnings, ''))
+    replaceDocument(() => load(r.doc, r.warnings))
   }
   const onOpenPaste = () => {
     const r = fromPaste(pasteMarkup.current?.value ?? '', pasteCss.current?.value ?? '')
     if (!r.ok) return show({ kind: 'refusal', text: r.message })
-    replaceDocument(() => load(r.doc, r.warnings, ''))
+    replaceDocument(() => load(r.doc, r.warnings))
   }
 
   // ---- edits ----
@@ -327,19 +328,29 @@ export default function UiEditorTool() {
   }, [busy, session])
 
   const hasDoc = !!doc
+  const showGallery = !hasDoc || galleryOpen
+  const result = (
+    <div role="status" aria-label={labels.result} className={`ue-result${message ? ` is-${message.kind}` : ''}`}>
+      {message && <p>{message.text}</p>}
+      {message?.notes && message.notes.length > 0 && (
+        <>
+          <p className="ue-notes-lead">{messages.noteLead}</p>
+          <ul>
+            {message.notes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  )
   return (
     <section ref={rootRef} className="ue-tool" data-editor aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
       <div className="ue-bar" role="group" aria-label={labels.bar}>
         <div className="ue-bar-group">
-          <label htmlFor="ue-sample">{labels.sample}</label>
-          <select id="ue-sample" value={sampleId} onChange={onSample}>
-            <option value="">{labels.samplePlaceholder}</option>
-            {SAMPLE_IDS.map((id) => (
-              <option key={id} value={id}>
-                {labels.samples[id]}
-              </option>
-            ))}
-          </select>
+          <button type="button" className="btn btn-secondary" aria-expanded={showGallery} onClick={onSamples}>
+            {labels.samplesButton}
+          </button>
           <button type="button" className="btn btn-secondary" aria-expanded={pasteOpen} onClick={() => setPasteOpen((o) => !o)}>
             {labels.paste}
           </button>
@@ -348,31 +359,35 @@ export default function UiEditorTool() {
           </button>
           <input ref={fileInput} type="file" accept=".html,.htm,.svg,.css" multiple hidden onChange={(e) => void onFiles(e)} />
         </div>
-        <div className="ue-bar-group" role="group" aria-label={labels.view}>
-          {VIEWS.map((v) => (
-            <IconButton key={v.name} icon={v.icon} label={v.name} pressed={view === v.name} onClick={() => onView(v.name)} />
-          ))}
-        </div>
-        <div className="ue-bar-group">
-          <IconButton icon="undo" label={labels.undo} disabled={!canUndo(list) || busy} onClick={onUndo} />
-          <IconButton icon="redo" label={labels.redo} disabled={!canRedo(list) || busy} onClick={onRedo} />
-          <IconButton icon="reset" label={labels.resetAll} disabled={!canUndo(list) || busy} onClick={onReset} />
-        </div>
-        <div className="ue-bar-group">
-          <IconButton icon="review" label={labels.review(pins.length)} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
-        </div>
-        <div className="ue-bar-group">
-          <label htmlFor="ue-file">{labels.file}</label>
-          <select id="ue-file" value={file} disabled={files.length === 0} onChange={(e) => setFileName(e.currentTarget.value)}>
-            {files.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-          <IconButton icon="copy" label={labels.copy} disabled={!session} onClick={() => void onCopy()} />
-          <IconButton icon="download" label={labels.download} disabled={!session} onClick={onDownload} />
-        </div>
+        {hasDoc && (
+          <>
+            <div className="ue-bar-group" role="group" aria-label={labels.view}>
+              {VIEWS.map((v) => (
+                <IconButton key={v.name} icon={v.icon} label={v.name} pressed={view === v.name} onClick={() => onView(v.name)} />
+              ))}
+            </div>
+            <div className="ue-bar-group">
+              <IconButton icon="undo" label={labels.undo} disabled={!canUndo(list) || busy} onClick={onUndo} />
+              <IconButton icon="redo" label={labels.redo} disabled={!canRedo(list) || busy} onClick={onRedo} />
+              <IconButton icon="reset" label={labels.resetAll} disabled={!canUndo(list) || busy} onClick={onReset} />
+            </div>
+            <div className="ue-bar-group">
+              <IconButton icon="review" label={labels.review(pins.length)} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
+            </div>
+            <div className="ue-bar-group">
+              <label htmlFor="ue-file">{labels.file}</label>
+              <select id="ue-file" value={file} disabled={files.length === 0} onChange={(e) => setFileName(e.currentTarget.value)}>
+                {files.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+              <IconButton icon="copy" label={labels.copy} disabled={!session} onClick={() => void onCopy()} />
+              <IconButton icon="download" label={labels.download} disabled={!session} onClick={onDownload} />
+            </div>
+          </>
+        )}
       </div>
 
       {confirm && (
@@ -441,44 +456,40 @@ export default function UiEditorTool() {
         </ul>
       )}
 
-      <div className="ue-work">
-        <div className="ue-preview">
-          {!hasDoc && <p className="ue-empty">{messages.empty}</p>}
-          <div className="ue-scroll" hidden={!hasDoc} style={holdHeight ? { minHeight: holdHeight } : undefined}>
-            <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} />
-          </div>
-          <p id="ue-preview-hint" className="ue-hint">
-            {labels.previewHint}
-          </p>
-        </div>
-        <div className="ue-side">
-          {session ? (
-            <Panel session={session} rev={rev} nonce={nonce} selected={selIndex} view={view} link={link} onLink={setLink} pins={mine} onSet={onSet} onBadValue={onBadValue} onMove={onReorder} onNudge={onNudge} />
-          ) : (
-            <aside className="ue-panel" aria-label={panel.title}>
-              <p className="ue-hint">{hasDoc ? messages.working : labels.openFirst}</p>
-            </aside>
-          )}
-          <div role="status" aria-label={labels.result} className={`ue-result${message ? ` is-${message.kind}` : ''}`}>
-            {message && <p>{message.text}</p>}
-            {message?.notes && message.notes.length > 0 && (
-              <>
-                <p className="ue-notes-lead">{messages.noteLead}</p>
-                <ul>
-                  {message.notes.map((n) => (
-                    <li key={n}>{n}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      {!hasDoc && result}
 
-      <details ref={codeBox} className="ue-code">
-        <summary>{labels.code}</summary>
-        <textarea ref={codeRef} readOnly rows={12} spellCheck={false} aria-label={`${labels.code}: ${file}`} value={text} />
-      </details>
+      {!hasDoc && showGallery && <Gallery overlay={false} onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
+
+      {hasDoc && (
+        <div className="ue-work">
+          <div className="ue-preview">
+            {showGallery && <Gallery overlay onPick={onPickSample} onClose={() => setGalleryOpen(false)} />}
+            <div className="ue-scroll" inert={showGallery || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
+              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} />
+            </div>
+            <p id="ue-preview-hint" className="ue-hint">
+              {labels.previewHint}
+            </p>
+          </div>
+          <div className="ue-side">
+            {session ? (
+              <Panel session={session} rev={rev} nonce={nonce} selected={selIndex} view={view} link={link} onLink={setLink} pins={mine} onSet={onSet} onBadValue={onBadValue} onMove={onReorder} onNudge={onNudge} />
+            ) : (
+              <aside className="ue-panel" aria-label={panel.title}>
+                <p className="ue-hint">{messages.working}</p>
+              </aside>
+            )}
+            {result}
+          </div>
+        </div>
+      )}
+
+      {hasDoc && (
+        <details ref={codeBox} className="ue-code">
+          <summary>{labels.code}</summary>
+          <textarea ref={codeRef} readOnly rows={12} spellCheck={false} aria-label={`${labels.code}: ${file}`} value={text} />
+        </details>
+      )}
     </section>
   )
 }

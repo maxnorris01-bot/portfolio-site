@@ -38,6 +38,13 @@ export const uiEditor: UiEditorInfo = {
  *  and the vendored engine bundles parse5 (reads HTML and SVG) and postcss (reads CSS) (src/ui-editor/vendor/README.md). */
 export const techStack = ['TypeScript', 'React', 'parse5', 'postcss']
 
+/** One line for each sample card in the gallery (the samples' ids are in src/ui-editor/samples/manifest.ts). */
+export const sampleDescriptions = {
+  landing: 'A hero, three cards and a footer, with its own stylesheet.',
+  email: 'A table-based newsletter with a narrow-screen rule.',
+  chart: 'A small bar chart drawn as SVG, one bar a weekday.',
+}
+
 /** The page's header and the sections under the editor. */
 export const uiEditorPage = {
   lead: 'Paste or upload your own HTML or SVG, click an element and change it from a side panel or by dragging, then copy the updated code. It runs entirely in your browser.',
@@ -54,7 +61,9 @@ export const MAX_BYTES = 1_000_000
 export const labels = {
   bar: 'Editor controls',
   sample: 'Sample',
-  samplePlaceholder: 'Choose a sample',
+  samplesButton: 'Samples',
+  gallery: 'Sample gallery',
+  galleryHint: 'Pick a sample to start, or paste or upload your own HTML or SVG.',
   samples: { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart' },
   paste: 'Paste',
   upload: 'Upload',
@@ -85,7 +94,6 @@ export const labels = {
   confirm: 'Confirm',
   replaceText: 'Replace what is open? Your edits will be lost.',
   resetText: 'Reset every edit and go back to the original?',
-  openFirst: 'Open something to edit it.',
 }
 
 /** The side panel. A field's `prop` is the CSS property it writes (SVG has its own mapping in the panel). */
@@ -129,7 +137,6 @@ export const messages = {
   copied: (file: string) => `Copied ${file}.`,
   copyFailed: 'Could not copy automatically. The code is selected under Updated code: press Ctrl+C (Cmd+C on a Mac).',
   downloaded: (file: string) => `Saved ${file}.`,
-  empty: 'Nothing is open yet. Paste HTML or SVG, upload a file, or choose a sample above.',
   opened: (name: string) => `Opened ${name}.`,
   badType: 'Only .html, .htm, .svg and one optional .css file can be opened here.',
   tooMany: 'Choose one HTML or SVG file, and at most one .css file with it.',

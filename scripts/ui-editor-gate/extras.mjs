@@ -20,7 +20,8 @@ const tmp = mkdtempSync(join(tmpdir(), 'ue-'))
 const file = (name, text) => { const p = join(tmp, name); writeFileSync(p, text); return p }
 const status = (page) => page.getByRole('status', { name: 'Edit result' }).innerText()
 const point = (page, sel) => page.evaluate((s) => { const f = document.querySelector('iframe[title="Preview"]'); const fr = f.getBoundingClientRect(); const b = f.contentDocument.querySelector(s).getBoundingClientRect(); return { x: fr.left + b.left + b.width / 2, y: fr.top + b.top + b.height / 2 } }, sel)
-const open = async (ctx) => { const page = await ctx.newPage(); await page.goto(url); await page.getByLabel('Sample', { exact: true }).waitFor(); return page }
+const pickSample = async (page, id) => { await page.locator('[data-editor]').first().waitFor(); if (await page.locator('[data-sample-card]').count()) await page.locator(`[data-sample-card="${id}"]`).click(); else await page.getByLabel('Sample', { exact: true }).selectOption(id) }
+const open = async (ctx) => { const page = await ctx.newPage(); await page.goto(url); await page.locator('[data-editor]').first().waitFor(); return page }
 
 const browser = await chromium.launch({ headless: true })
 const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, acceptDownloads: true })
@@ -58,7 +59,7 @@ const sandbox = await page.evaluate(() => document.querySelector('iframe[title="
 check('the preview is sandbox="allow-same-origin" (scripts off)', sandbox === 'allow-same-origin', sandbox ?? '')
 
 // Landing: keyboard nudge, Ctrl-Z, Escape, confirm, Tablet
-await page.getByLabel('Sample', { exact: true }).selectOption('landing')
+await pickSample(page, 'landing')
 await page.waitForFunction(() => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector('#cta'))
 await settle(page)
 const p = await point(page, '#cta')
@@ -82,7 +83,7 @@ check('a drag shows feedback in the host layer only', (await page.locator('.ue-g
 await page.keyboard.press('Escape'); await page.mouse.up(); await settle(page)
 check('Escape cancels a drag: no edit, no ghost', (await page.locator('.ue-ghost').count()) === 0 && Math.abs((await left()) - l0) < 0.6 && await page.getByRole('button', { name: 'Undo', exact: true }).isDisabled())
 await page.keyboard.press('ArrowRight'); await settle(page)
-await page.getByLabel('Sample', { exact: true }).selectOption('email')
+await pickSample(page, 'email')
 check('choosing a sample with unsaved edits asks first', await page.getByRole('button', { name: 'Discard edits' }).isVisible())
 await page.getByRole('button', { name: 'Keep editing' }).click()
 check('Keep editing keeps the page and the edit', (await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled()) && Math.abs((await left()) - l0 - 1) < 0.6)
@@ -93,7 +94,7 @@ await page.close()
 // A phone: every control is at least 44 CSS px tall
 const phone = await browser.newContext({ viewport: { width: 390, height: 844 } })
 const pp = await phone.newPage()
-await pp.goto(url); await pp.getByLabel('Sample', { exact: true }).selectOption('landing')
+await pp.goto(url); await pickSample(pp, 'landing')
 await pp.waitForFunction(() => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector('#headline')); await settle(pp)
 const small = await pp.evaluate(() => [...document.querySelectorAll('.ue-bar button, .ue-bar select, .ue-panel input, .ue-panel select, .ue-panel button')].filter((e) => e.getBoundingClientRect().height > 0 && e.getBoundingClientRect().height < 43.5).map((e) => (e.getAttribute('aria-label') || e.textContent || e.id).trim().slice(0, 24)))
 check('on a phone every tappable control is at least 44 px tall', small.length === 0, small.join(', '))
