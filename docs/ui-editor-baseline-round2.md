@@ -84,3 +84,8 @@ passes S04, S05 and S09.
   change (a reading, not an edit; logged). Nothing in the file changed.
 - **The change map's ticks must be thin.** In the stub the first ticks were 8 px tall and overlapped, so a real click on tick 2 hit tick 3. The stub's
   ticks are 3 px; the page's must not overlap either (R12 clicks them with a real mouse).
+
+## check:layout baseline (before any page change)
+
+`check:layout --home` (flag ON, four planets): "All layout targets met" (one known explained miss in the file). `check:layout --style` with `CHECK_PAGES="UI Editor"`: all
+targets met at 1280x720, 1366x768, 1440x900, 1920x1080, 2000x1100, 2560x1440 and 390x844 (chars per line 64-77 at 1280 and 1366, 47-65 at 1440 and 1920, 54-66 at 2000 and 2560, 36-50 at 390).

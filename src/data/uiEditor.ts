@@ -21,7 +21,7 @@ export const uiEditor: UiEditorInfo = {
   route: '/ui-editor',
   planet: [
     {
-      text: 'UI Editor lets you paste or upload your own HTML or SVG, click an element and change its text, size, colours or position from the ribbon above the preview or by dragging.',
+      text: 'UI Editor lets you paste or upload your own HTML or SVG, click an element and change its text, size, colours or position from a ribbon or by dragging.',
       compact: 'UI Editor lets you paste your own HTML or SVG, click an element and change it from a ribbon or by dragging.',
     },
     {
