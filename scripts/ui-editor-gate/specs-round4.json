@@ -1,0 +1,1920 @@
+{
+ "version": 1,
+ "retiredChecks": {
+  "T01": {
+   "reason": "Round 4 removes the tab bar: there is one ribbon with seven groups and no role tablist, tab or tabpanel (Max, round 4, item 1). T01's only check is the two-tab structure.",
+   "wholeSpec": true,
+   "replacedBy": "U01"
+  },
+  "T02": {
+   "reason": "Round 4 lets the groups wrap into one band at 1920 and two at 1440 and 1280, so the ribbon is a different height at each width. T02 compares the heights read at 1280 with the heights remembered at 1920 (steps 25, 26, 29, 30, 33, 36 and 37); within one width it still compares (its stage-top steps at 1280 and all steps at 1920 stay).",
+   "steps": [
+    25,
+    26,
+    29,
+    30,
+    33,
+    36,
+    37
+   ],
+   "replacedBy": "U04"
+  },
+  "T06": {
+   "reason": "Round 4 enables Grid, Snap and Grid spacing whenever a document is open (view aids, Max's scoper), so \"every ribbon control is disabled with nothing selected and in Tablet\" can no longer hold. All four ribbonAllDisabled asserts of T06 are retired; the rest of T06 stays.",
+   "asserts": [
+    "ribbonAllDisabled"
+   ],
+   "replacedBy": "U09"
+  },
+  "T15": {
+   "reason": "Round 4 has no tabs, so ArrowRight and ArrowLeft between tabs has nothing to act on. T15's other checks (Tab reaches every enabled control with a focus indicator; icon-only buttons have names and tooltips) stay.",
+   "asserts": [
+    "tabArrows"
+   ],
+   "replacedBy": "U08"
+  },
+  "R04": {
+   "reason": "Steps 3 and 10 (ribbonAllDisabled) cannot hold now that Grid, Snap and Grid spacing are always enabled. Steps 14 and 16 (ribbonBox at 1280 and 1440) cap the ribbon at 130 px, which two bands of labelled controls cannot meet. Steps 2 (1920, one band), 4 to 9, 11 and 12 stay.",
+   "steps": [
+    3,
+    10,
+    14,
+    16
+   ],
+   "replacedBy": "U09 (3, 10) and U02, U04 (14, 16)"
+  },
+  "R05": {
+   "reason": "Step 2 (selectOptions) expects the first option of Font family to read as the page's whole computed stack. Round 4 shows the first family name only (\"Georgia\") and puts the stack in a tooltip (Max, round 4, item 5). Steps 3 to 6 stay.",
+   "steps": [
+    2
+   ],
+   "replacedBy": "U06"
+  }
+ },
+ "vocabulary": {
+  "note": "Specs U01 to U13 (docs/ui-editor-gate-rules-round4.md). The step and assert names of the earlier files keep their meaning except where the rules file says a reading changes. The ones below are new or changed; the runner implements them after this file is locked. Nothing calls the page's own logic: values come from the DOM, computed style and layout.",
+  "steps": {
+   "tab": "Unchanged text of round 3, new reading (runner change #25): when the page has no element with role tab the step does nothing (there is no tab to click: every control is in one ribbon). When it has tabs (the earlier stubs) it behaves as before.",
+   "clickBlank": "As before: a click on the empty part of the preview (deselects)."
+  },
+  "asserts": {
+   "noTabs": "P5. No element of the whole page has role tablist, tab or tabpanel.",
+   "ribbonGroups": "P5. [data-ribbon-panel] exists once and is inside [data-ribbon]; its [data-ribbon-group] elements, in document order, are the keys of `groups` in that order, each with role group and aria-label equal to the name; with visibleAll every group is rendered (a client rect) and inside the window; every control named is a button, input or select with that accessible name (aria-label, else its text) inside its group; every button, input and select inside [data-ribbon] lies inside a [data-ribbon-group], except those named in `exempt`, which must lie inside [data-ribbon-strip]; no accessible name occurs twice inside [data-ribbon].",
+   "ribbonSpread": "P1. Bands are the distinct tops (rounded to 6 px) of the visible [data-ribbon-group] elements. `maxBands` is the most allowed (1 means exactly one). The ribbon's inner edges are the box of [data-ribbon-panel] less its border and padding. For every band: the first group's left edge is within edgeTol of the inner left edge and the last group's right edge within edgeTol of the inner right edge; the gaps between neighbouring group boxes differ by at most gapTol; the gaps between the nearest controls of neighbouring groups (the right-most control edge of one to the left-most control edge of the next) differ by at most controlGapTol (my definition of \"extra width is distributed evenly\"); every group except the last of its band has a visible thin separator (a border of at least 1 px, not transparent, on one side); no group is split (every control box of a group lies inside the group's box within 0.5 px), none is clipped (inside the panel's box within 0.5 px), and [data-ribbon-panel] and the page do not scroll sideways (scrollWidth <= clientWidth + 1).",
+   "ribbonLabels": "P5. Every visible button, input (not hidden) and select of [data-ribbon-panel] and [data-ribbon-strip], except the names in `exempt` (the Link checkbox, whose label sits beside it), has a label: either its own visible text of at least three letters (Sides, Move up, Move down, Grid, Snap, and the quick-bar style words), or the nearest visible [data-ctl-label] element whose box is within `reach` px of the control's box (distance between the two rectangles) and overlaps it horizontally. Each [data-ctl-label] has a computed font size between minFont and maxFont (inclusive, 0.01), text of 1 to maxWords words, sentence case (first letter upper case, not all capitals unless one letter, which is forbidden anyway), a computed colour equal to the page's `colour` custom property resolved by the runner, and is not any of `forbidden` (exact, case-insensitive) and is not a single character. The label contains the control's accessible name (case-insensitive) or equals the `table` entry for the name (after removing a leading Decrease, Increase or Pick, and the trailing ' sides' only through the table entry). `captions`: the labels of those buttons equal the given words exactly. `words`: those controls' own visible text equals the given text exactly.",
+   "tooltips": "P5. Every visible button, input (not hidden), select and the Link checkbox of [data-ribbon] has a non-empty title of at least minWords words, whose first word (letters only) is one of `verbs` (case-sensitive) and which is not equal to the control's accessible name.",
+   "sameAs": "As round 3 (P1 or P5). The measure named by `what` equals the remembered number within tol.",
+   "controlSizes": "As round 3 (P1): the controls of the visible [data-ribbon-panel] (now the only panel) are 26 to 28 px high (+- tol) except the largeNames (54 to 62 and at least 40 wide); every visible group has a [data-group-label] of labelSize under its controls. The `tab` parameter has no meaning in round 4 and is ignored.",
+   "fieldsFit": "P1. For the selected element, every visible text input of [data-ribbon-panel] has scrollWidth <= clientWidth; every visible select shows its selected option's whole text: the text measured with the select's own font on a canvas, plus the select's horizontal padding and border and 22 px for the arrow, is at most its clientWidth + 0.5 (my definition: a select does not report its overflow). The selected element's label is recorded; with minDistinct the number of distinct labels recorded so far in the spec must be at least that.",
+   "fontShows": "P5. The Font family select's selected option text equals `expect` exactly; its title contains `stackContains` (the full stack in the tooltip); its option texts are exactly `options`, in order, and none contains a comma.",
+   "fillShows": "P5. The Background text input's value equals `expect` when compared without case, and its scrollWidth <= clientWidth.",
+   "statusLine": "P1. The element with role status named Edit result: its box is at most maxHeight tall; it is one line (its text box, measured by a Range, has one distinct line top; no child is taller than 1.6 times the computed line height); its top is not above the bottom of [data-ribbon] (0.5 px) and at most gapMax px below it; [data-stage-area] starts at or below its bottom (0.5 px); with messageShown its text is not empty; its height is stored under `key`, and with sameHeightAs it equals the stored height of that key within 1 px (reserved space).",
+   "tabOrder": "P5. With an element selected, focus is put on the first visible enabled control of [data-ribbon] in visual order, then Tab is pressed up to `max` times until focus leaves [data-ribbon]. The sequence of focused controls equals the list of all visible, enabled buttons, inputs (not hidden) and selects of [data-ribbon] (the strip's checkbox included) in visual order: strip first, then band by band, in each band group by group from left to right, in each group row by row (control tops within 12 px are one row), left to right. Each focused control shows a focus indicator: an outline of at least 1 px and a style other than none, or a box-shadow other than none, and different from the same control unfocused. (my definition of visual order and indicator)",
+   "enabledOnly": "P5. With a document open, the controls of [data-ribbon] named in `names` (Grid, Snap, Grid spacing) are enabled, and every other visible button, input and select of [data-ribbon] (the Link checkbox too) is disabled.",
+   "quickBarWords": "P5. Read in the group Editor controls: for each of `words`, the button whose name matches (Review unlinked matches Review unlinked (N)) is visible and its visible text (innerText, trimmed) contains the text; for each of `iconOnly`, the button's visible text is empty and its aria-label and title are not empty.",
+   "limitsHas": "P5. The list items under the heading Limits contain one whose text, with whitespace normalised, contains `sentence`. U13 is scored only when the sentence was verified in Step 1; otherwise the runner is given --u13-na and the spec reads NOT APPLICABLE when the sentence is absent (and FAILs if it is present).",
+   "ribbonWraps": "As round 3: at least minRows distinct group tops (6 px).",
+   "ribbonHit": "As round 2/3.",
+   "noClipped": "As round 3 (no tab elements now)."
+  }
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL",
+  "NOT APPLICABLE"
+ ],
+ "limitsSentence": "With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge.",
+ "specs": [
+  {
+   "expected": "PASS",
+   "id": "U01",
+   "name": "Structure: no tab bar anywhere, seven groups (Font, Paragraph, Size, Shape, Spacing, Arrange, Grid) all visible at 1920, every control in its group, each command once",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noTabs"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonGroups",
+     "groups": {
+      "Font": [
+       "Font family",
+       "Decrease Font size",
+       "Font size",
+       "Increase Font size",
+       "Font weight",
+       "Text colour",
+       "Pick text colour"
+      ],
+      "Paragraph": [
+       "Align left",
+       "Align centre",
+       "Align right",
+       "Justify"
+      ],
+      "Size": [
+       "Decrease Width",
+       "Width",
+       "Increase Width",
+       "px",
+       "%",
+       "Decrease Height",
+       "Height",
+       "Increase Height"
+      ],
+      "Shape": [
+       "Background",
+       "Pick background",
+       "Border colour",
+       "Pick border colour",
+       "Decrease Border width",
+       "Border width",
+       "Increase Border width",
+       "Decrease Border radius",
+       "Border radius",
+       "Increase Border radius"
+      ],
+      "Spacing": [
+       "Decrease Padding",
+       "Padding",
+       "Increase Padding",
+       "Padding sides",
+       "Decrease Margin",
+       "Margin",
+       "Increase Margin",
+       "Margin sides"
+      ],
+      "Arrange": [
+       "Move up",
+       "Move down",
+       "Decrease Nudge X",
+       "Nudge X",
+       "Increase Nudge X",
+       "Decrease Nudge Y",
+       "Nudge Y",
+       "Increase Nudge Y"
+      ],
+      "Grid": [
+       "Grid",
+       "Snap",
+       "Grid spacing"
+      ]
+     },
+     "exempt": [
+      "Link to Phone",
+      "Link to Desktop"
+     ],
+     "visibleAll": true
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U02",
+   "name": "Spread: the groups share the full width of the ribbon (one band at 1920, at most two at 1440 and 1280, never split, clipped or scrolling sideways), evenly spaced, with thin separators",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonSpread",
+     "maxBands": 1,
+     "edgeTol": 24,
+     "gapTol": 8,
+     "controlGapTol": 8
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonSpread",
+     "maxBands": 2,
+     "edgeTol": 24,
+     "gapTol": 8,
+     "controlGapTol": 8
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonSpread",
+     "maxBands": 2,
+     "edgeTol": 24,
+     "gapTol": 8,
+     "controlGapTol": 8
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U03",
+   "name": "Labels: every ribbon control has a visible label of 11 to 12 px (no bare icons, no abbreviations), the label table holds, the alignment captions and the words Sides, Move up, Move down, Grid and Snap show, and every control has a verb-first tooltip",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonLabels",
+     "minFont": 11,
+     "maxFont": 12,
+     "sentenceCase": true,
+     "maxWords": 3,
+     "colour": "--color-text-secondary",
+     "reach": 14,
+     "forbidden": [
+      "W",
+      "H",
+      "Thick",
+      "Round",
+      "Fill",
+      "Line",
+      "Pad",
+      "Mar",
+      "Size",
+      "Text",
+      "X",
+      "Y"
+     ],
+     "table": {
+      "Font family": "Font family",
+      "Font size": "Font size",
+      "Font weight": "Weight",
+      "Text colour": "Text colour",
+      "Align left": "Left",
+      "Align centre": "Centre",
+      "Align right": "Right",
+      "Justify": "Justify",
+      "Anchor start": "Start",
+      "Anchor middle": "Middle",
+      "Anchor end": "End",
+      "Width": "Width",
+      "Width unit": "Unit",
+      "px": "Unit",
+      "%": "Unit",
+      "Height": "Height",
+      "Background": "Fill colour",
+      "Border colour": "Line colour",
+      "Border width": "Line thickness",
+      "Border radius": "Corner rounding",
+      "Padding": "Padding",
+      "Margin": "Margin",
+      "Padding sides": "Sides",
+      "Margin sides": "Sides",
+      "Move up": "Move up",
+      "Move down": "Move down",
+      "Nudge X": "Nudge X",
+      "Nudge Y": "Nudge Y",
+      "Grid": "Grid",
+      "Snap": "Snap",
+      "Grid spacing": "Grid spacing"
+     },
+     "captions": {
+      "Align left": "Left",
+      "Align centre": "Centre",
+      "Align right": "Right",
+      "Justify": "Justify"
+     },
+     "exempt": [
+      "Link to Phone",
+      "Link to Desktop"
+     ],
+     "words": [
+      {
+       "name": "Padding sides",
+       "text": "Sides"
+      },
+      {
+       "name": "Margin sides",
+       "text": "Sides"
+      },
+      {
+       "name": "Move up",
+       "text": "Move up"
+      },
+      {
+       "name": "Move down",
+       "text": "Move down"
+      },
+      {
+       "name": "Grid",
+       "text": "Grid"
+      },
+      {
+       "name": "Snap",
+       "text": "Snap"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tooltips",
+     "verbs": [
+      "Choose",
+      "Set",
+      "Make",
+      "Type",
+      "Pick",
+      "Align",
+      "Increase",
+      "Decrease",
+      "Move",
+      "Show",
+      "Hide",
+      "Turn",
+      "Open",
+      "Close",
+      "Snap",
+      "Edit",
+      "Switch",
+      "Use",
+      "Nudge",
+      "Scale",
+      "Show",
+      "Save",
+      "Copy",
+      "Undo",
+      "Redo",
+      "Reset",
+      "List",
+      "Review",
+      "Rotate",
+      "Justify",
+      "Pin"
+     ],
+     "minWords": 3
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonLabels",
+     "minFont": 11,
+     "maxFont": 12,
+     "sentenceCase": true,
+     "maxWords": 3,
+     "colour": "--color-text-secondary",
+     "reach": 14,
+     "forbidden": [
+      "W",
+      "H",
+      "Thick",
+      "Round",
+      "Fill",
+      "Line",
+      "Pad",
+      "Mar",
+      "Size",
+      "Text",
+      "X",
+      "Y"
+     ],
+     "table": {
+      "Font family": "Font family",
+      "Font size": "Font size",
+      "Font weight": "Weight",
+      "Text colour": "Text colour",
+      "Align left": "Left",
+      "Align centre": "Centre",
+      "Align right": "Right",
+      "Justify": "Justify",
+      "Anchor start": "Start",
+      "Anchor middle": "Middle",
+      "Anchor end": "End",
+      "Width": "Width",
+      "Width unit": "Unit",
+      "px": "Unit",
+      "%": "Unit",
+      "Height": "Height",
+      "Background": "Fill colour",
+      "Border colour": "Line colour",
+      "Border width": "Line thickness",
+      "Border radius": "Corner rounding",
+      "Padding": "Padding",
+      "Margin": "Margin",
+      "Padding sides": "Sides",
+      "Margin sides": "Sides",
+      "Move up": "Move up",
+      "Move down": "Move down",
+      "Nudge X": "Nudge X",
+      "Nudge Y": "Nudge Y",
+      "Grid": "Grid",
+      "Snap": "Snap",
+      "Grid spacing": "Grid spacing"
+     },
+     "captions": {
+      "Align left": "Left",
+      "Align centre": "Centre",
+      "Align right": "Right",
+      "Justify": "Justify"
+     },
+     "exempt": [
+      "Link to Phone",
+      "Link to Desktop"
+     ],
+     "words": [
+      {
+       "name": "Padding sides",
+       "text": "Sides"
+      },
+      {
+       "name": "Margin sides",
+       "text": "Sides"
+      },
+      {
+       "name": "Move up",
+       "text": "Move up"
+      },
+      {
+       "name": "Move down",
+       "text": "Move down"
+      },
+      {
+       "name": "Grid",
+       "text": "Grid"
+      },
+      {
+       "name": "Snap",
+       "text": "Snap"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tooltips",
+     "verbs": [
+      "Choose",
+      "Set",
+      "Make",
+      "Type",
+      "Pick",
+      "Align",
+      "Increase",
+      "Decrease",
+      "Move",
+      "Show",
+      "Hide",
+      "Turn",
+      "Open",
+      "Close",
+      "Snap",
+      "Edit",
+      "Switch",
+      "Use",
+      "Nudge",
+      "Scale",
+      "Show",
+      "Save",
+      "Copy",
+      "Undo",
+      "Redo",
+      "Reset",
+      "List",
+      "Review",
+      "Rotate",
+      "Justify",
+      "Pin"
+     ],
+     "minWords": 3
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#heading",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonLabels",
+     "minFont": 11,
+     "maxFont": 12,
+     "sentenceCase": true,
+     "maxWords": 3,
+     "colour": "--color-text-secondary",
+     "reach": 14,
+     "forbidden": [
+      "W",
+      "H",
+      "Thick",
+      "Round",
+      "Fill",
+      "Line",
+      "Pad",
+      "Mar",
+      "Size",
+      "Text",
+      "X",
+      "Y"
+     ],
+     "table": {
+      "Font family": "Font family",
+      "Font size": "Font size",
+      "Font weight": "Weight",
+      "Text colour": "Text colour",
+      "Align left": "Left",
+      "Align centre": "Centre",
+      "Align right": "Right",
+      "Justify": "Justify",
+      "Anchor start": "Start",
+      "Anchor middle": "Middle",
+      "Anchor end": "End",
+      "Width": "Width",
+      "Width unit": "Unit",
+      "px": "Unit",
+      "%": "Unit",
+      "Height": "Height",
+      "Background": "Fill colour",
+      "Border colour": "Line colour",
+      "Border width": "Line thickness",
+      "Border radius": "Corner rounding",
+      "Padding": "Padding",
+      "Margin": "Margin",
+      "Padding sides": "Sides",
+      "Margin sides": "Sides",
+      "Move up": "Move up",
+      "Move down": "Move down",
+      "Nudge X": "Nudge X",
+      "Nudge Y": "Nudge Y",
+      "Grid": "Grid",
+      "Snap": "Snap",
+      "Grid spacing": "Grid spacing"
+     },
+     "captions": {
+      "Anchor start": "Start",
+      "Anchor middle": "Middle",
+      "Anchor end": "End"
+     },
+     "exempt": [
+      "Link to Phone",
+      "Link to Desktop"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tooltips",
+     "verbs": [
+      "Choose",
+      "Set",
+      "Make",
+      "Type",
+      "Pick",
+      "Align",
+      "Increase",
+      "Decrease",
+      "Move",
+      "Show",
+      "Hide",
+      "Turn",
+      "Open",
+      "Close",
+      "Snap",
+      "Edit",
+      "Switch",
+      "Use",
+      "Nudge",
+      "Scale",
+      "Show",
+      "Save",
+      "Copy",
+      "Undo",
+      "Redo",
+      "Reset",
+      "List",
+      "Review",
+      "Rotate",
+      "Justify",
+      "Pin"
+     ],
+     "minWords": 3
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U04",
+   "name": "Stable size: the ribbon is the same height with and without a selection and in a view-only size, and the stage's top edge does not move when selecting, deselecting or when an edit message appears, at 1920, 1440 and 1280",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "remember",
+     "name": "rha",
+     "what": "ribbonHeight"
+    },
+    {
+     "do": "remember",
+     "name": "sta",
+     "what": "stageTop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rha",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "sta",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rha",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "sta",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rha",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "sta",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "clickBlank"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rha",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "sta",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "remember",
+     "name": "rhb",
+     "what": "ribbonHeight"
+    },
+    {
+     "do": "remember",
+     "name": "stb",
+     "what": "stageTop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rhb",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stb",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rhb",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stb",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rhb",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stb",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "clickBlank"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rhb",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stb",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "remember",
+     "name": "rhc",
+     "what": "ribbonHeight"
+    },
+    {
+     "do": "remember",
+     "name": "stc",
+     "what": "stageTop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rhc",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stc",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rhc",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stc",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rhc",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stc",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "clickBlank"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "rhc",
+     "what": "ribbonHeight",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stc",
+     "what": "stageTop",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U05",
+   "name": "Control sizes: small controls 26 to 28 px high (1 px), large buttons 54 to 62 px, at 1920 and at 1280",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "controlSizes",
+     "tab": "Home",
+     "small": [
+      26,
+      28
+     ],
+     "large": [
+      54,
+      62
+     ],
+     "largeNames": [
+      "Move up",
+      "Move down",
+      "Grid",
+      "Snap"
+     ],
+     "tol": 1,
+     "labelSize": "11px"
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "controlSizes",
+     "tab": "Home",
+     "small": [
+      26,
+      28
+     ],
+     "large": [
+      54,
+      62
+     ],
+     "largeNames": [
+      "Move up",
+      "Move down",
+      "Grid",
+      "Snap"
+     ],
+     "tol": 1,
+     "labelSize": "11px"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U06",
+   "name": "No clipping: for 18 elements of the landing and email samples no ribbon input or select shows clipped text; the font control shows Georgia in full (the full stack only in a tooltip, options by name only); the Fill field shows Transparent in full",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#headline"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#cta"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#art"
+    },
+    {
+     "do": "click",
+     "sel": "#plans",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#plans"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#card-plan"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#card-build"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#card-ship"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan h3",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#card-plan h3"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan p",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#card-plan p"
+    },
+    {
+     "do": "click",
+     "sel": "#footer",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#footer"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fontShows",
+     "expect": "Georgia",
+     "stackContains": "Times New Roman",
+     "options": [
+      "Georgia",
+      "Georgia",
+      "Times New Roman",
+      "Arial",
+      "Helvetica",
+      "Verdana",
+      "Trebuchet MS",
+      "Tahoma",
+      "Courier New",
+      "system-ui",
+      "serif",
+      "sans-serif",
+      "monospace"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fillShows",
+     "expect": "transparent"
+    },
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "click",
+     "sel": "#hello",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#hello"
+    },
+    {
+     "do": "click",
+     "sel": "#brand",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#brand"
+    },
+    {
+     "do": "click",
+     "sel": "#picks",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#picks"
+    },
+    {
+     "do": "click",
+     "sel": "#pick-one",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#pick-one"
+    },
+    {
+     "do": "click",
+     "sel": "#pick-two",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#pick-two"
+    },
+    {
+     "do": "click",
+     "sel": "#pick-three",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#pick-three"
+    },
+    {
+     "do": "click",
+     "sel": "#button",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#button"
+    },
+    {
+     "do": "click",
+     "sel": "#fine",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#fine"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#fine",
+     "minDistinct": 16
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U07",
+   "name": "Status line: the Edit result region is one slim line of at most 40 px with reserved space, directly under the ribbon and above the stage; an applied edit and a refusal do not move the stage",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "remember",
+     "name": "sta",
+     "what": "stageTop"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "statusLine",
+     "maxHeight": 40,
+     "gapMax": 12,
+     "key": "idle"
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "statusLine",
+     "maxHeight": 40,
+     "gapMax": 12,
+     "key": "applied",
+     "messageShown": true,
+     "sameHeightAs": "idle"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "sta",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "drag",
+     "sel": "#card-build",
+     "handle": "e",
+     "dx": 30,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "flex-grow is above 0"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "statusLine",
+     "maxHeight": 40,
+     "gapMax": 12,
+     "key": "refused",
+     "messageShown": true,
+     "sameHeightAs": "idle"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "sta",
+     "what": "stageTop",
+     "tol": 1
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "remember",
+     "name": "stb",
+     "what": "stageTop"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "statusLine",
+     "maxHeight": 40,
+     "gapMax": 12,
+     "key": "idle1280"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "statusLine",
+     "maxHeight": 40,
+     "gapMax": 12,
+     "key": "applied1280",
+     "messageShown": true,
+     "sameHeightAs": "idle1280"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sameAs",
+     "name": "stb",
+     "what": "stageTop",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U08",
+   "name": "Keyboard: Tab visits every enabled ribbon control in visual order (band by band), each with a visible focus indicator; every icon-only button has a name and a tooltip; the Sides popover keeps its focus rules",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabOrder",
+     "max": 140
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "iconNames"
+    },
+    {
+     "do": "button",
+     "name": "Padding sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": true,
+     "inputs": [
+      "Padding top",
+      "Padding right",
+      "Padding bottom",
+      "Padding left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Padding sides"
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabOrder",
+     "max": 140
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U09",
+   "name": "View aids: with a document open and nothing selected (and in a view-only size) Grid, Snap and Grid spacing are enabled and every other ribbon control is disabled; Grid draws lines; Snap then snaps a drag",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "enabledOnly",
+     "names": [
+      "Grid",
+      "Snap",
+      "Grid spacing"
+     ]
+    },
+    {
+     "do": "button",
+     "name": "Grid"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pressed",
+     "names": [
+      "Grid",
+      "Snap"
+     ],
+     "on": "Grid"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "gridOverlay",
+     "on": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "gridLines",
+     "spacing": 8,
+     "tol": 0.5
+    },
+    {
+     "do": "button",
+     "name": "Snap"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#headline",
+     "handle": null,
+     "dx": 37,
+     "dy": 37
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "snapMove",
+     "sel": "#headline",
+     "dx": 37,
+     "dy": 37,
+     "spacing": 8,
+     "tol": 0.5
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "enabledOnly",
+     "names": [
+      "Grid",
+      "Snap",
+      "Grid spacing"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "clickBlank"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "enabledOnly",
+     "names": [
+      "Grid",
+      "Snap",
+      "Grid spacing"
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U10",
+   "name": "Snap resize on #cta (left-anchored): Snap on at 8 px, an east-handle drag puts the right edge on a multiple of 8; a resize ending within 2 px of the parent's content width writes 100%",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "button",
+     "name": "Snap"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "inset"
+    },
+    {
+     "do": "drag",
+     "handle": "e",
+     "sel": "#cta",
+     "dx": 40,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "snapEdge",
+     "sel": "#cta",
+     "dx": 40,
+     "spacing": 8,
+     "tol": 0.5
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "inset"
+    },
+    {
+     "do": "drag",
+     "handle": "e",
+     "sel": "#cta",
+     "dxToParentEdge": {
+      "sel": "#cta",
+      "short": 1
+     }
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "eqParent",
+     "sel": "#cta",
+     "at": "current",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "(?<![-\\w])width:\\s*100%"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "applied"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U11",
+   "name": "Quick bar: Review unlinked and Reset all show their words, Undo and Redo are icon-only with names and tooltips, and the view buttons, Rotate, Samples, Copy code, Download and File are never disabled-styled in any view",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "host": {
+    "width": 1440,
+    "height": 900
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "quickBarWords",
+     "words": [
+      {
+       "name": "Review unlinked",
+       "text": "Review unlinked"
+      },
+      {
+       "name": "Reset all",
+       "text": "Reset all"
+      }
+     ],
+     "iconOnly": [
+      "Undo",
+      "Redo"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "liveButtons",
+     "names": [
+      "Samples",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Copy code",
+      "Download",
+      "File"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "liveButtons",
+     "names": [
+      "Samples",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Copy code",
+      "Download",
+      "File",
+      "Rotate"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "liveButtons",
+     "names": [
+      "Samples",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Copy code",
+      "Download",
+      "File",
+      "Rotate"
+     ]
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "liveButtons",
+     "names": [
+      "Samples",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Copy code",
+      "Download",
+      "File",
+      "Rotate"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "quickBarWords",
+     "words": [
+      {
+       "name": "Review unlinked",
+       "text": "Review unlinked"
+      },
+      {
+       "name": "Reset all",
+       "text": "Reset all"
+      }
+     ],
+     "iconOnly": [
+      "Undo",
+      "Redo"
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U12",
+   "name": "Narrow window (390): the groups wrap into more bands, no sideways scroll, every ribbon control at least 44 px high and wide, none clipped, the Sides popover inside the window",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "host": {
+    "width": 390,
+    "height": 844
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonWraps",
+     "minRows": 3
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonHit",
+     "min": 44
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noOverflowX"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noClipped",
+     "tol": 0.5
+    },
+    {
+     "do": "button",
+     "name": "Padding sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popoverFits",
+     "name": "Padding sides"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "U13",
+   "name": "Limits sentence about snapping: present exactly when it was verified in Step 1 (otherwise the spec is NOT APPLICABLE and the sentence is absent)",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "limitsHas",
+     "sentence": "With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge."
+    }
+   ]
+  }
+ ]
+}
