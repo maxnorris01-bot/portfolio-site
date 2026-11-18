@@ -560,7 +560,7 @@
 
 /* ---- the ribbon (round 4): ONE ribbon, no tabs. A slim strip (the selected element, its size, the Link checkbox and the one plain note), then seven groups that
    share the full width. Every control has its word above it (an icon button has its caption under it); a group's name sits under its controls (11 px).
-   From 1000 px the groups grow equally to fill their band and keep their thin separators: one band when the ribbon is wide enough for all seven, otherwise two
+   From 1000 px the groups grow equally to fill their band and keep their thin separators: one band when the ribbon is wide enough for all seven (they need about 1630 px; 1700 leaves room for the fallback font), otherwise two
    (a break after Shape: groups wrap at group boundaries, never split, never a sideways scroll). Below 1000 px they wrap into as many bands as needed and every
    control is at least 44 x 44. Small controls are 26 px high, the large buttons 56 x 60. Tokens only. ---- */
 .ue-sr {
@@ -732,7 +732,7 @@
 }
 
 @media (min-width: 1000px) {
-  @container ue-ribbon (max-width: 1559px) {
+  @container ue-ribbon (max-width: 1699px) {
     .ue-brk {
       display: block;
     }

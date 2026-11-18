@@ -47,7 +47,9 @@ await page.waitForFunction(() => !!document.querySelector('iframe[title="Preview
 check('Upload warns about a stylesheet that was not supplied', /missing\.css/.test(await page.locator('.ue-warnings').innerText()))
 
 // Paste
-await page.getByRole('button', { name: 'Paste', exact: true }).click()
+// Paste is on the "Your own code" card of the gallery (round 2): open the gallery first when a document is open.
+if (!(await page.locator('[data-sample-card="own"]').isVisible().catch(() => false))) await page.getByRole('button', { name: 'Samples', exact: true }).click()
+await page.locator('[data-sample-card="own"]').getByRole('button', { name: 'Paste', exact: true }).click()
 await page.getByLabel('HTML or SVG', { exact: true }).fill('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect id="r" width="40" height="20" fill="red"/></svg>')
 await page.getByRole('button', { name: 'Open pasted code' }).click()
 await page.waitForFunction(() => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector('#r'))
@@ -88,7 +90,7 @@ check('choosing a sample with unsaved edits asks first', await page.getByRole('b
 await page.getByRole('button', { name: 'Keep editing' }).click()
 check('Keep editing keeps the page and the edit', (await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled()) && Math.abs((await left()) - l0 - 1) < 0.6)
 await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Tablet', exact: true }).click(); await settle(page)
-check('Tablet: handles and fields are off, with one plain sentence', (await page.locator('[data-handle]').count()) === 0 && (await page.getByLabel('Font size', { exact: true }).isDisabled()) && /view-only/.test(await page.locator('.ue-note').innerText()))
+check('Tablet: handles and fields are off, with one plain sentence', (await page.locator('[data-handle]').count()) === 0 && (await page.getByLabel('Font size', { exact: true }).isDisabled()) && /view-only/.test(await page.locator('[data-ribbon-note]').innerText()))
 await page.close()
 
 // A phone: every control is at least 44 CSS px tall
@@ -96,7 +98,7 @@ const phone = await browser.newContext({ viewport: { width: 390, height: 844 } }
 const pp = await phone.newPage()
 await pp.goto(url); await pickSample(pp, 'landing')
 await pp.waitForFunction(() => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector('#headline')); await settle(pp)
-const small = await pp.evaluate(() => [...document.querySelectorAll('.ue-bar button, .ue-bar select, .ue-panel input, .ue-panel select, .ue-panel button')].filter((e) => e.getBoundingClientRect().height > 0 && e.getBoundingClientRect().height < 43.5).map((e) => (e.getAttribute('aria-label') || e.textContent || e.id).trim().slice(0, 24)))
+const small = await pp.evaluate(() => [...document.querySelectorAll('.ue-bar button, .ue-bar select, [data-ribbon] input, [data-ribbon] select, [data-ribbon] button')].filter((e) => e.getBoundingClientRect().height > 0 && e.getBoundingClientRect().height < 43.5).map((e) => (e.getAttribute('aria-label') || e.textContent || e.id).trim().slice(0, 24)))
 check('on a phone every tappable control is at least 44 px tall', small.length === 0, small.join(', '))
 check('no horizontal page scroll on a phone', await pp.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
 await phone.close()
