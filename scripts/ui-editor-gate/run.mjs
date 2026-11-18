@@ -4,7 +4,9 @@
 //   node scripts/ui-editor-gate/run.mjs --stub2 [--fault no-scale] [--only N01,N05]       the round 1 scorer-check stub (reference/round1.html)
 //   node scripts/ui-editor-gate/run.mjs --stub3 [--fault no-wrap] [--only R12]            the round 2 scorer-check stub (reference/round2.html)
 //   node scripts/ui-editor-gate/run.mjs --stub4 [--fault no-alt] [--only T09]             the round 3 scorer-check stub (reference/round3.html)
-// All four spec files run: specs.json (S01 to S20), specs-round1.json (N01 to N11), specs-round2.json (R01 to R16) and specs-round3.json (T01 to T16). --only picks ids.
+//   node scripts/ui-editor-gate/run.mjs --stub5 [--fault left-packed] [--only U02]         the round 4 scorer-check stub (reference/round4.html)
+// All five spec files run: specs.json (S01 to S20), specs-round1.json (N01 to N11), specs-round2.json (R01 to R16), specs-round3.json (T01 to T16) and specs-round4.json (U01 to U13). --only picks ids.
+//   --u13-na   the Limits sentence of U13 was not verified: it must be absent and U13 reads NOT APPLICABLE (docs/ui-editor-gate-rules-round4.md section 4)
 //   node scripts/ui-editor-gate/run.mjs --url ... --noop                                  load each sample, export, compare to the source
 // Needs Playwright with Chromium (not a dependency of this repo): installed here, or in PLAYWRIGHT_DIR (a folder whose node_modules has it).
 // Headless Chromium, a fresh context per action, real mouse events, no retries. Results go to UI_GATE_OUT (default scripts/ui-editor-gate/out, git-ignored).
@@ -36,6 +38,15 @@ const specsFile = JSON.parse(readFileSync(join(here, 'specs.json'), 'utf8'))
 const round1File = JSON.parse(readFileSync(join(here, 'specs-round1.json'), 'utf8'))
 const round2File = JSON.parse(readFileSync(join(here, 'specs-round2.json'), 'utf8'))
 const round3File = JSON.parse(readFileSync(join(here, 'specs-round3.json'), 'utf8'))
+const round4File = JSON.parse(readFileSync(join(here, 'specs-round4.json'), 'utf8'))
+// ROUND 4 (docs/ui-editor-gate-log.md #25): the retired checks of round 4 apply to the real page and the round 4 stub, not to the earlier stubs (which still have tabs and
+// are used to show that the earlier faults are still caught by the earlier specs).
+const OLD_STUB = flag('--stub') || flag('--stub2') || flag('--stub3') || flag('--stub4')
+const retiredFor = (id) => {
+  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id]
+  if (!a && !b) return undefined
+  return { steps: [...(a?.steps ?? []), ...(b?.steps ?? [])], asserts: [...(a?.asserts ?? []), ...(b?.asserts ?? [])], wholeSpec: !!b?.wholeSpec, replacedBy: [a?.replacedBy, b?.replacedBy].filter(Boolean).join('; '), reason: [a?.reason, b?.reason].filter(Boolean).join(' ') }
+}
 const { SAMPLE_FILES } = await import(new URL('../../src/ui-editor/samples/manifest.ts', import.meta.url))
 const sampleDir = join(root, 'src', 'ui-editor', 'samples')
 const sources = {}
@@ -61,9 +72,9 @@ const exportServer = createServer((q, r) => {
 const exportPort = await listen(exportServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (flag('--stub') || flag('--stub2') || flag('--stub3') || flag('--stub4')) {
+if (OLD_STUB || flag('--stub5')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -157,6 +168,15 @@ const PAGE_HELPERS = `(() => {
       return at2()
     },
     elementBox(sel) { const f = frame(); const fr = f.getBoundingClientRect(); const k = this.scaleOf(); const b = f.contentDocument.querySelector(sel).getBoundingClientRect(); return { left: fr.left + b.left * k, top: fr.top + b.top * k, width: b.width * k, height: b.height * k } },
+    // ROUND 4 (log #27): there is no tab to start a Tab walk from. Focus the last focusable element before the ribbon, so the first real Tab press (keyboard, so :focus-visible applies) lands on the ribbon's first control.
+    focusBeforeRibbon() {
+      const rib = document.querySelector('[data-ribbon]')
+      const cands = [...document.querySelectorAll('a[href], button, input, select, textarea, [tabindex]')].filter((e) => e.tabIndex >= 0 && !e.matches(':disabled') && e.getClientRects().length && !rib.contains(e) && (rib.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_PRECEDING))
+      document.activeElement?.blur()
+      const last = cands[cands.length - 1]
+      if (last) last.focus()
+      return !!last
+    },
     blankPoint() { this.reveal(() => frame().getBoundingClientRect().bottom - 8); const fr = frame().getBoundingClientRect(); return { x: fr.left + 20, y: fr.bottom - 8 } },
   }
 })()`
@@ -261,6 +281,8 @@ async function runSpec(spec) {
   const label = (item) => item.name ?? item.text ?? item.selector
   const memo = {}
   const styles = {}
+  const fitLabels = new Set()
+  const statusHeights = {}
   // ROUND 3 (log #21): a control on the other ribbon tab is reached by clicking its tab first (the same control, new UI). Both panels stay in the DOM.
   const reveal = async (loc) => {
     if (!(await loc.count().catch(() => 0))) return
@@ -1119,9 +1141,10 @@ async function runSpec(spec) {
       case 'tabReach': {
         const problems = []
         for (const tab of a.tabs) {
-          await page.getByRole('tab', { name: tab, exact: true }).click()
-          await settle(page)
+          const hasTabs = (await page.locator('[role=tab]').count()) > 0
+          if (hasTabs) { await page.getByRole('tab', { name: tab, exact: true }).click(); await settle(page) }
           await page.evaluate(() => { window.__vis = [] })
+          if (!hasTabs) await page.evaluate(() => window.__gate.focusBeforeRibbon())
           for (let i = 0; i < a.max; i++) {
             await page.keyboard.press('Tab')
             const inside = await page.evaluate(() => { const e = document.activeElement; const ok = !!e && !!e.closest('[data-ribbon]'); if (ok && e.getAttribute('role') !== 'tab') { const cs = getComputedStyle(e); window.__vis.push({ el: e, on: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor} ${cs.boxShadow}` }) } return ok })
@@ -1172,12 +1195,329 @@ async function runSpec(spec) {
         }, a.tol)
         return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : 'no control is outside the window or clipped')
       }
+      // ---- round 4 (docs/ui-editor-gate-rules-round4.md; docs/ui-editor-gate-log.md #26) ----
+      case 'noTabs': {
+        const found = await page.evaluate(() => [...document.querySelectorAll('[role=tablist], [role=tab], [role=tabpanel]')].map((e) => `${e.getAttribute('role')} "${(e.getAttribute('aria-label') || e.textContent.trim()).slice(0, 24)}"`))
+        return R(found.length === 0, found.length ? `found ${found.slice(0, 4).join(', ')}` : 'no tablist, tab or tabpanel anywhere')
+      }
+      case 'ribbonGroups': {
+        const m = await page.evaluate(([groups, exempt, visibleAll]) => {
+          const p = []
+          const rib = document.querySelector('[data-ribbon]')
+          if (!rib) return ['no [data-ribbon]']
+          const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
+          const panels = [...rib.querySelectorAll('[data-ribbon-panel]')]
+          if (panels.length !== 1) p.push(`${panels.length} [data-ribbon-panel] elements inside [data-ribbon], want 1`)
+          if (!panels[0]) return p
+          const gs = [...panels[0].querySelectorAll('[data-ribbon-group]')]
+          const want = Object.keys(groups)
+          if (gs.map((g) => g.getAttribute('aria-label')).join('|') !== want.join('|')) p.push(`groups ${gs.map((g) => g.getAttribute('aria-label')).join(', ')}, want ${want.join(', ')}`)
+          for (const g of gs) {
+            const gname = g.getAttribute('aria-label')
+            if (g.getAttribute('role') !== 'group') p.push(`group ${gname} has role ${g.getAttribute('role')}`)
+            if (visibleAll) { const r = g.getBoundingClientRect(); if (!g.getClientRects().length || r.width <= 0 || r.left < -0.5 || r.right > innerWidth + 0.5) p.push(`group ${gname} is not visible in the window`) }
+            const have = [...g.querySelectorAll('button, input:not([type=hidden]), select')].map(nameOf)
+            for (const n of groups[gname] ?? []) if (!have.includes(n)) p.push(`${gname}: no control "${n}"`)
+          }
+          const all = []
+          for (const c of rib.querySelectorAll('button, input:not([type=hidden]), select')) {
+            const n = nameOf(c)
+            all.push(n)
+            if (!c.closest('[data-ribbon-group]')) {
+              if (!exempt.includes(n)) p.push(`outside a group: ${n}`)
+              else if (!c.closest('[data-ribbon-strip]')) p.push(`${n} is not in [data-ribbon-strip]`)
+            }
+          }
+          const dup = all.filter((n, i) => all.indexOf(n) !== i)
+          if (dup.length) p.push(`twice: ${[...new Set(dup)].join(', ')}`)
+          return p
+        }, [a.groups, a.exempt, !!a.visibleAll])
+        return R(m.length === 0, m.length ? m.slice(0, 5).join('; ') : `${Object.keys(a.groups).length} groups in one panel, every control once`)
+      }
+      case 'ribbonSpread': {
+        const m = await page.evaluate((o) => {
+          const p = []
+          const panel = document.querySelector('[data-ribbon-panel]')
+          if (!panel) return { p: ['no [data-ribbon-panel]'] }
+          const cs = getComputedStyle(panel), pr = panel.getBoundingClientRect()
+          const inL = pr.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft), inR = pr.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight)
+          const gs = [...panel.querySelectorAll('[data-ribbon-group]')].filter((g) => g.getClientRects().length)
+          const bands = new Map()
+          for (const g of gs) { const k = Math.round(g.getBoundingClientRect().top / 6); bands.set(k, [...(bands.get(k) ?? []), g]) }
+          const rows = [...bands.entries()].sort((x, y) => x[0] - y[0]).map((e) => e[1].sort((x, y) => x.getBoundingClientRect().left - y.getBoundingClientRect().left))
+          if (rows.length > o.maxBands) p.push(`${rows.length} bands, want at most ${o.maxBands}`)
+          const ctls = (g) => [...g.querySelectorAll('button, input:not([type=hidden]), select')].filter((c) => c.getClientRects().length && !c.closest('[data-sides-popover]')).map((c) => c.getBoundingClientRect())
+          const spread = (a) => (a.length ? Math.max(...a) - Math.min(...a) : 0)
+          const sep = (g) => { const c = getComputedStyle(g); return ['Left', 'Right'].some((s) => parseFloat(c['border' + s + 'Width']) >= 1 && c['border' + s + 'Style'] !== 'none' && !/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(c['border' + s + 'Color'])) }
+          rows.forEach((row, bi) => {
+            const first = row[0].getBoundingClientRect(), last = row[row.length - 1].getBoundingClientRect()
+            if (Math.abs(first.left - inL) > o.edgeTol) p.push(`band ${bi + 1}: first group starts ${(first.left - inL).toFixed(1)} px from the inner left edge`)
+            if (Math.abs(inR - last.right) > o.edgeTol) p.push(`band ${bi + 1}: last group ends ${(inR - last.right).toFixed(1)} px short of the inner right edge`)
+            const gaps = [], cgaps = []
+            for (let i = 1; i < row.length; i++) {
+              const x = row[i - 1].getBoundingClientRect(), y = row[i].getBoundingClientRect()
+              gaps.push(y.left - x.right)
+              cgaps.push(Math.min(...ctls(row[i]).map((r) => r.left)) - Math.max(...ctls(row[i - 1]).map((r) => r.right)))
+            }
+            if (spread(gaps) > o.gapTol) p.push(`band ${bi + 1}: gaps between groups ${gaps.map((v) => v.toFixed(1)).join(', ')} differ by more than ${o.gapTol}`)
+            if (spread(cgaps) > o.controlGapTol) p.push(`band ${bi + 1}: gaps between controls ${cgaps.map((v) => v.toFixed(1)).join(', ')} differ by more than ${o.controlGapTol}`)
+            for (const g of row.slice(0, -1)) if (!sep(g)) p.push(`band ${bi + 1}: ${g.getAttribute('aria-label')} has no thin separator`)
+            for (const g of row) {
+              const gr = g.getBoundingClientRect()
+              for (const r of ctls(g)) {
+                if (r.left < gr.left - 0.5 || r.right > gr.right + 0.5) { p.push(`${g.getAttribute('aria-label')} is split or clipped (a control sticks out of its group by ${Math.max(gr.left - r.left, r.right - gr.right).toFixed(1)} px)`); break }
+                if (r.left < pr.left - 0.5 || r.right > pr.right + 0.5) { p.push(`${g.getAttribute('aria-label')} is clipped by the ribbon`); break }
+              }
+            }
+          })
+          if (panel.scrollWidth > panel.clientWidth + 1) p.push(`the ribbon scrolls sideways (${panel.scrollWidth} > ${panel.clientWidth})`)
+          if (document.documentElement.scrollWidth > innerWidth + 1) p.push(`the page scrolls sideways (${document.documentElement.scrollWidth} > ${innerWidth})`)
+          return { p, rows: rows.map((r) => r.length) }
+        }, a)
+        return R(m.p.length === 0, m.p.length ? m.p.slice(0, 4).join('; ') : `${m.rows.length} band(s) of ${m.rows.join(' + ')} groups, spread to both edges, evenly, separators kept`)
+      }
+      case 'ribbonLabels': {
+        const m = await page.evaluate((o) => {
+          const p = []
+          const probe = document.createElement('span'); probe.style.color = `var(${o.colour})`; document.body.appendChild(probe)
+          const want = getComputedStyle(probe).color; probe.remove()
+          const vis = (e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'
+          const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
+          const labels = [...document.querySelectorAll('[data-ribbon] [data-ctl-label]')].filter(vis)
+          const forb = new Set(o.forbidden.map((x) => x.toLowerCase()))
+          for (const l of labels) {
+            const t = l.textContent.trim(), cs = getComputedStyle(l), fs = parseFloat(cs.fontSize)
+            if (!t) { p.push('an empty label'); continue }
+            if (fs < o.minFont - 0.01 || fs > o.maxFont + 0.01) p.push(`label "${t}" is ${fs}px, want ${o.minFont}-${o.maxFont}`)
+            const words = t.split(/\s+/).length
+            if (words > o.maxWords) p.push(`label "${t}" has ${words} words`)
+            if (t.length === 1 || forb.has(t.toLowerCase())) p.push(`label "${t}" is a single character or an abbreviation`)
+            if (o.sentenceCase && (!/^\p{Lu}/u.test(t) || (t.length > 1 && t === t.toUpperCase()))) p.push(`label "${t}" is not sentence case`)
+            if (cs.color !== want) p.push(`label "${t}" is ${cs.color}, want ${want}`)
+          }
+          const controls = [...document.querySelectorAll('[data-ribbon-panel], [data-ribbon-strip]')].flatMap((s) => [...s.querySelectorAll('button, input:not([type=hidden]), select')]).filter((c) => vis(c) && !c.closest('[data-sides-popover]'))
+          const table = Object.fromEntries(Object.entries(o.table).map(([k, v]) => [k.toLowerCase(), v]))
+          const labelOfControl = new Map()
+          for (const c of controls) {
+            const n = nameOf(c)
+            if (o.exempt.includes(n)) continue
+            const own = c.tagName === 'BUTTON' ? (c.innerText ?? '').trim() : ''
+            const cr = c.getBoundingClientRect()
+            let best = null
+            for (const l of labels) {
+              const r = l.getBoundingClientRect()
+              const above = r.bottom <= cr.top + 0.5, below = r.top >= cr.bottom - 0.5
+              if (!above && !below) continue
+              const dy = above ? cr.top - r.bottom : r.top - cr.bottom
+              const ox = Math.min(r.right, cr.right) - Math.max(r.left, cr.left)
+              if (dy <= o.reach && ox > 0 && (!best || dy < best.dy)) best = { l, dy }
+            }
+            const ownOk = (own.match(/\p{L}/gu) ?? []).length >= 3
+            if (!ownOk && !best) { p.push(`${n}: no visible label within ${o.reach} px`); continue }
+            const text = ownOk ? own : best.l.textContent.trim()
+            labelOfControl.set(n, best ? best.l.textContent.trim() : own)
+            const base = n.replace(/^(Decrease|Increase|Pick) /, '')
+            const entry = table[base.toLowerCase()] ?? table[n.toLowerCase()]
+            const ok = text.toLowerCase().includes(n.toLowerCase()) || text.toLowerCase().includes(base.toLowerCase()) || (entry !== undefined && entry.toLowerCase() === text.toLowerCase())
+            if (!ok) p.push(`${n}: label "${text}" neither contains the name nor matches the table (${entry ?? 'no entry'})`)
+          }
+          for (const [n, cap] of Object.entries(o.captions ?? {})) {
+            const c = controls.find((x) => nameOf(x) === n)
+            if (!c) { p.push(`no control ${n}`); continue }
+            if (labelOfControl.get(n) !== cap) p.push(`${n}: caption "${labelOfControl.get(n)}", want "${cap}"`)
+          }
+          for (const w of o.words ?? []) {
+            const c = controls.find((x) => nameOf(x) === w.name)
+            if (!c) { p.push(`no control ${w.name}`); continue }
+            if ((c.innerText ?? '').trim() !== w.text) p.push(`${w.name}: shows "${(c.innerText ?? '').trim()}", want "${w.text}"`)
+          }
+          return { p, n: controls.length, labels: labels.length }
+        }, a)
+        return R(m.p.length === 0, m.p.length ? m.p.slice(0, 5).join('; ') : `${m.n} controls, ${m.labels} labels, all visible, 11-12 px, in the table`)
+      }
+      case 'tooltips': {
+        const bad = await page.evaluate((o) => {
+          const out = []
+          const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
+          for (const c of document.querySelectorAll('[data-ribbon] button, [data-ribbon] input:not([type=hidden]), [data-ribbon] select')) {
+            if (!c.getClientRects().length || c.closest('[data-sides-popover]')) continue
+            const n = nameOf(c), t = (c.getAttribute('title') ?? '').trim()
+            const first = t.split(/\s+/)[0].replace(/[^\p{L}]/gu, '')
+            if (!t) out.push(`${n}: no tooltip`)
+            else if (t.split(/\s+/).length < o.minWords) out.push(`${n}: tooltip "${t}" is under ${o.minWords} words`)
+            else if (!o.verbs.includes(first)) out.push(`${n}: tooltip "${t}" does not start with a verb of the list`)
+            else if (t === n) out.push(`${n}: tooltip repeats the name`)
+          }
+          return out
+        }, a)
+        return R(bad.length === 0, bad.length ? `${bad.length}: ${bad.slice(0, 4).join('; ')}` : 'every control has a verb-first tooltip')
+      }
+      case 'fieldsFit': {
+        const m = await page.evaluate(() => {
+          const out = []
+          const nameOf = (e) => e.getAttribute('aria-label') || e.id
+          const panel = document.querySelector('[data-ribbon-panel]')
+          const label = document.querySelector('[data-selected-label]')?.textContent.trim() ?? ''
+          const ctx = document.createElement('canvas').getContext('2d')
+          for (const e of panel.querySelectorAll('input:not([type=hidden]):not([type=color]):not([type=checkbox]), select')) {
+            if (!e.getClientRects().length) continue
+            const cs = getComputedStyle(e)
+            if (e.tagName === 'INPUT') { if (e.scrollWidth > e.clientWidth) out.push(`${nameOf(e)} shows "${e.value}" in ${e.clientWidth} px (needs ${e.scrollWidth})`) }
+            else {
+              const t = e.options[e.selectedIndex]?.text ?? ''
+              ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
+              const need = ctx.measureText(t).width + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth) + 22
+              if (need > e.clientWidth + 0.5) out.push(`${nameOf(e)} shows "${t}" in ${e.clientWidth} px (needs ${need.toFixed(1)})`)
+            }
+          }
+          return { out, label }
+        })
+        fitLabels.add(m.label)
+        const p = [...m.out]
+        if (a.minDistinct && fitLabels.size < a.minDistinct) p.push(`${fitLabels.size} distinct elements checked, want ${a.minDistinct}`)
+        return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `${m.label}: no clipped value (${fitLabels.size} elements so far)`)
+      }
+      case 'fontShows': {
+        const m = await page.evaluate(() => {
+          const s = [...document.querySelectorAll('[data-ribbon] select')].find((e) => e.getAttribute('aria-label') === 'Font family')
+          if (!s) return null
+          return { shown: s.options[s.selectedIndex]?.text ?? '', title: s.getAttribute('title') ?? '', options: [...s.options].map((o) => o.text) }
+        })
+        if (!m) return R(false, 'no Font family select')
+        const p = []
+        if (m.shown !== a.expect) p.push(`shows "${m.shown}", want "${a.expect}"`)
+        if (!m.title.includes(a.stackContains)) p.push(`tooltip "${m.title}" does not hold the stack (${a.stackContains})`)
+        if (m.options.join('|') !== a.options.join('|')) p.push(`options ${m.options.join(', ')}`)
+        if (m.options.some((o) => o.includes(','))) p.push('an option shows a whole stack')
+        return R(p.length === 0, p.length ? p.join('; ') : `shows "${m.shown}", options by name, stack in the tooltip`)
+      }
+      case 'fillShows': {
+        const m = await page.evaluate(() => { const e = [...document.querySelectorAll('[data-ribbon] input')].find((x) => x.getAttribute('aria-label') === 'Background'); return e ? { v: e.value, fit: e.scrollWidth <= e.clientWidth, sw: e.scrollWidth, cw: e.clientWidth } : null })
+        if (!m) return R(false, 'no Background field')
+        return R(m.v.toLowerCase() === a.expect.toLowerCase() && m.fit, `shows "${m.v}" (${m.fit ? 'whole' : `clipped: needs ${m.sw}, has ${m.cw}`})`)
+      }
+      case 'statusLine': {
+        const m = await page.evaluate(() => {
+          const s = [...document.querySelectorAll('[role=status]')].find((e) => e.getAttribute('aria-label') === 'Edit result')
+          if (!s) return null
+          const r = s.getBoundingClientRect(), rib = document.querySelector('[data-ribbon]').getBoundingClientRect(), st = document.querySelector('[data-stage-area]')?.getBoundingClientRect()
+          const cs = getComputedStyle(s)
+          const lh = parseFloat(cs.lineHeight) || 1.2 * parseFloat(cs.fontSize)
+          const tops = new Set()
+          const w = document.createTreeWalker(s, NodeFilter.SHOW_TEXT)
+          for (let n = w.nextNode(); n; n = w.nextNode()) { if (!n.textContent.trim()) continue; const rg = document.createRange(); rg.selectNodeContents(n); for (const q of rg.getClientRects()) if (q.width > 0) tops.add(Math.round(q.top / 3)) }
+          const tall = [...s.querySelectorAll('*')].filter((c) => c.getBoundingClientRect().height > 1.6 * lh).length
+          return { h: r.height, top: r.top, bottom: r.bottom, ribBottom: rib.bottom, stageTop: st ? st.top : null, lines: tops.size, tall, text: s.textContent.trim() }
+        })
+        if (!m) return R(false, 'no status region "Edit result"')
+        const p = []
+        if (m.h > a.maxHeight + 0.5) p.push(`${m.h.toFixed(1)} px high, want at most ${a.maxHeight}`)
+        if (m.lines > 1 || m.tall > 0) p.push(`not one line (${m.lines} lines, ${m.tall} tall children)`)
+        if (m.top < m.ribBottom - 0.5 || m.top - m.ribBottom > a.gapMax) p.push(`starts ${(m.top - m.ribBottom).toFixed(1)} px below the ribbon, want 0 to ${a.gapMax}`)
+        if (m.stageTop === null) p.push('no [data-stage-area]')
+        if (m.stageTop !== null && m.stageTop < m.bottom - 0.5) p.push(`the stage starts at ${m.stageTop.toFixed(1)}, above the status line's bottom ${m.bottom.toFixed(1)}`)
+        if (a.messageShown && !m.text) p.push('no message is shown')
+        if (a.key) statusHeights[a.key] = m.h
+        if (a.sameHeightAs) { const was = statusHeights[a.sameHeightAs]; if (was === undefined || Math.abs(was - m.h) > 1) p.push(`height ${m.h.toFixed(1)}, ${a.sameHeightAs} was ${was === undefined ? 'not stored' : was.toFixed(1)} (not reserved)`) }
+        return R(p.length === 0, p.length ? p.join('; ') : `${m.h.toFixed(1)} px, one line, ${(m.top - m.ribBottom).toFixed(1)} px under the ribbon, above the stage${m.text ? `: "${m.text.slice(0, 60)}"` : ''}`)
+      }
+      case 'tabOrder': {
+        const exp = await page.evaluate(() => {
+          const rib = document.querySelector('[data-ribbon]')
+          const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
+          const all = [...rib.querySelectorAll('button, input:not([type=hidden]), select')].filter((e) => e.getClientRects().length && !e.matches(':disabled') && !e.closest('[data-sides-popover]'))
+          const groups = [...rib.querySelectorAll('[data-ribbon-group]')].filter((g) => g.getClientRects().length)
+          const bandTops = [...new Set(groups.map((g) => Math.round(g.getBoundingClientRect().top / 6)))].sort((x, y) => x - y)
+          const key = new Map()
+          for (const g of groups) {
+            const gr = g.getBoundingClientRect(), band = bandTops.indexOf(Math.round(gr.top / 6))
+            const inG = all.filter((c) => g.contains(c))
+            const tops = [...new Set(inG.map((c) => Math.round(c.getBoundingClientRect().top)))].sort((x, y) => x - y)
+            const rows = []
+            for (const t of tops) if (!rows.length || t - rows[rows.length - 1] > 12) rows.push(t)
+            for (const c of inG) { const t = c.getBoundingClientRect().top; let ri = 0; rows.forEach((r, i) => { if (t - r >= -1) ri = i }); key.set(c, [band, gr.left, ri, c.getBoundingClientRect().left]) }
+          }
+          for (const c of all) if (!key.has(c)) key.set(c, [-1, 0, 0, c.getBoundingClientRect().left])
+          return [...all].sort((x, y) => { const p = key.get(x), q = key.get(y); for (let i = 0; i < 4; i++) if (p[i] !== q[i]) return p[i] - q[i]; return 0 }).map(nameOf)
+        })
+        await page.evaluate(() => { window.__vis = []; return window.__gate.focusBeforeRibbon() })
+        for (let i = 0; i < a.max; i++) {
+          await page.keyboard.press('Tab')
+          const inside = await page.evaluate(() => {
+            const e = document.activeElement
+            const ok = !!e && !!e.closest('[data-ribbon]')
+            if (ok) { const cs = getComputedStyle(e); window.__vis.push({ el: e, on: { os: cs.outlineStyle, ow: parseFloat(cs.outlineWidth), oc: cs.outlineColor, bs: cs.boxShadow } }) }
+            return ok
+          })
+          if (!inside) break
+        }
+        const m = await page.evaluate(() => {
+          const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
+          const vis = window.__vis.map((v) => ({ n: nameOf(v.el), el: v.el, on: v.on }))
+          document.activeElement?.blur()
+          const flat = [], weak = []
+          for (const v of vis) {
+            if (!v.el.isConnected) continue
+            const cs = getComputedStyle(v.el)
+            const off = { os: cs.outlineStyle, ow: parseFloat(cs.outlineWidth), oc: cs.outlineColor, bs: cs.boxShadow }
+            if (JSON.stringify(off) === JSON.stringify(v.on)) flat.push(v.n)
+            const outline = v.on.os !== 'none' && v.on.ow >= 1, shadow = v.on.bs !== 'none'
+            if (!outline && !shadow) weak.push(v.n)
+          }
+          return { seq: vis.map((v) => v.n), flat, weak }
+        })
+        const p = []
+        if (m.seq.join('|') !== exp.join('|')) {
+          let i = 0
+          while (i < exp.length && m.seq[i] === exp[i]) i++
+          p.push(`Tab order differs at step ${i + 1}: visited "${m.seq[i] ?? '(left the ribbon)'}", visual order has "${exp[i] ?? '(end)'}" (${m.seq.length} visited, ${exp.length} expected)`)
+        }
+        if (m.flat.length) p.push(`the focus indicator does not differ from the unfocused control on ${m.flat.slice(0, 4).join(', ')}`)
+        if (m.weak.length) p.push(`no outline of 1 px or box-shadow on ${m.weak.slice(0, 4).join(', ')}`)
+        return R(p.length === 0, p.length ? p.join('; ') : `Tab visited all ${exp.length} enabled controls in visual order, each with a focus indicator`)
+      }
+      case 'enabledOnly': {
+        const m = await page.evaluate((names) => {
+          const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
+          const els = [...document.querySelectorAll('[data-ribbon] button, [data-ribbon] input:not([type=hidden]), [data-ribbon] select')].filter((e) => e.getClientRects().length && !e.closest('[data-sides-popover]'))
+          const bad = []
+          for (const n of names) { const e = els.find((x) => nameOf(x) === n); if (!e) bad.push(`no control ${n}`); else if (e.matches(':disabled')) bad.push(`${n} is disabled`) }
+          const stray = els.filter((e) => !names.includes(nameOf(e)) && !e.matches(':disabled')).map(nameOf)
+          if (stray.length) bad.push(`enabled but should not be: ${stray.slice(0, 5).join(', ')}${stray.length > 5 ? ` (${stray.length})` : ''}`)
+          return { bad, n: els.length }
+        }, a.names)
+        return R(m.bad.length === 0, m.bad.length ? m.bad.join('; ') : `${a.names.join(', ')} enabled, the other ${m.n - a.names.length} controls disabled`)
+      }
+      case 'quickBarWords': {
+        const m = await page.evaluate((o) => {
+          const bar = document.querySelector('[role=group][aria-label="Editor controls"]')
+          const nameOf = (e) => e.getAttribute('aria-label') || e.textContent.trim()
+          const find = (n) => [...bar.querySelectorAll('button')].find((b) => (n === 'Review unlinked' ? /^Review unlinked/.test(nameOf(b)) : nameOf(b) === n) && b.getClientRects().length > 0)
+          const p = []
+          for (const w of o.words) { const b = find(w.name); if (!b) p.push(`${w.name} is not visible`); else if (!(b.innerText ?? '').trim().includes(w.text)) p.push(`${w.name} shows "${(b.innerText ?? '').trim()}", want the words "${w.text}"`) }
+          for (const n of o.iconOnly) { const b = find(n); if (!b) p.push(`${n} is not visible`); else { if ((b.innerText ?? '').trim() !== '') p.push(`${n} shows text "${(b.innerText ?? '').trim()}", want an icon only`); if (!(b.getAttribute('aria-label') ?? '').trim() || !(b.getAttribute('title') ?? '').trim()) p.push(`${n} has no name or tooltip`) } }
+          return p
+        }, a)
+        return R(m.length === 0, m.length ? m.join('; ') : 'the words show where wanted, Undo and Redo are icon-only with a name and a tooltip')
+      }
+      case 'limitsHas': {
+        const has = await page.evaluate((sentence) => {
+          const norm = (t) => t.replace(/\s+/g, ' ').trim()
+          const h = [...document.querySelectorAll('h2, h3')].find((x) => norm(x.textContent) === 'Limits')
+          if (!h) return null
+          const sec = h.closest('section') ?? h.parentElement
+          return [...sec.querySelectorAll('li')].some((li) => norm(li.textContent).includes(sentence))
+        }, a.sentence)
+        if (has === null) return R(false, 'no Limits heading')
+        if (flag('--u13-na')) return R(!has, has ? 'the sentence is present although it was not verified' : 'not verified, so the sentence is absent (U13 NOT APPLICABLE)')
+        return R(has, has ? 'the Limits list has the sentence' : 'the Limits list lacks the sentence')
+      }
       default: return R(false, 'unknown assertion ' + a.k)
     }
   }
 
   try {
-    const retired3 = round3File.retiredChecks?.[spec.id]
+    const retired3 = retiredFor(spec.id)
     res.retiredChecks = []
     for (const [stepIndex, step] of spec.steps.entries()) {
       if (retired3?.steps?.includes(stepIndex) || (retired3?.asserts && step.do === 'assert' && retired3.asserts.includes(step.k))) {
@@ -1246,6 +1586,8 @@ async function runSpec(spec) {
         if (!step.hold) await page.mouse.up()
         if (step.alt) await page.keyboard.up('Alt')
       } else if (step.do === 'tab') {
+        // ROUND 4 (log #25): with no tab bar there is nothing to click (every control is in the one ribbon); with tabs (the earlier stubs) it clicks as before.
+        if (!(await page.locator('[role=tab]').count())) continue
         await page.getByRole('tab', { name: step.name, exact: true }).click()
       } else if (step.do === 'remember') {
         memo[step.name] = await readNumber(step.what)
@@ -1360,13 +1702,15 @@ async function runSpec(spec) {
   // can fail: it is reported as vacuous, not scored. Only round 3 specs; the earlier files keep the strict reading.
   res.vacuous = []
   // R07 too: its only P5 assert (step 12) is one of the retired checks, so what is left lists P5 without an assert.
-  if (spec.checks && (/^T\d+$/.test(spec.id) || round3File.retiredChecks?.[spec.id])) {
-    const ret = round3File.retiredChecks?.[spec.id]
+  if (spec.checks && (/^[TU]\d+$/.test(spec.id) || retiredFor(spec.id))) {
+    const ret = retiredFor(spec.id)
     const live = spec.steps.filter((x, i) => !(ret?.steps?.includes(i) || (ret?.asserts && x.do === 'assert' && ret.asserts.includes(x.k))))
     res.vacuous = ['P1', 'P5', 'P6'].filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
     res.checks = spec.checks.filter((k) => !res.vacuous.includes(k))
   }
   res.outcome = spec.checks ? outcomeOfRound1(res) : outcomeOf(res)
+  // U13 (rules section 4): with --u13-na the sentence was not verified; absent it reads NOT APPLICABLE, never PASS.
+  if (spec.id === 'U13' && flag('--u13-na') && res.outcome === 'PASS') res.outcome = 'NOT APPLICABLE'
   return res
 }
 
@@ -1408,10 +1752,17 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs].filter((s) => !only || only.includes(s.id))
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs].filter((s) => !only || only.includes(s.id))
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
+    // ROUND 4 (log #25): a spec retired as a whole (T01) is reported RETIRED and not run; never counted as passed.
+    const whole = retiredFor(spec.id)?.wholeSpec
+    if (whole) {
+      results.push({ id: spec.id, name: spec.name, outcome: 'RETIRED', checks: spec.checks ?? null, P1: [], P5: [], P6: [], setup: [], notes: [], retiredWhole: true })
+      console.log(`${spec.id}  RETIRED  (the whole spec, replaced by ${retiredFor(spec.id).replacedBy}): ${retiredFor(spec.id).reason}`)
+      continue
+    }
     const r = await runSpec(spec)
     results.push(r)
     const fails = [...r.setup, ...r.P1, ...r.P5, ...r.P6].filter((c) => !c.ok)
@@ -1422,24 +1773,27 @@ if (flag('--noop')) {
     for (const k of ['P2', 'P3', 'P4']) if (r[k] && !r[k].ok) for (const d of (r[k].detail ?? []).slice(0, 3)) console.log(`      ${k}: ${d}`)
     for (const n of r.notes) console.log('      ' + n.split('\n')[0])
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
-    if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${round3File.retiredChecks[r.id].reason}`)
+    if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const count = (o) => results.filter((r) => r.outcome === o).length
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !r.id.startsWith('R') && !r.id.startsWith('T')), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTU]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
-  const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), total: round3.length } }
+  const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
   if (round1.length) console.log(`Round 1:   PASS ${summary.round1.pass}  FAIL ${summary.round1.fail}  of ${summary.round1.total} (N01 and N02 RETIRED, not run)`)
   if (round2.length) console.log(`Round 2:   PASS ${summary.round2.pass}  FAIL ${summary.round2.fail}  of ${summary.round2.total}${summary.round2.withRetiredChecks.length ? ` (retired checks skipped in ${summary.round2.withRetiredChecks.join(', ')})` : ''}`)
-  if (round3.length) console.log(`Round 3:   PASS ${summary.round3.pass}  FAIL ${summary.round3.fail}  of ${summary.round3.total}`)
+  if (round3.length) console.log(`Round 3:   PASS ${summary.round3.pass}  FAIL ${summary.round3.fail}${summary.round3.retired ? `  RETIRED ${summary.round3.retired}` : ''}  of ${summary.round3.total}${summary.round3.withRetiredChecks.length ? ` (retired checks skipped in ${summary.round3.withRetiredChecks.join(', ')})` : ''}`)
+  if (round4.length) console.log(`Round 4:   PASS ${summary.round4.pass}  FAIL ${summary.round4.fail}${summary.round4.notApplicable ? `  NOT APPLICABLE ${summary.round4.notApplicable}` : ''}  of ${summary.round4.total}`)
   writeFileSync(join(outDir, `results${fault ? '-' + fault : ''}${only ? '-' + only.join('') : ''}.json`), JSON.stringify({ summary, results: results.map(({ exports, ...r }) => r) }, null, 1))
-  // Pass line: originals 18 PASS + 2 REFUSED + 0 FAIL when all 20 ran; round 1 N03 to N11 all PASS (N01 and N02 retired); round 2 R01 to R16 all PASS.
+  // Pass line: originals 18 PASS + 2 REFUSED + 0 FAIL when all 20 ran; round 1 N03 to N11 all PASS (N01 and N02 retired); round 2 R01 to R16 all PASS (retired checks skipped);
+  // round 3 T01 to T16 all PASS in the earlier stubs; on the real page and the round 4 stub T01 is retired and T10 is a failed locked spec (docs/ui-editor-gate-rules-round4.md section 1);
+  // round 4 U01 to U13 all PASS (U13 NOT APPLICABLE only with --u13-na).
   const o = summary.originals, n = summary.round1
   const origOk = orig.length !== 20 || (o.pass + o.refused >= 20 && o.pass >= 18 && o.fail === 0)
   const r1Ok = round1.length !== 9 || (n.pass === 9 && n.fail === 0)
   const r2Ok = round2.length !== 16 || (summary.round2.pass === 16 && summary.round2.fail === 0)
-  const r3Ok = round3.length !== 16 || (summary.round3.pass === 16 && summary.round3.fail === 0)
-  exitCode = origOk && r1Ok && r2Ok && r3Ok ? 0 : 1
+  const r3Ok = round3.length !== 16 || (OLD_STUB ? summary.round3.pass === 16 && summary.round3.fail === 0 : round3.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED' || r.id === 'T10') && round3.find((r) => r.id === 'T10')?.outcome !== undefined)
+  const r4Ok = round4.length !== 13 || round4.every((r) => r.outcome === 'PASS' || (r.id === 'U13' && flag('--u13-na') && r.outcome === 'NOT APPLICABLE'))
+  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok ? 0 : 1
 }
 await browser.close()
 exportServer.close()

@@ -82,3 +82,20 @@ Covered by the scorer check: the twenty round 3 faults on `scripts/ui-editor-gat
 faults on `reference/index.html` (`docs/ui-editor-baseline-round3.md`).
 
 `scripts/ui-editor-gate/supplementary-snap.mjs` (not part of the pass line, not a runner change): the snapped resize of T10 on `#cta`, which is anchored at its left edge, because T10's own `#art` cannot have its east edge moved (`docs/ui-editor-baseline-round3.md`, spec flaw 1).
+
+## 2026-11-17, formatting round 4 (`feat/ui-editor-format1`, on top of round 3)
+
+Rules: `docs/ui-editor-gate-rules-round4.md`; specs: `scripts/ui-editor-gate/specs-round4.json` (locked in `16b17c1`). No spec, rule, sample or expected value was
+changed by any entry below. The scorer check is in `docs/ui-editor-baseline-round4.md`.
+
+| # | Change | Why |
+|---|---|---|
+| 25 | The runner loads the fifth spec file. A spec retired as a whole (T01) is reported `RETIRED` and not run; the round 4 `retiredChecks` (T02, T06, T15, R04, R05) apply to the real page and the round 4 stub, not to the earlier stubs (`--stub` to `--stub4`, which still have tabs); `--stub5` runs the round 4 stub; `--u13-na` reads U13 as NOT APPLICABLE; the pass line adds round 4 (U01 to U13 all PASS) and reads round 3 as "all PASS except the retired T01 and the failed locked T10". The `tab` step does nothing when the page has no element with role `tab`; with tabs it clicks as before. | Rules sections 2, 4 and 6. **Mapping**: there is no tab bar to click. |
+| 26 | New asserts, all listed in `specs-round4.json` (`vocabulary`): `noTabs`, `ribbonGroups`, `ribbonSpread`, `ribbonLabels`, `tooltips`, `fieldsFit`, `fontShows`, `fillShows`, `statusLine`, `tabOrder`, `enabledOnly`, `quickBarWords`, `limitsHas`. | The U specs need them. |
+| 27 | `tabReach` (T15) and `tabOrder` (U08) start a Tab walk by focusing the last focusable element before the ribbon (`__gate.focusBeforeRibbon`), then pressing Tab; the first control is reached by a real key press. Both of T15's tab names run the same walk when there are no tabs. | **Mapping**: no tab to start from. A script `focus()` after a mouse click does not match `:focus-visible`, so a first control focused that way would show no ring. |
+| 28 | `ribbonLabels` reads a control's own text for buttons only. | **My bug in the runner**, found at the first control run: a `<select>`'s `innerText` is all its option texts, so Font family and Grid spacing were judged by their option list. |
+
+Covered by the scorer check: the twenty-one round 4 faults on `reference/round4.html` (plus `group-order`), the twenty round 3 faults on `reference/round3.html`, the twelve
+round 2 faults on `reference/round2.html` and the five original faults on `reference/index.html` (`docs/ui-editor-baseline-round4.md`).
+
+`scripts/ui-editor-gate/probe-limits.mjs` (not part of the pass line, not a runner change): the read-only check of the Limits sentence of U13 (`docs/ui-editor-baseline-round4.md`).
