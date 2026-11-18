@@ -243,16 +243,19 @@ export const limits = {
     'Only max-width and min-width media features are understood; dark mode, print and orientation are left as written.',
     'Desktop and Phone upright are the editable sizes.',
     'Tablet is view-only, and so is a phone turned sideways; in between, the page’s own rules decide.',
-    'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units (vw, vh) are left as the page wrote them, and the editor does not always say so when a Phone or Desktop value could not be scaled.',
-    'A flex item that grows (flex-grow above 0, for example flex: 1) cannot be sized exactly, so a resize or width change on it is refused.',
+    'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units are left as the page wrote them, and the editor does not always say so.',
+    'A flex item that grows (flex-grow above 0, such as flex: 1) cannot be sized exactly, so resizing it is refused.',
     'Dragging an element to move it applies to one size only, and it is listed under Review unlinked.',
-    'One element at a time: a shared class is never changed for everyone, and an element the browser invents cannot be edited.',
+    // Verified with the engine before it was written (docs/ui-editor-baseline-round4.md): an east drag on a left-anchored element lands its right edge on the line, and on the
+    // element fixed to the right of its row the right edge does not move at all.
+    'With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge.',
+    'One element at a time: a shared class is never changed for everyone, and invented elements cannot be edited.',
     'An edit the engine cannot make safely is refused with the reason, and nothing changes.',
-    'Refused, for example: an element under a transformed parent, an SVG element reused through use or defs, or a style that fights with an !important rule.',
-    'Tested in Chromium only; the numbers above come from the engine’s own gate and a handful of real files, not wide use.',
+    'Examples: an element under a transformed parent, an SVG element reused through use or defs, or a style that fights an !important rule.',
+    'Tested in Chromium only; the numbers above come from the engine’s own gate and a few real files.',
   ],
   /** How many consecutive sentences make each paragraph shown. */
-  groups: [3, 3, 1, 2, 2, 2],
+  groups: [3, 3, 2, 2, 2, 2],
 }
 
 /** The paragraphs a list shows: `items` joined in runs of the given sizes (every item once, in order). */
