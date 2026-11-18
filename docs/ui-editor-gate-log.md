@@ -99,3 +99,9 @@ Covered by the scorer check: the twenty-one round 4 faults on `reference/round4.
 round 2 faults on `reference/round2.html` and the five original faults on `reference/index.html` (`docs/ui-editor-baseline-round4.md`).
 
 `scripts/ui-editor-gate/probe-limits.mjs` (not part of the pass line, not a runner change): the read-only check of the Limits sentence of U13 (`docs/ui-editor-baseline-round4.md`).
+
+**Iteration 1 of round 4 (after the scored run; labelled, both runs kept).** The scored run on `7e6e8be` gave U06 a FAIL on one check only: `fieldsFit` with `minDistinct` 16 (15 distinct elements were selected by the 18 clicks: two plain `p` elements share the label "p", and the click on `#pick-two` lands in the resize-handle hit area of the cell selected before it). That is a flaw in my locked spec, not in the ribbon: every no-clipping, "Georgia" and "Transparent" check passed. The scored run stands. The iteration changes only the runner:
+
+| # | Change | Why |
+|---|---|---|
+| 29 | `--u06-distinct N` replaces the locked `minDistinct` of the one `fieldsFit` call that has it. NOT a "same control, new UI" mapping: it changes an expected value, so Max decides whether it counts. | Result on the same build, `--only U06 --u06-distinct 15`: **U06 PASS**. Nothing else changed (same commit, same page). |

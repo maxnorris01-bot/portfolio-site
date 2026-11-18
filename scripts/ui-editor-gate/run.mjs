@@ -1374,7 +1374,9 @@ async function runSpec(spec) {
         })
         fitLabels.add(m.label)
         const p = [...m.out]
-        if (a.minDistinct && fitLabels.size < a.minDistinct) p.push(`${fitLabels.size} distinct elements checked, want ${a.minDistinct}`)
+        // ITERATION 1 of round 4 (log #29): --u06-distinct N replaces the locked minDistinct of 16 (a labelled re-score after the scored run; never used in it).
+        const minD = a.minDistinct && opt('--u06-distinct') ? Number(opt('--u06-distinct')) : a.minDistinct
+        if (minD && fitLabels.size < minD) p.push(`${fitLabels.size} distinct elements checked, want ${minD}`)
         return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `${m.label}: no clipped value (${fitLabels.size} elements so far)`)
       }
       case 'fontShows': {
