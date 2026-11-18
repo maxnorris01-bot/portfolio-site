@@ -18,7 +18,7 @@ for (const [dx, alt] of [[37, false], [43, false], [37, true]]) {
   const f = await page.locator('iframe[title="Preview"]').boundingBox()
   const b0 = await box()
   await page.mouse.click(f.x + b0.left + 12, f.y + 191.7 + 12)
-  await page.getByRole('tab', { name: 'Layout' }).click()
+  if (await page.locator('[role=tab]').count()) await page.getByRole('tab', { name: 'Layout' }).click() // round 3 had tabs; round 4 has one ribbon
   await page.getByRole('button', { name: 'Snap', exact: true }).click()
   const hb = await page.locator('[data-handle="e"]').boundingBox()
   const p = { x: hb.x + hb.width / 2, y: hb.y + hb.height / 2 }

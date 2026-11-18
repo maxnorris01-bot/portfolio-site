@@ -80,14 +80,16 @@ interface Props {
   text?: string
   /** Show the label itself beside the icon (the view buttons, Copy code, Download and Reset all, from round 3). */
   showLabel?: boolean
+  /** The words to show when the label is longer than they are (Review unlinked: the name carries the count, the words do not; round 4). */
+  words?: string
   /** The tooltip, when it says more than the name (the name is the aria-label, and the tooltip then becomes the accessible description). */
   tip?: string
   onClick: () => void
 }
 
 /** An icon button: aria-label for the name, title for the visible tooltip, a focus ring from the stylesheet. */
-export function IconButton({ icon, label, tip, disabled, pressed, expanded, badge, text, showLabel, onClick }: Props) {
-  const word = text ?? (showLabel ? label : undefined)
+export function IconButton({ icon, label, tip, disabled, pressed, expanded, badge, text, showLabel, words, onClick }: Props) {
+  const word = text ?? words ?? (showLabel ? label : undefined)
   return (
     <button type="button" className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
       <Icon name={icon} />

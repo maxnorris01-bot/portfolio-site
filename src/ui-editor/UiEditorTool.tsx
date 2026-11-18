@@ -395,19 +395,12 @@ export default function UiEditorTool() {
   const showGallery = !hasDoc || galleryOpen
   // The paste area takes the gallery's place while it is open.
   const galleryShown = showGallery && !pasteOpen
+  // One slim line under the ribbon (round 4): the message, then what was left alone, in a single line that is cut with an ellipsis if it is too long (the whole
+  // text is the tooltip and the region's text). Its height is always reserved while a document is open, so a message never moves the stage.
+  const resultText = message ? [message.text, message.notes && message.notes.length > 0 ? `${messages.noteLead} ${message.notes.join(' ')}` : ''].filter(Boolean).join(' ') : ''
   const result = (
-    <div role="status" aria-label={labels.result} className={`ue-result${message ? ` is-${message.kind}` : ''}`}>
-      {message && <p>{message.text}</p>}
-      {message?.notes && message.notes.length > 0 && (
-        <>
-          <p className="ue-notes-lead">{messages.noteLead}</p>
-          <ul>
-            {message.notes.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
-        </>
-      )}
+    <div role="status" aria-label={labels.result} className={`ue-result${hasDoc ? ' is-reserved' : ''}${message ? ` is-${message.kind}` : ''}`} title={resultText || undefined}>
+      {message && <p className="ue-result-line">{resultText}</p>}
     </div>
   )
   return (
@@ -425,7 +418,7 @@ export default function UiEditorTool() {
               <div className="ue-bar-group">
                 <IconButton icon="undo" label={labels.undo} tip={labels.undoTip} disabled={!canUndo(list) || busy} onClick={onUndo} />
                 <IconButton icon="redo" label={labels.redo} tip={labels.redoTip} disabled={!canRedo(list) || busy} onClick={onRedo} />
-                <IconButton icon="review" label={labels.review(pins.length)} tip={labels.reviewTip} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
+                <IconButton icon="review" label={labels.review(pins.length)} words={labels.reviewWords} tip={labels.reviewTip} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group" role="group" aria-label={labels.view}>

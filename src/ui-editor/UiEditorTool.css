@@ -69,9 +69,9 @@
 .ue-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-2);
   align-items: center;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -80,7 +80,7 @@
 .ue-bar-group {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
+  gap: var(--space-1) 6px;
   align-items: center;
 }
 
@@ -88,11 +88,15 @@
   display: flex;
   flex: 1 1 auto;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-2) 0;
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
   margin-left: auto;
+}
+
+.ue-bar-tools > .ue-bar-group {
+  margin: 0 var(--space-1);
 }
 
 .ue-flex {
@@ -103,7 +107,7 @@
 .ue-sep {
   align-self: stretch;
   width: 1px;
-  margin: 0 var(--space-3);
+  margin: 0 var(--space-1);
   background: var(--color-border);
 }
 
@@ -127,7 +131,7 @@
 .ue-tool .btn.ue-icon.has-text {
   width: auto;
   gap: var(--space-1);
-  padding: 0 var(--space-2);
+  padding: 0 6px;
 }
 
 .ue-badge {
@@ -554,9 +558,11 @@
   white-space: nowrap;
 }
 
-/* ---- the ribbon, Office-style: a tab bar (Home, Layout) and a panel of a fixed height, so nothing moves when a tab is switched or an element is selected.
-   Every group is a column with its name under it (11 px, muted); small controls are 28 px high, the large buttons 56 x 60. From 1000 px up the panel is one
-   row; below 1000 px the groups wrap onto more rows and every control is at least 44 px. Tokens only. ---- */
+/* ---- the ribbon (round 4): ONE ribbon, no tabs. A slim strip (the selected element, its size, the Link checkbox and the one plain note), then seven groups that
+   share the full width. Every control has its word above it (an icon button has its caption under it); a group's name sits under its controls (11 px).
+   From 1000 px the groups grow equally to fill their band and keep their thin separators: one band when the ribbon is wide enough for all seven, otherwise two
+   (a break after Shape: groups wrap at group boundaries, never split, never a sideways scroll). Below 1000 px they wrap into as many bands as needed and every
+   control is at least 44 x 44. Small controls are 26 px high, the large buttons 56 x 60. Tokens only. ---- */
 .ue-sr {
   position: absolute;
   width: 1px;
@@ -567,79 +573,39 @@
 }
 
 .ue-tool .ue-ribbon {
+  container: ue-ribbon / inline-size;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
-  font-size: var(--text-small);
+  font-size: 12px;
 }
 
-.ue-tabbar {
+.ue-strip {
   display: flex;
   box-sizing: border-box;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--space-3);
-  height: 36px;
+  height: 26px;
   padding: 0 var(--space-2);
   border-bottom: 1px solid var(--color-border);
-}
-
-.ue-tabs {
-  display: flex;
-  gap: 2px;
-}
-
-.ue-tab {
-  margin-bottom: -1px;
-  padding: 6px var(--space-4);
-  border: 1px solid transparent;
-  border-bottom: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.ue-tab[aria-selected='true'] {
-  border-color: var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-.ue-tab:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
-}
-
-/* The one plain line when nothing can be edited: up to two lines in the tab bar, which keeps its height. */
-.ue-rnote {
-  flex: 1 1 0;
-  align-self: center;
-  max-height: 2.4em;
-  margin: 0;
-  overflow: hidden;
-  color: var(--color-text-muted);
-  line-height: 1.2;
-}
-
-.ue-rnote[hidden] {
-  display: none;
-}
-
-/* The right end of the tab bar: which element, which size, and the Link checkbox with its tooltip. */
-.ue-rend {
-  display: flex;
-  flex: none;
-  gap: var(--space-3);
-  align-items: center;
-  align-self: center;
-  margin-left: auto;
   white-space: nowrap;
+}
+
+.ue-strip-title {
+  color: var(--color-text-muted);
 }
 
 .ue-rlabel {
   color: var(--color-navy);
   font-family: var(--font-mono);
   font-weight: 600;
+}
+
+.ue-rlabel:empty::before {
+  content: 'none';
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-weight: 400;
 }
 
 .ue-linkrow {
@@ -650,23 +616,39 @@
   cursor: help;
 }
 
+.ue-linkrow input {
+  margin: 0;
+}
+
+/* The one plain line when nothing can be edited: one line in the strip (cut with an ellipsis if the window is narrow; its whole text is the tooltip). */
+.ue-rnote {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ue-rnote[hidden] {
+  display: none;
+}
+
 .ue-rpanel {
   display: flex;
   box-sizing: border-box;
+  flex-wrap: wrap;
   align-items: stretch;
-  height: 90px;
-  padding: 4px var(--space-1) 0;
-}
-
-.ue-rpanel[hidden] {
-  display: none;
+  padding: 3px var(--space-1);
 }
 
 .ue-rgroup {
   position: relative;
   display: flex;
+  box-sizing: border-box;
+  flex: 1 1 auto;
   flex-direction: column;
-  justify-content: space-between;
   min-width: 0;
   padding: 0 var(--space-2);
   border-right: 1px solid var(--color-border);
@@ -676,52 +658,98 @@
   border-right: 0;
 }
 
+/* A group's content is centred in the room the group has grown to, so the extra width is shared evenly round every group. */
 .ue-gc {
   display: flex;
   gap: var(--space-1);
-  align-items: flex-start;
-  height: 60px;
+  align-items: center;
+  align-self: center;
+  width: max-content;
+  height: 80px;
 }
 
 .ue-col {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .ue-row {
   display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  height: 28px;
+  gap: 6px;
+  align-items: flex-start;
 }
 
 .ue-glabel {
-  padding-bottom: 4px;
+  padding-bottom: 2px;
   color: var(--color-text-muted);
   font-size: 11px;
-  line-height: 14px;
+  line-height: 13px;
   text-align: center;
 }
 
+/* A control: its label above (the label spans the whole control), then the control on one line. */
 .ue-rctl {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
+}
+
+.ue-rline {
+  display: flex;
   gap: 3px;
   align-items: center;
 }
 
-.ue-cap {
-  color: var(--color-text-muted);
-  font-size: 12px;
+.ue-cl {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 13px;
   white-space: nowrap;
+}
+
+.ue-aligns {
+  flex-direction: row;
+  gap: var(--space-1);
+  align-items: flex-start;
+}
+
+.ue-cb {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ue-cb .ue-cl {
+  text-align: center;
+}
+
+/* The break between the second and the third group: only in the two-band range (from 1000 px, while the ribbon is too narrow for all seven groups in one band). */
+.ue-brk {
+  display: none;
+  flex: 0 0 100%;
+  height: 0;
+}
+
+@media (min-width: 1000px) {
+  @container ue-ribbon (max-width: 1559px) {
+    .ue-brk {
+      display: block;
+    }
+
+    /* The last group of the first band has no separator at the edge. */
+    .ue-rgroup:nth-child(4) {
+      border-right: 0;
+    }
+  }
 }
 
 .ue-tool .ue-ribbon .ue-rbtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  height: 28px;
+  min-width: 22px;
+  height: 26px;
   padding: 0 4px;
   border: 1px solid var(--color-border);
   border-radius: 4px;
@@ -755,18 +783,23 @@
 .ue-tool .ue-ribbon .ue-lg {
   flex-direction: column;
   gap: 2px;
-  width: 56px;
+  width: 64px;
   height: 60px;
   padding: 0;
   font-size: 11px;
   line-height: 14px;
 }
 
+.ue-tool .ue-ribbon .ue-al {
+  width: 40px;
+  padding: 0;
+}
+
 .ue-tool .ue-ribbon .ue-sidesbtn {
   padding: 0 var(--space-2);
 }
 
-/* A stepper: minus, the number (a real text input), plus, joined. */
+/* A stepper: minus, the number (a real text input), plus, joined. The number is wide enough for a value like 1234.56px. */
 .ue-stp {
   display: inline-flex;
 }
@@ -785,16 +818,18 @@
 }
 
 .ue-tool .ue-ribbon .ue-num {
-  width: 3.9em;
+  width: 72px;
   min-height: 0;
-  height: 28px;
+  height: 26px;
   padding: 0 2px;
   border-radius: 0;
+  font-size: 12px;
   text-align: center;
 }
 
+/* A colour field shows its colour in words or hex ("Transparent" in full) and has its swatch joined to it. */
 .ue-tool .ue-ribbon .ue-num.is-wide {
-  width: 6em;
+  width: 96px;
   padding: 0 6px;
   border-radius: 4px 0 0 4px;
   text-align: left;
@@ -802,19 +837,29 @@
 
 .ue-tool .ue-ribbon select {
   min-height: 0;
-  height: 28px;
+  height: 26px;
   max-width: 11em;
   padding: 0 4px;
+  font-size: 12px;
 }
 
+/* The font select shows the first family name in full (the whole stack is its tooltip). */
 .ue-tool .ue-ribbon .ue-fam {
-  width: 8em;
+  width: 140px;
+}
+
+.ue-tool .ue-ribbon .ue-wt {
+  width: 76px;
+}
+
+.ue-tool .ue-ribbon .ue-spacing {
+  width: 80px;
 }
 
 /* The swatch is the browser's own colour input, sized like a button. */
 .ue-tool .ue-ribbon .ue-swatch {
-  width: 30px;
-  height: 28px;
+  width: 28px;
+  height: 26px;
   padding: 2px;
   border: 1px solid var(--color-border);
   border-radius: 0 4px 4px 0;
@@ -846,19 +891,20 @@
 }
 
 .ue-tool .ue-ribbon .ue-unit {
-  min-width: 24px;
+  min-width: 30px;
 }
 
 /* The Sides popover: the four sides of padding or margin, under the Spacing group; it opens over the preview. */
 .ue-popover {
   position: absolute;
-  top: 66px;
+  top: 100%;
   left: 0;
   z-index: 20;
   display: grid;
   grid-template-columns: repeat(2, max-content);
   gap: var(--space-2) var(--space-4);
   max-width: 100%;
+  margin-top: 2px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -868,16 +914,15 @@
 
 .ue-sidec {
   display: inline-flex;
-  gap: 3px;
-  align-items: center;
+  flex-direction: column;
 }
 
 .ue-snapnote {
-  max-width: 11.5rem;
+  width: 128px;
   margin: 0;
   color: var(--color-text-muted);
   font-size: 11px;
-  line-height: 1.25;
+  line-height: 13px;
 }
 
 .ue-tool .ue-ribbon button:focus-visible,
@@ -898,8 +943,12 @@
   vertical-align: middle;
 }
 
+/* The status line (round 4): one slim line directly under the ribbon, never a card. While a document is open its height is reserved, so a message (an applied
+   edit, a refusal) never moves the stage; a long one is cut with an ellipsis (its whole text is the tooltip and the region's text). Before a document is open the
+   region takes no room until it has a message. */
 .ue-result {
-  min-height: 3.2em;
+  box-sizing: border-box;
+  margin: 0;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -907,11 +956,25 @@
   line-height: var(--leading);
 }
 
-/* The status region is always in the page (a screen reader needs it there before the first message) but takes no room until it has one. */
 .ue-tool > .ue-result:empty {
   min-height: 0;
   padding: 0;
   border: 0;
+}
+
+.ue-result.is-reserved {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  margin-top: calc(var(--space-1) - var(--space-3));
+  padding: 0 var(--space-3);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.ue-tool > .ue-result.is-reserved:empty {
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
 }
 
 .ue-result.is-refusal {
@@ -919,19 +982,12 @@
   border-left-width: 4px;
 }
 
-.ue-result p {
+.ue-result-line {
+  min-width: 0;
   margin: 0;
-}
-
-.ue-result ul {
-  margin: var(--space-1) 0 0;
-  padding-left: 1.2em;
-}
-
-.ue-result .ue-notes-lead {
-  margin-top: var(--space-1);
-  color: var(--color-text-secondary);
-  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---- the code: the whole updated file, changed lines tinted and marked with a "+" in the margin, a thin marker where lines were removed, Previous and
@@ -1110,36 +1166,20 @@
 
 /* Below 1000 px the ribbon's groups wrap onto more rows (nothing is collapsed into a menu), and every control is at least 44 x 44. */
 @media (max-width: 999px) {
-  .ue-tabbar {
+  .ue-strip {
     flex-wrap: wrap;
-    align-items: center;
     height: auto;
     padding: var(--space-1) var(--space-2);
-  }
-
-  .ue-tab {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    margin-bottom: 0;
-    box-sizing: border-box;
+    white-space: normal;
   }
 
   .ue-rnote {
     flex-basis: 100%;
-    max-height: none;
     overflow: visible;
-  }
-
-  .ue-rend {
-    flex-wrap: wrap;
-    margin-left: 0;
     white-space: normal;
   }
 
   .ue-rpanel {
-    flex-wrap: wrap;
-    height: auto;
     padding: 0;
   }
 
@@ -1158,7 +1198,13 @@
   .ue-col,
   .ue-row {
     flex-wrap: wrap;
+    width: auto;
     height: auto;
+  }
+
+  .ue-gc {
+    align-self: stretch;
+    align-items: flex-start;
   }
 
   .ue-popover {
@@ -1170,7 +1216,8 @@
 
   .ue-tool .ue-ribbon .ue-rbtn,
   .ue-tool .ue-ribbon .ue-stp .ue-rbtn,
-  .ue-tool .ue-ribbon .ue-unit {
+  .ue-tool .ue-ribbon .ue-unit,
+  .ue-tool .ue-ribbon .ue-al {
     min-width: 44px;
     height: 44px;
   }
@@ -1193,6 +1240,20 @@
 
   .ue-tool .ue-ribbon .ue-linkrow {
     min-height: 44px;
+  }
+
+  /* The status line keeps room for three lines, so a message still never moves the stage. */
+  .ue-result.is-reserved {
+    align-items: flex-start;
+    height: 4.6em;
+    padding-top: var(--space-1);
+  }
+
+  .ue-result-line {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    white-space: normal;
   }
 
   .ue-tool .btn,

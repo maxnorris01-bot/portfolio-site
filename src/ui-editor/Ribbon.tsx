@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as R
 import { panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { htmlFields, rowOfPin, svgFields, type Computed, type Field } from './panelfields'
-import { STEP_OF, alignButtons, familyOptions, kindOf, pressedAlign } from './ribbonfields'
+import { STEP_OF, alignButtons, familyChoices, kindOf, pressedAlign, showColourWord } from './ribbonfields'
 import { canResize, isSvgElement, labelOf, moveTarget, parentContentWidth, type Session } from './session'
 import type { ViewName } from './devices'
 import { SIDES, allSidesBy, expandSides, showUniform, sidesText, withSide, type Side } from './sides'
@@ -12,10 +12,6 @@ import { pickerValue } from './values'
 import type { UnlinkedItem } from './vendor/engine.js'
 
 export type { ViewName }
-
-/** The two tabs. A command lives on one tab only. */
-export type TabName = 'home' | 'layout'
-const TABS: TabName[] = ['home', 'layout']
 
 interface Props {
   session: Session | null
@@ -59,7 +55,13 @@ function Dot({ env }: { env: string }) {
   return <span data-dot className="ue-dot" role="img" aria-label={P.dot(env)} title={P.dot(env)} />
 }
 
-const Cap = ({ label }: { label: string }) => (P.caps[label] ? <span className="ue-cap" aria-hidden="true">{P.caps[label]}</span> : null)
+/** The visible label of a control, above it (or under an icon button): 11 to 12 px, sentence case, in plain words. aria-hidden: the control's own name is its accessible name. */
+const CtlLabel = ({ text }: { text: string }) => (
+  <span className="ue-cl" data-ctl-label aria-hidden="true">
+    {text}
+  </span>
+)
+const labelFor = (name: string): string => P.ctl[name] ?? name
 
 /** A button that acts on a press and, held, again after HOLD_DELAY and then every HOLD_EVERY ms. A keyboard press (no pointer) acts once. */
 function RepeatButton({ label, tip, disabled, onFire, children }: { label: string; tip: string; disabled: boolean; onFire: (shift: boolean) => void; children: ReactNode }) {
@@ -105,7 +107,7 @@ function RepeatButton({ label, tip, disabled, onFire, children }: { label: strin
 }
 
 /** The number between a stepper's buttons: always a real text input. Enter (or leaving it) commits what was typed. */
-function NumberInput({ name, shown, stamp, disabled, wide, describedBy, onCommit }: { name: string; shown: string; stamp: string; disabled: boolean; wide?: boolean; describedBy?: string; onCommit: (text: string) => void }) {
+function NumberInput({ name, shown, stamp, disabled, wide, describedBy, tip, onCommit }: { name: string; shown: string; stamp: string; disabled: boolean; wide?: boolean; describedBy?: string; tip?: string; onCommit: (text: string) => void }) {
   const done = useRef(false)
   const input = useRef<HTMLInputElement>(null)
   const commit = (text: string) => {
@@ -128,7 +130,7 @@ function NumberInput({ name, shown, stamp, disabled, wide, describedBy, onCommit
       type="text"
       className={`ue-num${wide ? ' is-wide' : ''}`}
       aria-label={name}
-      title={name}
+      title={tip ?? P.typeTip(name)}
       aria-describedby={describedBy}
       defaultValue={shown}
       disabled={disabled}
@@ -207,10 +209,8 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
   // An SVG has no grid to snap to in HTML px: Snap is off there, with one plain line of text.
   const svgDoc = !!session && session.doc.kind === 'svg'
 
-  // The tab that shows, and the Sides popover that is open (padding or margin).
-  const [tab, setTab] = useState<TabName>('home')
+  // The Sides popover that is open (padding or margin).
   const [sidesOpen, setSidesOpen] = useState<'padding' | 'margin' | null>(null)
-  const tabRefs = useRef<Record<TabName, HTMLDivElement | null>>({ home: null, layout: null })
   const sidesButtons = useRef<Record<string, HTMLButtonElement | null>>({})
   const popover = useRef<HTMLDivElement>(null)
   const openedBy = useRef<'padding' | 'margin' | null>(null)
@@ -219,25 +219,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     openedBy.current = null
     setSidesOpen(null)
     if (focusButton && which) sidesButtons.current[which]?.focus()
-  }
-  const pickTab = (t: TabName, focus: boolean) => {
-    setTab(t)
-    if (sidesOpen) {
-      openedBy.current = null
-      setSidesOpen(null)
-    }
-    if (focus) tabRefs.current[t]?.focus()
-  }
-  const onTabKey = (e: KeyboardEvent<HTMLDivElement>, t: TabName) => {
-    const i = TABS.indexOf(t)
-    const to = e.key === 'ArrowRight' ? TABS[(i + 1) % TABS.length] : e.key === 'ArrowLeft' ? TABS[(i + TABS.length - 1) % TABS.length] : e.key === 'Home' ? TABS[0] : e.key === 'End' ? TABS[TABS.length - 1] : null
-    if (to) {
-      e.preventDefault()
-      pickTab(to, true)
-    } else if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      pickTab(t, false)
-    }
   }
   // Focus moves into the popover when it opens; a click outside it closes it.
   useEffect(() => {
@@ -306,17 +287,20 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     const kind = kindOf(f.prop, svg)
     const shown = cs ? f.read(cs) : ''
     const dot = dotRows.has(f.prop) ? <Dot env={pinEnv(f.prop)} /> : null
+    // A control: its label above it (the visible word, from the label table), then the control and its dot on one line.
     const wrap = (children: ReactNode, extra?: string) => (
       <div key={f.prop + f.label} className={`ue-rctl${extra ? ` ${extra}` : ''}`} data-field={f.prop}>
-        <Cap label={f.label} />
-        {children}
-        {dot}
+        <CtlLabel text={labelFor(f.label)} />
+        <div className="ue-rline">
+          {children}
+          {dot}
+        </div>
       </div>
     )
     if (kind === 'family') {
       return wrap(
-        <select key={`${stamp}-f`} id={rowId(f.prop)} aria-label={f.label} title={f.label} className="ue-fam" defaultValue={shown} disabled={!live} onChange={(e) => cs && write(f, e.currentTarget.value, cs)}>
-          {familyOptions(shown).map((o, i) => (
+        <select key={`${stamp}-f`} id={rowId(f.prop)} aria-label={f.label} title={P.fontTip(shown)} className="ue-fam" defaultValue={shown} disabled={!live} onChange={(e) => cs && write(f, e.currentTarget.value, cs)}>
+          {familyChoices(shown).map((o, i) => (
             <option key={`${i}-${o.label}`} value={o.value}>
               {o.label}
             </option>
@@ -326,7 +310,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     }
     if (kind === 'weight') {
       return wrap(
-        <select key={`${stamp}-w`} id={rowId(f.prop)} aria-label={f.label} title={f.label} defaultValue={shown} disabled={!live} onChange={(e) => cs && write(f, e.currentTarget.value, cs)}>
+        <select key={`${stamp}-w`} id={rowId(f.prop)} aria-label={f.label} title={P.weightTip} className="ue-wt" defaultValue={shown} disabled={!live} onChange={(e) => cs && write(f, e.currentTarget.value, cs)}>
           {(f.options ?? []).map((o) => (
             <option key={o} value={o}>
               {o}
@@ -339,8 +323,8 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       const picked = pickerValue(shown)
       return wrap(
         <>
-          <NumberInput key={`${stamp}-c`} name={f.label} shown={shown} stamp={stamp} disabled={!live} wide onCommit={(t) => cs && write(f, t, cs)} />
-          <ColourSwatch key={`${stamp}-s`} label={P.pick(f.label)} value={picked ?? '#000000'} disabled={!live} onPick={(hex) => cs && write(f, hex, cs)} />
+          <NumberInput key={`${stamp}-c`} name={f.label} shown={showColourWord(shown)} stamp={stamp} disabled={!live} wide tip={P.colourTip} onCommit={(t) => cs && write(f, t, cs)} />
+          <ColourSwatch key={`${stamp}-s`} label={P.pick(f.label)} tip={P.pickTip(f.label)} value={picked ?? '#000000'} disabled={!live} onPick={(hex) => cs && write(f, hex, cs)} />
         </>,
         'is-colour',
       )
@@ -348,14 +332,15 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     if (kind === 'align') {
       const current = cs ? pressedAlign(shown, svg) : ''
       return (
-        <div key={f.prop} className="ue-rctl" data-field={f.prop} role="group" aria-label={f.label}>
-          <span className="ue-seg">
-            {alignButtons(svg).map((b) => (
-              <button key={b.value} type="button" className="ue-rbtn" aria-label={b.label} title={b.label} aria-pressed={current === b.value} disabled={!live} onClick={() => cs && write(f, b.value, cs)}>
+        <div key={f.prop} className="ue-rctl ue-aligns" data-field={f.prop} role="group" aria-label={f.label}>
+          {alignButtons(svg).map((b) => (
+            <div key={b.value} className="ue-cb">
+              <button type="button" className="ue-rbtn ue-al" aria-label={b.label} title={P.alignTip(b.label)} aria-pressed={current === b.value} disabled={!live} onClick={() => cs && write(f, b.value, cs)}>
                 <Icon name={ALIGN_ICON[b.value]} />
               </button>
-            ))}
-          </span>
+              <CtlLabel text={P.alignCaptions[b.label] ?? b.label} />
+            </div>
+          ))}
           {dot}
         </div>
       )
@@ -366,29 +351,31 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       const which = f.prop === 'padding' ? 'padding' : 'margin'
       return (
         <div key={f.prop} className="ue-rctl is-sides" data-field={f.prop}>
-          <Cap label={f.label} />
-          <Stepper name={f.label} shown={sides ? showUniform(sides) : ''} stamp={stamp} disabled={!live} step={STEP[key]} unit="px" onStep={(d, s) => stepSides(f, d, s)} onCommit={(t) => cs && write(f, t, cs)} />
-          <button
-            type="button"
-            ref={(b) => {
-              sidesButtons.current[which] = b
-            }}
-            className="ue-rbtn ue-sidesbtn"
-            aria-label={P.sidesName(f.label)}
-            title={P.sidesTip(f.label)}
-            aria-expanded={sidesOpen === which}
-            disabled={!live}
-            onClick={() => {
-              if (sidesOpen === which) closeSides(false)
-              else {
-                openedBy.current = which
-                setSidesOpen(which)
-              }
-            }}
-          >
-            {P.sides}
-          </button>
-          {dot}
+          <CtlLabel text={labelFor(f.label)} />
+          <div className="ue-rline">
+            <Stepper name={f.label} shown={sides ? showUniform(sides) : ''} stamp={stamp} disabled={!live} step={STEP[key]} unit="px" onStep={(d, s) => stepSides(f, d, s)} onCommit={(t) => cs && write(f, t, cs)} />
+            <button
+              type="button"
+              ref={(b) => {
+                sidesButtons.current[which] = b
+              }}
+              className="ue-rbtn ue-sidesbtn"
+              aria-label={P.sidesName(f.label)}
+              title={P.sidesTip(f.label)}
+              aria-expanded={sidesOpen === which}
+              disabled={!live}
+              onClick={() => {
+                if (sidesOpen === which) closeSides(false)
+                else {
+                  openedBy.current = which
+                  setSidesOpen(which)
+                }
+              }}
+            >
+              {P.sides}
+            </button>
+            {dot}
+          </div>
         </div>
       )
     }
@@ -397,19 +384,24 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     const isWidth = kind === 'width'
     const parent = el && isWidth ? parentContentWidth(el) : 0
     const text = isWidth && el && cs ? showWidth(parseFloat(cs.width) || 0, parent, unit) : shown
-    return wrap(
+    return (
       <>
-        <Stepper name={f.label} shown={text} stamp={stamp} disabled={!live} step={key === 'width' && unit === '%' ? 1 : STEP[key]} unit={isWidth && unit === '%' ? '%' : 'px'} onStep={(d, s) => stepField(f, d, s)} onCommit={(t) => commitText(f, t)} />
+        {wrap(<Stepper name={f.label} shown={text} stamp={stamp} disabled={!live} step={key === 'width' && unit === '%' ? 1 : STEP[key]} unit={isWidth && unit === '%' ? '%' : 'px'} onStep={(d, s) => stepField(f, d, s)} onCommit={(t) => commitText(f, t)} />)}
         {isWidth && (
-          <span className="ue-seg" role="group" aria-label={P.widthUnit}>
-            {(['px', '%'] as WidthUnit[]).map((u) => (
-              <button key={u} type="button" className="ue-rbtn ue-unit" aria-label={u} aria-pressed={unit === u} title={`${P.widthUnit}: ${u}`} disabled={!live || (u === '%' && parent <= 0)} onClick={() => onUnit(u)}>
-                {u}
-              </button>
-            ))}
-          </span>
+          <div key="unit" className="ue-rctl">
+            <CtlLabel text={P.unitLabel} />
+            <div className="ue-rline">
+              <span className="ue-seg" role="group" aria-label={P.widthUnit}>
+                {(['px', '%'] as WidthUnit[]).map((u) => (
+                  <button key={u} type="button" className="ue-rbtn ue-unit" aria-label={u} aria-pressed={unit === u} title={P.unitTip(u)} disabled={!live || (u === '%' && parent <= 0)} onClick={() => onUnit(u)}>
+                    {u}
+                  </button>
+                ))}
+              </span>
+            </div>
+          </div>
         )}
-      </>,
+      </>
     )
   }
   /** The control of the field with this label, when the selected element has it (an SVG has fewer). */
@@ -440,9 +432,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       >
         {SIDES.map((side, i) => (
           <span key={side} className="ue-sidec">
-            <span className="ue-cap" aria-hidden="true">
-              {side[0].toUpperCase()}
-            </span>
+            <CtlLabel text={side[0].toUpperCase() + side.slice(1)} />
             <Stepper name={`${f.label} ${side}`} shown={sides ? `${sides[i]}px` : ''} stamp={stamp} disabled={!live} step={STEP[key]} unit="px" onStep={(d, s) => stepSides(f, d, s, side)} onCommit={(t) => commitSide(f, side, t)} />
           </span>
         ))}
@@ -454,7 +444,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
   const tip = svg ? P.svgLink : P.linkHint
   const nudge = (axis: 'X' | 'Y', label: string) => (
     <div className="ue-rctl" key={axis}>
-      <Cap label={label} />
+      <CtlLabel text={labelFor(label)} />
       <Stepper
         key={`${stamp}-n${axis}`}
         name={label}
@@ -481,43 +471,22 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
 
   return (
     <div className="ue-ribbon" data-ribbon>
-      <div className="ue-tabbar">
-        <div className="ue-tabs" role="tablist" aria-label={P.tabList}>
-          {TABS.map((t) => (
-            <div
-              key={t}
-              ref={(e) => {
-                tabRefs.current[t] = e
-              }}
-              id={`ue-tab-${t}`}
-              role="tab"
-              className="ue-tab"
-              aria-selected={tab === t}
-              aria-controls={`ue-panel-${t}`}
-              tabIndex={tab === t ? 0 : -1}
-              onClick={() => pickTab(t, false)}
-              onKeyDown={(e) => onTabKey(e, t)}
-            >
-              {P.tabs[t]}
-            </div>
-          ))}
-        </div>
-        <p data-ribbon-note className="ue-rnote" hidden={!note}>
+      <div className="ue-strip" data-ribbon-strip>
+        <span className="ue-strip-title">{P.strip}</span>
+        <span className="ue-rlabel" data-selected-label>
+          {el && selected !== null && session ? labelOf(session, selected) : ''}
+        </span>
+        <strong data-env>{view}</strong>
+        <label className="ue-linkrow" htmlFor="ue-link" title={tip}>
+          <input id="ue-link" type="checkbox" checked={svg ? true : link} disabled={!live || svg} title={tip} onChange={(e) => onLink(e.currentTarget.checked)} />
+          {P.linkTo(other)}
+        </label>
+        <p data-ribbon-note className="ue-rnote" hidden={!note} title={note}>
           {note}
         </p>
-        <div className="ue-rend">
-          <span className="ue-rlabel" data-selected-label>
-            {el && selected !== null && session ? labelOf(session, selected) : ''}
-          </span>
-          <strong data-env>{view}</strong>
-          <label className="ue-linkrow" htmlFor="ue-link" title={tip}>
-            <input id="ue-link" type="checkbox" checked={svg ? true : link} disabled={!live || svg} title={tip} onChange={(e) => onLink(e.currentTarget.checked)} />
-            {P.linkTo(other)}
-          </label>
-        </div>
       </div>
 
-      <div className="ue-rpanel" role="tabpanel" id="ue-panel-home" aria-labelledby="ue-tab-home" data-ribbon-panel hidden={tab !== 'home'}>
+      <div className="ue-rpanel" data-ribbon-panel>
         <Group id="font" name={P.groups.font}>
           <div className="ue-col">
             <Row>
@@ -551,9 +520,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
             </Row>
           </div>
         </Group>
-      </div>
-
-      <div className="ue-rpanel" role="tabpanel" id="ue-panel-layout" aria-labelledby="ue-tab-layout" data-ribbon-panel hidden={tab !== 'layout'}>
+        <span className="ue-brk" aria-hidden="true" />
         <Group id="spacing" name={P.groups.spacing}>
           <div className="ue-col">
             <Row>{ctl(P.padding)}</Row>
@@ -575,17 +542,22 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
           </span>
         </Group>
         <Group id="grid" name={P.groups.grid}>
-          <LargeButton icon="grid" label={P.grid} tip={P.gridTip} pressed={grid} disabled={!live} onClick={() => onGrid(!grid)} />
-          <LargeButton icon="snap" label={P.snap} tip={P.snapTip} pressed={snap && !svgDoc} disabled={!live || svgDoc} onClick={() => onSnap(!snap)} />
+          <LargeButton icon="grid" label={P.grid} tip={P.gridTip} pressed={grid} disabled={false} onClick={() => onGrid(!grid)} />
+          <LargeButton icon="snap" label={P.snap} tip={P.snapTip} pressed={snap && !svgDoc} disabled={svgDoc} onClick={() => onSnap(!snap)} />
           <div className="ue-col">
             <Row>
-              <select id="ue-spacing" className="ue-spacing" aria-label={P.gridSpacing} title={P.gridSpacingTip} value={spacing} disabled={!live} onChange={(e) => onSpacing(Number(e.currentTarget.value))}>
-                {P.spacings.map((n) => (
-                  <option key={n} value={n}>
-                    {P.spacingOption(n)}
-                  </option>
-                ))}
-              </select>
+              <div className="ue-rctl">
+                <span className="ue-cl" data-ctl-label aria-hidden="true">
+                  {P.gridSpacing}
+                </span>
+                <select id="ue-spacing" className="ue-spacing" aria-label={P.gridSpacing} title={P.gridSpacingTip} value={spacing} onChange={(e) => onSpacing(Number(e.currentTarget.value))}>
+                  {P.spacings.map((n) => (
+                    <option key={n} value={n}>
+                      {P.spacingOption(n)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </Row>
             {svgDoc && (
               <p className="ue-snapnote" data-snap-note>
@@ -600,7 +572,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
 }
 
 /** The swatch: the browser's own colour picker. It acts once, when the picker is closed (the `change` event), not at every move of its cursor. */
-function ColourSwatch({ label, value, disabled, onPick }: { label: string; value: string; disabled: boolean; onPick: (hex: string) => void }) {
+function ColourSwatch({ label, tip, value, disabled, onPick }: { label: string; tip: string; value: string; disabled: boolean; onPick: (hex: string) => void }) {
   const input = useRef<HTMLInputElement>(null)
   const latest = useRef(onPick)
   useEffect(() => {
@@ -613,5 +585,5 @@ function ColourSwatch({ label, value, disabled, onPick }: { label: string; value
     e.addEventListener('change', on)
     return () => e.removeEventListener('change', on)
   }, [])
-  return <input ref={input} type="color" className="ue-swatch" aria-label={label} title={label} defaultValue={value} disabled={disabled} />
+  return <input ref={input} type="color" className="ue-swatch" aria-label={label} title={tip} defaultValue={value} disabled={disabled} />
 }

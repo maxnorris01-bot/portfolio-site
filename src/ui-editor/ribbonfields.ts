@@ -50,6 +50,23 @@ export function familyOptions(current: string): { label: string; value: string }
   return [{ label: current, value: current }, ...FAMILIES]
 }
 
+/** The first family name of a computed stack, without quotes: `Georgia, "Times New Roman", serif` is `Georgia`. */
+export function firstFamily(stack: string): string {
+  return (stack.split(',')[0] ?? '').trim().replace(/^["']|["']$/g, '')
+}
+
+/**
+ * The font select's options in round 4: each shows its NAME only. The page's own family comes first, shown by its first name ("Georgia"), and choosing it
+ * writes what it already is (the whole stack, which is also in the select's tooltip); then the twelve. `familyOptions` above is the older reading (the whole
+ * stack as the label) and is kept for its tests.
+ */
+export function familyChoices(current: string): { label: string; value: string }[] {
+  return [{ label: firstFamily(current), value: current }, ...FAMILIES]
+}
+
+/** A colour field's text: the transparent colour is spelled out in full ("Transparent"), everything else as it is read. Typing either case is accepted. */
+export const showColourWord = (shown: string): string => (shown === 'transparent' ? 'Transparent' : shown)
+
 export interface AlignButton {
   value: string
   label: string

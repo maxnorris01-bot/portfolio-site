@@ -90,6 +90,8 @@ export const labels = {
   rotateTip: 'Turn the device sideways or upright',
   viewTip: (name: string) => `Show the ${name} size`,
   review: (n: number) => `Review unlinked (${n})`,
+  /** The words shown on that button: its accessible name carries the count, and the count is also drawn as a badge. */
+  reviewWords: 'Review unlinked',
   reviewList: 'Unlinked edits',
   file: 'File',
   copy: 'Copy code',
@@ -120,14 +122,13 @@ export const panel = {
   ribbon: 'Formatting ribbon',
   none: 'Click an element to edit it',
   linkTo: (other: string) => `Link to ${other}`,
-  linkHint: 'On: a size change also scales the other size by the same ratio. Off: the change applies to this size only and is listed under Review unlinked.',
-  svgLink: 'An SVG has one size, so every edit applies everywhere.',
+  linkHint: 'Scale the other size by the same ratio when a size changes. Off: the change applies to this size only and is listed under Review unlinked.',
+  svgLink: 'Use the one size an SVG has: every edit applies everywhere.',
   tablet: 'Tablet is a view-only width, so its settings and handles are switched off. Switch to Desktop or Phone to edit.',
   viewOnly: 'This size is view-only, so its settings and handles are switched off: turn the phone upright, or switch to Desktop, to edit.',
   dot: (env: string) => `Unlinked: applies to ${env} only`,
-  /** The two tabs and the seven groups of the ribbon (Office-style: a command lives on one tab only; the group's name sits under its controls). */
-  tabList: 'Ribbon tabs',
-  tabs: { home: 'Home', layout: 'Layout' },
+  /** The strip above the ribbon, and the seven groups of one ribbon (the group's name sits under its controls). */
+  strip: 'Selected element',
   groups: { font: 'Font', paragraph: 'Paragraph', size: 'Size', shape: 'Shape', spacing: 'Spacing', arrange: 'Arrange', grid: 'Grid' },
   fonts: 'Font family',
   fontSize: 'Font size',
@@ -157,8 +158,20 @@ export const panel = {
   widthUnit: 'Width unit',
   mixed: 'mixed',
   sideNames: ['top', 'right', 'bottom', 'left'],
-  /** The short word drawn beside a control; the accessible name is the full label. */
-  caps: { 'Font size': 'Size', 'Text colour': 'Text', Width: 'W', Height: 'H', Padding: 'Pad', Margin: 'Mar', Background: 'Fill', 'Border colour': 'Line', 'Border width': 'Thick', 'Border radius': 'Round', 'Nudge X': 'X', 'Nudge Y': 'Y' } as Record<string, string>,
+  /** The visible label above each control, in plain words (round 4): the control's accessible name is the key and stays as it was. */
+  ctl: { 'Font family': 'Font family', 'Font size': 'Font size', 'Font weight': 'Weight', 'Text colour': 'Text colour', Width: 'Width', Height: 'Height', Padding: 'Padding', Margin: 'Margin', Background: 'Fill colour', 'Border colour': 'Line colour', 'Border width': 'Line thickness', 'Border radius': 'Corner rounding', 'Nudge X': 'Nudge X', 'Nudge Y': 'Nudge Y' } as Record<string, string>,
+  unitLabel: 'Unit',
+  /** The caption under each alignment button. */
+  alignCaptions: { 'Align left': 'Left', 'Align centre': 'Centre', 'Align right': 'Right', Justify: 'Justify', 'Anchor start': 'Start', 'Anchor middle': 'Middle', 'Anchor end': 'End' } as Record<string, string>,
+  /** Tooltips: short, verb first. */
+  alignTips: { 'Align left': 'Align the text to the left.', 'Align centre': 'Align the text to the centre.', 'Align right': 'Align the text to the right.', Justify: 'Justify the text to both edges.', 'Anchor start': 'Align the text so it starts at its anchor point.', 'Anchor middle': 'Align the text around its anchor point.', 'Anchor end': 'Align the text so it ends at its anchor point.' } as Record<string, string>,
+  alignTip: (name: string): string => panel.alignTips[name] ?? `Align the text: ${name.toLowerCase()}.`,
+  typeTip: (name: string): string => (/^Nudge/.test(name) ? 'Type how many pixels to move by, then press Enter.' : `Type the ${name.toLowerCase()}, then press Enter.`),
+  fontTip: (stack: string): string => (stack ? `Choose the font for this text. Now: ${stack}.` : 'Choose the font for this text.'),
+  weightTip: 'Choose how heavy the text is.',
+  colourTip: 'Type a colour such as #1d3557 or a colour name, then press Enter.',
+  pickTip: (label: string): string => `Pick a ${label.toLowerCase()} from the colour picker.`,
+  unitTip: (u: string): string => (u === '%' ? 'Show and type the width as a share of the parent.' : 'Show and type the width in pixels.'),
   pick: (label: string) => `Pick ${label.toLowerCase()}`,
   /** Grid and snap (Layout > Grid): both off at every page load; the spacing is in px. */
   grid: 'Grid',
@@ -170,8 +183,8 @@ export const panel = {
   spacings: [4, 8, 16, 32],
   spacingOption: (n: number) => `${n} px`,
   snapNoteSvg: 'Snap is for HTML pages. SVG moves use the drawing’s own units.',
-  moveUpTip: 'Move this element up in the order',
-  moveDownTip: 'Move this element down in the order',
+  moveUpTip: 'Move this element earlier in the page order.',
+  moveDownTip: 'Move this element later in the page order.',
   aligns: ['left', 'center', 'right', 'justify'],
   svgAligns: ['start', 'middle', 'end'],
 }
