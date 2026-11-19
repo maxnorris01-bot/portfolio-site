@@ -5,7 +5,9 @@
 //   node scripts/ui-editor-gate/run.mjs --stub3 [--fault no-wrap] [--only R12]            the round 2 scorer-check stub (reference/round2.html)
 //   node scripts/ui-editor-gate/run.mjs --stub4 [--fault no-alt] [--only T09]             the round 3 scorer-check stub (reference/round3.html)
 //   node scripts/ui-editor-gate/run.mjs --stub5 [--fault left-packed] [--only U02]         the round 4 scorer-check stub (reference/round4.html)
-// All five spec files run: specs.json (S01 to S20), specs-round1.json (N01 to N11), specs-round2.json (R01 to R16), specs-round3.json (T01 to T16) and specs-round4.json (U01 to U13). --only picks ids.
+//   node scripts/ui-editor-gate/run.mjs --stub6 [--fault centred] [--only V02]             the round 5 scorer-check stub (reference/round5.html)
+//   --u06-distinct N   read U06's minimum of distinct elements as N (round 4's labelled amendment: the final run uses 15)
+// All five spec files run: specs.json (S01 to S20), specs-round1.json (N01 to N11), specs-round2.json (R01 to R16), specs-round3.json (T01 to T16) and specs-round4.json (U01 to U13) and specs-round5.json (V01 to V09). --only picks ids.
 //   --u13-na   the Limits sentence of U13 was not verified: it must be absent and U13 reads NOT APPLICABLE (docs/ui-editor-gate-rules-round4.md section 4)
 //   node scripts/ui-editor-gate/run.mjs --url ... --noop                                  load each sample, export, compare to the source
 // Needs Playwright with Chromium (not a dependency of this repo): installed here, or in PLAYWRIGHT_DIR (a folder whose node_modules has it).
@@ -39,13 +41,17 @@ const round1File = JSON.parse(readFileSync(join(here, 'specs-round1.json'), 'utf
 const round2File = JSON.parse(readFileSync(join(here, 'specs-round2.json'), 'utf8'))
 const round3File = JSON.parse(readFileSync(join(here, 'specs-round3.json'), 'utf8'))
 const round4File = JSON.parse(readFileSync(join(here, 'specs-round4.json'), 'utf8'))
+const round5File = JSON.parse(readFileSync(join(here, 'specs-round5.json'), 'utf8'))
 // ROUND 4 (docs/ui-editor-gate-log.md #25): the retired checks of round 4 apply to the real page and the round 4 stub, not to the earlier stubs (which still have tabs and
 // are used to show that the earlier faults are still caught by the earlier specs).
 const OLD_STUB = flag('--stub') || flag('--stub2') || flag('--stub3') || flag('--stub4')
+// ROUND 5 (log #30): the retired checks of round 5 apply to the real page and the round 5 stub only; those of round 4 also to the round 4 stub.
+const ROUND5 = !(OLD_STUB || flag('--stub5'))
 const retiredFor = (id) => {
-  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id]
-  if (!a && !b) return undefined
-  return { steps: [...(a?.steps ?? []), ...(b?.steps ?? [])], asserts: [...(a?.asserts ?? []), ...(b?.asserts ?? [])], wholeSpec: !!b?.wholeSpec, replacedBy: [a?.replacedBy, b?.replacedBy].filter(Boolean).join('; '), reason: [a?.reason, b?.reason].filter(Boolean).join(' ') }
+  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined
+  const parts = [a, b, c].filter(Boolean)
+  if (!parts.length) return undefined
+  return { steps: parts.flatMap((p) => p.steps ?? []), asserts: parts.flatMap((p) => p.asserts ?? []), wholeSpec: parts.some((p) => p.wholeSpec), replacedBy: parts.map((p) => p.replacedBy).filter(Boolean).join('; '), reason: parts.map((p) => p.reason).filter(Boolean).join(' ') }
 }
 const { SAMPLE_FILES } = await import(new URL('../../src/ui-editor/samples/manifest.ts', import.meta.url))
 const sampleDir = join(root, 'src', 'ui-editor', 'samples')
@@ -72,9 +78,9 @@ const exportServer = createServer((q, r) => {
 const exportPort = await listen(exportServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (OLD_STUB || flag('--stub5')) {
+if (OLD_STUB || flag('--stub5') || flag('--stub6')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -188,7 +194,7 @@ const settle = async (page) => {
 
 // ---- running one spec ----
 async function runSpec(spec) {
-  const src = sources[spec.sample]
+  let src = sources[spec.sample] // ROUND 5 (log #31): follows the sample a `load` step opens (V05 and V06 open two)
   const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
   const page = await ctx.newPage()
   const errors = []
@@ -204,17 +210,33 @@ async function runSpec(spec) {
   // ITERATION 1 of round 2 (docs/ui-editor-gate-log.md #19): the runner's own Downloads (for P2, P4 and the export asserts) make the page say "Saved ...";
   // the `message` assert reads the last message the ACTION gave, as it was before the runner downloaded. Cleared by the next step that is not an assert.
   let lastEditMessage = null
+  // ROUND 5 (log #30): ONE Download saves every file of the document (a page with the File selector of the earlier rounds saves the shown one). The runner clicks
+  // it once, collects the downloads and returns the one for the file asked for; the primary file has the -edited name, a stylesheet its own.
+  const downloadName = (file) => (file === src.primary ? file.replace(/(\.[^.]+)$/, '-edited$1') : file)
+  const downloadAll = async (expected) => {
+    const got = []
+    const on = (d) => got.push(d)
+    page.on('download', on)
+    await page.getByRole('button', { name: 'Download', exact: true }).click()
+    const t0 = Date.now()
+    while (got.length < expected && Date.now() - t0 < 5000) await page.waitForTimeout(50)
+    await page.waitForTimeout(expected > 1 ? 300 : 0)
+    page.off('download', on)
+    const out = []
+    for (const d of got) { const chunks = []; for await (const c of await d.createReadStream()) chunks.push(c); out.push({ name: d.suggestedFilename(), text: Buffer.concat(chunks).toString('utf8') }) }
+    return out
+  }
   const grab = async (file) => {
     const before = ((await region().innerText().catch(() => '')) ?? '').toLowerCase()
     if (before && !/^(saved|copied)/.test(before)) lastEditMessage = before
     await chooseFile(file)
-    const dl = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Download', exact: true }).click()
-    const d = await dl
-    const stream = await d.createReadStream()
-    const chunks = []
-    for await (const c of stream) chunks.push(c)
-    return { name: d.suggestedFilename(), text: Buffer.concat(chunks).toString('utf8') }
+    const hasSelect = (await page.getByLabel('File', { exact: true }).count()) > 0
+    if (!hasSelect && exportMemo.has(file)) return { name: downloadName(file), text: exportMemo.get(file) }
+    const all = await downloadAll(hasSelect ? 1 : src.order.length)
+    if (hasSelect) return all[0]
+    for (const f of src.order) { const d = all.find((x) => x.name === downloadName(f)); if (d) exportMemo.set(f, d.text) }
+    const want = downloadName(file)
+    return all.find((d) => d.name === want) ?? { name: all[0]?.name ?? '', text: '' }
   }
   // ROUND 3 (docs/ui-editor-gate-log.md #20): a file is chosen by its option VALUE (the file name; the text now carries a count), and the select is left alone when
   // the file is already shown (a download must not count as the visitor choosing a file).
@@ -282,6 +304,11 @@ async function runSpec(spec) {
   const memo = {}
   const styles = {}
   const fitLabels = new Set()
+  const boxSnaps = {}
+  const parentName = async () => { const bs = page.locator('[data-ribbon-strip] [data-path] button'); const n = await bs.count(); return n ? ((await bs.nth(n - 1).getAttribute('aria-label')) ?? '').replace(/^Select /, '') : null }
+  let lastSnap = null, lastClickSel = null, prevParent = null
+  // ROUND 5 (log #31): the exports of several files from ONE Download (memoised until the next edit).
+  const exportsOf = async (files) => { if (!files.every((f) => exportMemo.has(f))) { const got = await downloadAll(files.length); for (const f of files) { const d = got.find((x) => x.name === downloadName(f)); if (d) exportMemo.set(f, d.text) } } return Object.fromEntries(files.map((f) => [f, exportMemo.get(f) ?? ''])) }
   const statusHeights = {}
   // ROUND 3 (log #21): a control on the other ribbon tab is reached by clicking its tab first (the same control, new UI). Both panels stay in the DOM.
   const reveal = async (loc) => {
@@ -494,7 +521,9 @@ async function runSpec(spec) {
       }
       case 'copy': {
         await chooseFile(a.file)
-        await page.getByRole('button', { name: 'Copy code', exact: true }).click()
+        // ROUND 5 (log #30): the Copy button of the file's own section: `Copy code` in a one-file document, `Copy <file>` in a two-file one.
+        const copyName = (await page.getByRole('button', { name: 'Copy code', exact: true }).count()) ? 'Copy code' : `Copy ${a.file}`
+        await page.getByRole('button', { name: copyName, exact: true }).click()
         await settle(page)
         // What the page says right after the copy (the Download below, which the check also needs, says something else).
         statusAtCopy = (await region().innerText()).toLowerCase()
@@ -786,10 +815,12 @@ async function runSpec(spec) {
         const exp = file ? exportMemo.get(file) : ''
         const hunks = file ? hunksOf(src.files[file], exp) : []
         const nLines = linesOf(exp)
-        const view = await page.evaluate(() => ({
-          lines: [...document.querySelectorAll('[data-code-view] [data-line]')].map((l) => ({ n: Number(l.getAttribute('data-line')), change: l.getAttribute('data-change'), text: l.querySelector('[data-code-text]')?.textContent ?? null })),
-          removed: [...document.querySelectorAll('[data-code-view] [data-removed]')].map((r) => ({ after: Number(r.getAttribute('data-removed-after')), change: r.getAttribute('data-change') })),
-        }))
+        // ROUND 5 (log #30): the file's own section when the page has one section per file.
+        const cv = await page.evaluate((f) => (f && document.querySelector(`[data-code-view][data-file="${f}"]`) ? `[data-code-view][data-file="${f}"]` : '[data-code-view]'), file)
+        const view = await page.evaluate((cv) => ({
+          lines: [...document.querySelectorAll(`${cv} [data-line]`)].map((l) => ({ n: Number(l.getAttribute('data-line')), change: l.getAttribute('data-change'), text: l.querySelector('[data-code-text]')?.textContent ?? null })),
+          removed: [...document.querySelectorAll(`${cv} [data-removed]`)].map((r) => ({ after: Number(r.getAttribute('data-removed-after')), change: r.getAttribute('data-change') })),
+        }), cv)
         if (a.k === 'codeText') {
           const same = view.lines.length === nLines.length && view.lines.every((l, i) => l.text === nLines[i])
           return R(same, `${view.lines.length} lines shown, ${nLines.length} in the export`)
@@ -1220,9 +1251,12 @@ async function runSpec(spec) {
             for (const n of groups[gname] ?? []) if (!have.includes(n)) p.push(`${gname}: no control "${n}"`)
           }
           const all = []
+          // ROUND 5 (log #32): the path segments and Select parent are selection aids in the strip, not editing controls.
           for (const c of rib.querySelectorAll('button, input:not([type=hidden]), select')) {
+            if (c.closest('[data-path]')) continue
             const n = nameOf(c)
             all.push(n)
+            if (n === 'Select parent' && c.closest('[data-ribbon-strip]')) continue
             if (!c.closest('[data-ribbon-group]')) {
               if (!exempt.includes(n)) p.push(`outside a group: ${n}`)
               else if (!c.closest('[data-ribbon-strip]')) p.push(`${n} is not in [data-ribbon-strip]`)
@@ -1277,6 +1311,7 @@ async function runSpec(spec) {
         return R(m.p.length === 0, m.p.length ? m.p.slice(0, 4).join('; ') : `${m.rows.length} band(s) of ${m.rows.join(' + ')} groups, spread to both edges, evenly, separators kept`)
       }
       case 'ribbonLabels': {
+        if (a.tableFromSpec) a.table = round4File.specs.find((x) => x.id === a.tableFromSpec).steps.find((x) => x.k === 'ribbonLabels').table
         const m = await page.evaluate((o) => {
           const p = []
           const probe = document.createElement('span'); probe.style.color = `var(${o.colour})`; document.body.appendChild(probe)
@@ -1295,7 +1330,7 @@ async function runSpec(spec) {
             if (o.sentenceCase && (!/^\p{Lu}/u.test(t) || (t.length > 1 && t === t.toUpperCase()))) p.push(`label "${t}" is not sentence case`)
             if (cs.color !== want) p.push(`label "${t}" is ${cs.color}, want ${want}`)
           }
-          const controls = [...document.querySelectorAll('[data-ribbon-panel], [data-ribbon-strip]')].flatMap((s) => [...s.querySelectorAll('button, input:not([type=hidden]), select')]).filter((c) => vis(c) && !c.closest('[data-sides-popover]'))
+          const controls = [...document.querySelectorAll('[data-ribbon-panel], [data-ribbon-strip]')].flatMap((s) => [...s.querySelectorAll('button, input:not([type=hidden]), select')]).filter((c) => vis(c) && !c.closest('[data-sides-popover]') && !c.closest('[data-path]'))
           const table = Object.fromEntries(Object.entries(o.table).map(([k, v]) => [k.toLowerCase(), v]))
           const labelOfControl = new Map()
           for (const c of controls) {
@@ -1481,7 +1516,7 @@ async function runSpec(spec) {
       case 'enabledOnly': {
         const m = await page.evaluate((names) => {
           const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
-          const els = [...document.querySelectorAll('[data-ribbon] button, [data-ribbon] input:not([type=hidden]), [data-ribbon] select')].filter((e) => e.getClientRects().length && !e.closest('[data-sides-popover]'))
+          const els = [...document.querySelectorAll('[data-ribbon] button, [data-ribbon] input:not([type=hidden]), [data-ribbon] select')].filter((e) => e.getClientRects().length && !e.closest('[data-sides-popover]') && !e.closest('[data-path]') && nameOf(e) !== 'Select parent')
           const bad = []
           for (const n of names) { const e = els.find((x) => nameOf(x) === n); if (!e) bad.push(`no control ${n}`); else if (e.matches(':disabled')) bad.push(`${n} is disabled`) }
           const stray = els.filter((e) => !names.includes(nameOf(e)) && !e.matches(':disabled')).map(nameOf)
@@ -1514,6 +1549,267 @@ async function runSpec(spec) {
         if (flag('--u13-na')) return R(!has, has ? 'the sentence is present although it was not verified' : 'not verified, so the sentence is absent (U13 NOT APPLICABLE)')
         return R(has, has ? 'the Limits list has the sentence' : 'the Limits list lacks the sentence')
       }
+      // ---- round 5 (docs/ui-editor-gate-rules-round5.md; docs/ui-editor-gate-log.md #31) ----
+      case 'ribbonColumns': {
+        const m = await page.evaluate((o) => {
+          const p = []
+          const panel = document.querySelector('[data-ribbon-panel]')
+          if (!panel) return { p: ['no [data-ribbon-panel]'] }
+          const groups = [...panel.querySelectorAll('[data-ribbon-group]')].filter((g) => g.getClientRects().length)
+          const name = (g) => g.getAttribute('aria-label')
+          const rect = (n) => groups.find((g) => name(g) === n)?.getBoundingClientRect()
+          const tops = [...new Set(groups.map((g) => Math.round(g.getBoundingClientRect().top / 6)))].sort((x, y) => x - y)
+          const pr = panel.getBoundingClientRect(), cs = getComputedStyle(panel)
+          const inL = pr.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft), inR = pr.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight)
+          if (o.mode === 'one-band') {
+            if (tops.length !== 1) p.push(`${tops.length} bands, want 1`)
+            const names = Object.keys(o.weights), ws = names.map((n) => rect(n)?.width ?? NaN)
+            const sum = ws.reduce((x, y) => x + y, 0), csum = names.reduce((x, n) => x + o.weights[n], 0)
+            names.forEach((n, i) => { const share = ws[i] / sum, want = o.weights[n] / csum; if (!(Math.abs(share - want) <= o.shareTol * want)) p.push(`${n} is ${(share * 100).toFixed(2)}% of the ribbon, want ${(want * 100).toFixed(2)}% +-${o.shareTol * 100}%`) })
+            const first = rect(names[0]), last = rect(names[names.length - 1])
+            if (!first || !last || Math.abs(first.left - inL) > o.edgeTol) p.push(`first group starts ${first ? (first.left - inL).toFixed(1) : 'n/a'} px from the inner left edge`)
+            if (!first || !last || Math.abs(inR - last.right) > o.edgeTol) p.push(`last group ends ${last ? (inR - last.right).toFixed(1) : 'n/a'} px short of the inner right edge`)
+          } else {
+            if (tops.length !== 2) p.push(`${tops.length} bands, want 2`)
+            const band = (g) => tops.indexOf(Math.round(g.getBoundingClientRect().top / 6))
+            const b1 = groups.filter((g) => band(g) === 0).map(name).join(','), b2 = groups.filter((g) => band(g) === 1).map(name).join(',')
+            if (b1 !== 'Font,Paragraph,Size,Shape') p.push(`band 1 is ${b1}`)
+            if (b2 !== 'Spacing,Arrange,Grid') p.push(`band 2 is ${b2}`)
+            const F = rect('Font'), P = rect('Paragraph'), Z = rect('Size'), H = rect('Shape'), Sp = rect('Spacing'), Ar = rect('Arrange'), G = rect('Grid')
+            const near = (x, y, what) => { if (!(Math.abs(x - y) <= o.tol)) p.push(`${what}: ${x.toFixed(1)} against ${y.toFixed(1)}`) }
+            if (F && P && Z && H && Sp && Ar && G) {
+              near(Sp.left, F.left, 'Spacing left vs Font left'); near(Sp.right, F.right, 'Spacing right vs Font right')
+              near(Ar.left, P.left, 'Arrange left vs Paragraph left'); near(Ar.right, Z.right, 'Arrange right vs Size right')
+              near(G.left, H.left, 'Grid left vs Shape left'); near(G.right, H.right, 'Grid right vs Shape right')
+            }
+          }
+          for (const g of groups) {
+            const gr = g.getBoundingClientRect()
+            for (const c of g.querySelectorAll('button, input:not([type=hidden]), select')) {
+              if (!c.getClientRects().length || c.closest('[data-sides-popover]')) continue
+              const r = c.getBoundingClientRect()
+              if (r.left < gr.left - 0.5 || r.right > gr.right + 0.5 || r.top < gr.top - 0.5 || r.bottom > gr.bottom + 0.5) { p.push(`${name(g)} clips ${c.getAttribute('aria-label') ?? c.textContent.trim()}`); break }
+            }
+          }
+          if (panel.scrollWidth > panel.clientWidth + 1) p.push('the ribbon scrolls sideways')
+          if (document.documentElement.scrollWidth > innerWidth + 1) p.push('the page scrolls sideways')
+          return { p }
+        }, a)
+        return R(m.p.length === 0, m.p.length ? m.p.slice(0, 4).join('; ') : `${a.mode}: columns hold`)
+      }
+      case 'ribbonAlign': {
+        const m = await page.evaluate((o) => {
+          const p = []
+          const panel = document.querySelector('[data-ribbon-panel]')
+          const groups = [...panel.querySelectorAll('[data-ribbon-group]')].filter((g) => g.getClientRects().length)
+          const tops = [...new Set(groups.map((g) => Math.round(g.getBoundingClientRect().top / 6)))].sort((x, y) => x - y)
+          const rows = {}
+          for (const g of groups) {
+            const gn = g.getAttribute('aria-label'), gr = g.getBoundingClientRect()
+            const ctls = [...g.querySelectorAll('button, input:not([type=hidden]), select')].filter((c) => c.getClientRects().length && !c.closest('[data-sides-popover]'))
+            const labels = [...g.querySelectorAll('[data-ctl-label]')].filter((l) => l.getClientRects().length)
+            const left = Math.min(...ctls.map((c) => c.getBoundingClientRect().left))
+            if (Math.abs(left - (gr.left + o.pad)) > o.tol) p.push(`${gn}: controls start ${(left - gr.left).toFixed(1)} px inside the group, want ${o.pad}`)
+            for (const l of labels) {
+              const lr = l.getBoundingClientRect()
+              let best = null
+              for (const c of ctls) { const cr = c.getBoundingClientRect(); const dy = cr.top - lr.bottom; if (dy >= -1 && dy <= 14 && Math.abs(cr.left - lr.left) <= 20 && (!best || dy < best.dy)) best = { dy, cr } }
+              if (best && Math.abs(best.cr.left - lr.left) > o.tol) p.push(`${gn}: label "${l.textContent.trim()}" starts ${(lr.left - best.cr.left).toFixed(1)} px from its control`)
+            }
+            const top = Math.min(...[...ctls, ...labels].map((e) => e.getBoundingClientRect().top))
+            const nm = g.querySelector('[data-group-label]')?.getBoundingClientRect().top
+            const b = tops.indexOf(Math.round(gr.top / 6))
+            ;(rows[b] ??= []).push({ gn, top, nm })
+          }
+          for (const [b, list] of Object.entries(rows)) {
+            const t = list.map((x) => x.top), n = list.map((x) => x.nm)
+            if (Math.max(...t) - Math.min(...t) > o.tol) p.push(`band ${+b + 1}: first rows start at ${t.map((v) => v.toFixed(1)).join(', ')}`)
+            if (Math.max(...n) - Math.min(...n) > o.tol) p.push(`band ${+b + 1}: group names at ${n.map((v) => v.toFixed(1)).join(', ')}`)
+          }
+          return p
+        }, a)
+        return R(m.length === 0, m.length ? m.slice(0, 4).join('; ') : 'controls and labels left-aligned 14 px in, first rows and group names on one line')
+      }
+      case 'oneCard': {
+        const m = await page.evaluate(() => {
+          const p = []
+          const card = document.querySelector('[data-card]')
+          if (!card) return ['no [data-card]']
+          const cs = getComputedStyle(card)
+          if (!['Top', 'Right', 'Bottom', 'Left'].every((s) => parseFloat(cs['border' + s + 'Width']) >= 1)) p.push('the card does not have a border on every side')
+          const bar = document.querySelector('[role=group][aria-label="Editor controls"]'), strip = document.querySelector('[data-ribbon-strip]'), panel = document.querySelector('[data-ribbon-panel]'), status = [...document.querySelectorAll('[role=status]')].find((e) => e.getAttribute('aria-label') === 'Edit result')
+          const parts = [['quick bar', bar], ['strip', strip], ['ribbon', panel], ['status line', status]]
+          for (const [n, e] of parts) { if (!e) { p.push(`no ${n}`); continue } if (!card.contains(e)) p.push(`the ${n} is not inside the card`) }
+          if (p.length) return p
+          const order = parts.map(([, e]) => e)
+          for (let i = 1; i < order.length; i++) if (!(order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING)) p.push(`${parts[i][0]} is not after ${parts[i - 1][0]}`)
+          for (const [n, e] of parts) { const c = getComputedStyle(e); if (parseFloat(c.borderLeftWidth) > 0 || parseFloat(c.borderRightWidth) > 0) p.push(`the ${n} has its own side border`) }
+          for (let i = 1; i < parts.length; i++) {
+            const a = order[i - 1].getBoundingClientRect(), b = order[i].getBoundingClientRect()
+            if (Math.abs(b.top - a.bottom) > 0.5) p.push(`${(b.top - a.bottom).toFixed(1)} px between the ${parts[i - 1][0]} and the ${parts[i][0]}`)
+            const up = getComputedStyle(order[i - 1]), lo = getComputedStyle(order[i])
+            const rule = (parseFloat(lo.borderTopWidth) >= 1 && lo.borderTopStyle !== 'none') || (parseFloat(up.borderBottomWidth) >= 1 && up.borderBottomStyle !== 'none')
+            if (!rule) p.push(`no rule between the ${parts[i - 1][0]} and the ${parts[i][0]}`)
+          }
+          return p
+        })
+        return R(m.length === 0, m.length ? m.slice(0, 4).join('; ') : 'one bordered card, four parts, no gaps, hairlines between')
+      }
+      case 'ribbonSizes': {
+        const m = await page.evaluate((o) => {
+          const p = []
+          const nameOf = (e) => e.getAttribute('aria-label') || e.textContent.trim()
+          const panel = document.querySelector('[data-ribbon-panel]')
+          const ctls = [...panel.querySelectorAll('button, input:not([type=hidden]):not([type=checkbox]), select')].filter((c) => c.getClientRects().length && !c.closest('[data-sides-popover]'))
+          const decs = new Set(ctls.filter((c) => /^Decrease /.test(nameOf(c))).map((c) => nameOf(c).slice(9)))
+          const inR = (v, r) => v >= r[0] - 0.5 && v <= r[1] + 0.5
+          for (const c of ctls) {
+            const r = c.getBoundingClientRect(), n = nameOf(c)
+            if (o.largeNames.includes(n)) { if (!inR(r.width, o.largeWidth) || !inR(r.height, o.largeHeight)) p.push(`${n} is ${r.width.toFixed(1)} x ${r.height.toFixed(1)}`) }
+            else if (!inR(r.height, o.small)) p.push(`${n} is ${r.height.toFixed(1)} high`)
+            if (c.tagName === 'INPUT' && c.type === 'text' && decs.has(n) && !inR(r.width, o.numberWidth)) p.push(`number field ${n} is ${r.width.toFixed(1)} wide`)
+            const t = (c.innerText ?? '').trim()
+            if (c.tagName !== 'BUTTON' || t) { const fs = parseFloat(getComputedStyle(c).fontSize); const big = o.largeNames.includes(n); if (!big && !inR(fs, o.controlFont)) p.push(`${n} text is ${fs}px`) }
+          }
+          for (const l of panel.querySelectorAll('[data-ctl-label]')) { if (!l.getClientRects().length) continue; const fs = parseFloat(getComputedStyle(l).fontSize); if (!inR(fs, o.labelFont)) p.push(`label "${l.textContent.trim()}" is ${fs}px`) }
+          return p
+        }, a)
+        return R(m.length === 0, m.length ? m.slice(0, 4).join('; ') : 'small 26-28, large 70-74 x 56-62, numbers 70-74, labels 12-13, text 13-14')
+      }
+      case 'noFileSelector': {
+        const bad = await page.evaluate(() => [...document.querySelectorAll('[data-editor] select, [data-editor] [role=combobox], [data-editor] input')].filter((e) => (e.getAttribute('aria-label') ?? '') === 'File' || (e.labels && [...e.labels].some((l) => l.textContent.trim() === 'File'))).length)
+        return R(bad === 0, bad ? `${bad} control named File` : 'no File selector')
+      }
+      case 'downloadFiles': {
+        const got = await downloadAll(a.files.length)
+        const status = ((await region().innerText().catch(() => '')) ?? '')
+        const p = []
+        const names = got.map((d) => d.name)
+        const want = a.files.map((f) => a.names[f])
+        if (names.length !== want.length || !want.every((n) => names.includes(n))) p.push(`downloads ${names.join(', ') || 'none'}, want ${want.join(', ')}`)
+        const secs = await page.evaluate((files) => Object.fromEntries(files.map((f) => [f, [...document.querySelectorAll(`[data-code-view][data-file="${f}"] [data-line] [data-code-text]`)].map((e) => e.textContent)])), a.files)
+        for (const f of a.files) {
+          const d = got.find((x) => x.name === a.names[f])
+          if (!d) continue
+          exportMemo.set(f, d.text)
+          const lines = linesOf(d.text)
+          if (JSON.stringify(secs[f]) !== JSON.stringify(lines)) p.push(`${f}: the downloaded text is not the section's text`)
+          const hs = hunksOf(src.files[f] ?? '', d.text)
+          if (hs.length === 0 && src.files[f] !== undefined && d.text !== src.files[f]) p.push(`${f}: unchanged but not byte-identical to the source`)
+        }
+        for (const n of a.statusContains) if (!status.includes(n)) p.push(`status "${status.replace(/\s+/g, ' ').slice(0, 80)}" lacks ${n}`)
+        return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `${names.join(' and ')} saved, byte for byte; status names them`)
+      }
+      case 'codeSections': {
+        const all = await exportsOf(a.files)
+        const m = await page.evaluate((files) => {
+          const secs = [...document.querySelectorAll('[data-code-section]')]
+          return { files: secs.map((s) => s.getAttribute('data-file')), tops: secs.map((s) => s.getBoundingClientRect().top), vis: secs.map((s) => s.getClientRects().length > 0 && getComputedStyle(s).visibility !== 'hidden'), head: secs.map((s) => s.querySelector('[data-section-header]')?.textContent.trim().replace(/\s+/g, ' ') ?? null), views: secs.map((s) => !!s.querySelector('[data-code-view][data-file]')), ticks: secs.map((s) => s.querySelectorAll('[data-change-map] button').length) }
+        }, a.files)
+        const p = []
+        if (m.files.join('|') !== a.files.join('|')) p.push(`sections ${m.files.join(', ')}, want ${a.files.join(', ')}`)
+        else {
+          m.files.forEach((f, i) => {
+            const n = hunksOf(src.files[f], all[f]).length
+            const want = a.unchanged || n === 0 ? f : `${f}: ${n} ${n === 1 ? 'change' : 'changes'}`
+            if (!m.vis[i]) p.push(`${f} is not visible`)
+            if (i > 0 && !(m.tops[i] > m.tops[i - 1])) p.push(`${f} is not below ${m.files[i - 1]}`)
+            if (m.head[i] !== want) p.push(`header "${m.head[i]}", want "${want}"`)
+            if (!m.views[i]) p.push(`${f} has no code view`)
+            if (m.ticks[i] !== (a.unchanged ? 0 : n)) p.push(`${f} has ${m.ticks[i]} ticks, want ${a.unchanged ? 0 : n}`)
+          })
+        }
+        return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `${a.files.length} sections, stacked, with headers and counts`)
+      }
+      case 'copyButtons': {
+        const all = await exportsOf(a.files)
+        const p = []
+        for (const f of a.files) {
+          const btn = page.getByRole('button', { name: a.names[f], exact: true })
+          if (!(await btn.count())) { p.push(`no button ${a.names[f]}`); continue }
+          await btn.click(); await settle(page)
+          const status = ((await region().innerText()) ?? '')
+          const clip = await page.evaluate(() => navigator.clipboard.readText())
+          if (clip !== all[f] || !clip) p.push(`${a.names[f]}: clipboard ${clip.length} chars, export ${all[f].length}`)
+          if (!status.includes(`Copied ${f}`)) p.push(`${a.names[f]}: status "${status.replace(/\s+/g, ' ').slice(0, 60)}"`)
+        }
+        return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `${a.files.length} Copy buttons copy their own file`)
+      }
+      case 'walkAll': {
+        const all = await exportsOf(a.files)
+        const per = a.files.map((f) => ({ f, n: hunksOf(src.files[f], all[f]).length }))
+        const N = per.reduce((x, y) => x + y.n, 0)
+        const order = per.flatMap(({ f, n }) => Array.from({ length: n }, (_, i) => ({ f, i: i + 1 })))
+        const p = []
+        const counter = async () => (await page.locator('[data-change-counter]').first().innerText()).trim()
+        if ((await counter()) !== `0 of ${N}`) p.push(`counter "${await counter()}", want "0 of ${N}"`)
+        const press = async (name) => { await page.getByRole('button', { name, exact: true }).click(); await settle(page); await page.waitForTimeout(250) }
+        const check = async (k) => {
+          const t = order[(k - 1 + N) % N]
+          if ((await counter()) !== `${k} of ${N}`) { p.push(`counter "${await counter()}", want "${k} of ${N}"`); return }
+          const ok = await page.evaluate(([f, i]) => { const s = document.querySelector(`[data-code-section][data-file="${f}"]`); const box = s?.querySelector('[data-code-view]'); const el = box?.querySelector(`[data-line][data-change="${i}"]`) ?? box?.querySelector(`[data-removed][data-change="${i}"]`); if (!el) return 'no such change'; const b = box.getBoundingClientRect(), r = el.getBoundingClientRect(); const sr = s.getBoundingClientRect(); if (!(r.top >= b.top - 1 && r.bottom <= b.bottom + 1)) return 'outside its code box'; if (!(sr.bottom > 0 && sr.top < innerHeight)) return 'its section is outside the window'; return 'ok' }, [t.f, t.i])
+          if (ok !== 'ok') p.push(`change ${k} (${t.f} ${t.i}): ${ok}`)
+        }
+        for (let k = 1; k <= N; k++) { await press('Next change'); await check(k) }
+        await press('Next change'); await check(1)
+        await press('Previous change')
+        if ((await counter()) !== `${N} of ${N}`) p.push(`Previous: counter "${await counter()}", want "${N} of ${N}"`)
+        const ticks = await page.evaluate((files) => files.map((f) => document.querySelectorAll(`[data-code-section][data-file="${f}"] [data-change-map] button`).length), a.files)
+        per.forEach(({ f, n }, i) => { if (ticks[i] !== n) p.push(`${f} map has ${ticks[i]} ticks, want ${n}`) })
+        return R(p.length === 0 && N > 0, p.length ? p.slice(0, 4).join('; ') : `${N} changes walked across ${a.files.length} sections, wrapping, each in view`)
+      }
+      case 'edgesMoved': case 'othersUnmoved': {
+        const snap = boxSnaps[a.name ?? lastSnap]
+        if (!snap) return R(false, 'no snapshot')
+        const m = await page.evaluate(([sel, snap]) => {
+          const doc = window.__gate.frame().contentDocument
+          const els = [...doc.querySelectorAll('*')]
+          const t = doc.querySelector(sel)
+          const rects = els.map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom] })
+          const ti = els.indexOf(t)
+          return { rects, ti, inside: els.map((e) => t.contains(e)), names: els.map((e) => e.localName + (e.id ? '#' + e.id : '')), n: els.length }
+        }, [a.sel, snap])
+        const p = []
+        if (m.n !== snap.rects.length) return R(false, `${m.n} elements now, ${snap.rects.length} in the snapshot`)
+        if (a.k === 'edgesMoved') {
+          const keys = ['left', 'top', 'right', 'bottom']
+          const dragged = Object.entries(a.edges).filter(([, v]) => v !== 0).map(([k]) => k)
+          for (const [i, k] of keys.entries()) {
+            const got = m.rects[m.ti][i] - snap.rects[m.ti][i], want = a.edges[k]
+            const tol = dragged.length === 0 || dragged.includes(k) ? a.tolW : a.tolO
+            if (!(Math.abs(got - want) <= tol)) p.push(`${k} edge moved ${got.toFixed(2)}, want ${want} +-${tol}`)
+          }
+        } else {
+          for (let i = 0; i < m.n; i++) { if (i === m.ti || m.inside[i]) continue; if (m.rects[i].some((v, k) => Math.abs(v - snap.rects[i][k]) > a.tol)) p.push(`${m.names[i]} moved`) }
+        }
+        return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : a.k === 'edgesMoved' ? 'the edges moved as wanted' : 'no other element moved')
+      }
+      case 'pathSegments': {
+        const m = await page.evaluate(([sel]) => {
+          const doc = window.__gate.frame().contentDocument
+          const label = (e) => e.localName + (e.id ? ` #${e.id}` : e.classList[0] ? ` .${e.classList[0]}` : '')
+          const chain = []
+          for (let e = doc.querySelector(sel); e && e !== doc.body && e !== doc.documentElement; e = e.parentElement) chain.unshift(label(e))
+          const path = document.querySelector('[data-ribbon-strip] [data-path]')
+          const buttons = path ? [...path.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')) : null
+          const more = path ? !!path.querySelector('[data-path-more]') : null
+          const cur = document.querySelector('[data-ribbon-strip] [data-selected-label]')?.textContent.trim() ?? ''
+          return { chain, buttons, more, cur, text: path?.textContent ?? '' }
+        }, [lastClickSel])
+        const p = []
+        if (!m.buttons) return R(false, 'no [data-path] in the strip')
+        const want = m.chain.slice(-a.max)
+        const total = 1 + m.buttons.length
+        if (total > a.max) p.push(`${total} segments, at most ${a.max}`)
+        if (m.chain.length > a.max !== m.more) p.push(`ellipsis ${m.more ? 'shown' : 'missing'}, the chain has ${m.chain.length}`)
+        if (m.buttons.join('|') !== want.slice(0, -1).map((l) => `Select ${l}`).join('|')) p.push(`buttons ${m.buttons.join(', ')}, want ${want.slice(0, -1).map((l) => `Select ${l}`).join(', ')}`)
+        if (m.cur !== want[want.length - 1]) p.push(`selected "${m.cur}", want "${want[want.length - 1]}"`)
+        return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `${m.chain.length} ancestors: ${m.more ? '… ' : ''}${want.join(' › ')}`)
+      }
+      case 'pathSelected': {
+        const cur = (await page.locator('[data-selected-label]').first().innerText()).trim()
+        return R(prevParent !== null && cur === prevParent, `selected "${cur}", the parent was "${prevParent}"`)
+      }
       default: return R(false, 'unknown assertion ' + a.k)
     }
   }
@@ -1530,6 +1826,7 @@ async function runSpec(spec) {
       if (!(step.do === 'assert' || step.do === 'tick' || step.do === 'openCode' || (step.do === 'button' && /change$/.test(step.name)))) exportMemo.clear()
       if (['load', 'visit', 'openCard', 'clickCard', 'click', 'clickBlank', 'drag', 'release', 'type', 'stepper', 'choose', 'fill', 'unit', 'uncheck', 'ownAction'].includes(step.do) || (step.do === 'button' && !/change$/.test(step.name))) lastEditMessage = null
       if (step.do === 'load') {
+        src = sources[step.sample]
         await page.goto(baseUrl)
         await page.evaluate(PAGE_HELPERS)
         await openSample(step.sample)
@@ -1558,6 +1855,7 @@ async function runSpec(spec) {
       } else if (step.do === 'view') {
         await page.getByRole('group', { name: 'View' }).getByRole('button', { name: step.name, exact: true }).click()
       } else if (step.do === 'click') {
+        lastClickSel = step.sel
         const p = await page.evaluate(([s, a]) => window.__gate.point(s, a), [step.sel, step.at])
         if (!p) { rec('setup', `click ${step.sel}`, false, 'element not found'); continue }
         await page.mouse.move(p.x, p.y)
@@ -1595,6 +1893,7 @@ async function runSpec(spec) {
         memo[step.name] = await readNumber(step.what)
         continue
       } else if (step.do === 'key') {
+        if (/ArrowUp/.test(step.key)) prevParent = await parentName()
         await page.keyboard.press(step.key)
       } else if (step.do === 'reload') {
         await page.reload()
@@ -1610,11 +1909,22 @@ async function runSpec(spec) {
       } else if (step.do === 'uncheck') {
         await reveal(fieldOf(step.label))
         await fieldOf(step.label).uncheck()
+      } else if (step.do === 'snapshotBoxes') {
+        boxSnaps[step.name] = await page.evaluate(() => ({ rects: [...window.__gate.frame().contentDocument.querySelectorAll('*')].map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom] }) }))
+        lastSnap = step.name
+        continue
+      } else if (step.do === 'clickPath') {
+        prevParent = await parentName()
+        const bs = page.locator('[data-ribbon-strip] [data-path] button')
+        const n = await bs.count()
+        await bs.nth(step.index < 0 ? n + step.index : step.index).click()
       } else if (step.do === 'button') {
+        if (step.name === 'Select parent') prevParent = await parentName()
         await reveal(page.getByRole('button', { name: step.name, exact: true, includeHidden: true }))
         await page.getByRole('button', { name: step.name, exact: true }).click()
       } else if (step.do === 'selectFile') {
-        await page.getByLabel('File', { exact: true }).selectOption({ value: step.name })
+        // ROUND 5 (log #30): no File selector, nothing to choose.
+        if (await page.getByLabel('File', { exact: true }).count()) await page.getByLabel('File', { exact: true }).selectOption({ value: step.name })
       } else if (step.do === 'ownAction') {
         const card = page.locator('[data-sample-card="own"]')
         if (!(await card.isVisible().catch(() => false))) await page.getByRole('button', { name: 'Samples', exact: true }).click()
@@ -1704,7 +2014,7 @@ async function runSpec(spec) {
   // can fail: it is reported as vacuous, not scored. Only round 3 specs; the earlier files keep the strict reading.
   res.vacuous = []
   // R07 too: its only P5 assert (step 12) is one of the retired checks, so what is left lists P5 without an assert.
-  if (spec.checks && (/^[TU]\d+$/.test(spec.id) || retiredFor(spec.id))) {
+  if (spec.checks && (/^[TUV]\d+$/.test(spec.id) || retiredFor(spec.id))) {
     const ret = retiredFor(spec.id)
     const live = spec.steps.filter((x, i) => !(ret?.steps?.includes(i) || (ret?.asserts && x.do === 'assert' && ret.asserts.includes(x.k))))
     res.vacuous = ['P1', 'P5', 'P6'].filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
@@ -1730,17 +2040,31 @@ async function noop() {
     else await page.getByLabel('Sample', { exact: true }).selectOption(id)
     await page.waitForFunction((s) => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector(s), READY[id])
     await settle(page)
-    for (const f of sources[id].order) {
-      const sel = page.getByLabel('File', { exact: true })
-      if (await sel.count()) await sel.selectOption({ label: f })
-      const dl = page.waitForEvent('download')
+    // ROUND 5 (log #30): with no File selector one Download saves every file; with one (the earlier pages) each file is chosen and downloaded.
+    const files = []
+    if (await page.getByLabel('File', { exact: true }).count()) {
+      for (const f of sources[id].order) {
+        await page.getByLabel('File', { exact: true }).selectOption({ label: f })
+        const dl = page.waitForEvent('download')
+        await page.getByRole('button', { name: 'Download', exact: true }).click()
+        const d = await dl
+        const chunks = []
+        for await (const c of await d.createReadStream()) chunks.push(c)
+        files.push([f, Buffer.concat(chunks).toString('utf8')])
+      }
+    } else {
+      const got = []
+      page.on('download', (d) => got.push(d))
       await page.getByRole('button', { name: 'Download', exact: true }).click()
-      const d = await dl
-      const chunks = []
-      for await (const c of await d.createReadStream()) chunks.push(c)
-      const text = Buffer.concat(chunks).toString('utf8')
-      rows.push({ sample: id, file: f, ok: text === sources[id].files[f], bytes: text.length })
+      const t0 = Date.now()
+      while (got.length < sources[id].order.length && Date.now() - t0 < 5000) await page.waitForTimeout(50)
+      await page.waitForTimeout(300)
+      for (const d of got) { const chunks = []; for await (const c of await d.createReadStream()) chunks.push(c); files.push([d.suggestedFilename(), Buffer.concat(chunks).toString('utf8')]) }
+      if (got.length !== sources[id].order.length) rows.push({ sample: id, file: '(downloads)', ok: false, bytes: got.length })
+      for (const f of sources[id].order) { const want = f === sources[id].primary ? f.replace(/(\.[^.]+)$/, '-edited$1') : f; if (!files.find(([n]) => n === want)) rows.push({ sample: id, file: want, ok: false, bytes: 0 }) }
+      files.forEach((x, i) => { const orig = sources[id].order.find((f) => (f === sources[id].primary ? f.replace(/(\.[^.]+)$/, '-edited$1') : f) === x[0]); files[i] = [orig ?? x[0], x[1]] })
     }
+    for (const [f, text] of files) rows.push({ sample: id, file: f, ok: text === sources[id].files[f], bytes: text.length })
     await ctx.close()
   }
   return rows
@@ -1754,7 +2078,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs].filter((s) => !only || only.includes(s.id))
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs].filter((s) => !only || only.includes(s.id))
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -1777,13 +2101,14 @@ if (flag('--noop')) {
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
     if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTU]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUV]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
-  const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length } }
+  const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length, retired: tally(round4, 'RETIRED') }, round5: { pass: tally(round5, 'PASS'), fail: tally(round5, 'FAIL'), total: round5.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
   if (round1.length) console.log(`Round 1:   PASS ${summary.round1.pass}  FAIL ${summary.round1.fail}  of ${summary.round1.total} (N01 and N02 RETIRED, not run)`)
   if (round2.length) console.log(`Round 2:   PASS ${summary.round2.pass}  FAIL ${summary.round2.fail}  of ${summary.round2.total}${summary.round2.withRetiredChecks.length ? ` (retired checks skipped in ${summary.round2.withRetiredChecks.join(', ')})` : ''}`)
   if (round3.length) console.log(`Round 3:   PASS ${summary.round3.pass}  FAIL ${summary.round3.fail}${summary.round3.retired ? `  RETIRED ${summary.round3.retired}` : ''}  of ${summary.round3.total}${summary.round3.withRetiredChecks.length ? ` (retired checks skipped in ${summary.round3.withRetiredChecks.join(', ')})` : ''}`)
+  if (round5.length) console.log(`Round 5:   PASS ${summary.round5.pass}  FAIL ${summary.round5.fail}  of ${summary.round5.total}`)
   if (round4.length) console.log(`Round 4:   PASS ${summary.round4.pass}  FAIL ${summary.round4.fail}${summary.round4.notApplicable ? `  NOT APPLICABLE ${summary.round4.notApplicable}` : ''}  of ${summary.round4.total}`)
   writeFileSync(join(outDir, `results${fault ? '-' + fault : ''}${only ? '-' + only.join('') : ''}.json`), JSON.stringify({ summary, results: results.map(({ exports, ...r }) => r) }, null, 1))
   // Pass line: originals 18 PASS + 2 REFUSED + 0 FAIL when all 20 ran; round 1 N03 to N11 all PASS (N01 and N02 retired); round 2 R01 to R16 all PASS (retired checks skipped);
@@ -1794,8 +2119,9 @@ if (flag('--noop')) {
   const r1Ok = round1.length !== 9 || (n.pass === 9 && n.fail === 0)
   const r2Ok = round2.length !== 16 || (summary.round2.pass === 16 && summary.round2.fail === 0)
   const r3Ok = round3.length !== 16 || (OLD_STUB ? summary.round3.pass === 16 && summary.round3.fail === 0 : round3.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED' || r.id === 'T10') && round3.find((r) => r.id === 'T10')?.outcome !== undefined)
-  const r4Ok = round4.length !== 13 || round4.every((r) => r.outcome === 'PASS' || (r.id === 'U13' && flag('--u13-na') && r.outcome === 'NOT APPLICABLE'))
-  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok ? 0 : 1
+  const r4Ok = round4.length !== 13 || round4.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED' || (r.id === 'U13' && flag('--u13-na') && r.outcome === 'NOT APPLICABLE'))
+  const r5Ok = round5.length !== 9 || round5.every((r) => r.outcome === 'PASS')
+  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok ? 0 : 1
 }
 await browser.close()
 exportServer.close()

@@ -105,3 +105,19 @@ round 2 faults on `reference/round2.html` and the five original faults on `refer
 | # | Change | Why |
 |---|---|---|
 | 29 | `--u06-distinct N` replaces the locked `minDistinct` of the one `fieldsFit` call that has it. NOT a "same control, new UI" mapping: it changes an expected value, so Max decides whether it counts. | Result on the same build, `--only U06 --u06-distinct 15`: **U06 PASS**. Nothing else changed (same commit, same page). |
+
+## 2026-11-18, formatting round 5 (`feat/ui-editor-format1`, on top of round 4)
+
+Rules: `docs/ui-editor-gate-rules-round5.md`; specs: `scripts/ui-editor-gate/specs-round5.json` (locked in `1642321`). No spec, rule, sample or expected value was changed by any entry
+below. The scorer check is in `docs/ui-editor-baseline-round5.md`.
+
+| # | Change | Why |
+|---|---|---|
+| 30 | The runner loads the sixth spec file (`--stub6` runs the round 5 stub). The retired checks of round 5 (U02, T04, T13 whole; U11, T05, T06, T14 in part) apply to the real page and the round 5 stub only. **Mappings:** `selectFile` does nothing without a File selector; `copy` clicks the Copy button of the file's section (`Copy code` in a one-file document, `Copy <file>` in a two-file one); a download of a two-file document is one click of `Download` with every download collected, and `grab` returns the one for the file asked for (the primary has the `-edited` name); the code asserts read `[data-code-view][data-file=F]`; `--noop` collects every download; the `load` step re-points `src` at the sample it opens. | Rules sections 2 and 7. **Mapping**: no File selector, one Download, one section per file. |
+| 31 | New asserts and steps, all in `specs-round5.json` (`vocabulary`): `ribbonColumns`, `ribbonAlign`, `oneCard`, `ribbonSizes`, `noFileSelector`, `downloadFiles`, `codeSections`, `copyButtons`, `walkAll`, `edgesMoved`, `othersUnmoved`, `pathSegments`, `pathSelected`; steps `snapshotBoxes`, `clickPath`. | The V specs need them. |
+| 32 | **Reading:** `ribbonGroups` (U01), `ribbonLabels` (U03, V09) and `enabledOnly` (U09, V09) do not count the path segments (`[data-path]`) and, for the group and enabled asserts, `Select parent`: they are selection aids in the strip, not editing controls, and are enabled whenever an element is selected, also in a view-only size. | The round 4 asserts were written before the strip had them. NOT a pure mapping: it changes which controls those asserts look at, so Max decides whether it counts. |
+
+Covered by the scorer check: the thirteen round 5 faults on `reference/round5.html`, the twenty-two round 4 faults on `reference/round4.html`, the twenty round 3, the twelve round 2
+and the five original faults on their stubs (`docs/ui-editor-baseline-round5.md`).
+
+`scripts/ui-editor-gate/probe-west.mjs` and `geometry-dump.mjs` (not part of the pass line, not runner changes): the read-only west and north probe and the ribbon geometry dump.
