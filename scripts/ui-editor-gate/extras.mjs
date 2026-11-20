@@ -34,11 +34,12 @@ let page = await open(ctx)
 await page.locator('input[type=file]').setInputFiles([file('page.html', '<!doctype html><link rel="stylesheet" href="css/site.css"><script>1</script><h1 id="t">Hi</h1>'), file('site.css', 'h1 { font-size: 30px; }\n')])
 await page.waitForFunction(() => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector('#t'))
 await settle(page)
-check('Upload opens an HTML file with its stylesheet', (await page.getByLabel('File', { exact: true }).locator('option').allInnerTexts()).join() === 'page.html,css/site.css')
+check('Upload opens an HTML file with its stylesheet', (await page.locator('[data-code-section]').evaluateAll((e) => e.map((x) => x.getAttribute('data-file')))).join() === 'page.html,css/site.css') // one section per file (round 5)
 check('Upload warns about a script', /script/i.test(await page.locator('.ue-warnings').innerText()))
 await page.locator('input[type=file]').setInputFiles([file('x.png', 'x')])
 check('Upload refuses another type, plainly', /Only \.html/.test(await status(page)))
 await page.locator('input[type=file]').setInputFiles([file('a.html', '<p>a</p>'), file('b.html', '<p>b</p>')])
+await page.waitForFunction(() => /one HTML or SVG/.test(document.querySelector('[role=status]')?.textContent ?? ''), null, { timeout: 3000 }).catch(() => {}) // the message comes after the files are read
 check('Upload refuses two pages', /one HTML or SVG/.test(await status(page)))
 await page.locator('input[type=file]').setInputFiles([{ name: 'big.html', mimeType: 'text/html', buffer: Buffer.alloc(1_100_000, 'a') }])
 check('Upload refuses over 1 MB, and says so', /1 MB/.test(await status(page)))
@@ -54,7 +55,7 @@ await page.getByLabel('HTML or SVG', { exact: true }).fill('<svg xmlns="http://w
 await page.getByRole('button', { name: 'Open pasted code' }).click()
 await page.waitForFunction(() => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector('#r'))
 await settle(page)
-check('Paste opens an SVG', (await page.getByLabel('File', { exact: true }).inputValue()) === 'pasted.svg')
+check('Paste opens an SVG', (await page.locator('[data-code-section]').first().getAttribute('data-file')) === 'pasted.svg')
 
 // Scripts stay off; nothing injected into the preview
 const sandbox = await page.evaluate(() => document.querySelector('iframe[title="Preview"]').getAttribute('sandbox'))
