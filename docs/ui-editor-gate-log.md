@@ -121,3 +121,19 @@ Covered by the scorer check: the thirteen round 5 faults on `reference/round5.ht
 and the five original faults on their stubs (`docs/ui-editor-baseline-round5.md`).
 
 `scripts/ui-editor-gate/probe-west.mjs` and `geometry-dump.mjs` (not part of the pass line, not runner changes): the read-only west and north probe and the ribbon geometry dump.
+
+## 2026-11-19, formatting round 6 (`feat/ui-editor-format1`, on top of round 5)
+
+Rules: `docs/ui-editor-gate-rules-round6.md`; specs: `scripts/ui-editor-gate/specs-round6.json` (locked in `3fee931`). No spec, rule, sample or expected value was changed by any entry
+below. The scorer check and the Step 1 stop are in `docs/ui-editor-baseline-round6.md`.
+
+| # | Change | Why |
+|---|---|---|
+| 33 | The runner loads the seventh spec file (`--stub7` runs `reference/round6.html`). The retired checks of round 6 (V01, V02, V04 whole; parts of V09, U01, U03, U05, T03, U06, R04, R09) apply to the real page and the round 6 stub only. W09 has no steps: it is PASS when V03, V05, V06, V07 and V08 are PASS in the same run (run them together: `--only V03,V05,V06,V07,V08,W09`). W07a to W07d read NOT BUILT when the page lacks the control (a Shape Effects button; Italic and Underline; a Line spacing button; a Gradient item in the Shape Fill menu), checked in a throwaway page before the spec runs. | The W specs say so (`vocabulary.aggregate`, the pass line). |
+| 34 | **Mappings (same control, new UI):** `type` into `Background`, `Border colour` or `Text colour` opens the Shape Fill, Shape Outline or Font colour menu and chooses `More colours…` first when the field is not shown (a page that still shows the field is typed into directly); `stepper` clicks the spin arrow `[data-spin][data-for=<field>]` when the field has no Increase or Decrease button (the font size keeps its grow and shrink buttons; the Sides popover keeps its + and − buttons); `snapshotExport` gives focus back to the element that had it before the runner's own Download click; `menuContents` leaves a submenu open when it was open before the assert; `clickPage` clicks the window point (x, y) when nothing clickable is there, else the status line. | The inline colour fields and the stepper buttons of the number fields no longer exist; the runner's own Download click must not move the page's focus. |
+| 35 | New steps and asserts, all in `specs-round6.json` (`vocabulary`): `openMenu`, `menuItem`, `focusControl`, `clickPage`, `holdButton`, `snapshotExport`; `ribbonBands`, `rowFill`, `ribbonSizes6`, `menuState`, `menuContents`, `menuChecked`, `menuFocus`, `submenuOpen`, `exportsEqual`, `fontPresets`, `holdSteps`, `togglePressed`, `lineHeightRatio`, `disabledStyle`, `touchTargets`, `menuFits`; `css` also reads `contains`. | The W specs need them. |
+| 36 | **Reading:** the spec files list the checks that count in `checks`; W04 and W07a carry a `p4` block but do not list P4, so their P4 line is printed and not scored (the runner has always read `checks` this way, `outcomeOfRound1`). | Found at the first control run. |
+
+Covered by the scorer check: the round 6 faults on `reference/round6.html` and the earlier stubs' faults re-run on the changed runner (`docs/ui-editor-baseline-round6.md`).
+
+`scripts/ui-editor-gate/probe-fill.mjs` and `geometry-dump.mjs` (not part of the pass line, not runner changes): the read-only probe of what the engine writes for the properties of the new menus, and the ribbon geometry dump (now at 1000, 1290, 1440 and 1920).

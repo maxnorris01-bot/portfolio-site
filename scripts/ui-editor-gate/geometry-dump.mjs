@@ -10,7 +10,7 @@ const url = args[args.indexOf('--url') + 1]
 const out = args.includes('--out') ? args[args.indexOf('--out') + 1] : null
 const b = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
 const all = {}
-for (const [w, h] of [[1280, 800], [1440, 900], [1920, 1080]]) {
+for (const [w, h] of [[1000, 800], [1290, 800], [1440, 900], [1920, 1080]]) {
   const page = await (await b.newContext({ viewport: { width: w, height: h } })).newPage()
   await page.goto(url)
   await page.locator('[data-sample-card="landing"]').click()
