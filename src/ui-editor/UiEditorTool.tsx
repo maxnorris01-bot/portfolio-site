@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
-import { MAX_BYTES, deviceNote, labels, messages, panel } from '../data/uiEditor'
+import { MAX_BYTES, codeView as codeViewText, deviceNote, labels, messages, panel } from '../data/uiEditor'
 import CodeView, { type CodeViewHandle } from './CodeView'
-import { changeOrder, diffHunks, fileMark, fileToShow, offsetOfFile, stepChange, type Hunk } from './diff'
+import { changeOrder, counterText, diffHunks, offsetOfFile, stepChange, type Hunk } from './diff'
 import Gallery from './Gallery'
 import { canRotate, isEditable, viewport, type Orientation } from './devices'
 import { cssSizeFor, handleAxes } from './geometry'
+import { compensated } from './resizeedge'
 import { IconButton, type IconName } from './icons'
 import { fromFiles, fromPaste, downloadName, type Doc, type Incoming } from './intake'
 import Ribbon, { type ViewName } from './Ribbon'
+import { chainOf } from './path'
+import { copyName, nameList, sectionHeader } from './sections'
 import { SAMPLES, type SampleId } from './samples'
-import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, type Session } from './session'
+import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
@@ -17,7 +20,7 @@ import { widthToWrite, type WidthUnit } from './units'
 import { listUnlinked, type Edit, type Environment } from './vendor/engine.js'
 import './UiEditorTool.css'
 
-type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[] }
+type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
 type Confirm = { text: string; run: () => void }
 
 const VIEWS: { name: ViewName; icon: IconName }[] = [
@@ -41,7 +44,6 @@ export default function UiEditorTool() {
   const [rev, setRev] = useState(0)
   const [nonce, setNonce] = useState(0)
   const [replay, setReplay] = useState(0)
-  const [fileName, setFileName] = useState('')
   const [confirm, setConfirm] = useState<Confirm | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
@@ -65,12 +67,10 @@ export default function UiEditorTool() {
   const generation = useRef(0)
   const fileInput = useRef<HTMLInputElement>(null)
   const keepRef = useRef<HTMLButtonElement>(null)
-  const codeView = useRef<CodeViewHandle>(null)
+  const codeViews = useRef<Record<string, CodeViewHandle | null>>({})
   const codeBox = useRef<HTMLDetailsElement>(null)
   const pasteMarkup = useRef<HTMLTextAreaElement>(null)
   const pasteCss = useRef<HTMLTextAreaElement>(null)
-  /** The visitor chose a file in the File select since this document was opened: the code view never switches files by itself after that. */
-  const handPicked = useRef(false)
 
   const setList = (next: EditList) => {
     listRef.current = next
@@ -142,8 +142,6 @@ export default function UiEditorTool() {
     setSelPath(null)
     setWarnings(warn)
     setGalleryOpen(false)
-    setFileName(next.file)
-    handPicked.current = false
     setReviewOpen(false)
     setPasteOpen(false)
     show({ kind: 'info', text: messages.opened(next.name) })
@@ -197,7 +195,7 @@ export default function UiEditorTool() {
   const scope = () => ({ environment, link: svgDoc ? true : link })
 
   /** One more edit on the live preview. A refusal shows the engine's reason and changes nothing. */
-  const run = (edit: Edit, what: string, nextSel?: string | null): boolean => {
+  const run = (edit: Edit, what: string, nextSel?: string | null, extra?: string): boolean => {
     const s = sessionRef.current
     if (!s || busyRef.current || !editable) return false
     const applied = applyOne(s, edit)
@@ -209,7 +207,7 @@ export default function UiEditorTool() {
     const merges = mergeOffsets(last, edit) !== undefined
     setList(listReduce(listRef.current, { type: 'apply', edit }))
     if (nextSel !== undefined) setSelPath(nextSel)
-    show({ kind: 'ok', text: messages.applied(what), notes: applied.notes.map(noteSentence) })
+    show({ kind: 'ok', text: messages.applied(what), notes: applied.notes.map(noteSentence), extra })
     // Two moves in a row are one edit: the preview is rebuilt so it shows exactly what the list says.
     if (merges) {
       startBusy()
@@ -244,7 +242,7 @@ export default function UiEditorTool() {
     if (t === null) return
     run({ op: 'offset', target: t, dx, dy, ...scope() }, `nudged by ${dx}, ${dy} px`)
   }
-  const onResize = ({ handle, box, fullWidth }: ResizeRequest) => {
+  const onResize = async ({ handle, box, fullWidth }: ResizeRequest) => {
     const t = target()
     const el = t !== null ? session?.preview.elements[t] : null
     if (t === null || !el || !session) return
@@ -258,7 +256,31 @@ export default function UiEditorTool() {
     // A width is written in the unit the ribbon is in (px or % of the parent's content width), or as 100% when the drag snapped to the parent's edge.
     if (axes.width) properties.width = svg ? `${size.width}` : widthToWrite({ unit: widthUnit, cssPx: size.width, parentPx: parentContentWidth(el), snapped: fullWidth })
     if (axes.height) properties.height = `${size.height}${unit}`
-    run({ op: 'set', target: t, properties, ...scope() }, `resized to ${Object.values(properties).join(' × ')}`)
+    const what = `resized to ${Object.values(properties).join(' × ')}`
+    const plain: Edit = { op: 'set', target: t, properties, ...scope() }
+    const west = handle.includes('w'), north = handle.includes('n')
+    if (!west && !north) {
+      run(plain, what)
+      return
+    }
+    // The west and north edges: the dragged edge follows the pointer and the opposite edge stays (the width or height plus a compensating margin), tried on a scratch
+    // preview first. When that cannot be done exactly (the engine refuses it, or something else would move, or it is an SVG) the old behaviour is used and one plain
+    // line says so.
+    const line = [west ? messages.edgeFallback.west : '', north ? messages.edgeFallback.north : ''].filter(Boolean).join(' ')
+    if (svg || busyRef.current) {
+      run(plain, what, undefined, svg ? line : undefined)
+      return
+    }
+    const rect = el.getBoundingClientRect()
+    const margins = compensated(handle, { width: num(cs.width), height: num(cs.height), marginLeft: parseFloat(cs.marginLeft), marginTop: parseFloat(cs.marginTop) }, size)
+    const compEdit: Edit = { op: 'set', target: t, properties: { ...properties, ...Object.fromEntries(Object.entries(margins).filter(([k]) => k.startsWith('margin'))) }, ...scope() }
+    busyRef.current = true
+    const tried = await trialEdges(session, listRef.current.edits, compEdit, viewport(viewRef.current, orientRef.current), t, handle, box.left - rect.left, box.top - rect.top).finally(() => {
+      busyRef.current = false
+    })
+    if (sessionRef.current !== session) return
+    if (tried.ok) run(compEdit, what)
+    else run(plain, what, undefined, line)
   }
   const onReorder = (dir: 'up' | 'down') => {
     const t = target()
@@ -295,6 +317,29 @@ export default function UiEditorTool() {
     else onUndo()
   }
 
+  // Alt+Up Arrow selects the parent of the selected element (the selection only). It is a window-level key so it also works when nothing has the focus (a click on a path
+  // button takes the focus away with the button), and it is left to a field when the focus is in one.
+  const latestParent = useRef<() => void>(() => undefined)
+  useEffect(() => {
+    latestParent.current = () => {
+      const el = session && selIndex !== null ? session.preview.elements[selIndex] : null
+      const chain = el ? chainOf(el) : []
+      if (session && chain.length > 1) setSelPath(pathOf(session.preview.model, session.preview.elements.indexOf(chain[chain.length - 2])))
+    }
+  })
+  useEffect(() => {
+    const on = (e: globalThis.KeyboardEvent) => {
+      if (!e.altKey || e.key !== 'ArrowUp') return
+      const a = document.activeElement as HTMLElement | null
+      if (a && a !== document.body && !rootRef.current?.contains(a)) return
+      if (a?.matches('input, textarea, select')) return
+      e.preventDefault()
+      latestParent.current()
+    }
+    window.addEventListener('keydown', on)
+    return () => window.removeEventListener('keydown', on)
+  }, [])
+
   // ---- views ----
   const showSize = (v: ViewName, o: Orientation) => {
     setView(v)
@@ -312,11 +357,10 @@ export default function UiEditorTool() {
   const onRotate = () => showSize(viewRef.current, orientRef.current === 'portrait' ? 'landscape' : 'portrait')
 
   // ---- export ----
+  // One section per file in the Updated code area, all visible (round 5): there is no shown file, no File selector and no switching. The changes of every
+  // file against the file as it was opened (the primary file, or a companion stylesheet by the name the page links it by) are counted per section, and Previous
+  // and Next change walk all of them in the order of the sections.
   const files = session ? Object.keys(session.files) : []
-  const file = session && files.includes(fileName) ? fileName : (files[0] ?? '')
-  const text = session && file ? (session.files[file] ?? '') : ''
-  // The changes of every file against the file as it was opened (the primary file, or a companion stylesheet by the name the page links it by): the File
-  // selector marks the files that changed, and Previous and Next change walk all of them.
   const hunksByFile = useMemo(() => {
     const out: Record<string, Hunk[]> = {}
     if (!session || !doc) return out
@@ -324,30 +368,24 @@ export default function UiEditorTool() {
     return out
   }, [session?.files, doc]) // eslint-disable-line react-hooks/exhaustive-deps
   const counts = Object.fromEntries(files.map((f) => [f, hunksByFile[f]?.length ?? 0]))
-  const countsKey = files.map((f) => counts[f]).join(',')
-  // Right after an edit: a shown file with no changes of its own gives way to the first file that has some (never after the visitor chose a file by hand).
-  useEffect(() => {
-    const target = fileToShow(file, files, counts, handPicked.current)
-    if (target !== file) setFileName(target)
-  }, [countsKey, file]) // eslint-disable-line react-hooks/exhaustive-deps
   const changes = changeOrder(files, counts)
   const walkK = session && walk.files === session.files ? Math.min(walk.k, changes.length) : 0
   const visit = (k: number) => {
     const t = changes[k - 1]
     if (!t || !session) return
-    setFileName(t.file)
     setWalk({ k, files: session.files, nonce: walk.nonce + 1 })
   }
-  const walkTarget = session && walk.files === session.files && walkK > 0 && changes[walkK - 1]?.file === file ? { change: changes[walkK - 1].index, nonce: walk.nonce } : null
-  const onCopy = async () => {
-    if (!file) return
+  const targetFor = (file: string) => (session && walk.files === session.files && walkK > 0 && changes[walkK - 1]?.file === file ? { change: changes[walkK - 1].index, nonce: walk.nonce } : null)
+  const onCopy = async (file: string) => {
+    const text = session?.files[file]
+    if (text === undefined) return
     try {
       await navigator.clipboard.writeText(text)
       show({ kind: 'ok', text: messages.copied(file) })
     } catch {
       // No clipboard: show the code, selected, so it can be copied by hand.
       if (codeBox.current) codeBox.current.open = true
-      const b = codeView.current?.box()
+      const b = codeViews.current[file]?.box()
       if (b) {
         b.focus()
         window.getSelection()?.selectAllChildren(b)
@@ -355,18 +393,25 @@ export default function UiEditorTool() {
       show({ kind: 'info', text: messages.copyFailed })
     }
   }
+  // ONE Download saves every file, one after the other, each under its own name: the page as <name>-edited.<ext>, a companion stylesheet under its own name so
+  // the page's link still works. A browser may ask once to allow several downloads.
   const onDownload = () => {
-    if (!file || !doc) return
-    const name = downloadName(file, file === doc.file)
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-    show({ kind: 'ok', text: messages.downloaded(name) })
+    if (!files.length || !doc || !session) return
+    const saved: string[] = []
+    for (const f of files) {
+      const text = session.files[f]
+      const name = downloadName(f, f === doc.file)
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      saved.push(name)
+    }
+    show({ kind: 'ok', text: messages.downloaded(nameList(saved)) })
   }
 
   // ---- the Review unlinked list ----
@@ -397,7 +442,7 @@ export default function UiEditorTool() {
   const galleryShown = showGallery && !pasteOpen
   // One slim line under the ribbon (round 4): the message, then what was left alone, in a single line that is cut with an ellipsis if it is too long (the whole
   // text is the tooltip and the region's text). Its height is always reserved while a document is open, so a message never moves the stage.
-  const resultText = message ? [message.text, message.notes && message.notes.length > 0 ? `${messages.noteLead} ${message.notes.join(' ')}` : ''].filter(Boolean).join(' ') : ''
+  const resultText = message ? [message.text, message.extra ?? '', message.notes && message.notes.length > 0 ? `${messages.noteLead} ${message.notes.join(' ')}` : ''].filter(Boolean).join(' ') : ''
   const result = (
     <div role="status" aria-label={labels.result} className={`ue-result${hasDoc ? ' is-reserved' : ''}${message ? ` is-${message.kind}` : ''}`} title={resultText || undefined}>
       {message && <p className="ue-result-line">{resultText}</p>}
@@ -405,6 +450,7 @@ export default function UiEditorTool() {
   )
   return (
     <section ref={rootRef} className="ue-tool" data-editor aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
+      <div className="ue-sheet" data-card>
       <div className="ue-bar" role="group" aria-label={labels.bar}>
         <div className="ue-bar-group">
           <button type="button" className="btn btn-secondary" aria-expanded={galleryShown} onClick={onSamples}>
@@ -429,27 +475,42 @@ export default function UiEditorTool() {
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group">
-                <label htmlFor="ue-file">{labels.file}</label>
-                <select
-                  id="ue-file"
-                  value={file}
-                  onChange={(e) => {
-                    handPicked.current = true
-                    setFileName(e.currentTarget.value)
-                  }}
-                >
-                  {files.map((f) => (
-                    <option key={f} value={f}>
-                      {fileMark(f, counts[f] ?? 0)}
-                    </option>
-                  ))}
-                </select>
-                <IconButton icon="copy" label={labels.copy} showLabel tip={labels.copyTip(file)} onClick={() => void onCopy()} />
-                <IconButton icon="download" label={labels.download} showLabel tip={labels.downloadTip(file)} onClick={onDownload} />
+                <IconButton icon="download" label={labels.download} showLabel tip={labels.downloadTip(files)} onClick={onDownload} />
               </div>
               <span className="ue-sep" aria-hidden="true" />
               <IconButton icon="reset" label={labels.resetAll} showLabel tip={labels.resetTip} disabled={!canUndo(list) || busy} onClick={onReset} />
             </div>
+          </>
+        )}
+      </div>
+        {hasDoc && (
+          <>
+            <Ribbon
+              session={session}
+              rev={rev}
+              nonce={nonce}
+              selected={selIndex}
+              view={view}
+              editable={editable}
+              lockedNote={view === 'Tablet' ? panel.tablet : panel.viewOnly}
+              link={link}
+              onLink={setLink}
+              unit={widthUnit}
+              onUnit={(u) => setUnitState({ path: selPath, unit: u })}
+              pins={mine}
+              onSet={onSet}
+              onBadValue={onBadValue}
+              onMove={onReorder}
+              onNudge={onNudge}
+              onSelectIndex={(i) => session && setSelPath(pathOf(session.preview.model, i))}
+              grid={grid}
+              onGrid={setGrid}
+              snap={snap}
+              onSnap={setSnap}
+              spacing={spacing}
+              onSpacing={setSpacing}
+            />
+            {result}
           </>
         )}
       </div>
@@ -524,35 +585,6 @@ export default function UiEditorTool() {
 
       {!hasDoc && galleryShown && <Gallery overlay={false} onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
 
-      {hasDoc && (
-        <>
-          <Ribbon
-            session={session}
-            rev={rev}
-            nonce={nonce}
-            selected={selIndex}
-            view={view}
-            editable={editable}
-            lockedNote={view === 'Tablet' ? panel.tablet : panel.viewOnly}
-            link={link}
-            onLink={setLink}
-            unit={widthUnit}
-            onUnit={(u) => setUnitState({ path: selPath, unit: u })}
-            pins={mine}
-            onSet={onSet}
-            onBadValue={onBadValue}
-            onMove={onReorder}
-            onNudge={onNudge}
-            grid={grid}
-            onGrid={setGrid}
-            snap={snap}
-            onSnap={setSnap}
-            spacing={spacing}
-            onSpacing={setSpacing}
-          />
-          {result}
-        </>
-      )}
 
       {hasDoc && (
         <div className="ue-work">
@@ -576,7 +608,20 @@ export default function UiEditorTool() {
       {hasDoc && (
         <details ref={codeBox} className="ue-code">
           <summary>{labels.code}</summary>
-          <CodeView key={file} ref={codeView} file={file} text={text} hunks={hunksByFile[file] ?? []} total={changes.length} current={walkK} offset={offsetOfFile(files, counts, file)} target={walkTarget} onStep={(dir) => visit(stepChange(walkK, changes.length, dir))} onJump={(i) => visit(offsetOfFile(files, counts, file) + i)} />
+          <div className="ue-changes">
+            <button type="button" className="btn btn-secondary" disabled={changes.length === 0} onClick={() => visit(stepChange(walkK, changes.length, -1))}>
+              {codeViewText.previous}
+            </button>
+            <button type="button" className="btn btn-secondary" disabled={changes.length === 0} onClick={() => visit(stepChange(walkK, changes.length, 1))}>
+              {codeViewText.next}
+            </button>
+            <span className="ue-counter" data-change-counter aria-live="polite">
+              {counterText(walkK, changes.length)}
+            </span>
+          </div>
+          {files.map((file) => (
+            <CodeView key={file} ref={(h) => { codeViews.current[file] = h }} file={file} header={sectionHeader(file, counts[file] ?? 0)} copyName={copyName(files, file)} onCopy={() => void onCopy(file)} text={session?.files[file] ?? ''} hunks={hunksByFile[file] ?? []} total={changes.length} current={walkK} offset={offsetOfFile(files, counts, file)} target={targetFor(file)} onJump={(i) => visit(offsetOfFile(files, counts, file) + i)} />
+          ))}
         </details>
       )}
     </section>

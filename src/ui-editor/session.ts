@@ -6,6 +6,8 @@ import * as engine from './vendor/engine.js'
 import type { Edit, EditResult, EditState, ElementNode, Model, Preview, ScaleNote } from './vendor/engine.js'
 import type { Doc } from './intake.ts'
 import type { Viewport } from './devices.ts'
+import type { Handle } from './geometry.ts'
+import { trialOk, type Edges } from './resizeedge.ts'
 
 export interface Session {
   doc: Doc
@@ -128,3 +130,27 @@ export const isSvgElement = (el: Element): boolean => el.namespaceURI === SVG_NS
 
 /** Whether the element has the handles that change width and height: any HTML element, and the SVG elements that have a width and a height of their own. */
 export const canResize = (el: Element): boolean => !isSvgElement(el) || ['rect', 'image', 'svg', 'foreignobject'].includes(el.localName.toLowerCase())
+
+/**
+ * Resizing from the west or north edge, tried before it is done (round 5): the edit is applied on a SCRATCH preview (offscreen, built from the original with the
+ * edit list and the trial edit), and the result is kept only if the dragged edges landed where the pointer wanted them and no other element moved. Nothing of
+ * the live preview is touched. `ok` false (with the engine's reason when it refused the edit) means: use the old behaviour.
+ */
+export async function trialEdges(live: Session, edits: Edit[], edit: Edit, vp: Viewport, target: number, handle: Handle, dLeft: number, dTop: number): Promise<{ ok: boolean; refused?: string }> {
+  const host = document.createElement('div')
+  host.setAttribute('aria-hidden', 'true')
+  host.style.cssText = 'position:fixed;left:-20000px;top:0;width:10px;height:10px;overflow:hidden;visibility:hidden'
+  document.body.appendChild(host)
+  try {
+    const r = await openSession(live.doc, [...edits, edit], host, vp)
+    if (!r.ok) return { ok: false, refused: r.message }
+    const edges = (s: Session): Edges[] => s.preview.elements.map((e) => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom] })
+    const before = edges(live), after = edges(r.session)
+    const t = r.session.preview.elements[target]
+    const inside = r.session.preview.elements.map((e) => !!t && t.contains(e))
+    closeSession(r.session)
+    return { ok: before.length === after.length && trialOk({ before, after, target, inside, handle, dLeft, dTop }) }
+  } finally {
+    host.remove()
+  }
+}

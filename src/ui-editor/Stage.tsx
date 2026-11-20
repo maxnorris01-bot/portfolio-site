@@ -269,6 +269,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.altKey) return // Alt+Up Arrow selects the parent (the tool's own key handler); it is not a nudge
     const n = arrowNudge(e.key, e.shiftKey)
     if (!n || sel.current === null || !editable) return
     e.preventDefault()

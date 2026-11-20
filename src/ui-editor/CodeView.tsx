@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { codeView as C, labels } from '../data/uiEditor'
-import { changeOfLine, counterText, linesOf, tickShare, type Hunk } from './diff'
+import { changeOfLine, linesOf, tickShare, type Hunk } from './diff'
 
 export interface CodeViewHandle {
   /** The code box (for selecting its text by hand when the clipboard is not available). */
@@ -9,6 +9,10 @@ export interface CodeViewHandle {
 
 interface Props {
   file: string
+  /** The header (the file and its number of changes) and the accessible name of this section's Copy button (round 5: one section per file, each with its own Copy). */
+  header: string
+  copyName: string
+  onCopy: () => void
   /** The updated file, as exported: the text is shown whole, line by line, and Copy and Download give exactly this. */
   text: string
   /** The changes of this file against the file as it was opened: their lines are marked. */
@@ -19,7 +23,6 @@ interface Props {
   offset: number
   /** A change of this file to scroll to and flash (it was just visited); `nonce` changes with every visit. */
   target: { change: number; nonce: number } | null
-  onStep: (dir: 1 | -1) => void
   /** A tick of the change map: the change's number in this file. */
   onJump: (change: number) => void
 }
@@ -31,8 +34,9 @@ interface Props {
  * tick per change of the shown file, placed in proportion to its line number.
  * Plain: nothing in here is part of the text (the gutter, markers and ticks are not selectable), so selecting the code by hand copies the file.
  */
-const CodeView = forwardRef<CodeViewHandle, Props>(function CodeView({ file, text, hunks, total, current, offset, target, onStep, onJump }, ref) {
+const CodeView = forwardRef<CodeViewHandle, Props>(function CodeView({ file, header, copyName, onCopy, text, hunks, total, current, offset, target, onJump }, ref) {
   const box = useRef<HTMLDivElement>(null)
+  const section = useRef<HTMLElement>(null)
   useImperativeHandle(ref, () => ({ box: () => box.current }), [])
   const lines = useMemo(() => linesOf(text), [text])
 
@@ -41,6 +45,8 @@ const CodeView = forwardRef<CodeViewHandle, Props>(function CodeView({ file, tex
   useLayoutEffect(() => {
     const b = box.current
     if (!target || !b) return
+    // The section itself is brought into the window (the sections are stacked, so the change may be in one further down).
+    section.current?.scrollIntoView({ block: 'nearest' })
     const el = b.querySelector<HTMLElement>(`[data-line][data-change="${target.change}"]`) ?? b.querySelector<HTMLElement>(`[data-removed][data-change="${target.change}"]`)
     if (el) b.scrollTo({ top: Math.max(0, el.offsetTop - b.clientHeight / 2 + el.offsetHeight / 2), behavior: 'auto' })
     // The flash is a class put on the change's lines for a moment (the DOM, not state: nothing else needs to know).
@@ -80,29 +86,26 @@ const CodeView = forwardRef<CodeViewHandle, Props>(function CodeView({ file, tex
   })
 
   return (
-    <div className="ue-codeview">
-      <div className="ue-changes">
-        <button type="button" className="btn btn-secondary" disabled={total === 0} onClick={() => onStep(-1)}>
-          {C.previous}
-        </button>
-        <button type="button" className="btn btn-secondary" disabled={total === 0} onClick={() => onStep(1)}>
-          {C.next}
-        </button>
-        <span className="ue-counter" data-change-counter aria-live="polite">
-          {counterText(current, total)}
+    <section ref={section} className="ue-codeview" data-code-section data-file={file}>
+      <div className="ue-sechead">
+        <span className="ue-sectitle" data-section-header>
+          {header}
         </span>
+        <button type="button" className="btn btn-secondary ue-copy" aria-label={copyName} title={labels.copyTip(file)} onClick={onCopy}>
+          {labels.copyWord}
+        </button>
       </div>
       <div className="ue-codebody">
-        <div ref={box} className="ue-codebox" data-code-view tabIndex={0} role="region" aria-label={`${labels.code}: ${file}`}>
+        <div ref={box} className="ue-codebox" data-code-view data-file={file} tabIndex={0} role="region" aria-label={`${labels.code}: ${file}`}>
           {rows}
         </div>
         <div className="ue-map" data-change-map>
           {hunks.map((h, idx) => (
-            <button key={idx} type="button" className={`ue-tick${current === offset + idx + 1 ? ' is-current' : ''}`} style={{ top: `${tickShare(h, lines.length) * 100}%` }} aria-label={C.tick(idx + 1, hunks.length)} title={C.tick(idx + 1, hunks.length)} onClick={() => onJump(idx + 1)} />
+            <button key={idx} type="button" className={`ue-tick${current === offset + idx + 1 ? ' is-current' : ''}`} style={{ top: `${tickShare(h, lines.length) * 100}%` }} aria-label={C.tick(offset + idx + 1, total)} title={C.tick(offset + idx + 1, total)} onClick={() => onJump(idx + 1)} />
           ))}
         </div>
       </div>
-    </div>
+    </section>
   )
 })
 

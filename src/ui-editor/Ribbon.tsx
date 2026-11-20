@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { htmlFields, rowOfPin, svgFields, type Computed, type Field } from './panelfields'
 import { STEP_OF, alignButtons, familyChoices, kindOf, pressedAlign, showColourWord } from './ribbonfields'
+import { PATH_MAX, chainOf, visiblePath } from './path'
 import { canResize, isSvgElement, labelOf, moveTarget, parentContentWidth, type Session } from './session'
 import type { ViewName } from './devices'
 import { SIDES, allSidesBy, expandSides, showUniform, sidesText, withSide, type Side } from './sides'
@@ -35,6 +36,8 @@ interface Props {
   onBadValue: (label: string) => void
   onMove: (dir: 'up' | 'down') => void
   onNudge: (dx: number, dy: number) => void
+  /** Select another element of the preview by its index (a segment of the path, Select parent): the selection only, never an edit. */
+  onSelectIndex: (index: number) => void
   /** The grid over the preview, snapping to it, and the distance between its lines (CSS px): all the page's, none of them remembered. */
   grid: boolean
   onGrid: (on: boolean) => void
@@ -189,9 +192,15 @@ function LargeButton({ icon, label, tip, pressed, disabled, onClick }: { icon: I
   )
 }
 
-export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, link, onLink, unit, onUnit, pins, onSet, onBadValue, onMove, onNudge, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
+export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, link, onLink, unit, onUnit, pins, onSet, onBadValue, onMove, onNudge, onSelectIndex, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
   const el = session && selected !== null ? (session.preview.elements[selected] ?? null) : null
   const svg = !!el && isSvgElement(el)
+  // The path of the strip: the chain from the child of <body> down to the selected element; the deepest PATH_MAX of it, with a leading ellipsis when it is longer.
+  const chain = el ? chainOf(el) : []
+  const labelsOf = (e: Element): string => `${e.localName}${e.getAttribute('id') ? ` #${e.getAttribute('id')}` : e.getAttribute('class')?.trim().split(/\s+/)[0] ? ` .${e.getAttribute('class')!.trim().split(/\s+/)[0]}` : ''}`
+  const shown = visiblePath(chain.map(labelsOf), PATH_MAX)
+  const shownEls = chain.slice(-shown.labels.length)
+  const parentEl = chain.length > 1 ? chain[chain.length - 2] : null
   const cs = el ? (el.ownerDocument.defaultView!.getComputedStyle(el) as unknown as Computed) : null
   const fields: Field[] = el && cs ? (svg ? svgFields(el, canResize(el), cs) : htmlFields(cs)) : htmlFields(EMPTY)
   const live = !!el && editable
@@ -473,9 +482,29 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     <div className="ue-ribbon" data-ribbon>
       <div className="ue-strip" data-ribbon-strip>
         <span className="ue-strip-title">{P.strip}</span>
-        <span className="ue-rlabel" data-selected-label>
-          {el && selected !== null && session ? labelOf(session, selected) : ''}
-        </span>
+        <nav className="ue-path" data-path aria-label={P.pathLabel}>
+          {shown.more && (
+            <span className="ue-path-more" data-path-more aria-hidden="true">
+              …
+            </span>
+          )}
+          {shownEls.slice(0, -1).map((a, i) => (
+            <Fragment key={`${i}-${shown.labels[i]}`}>
+              <button type="button" className="ue-seg-btn" aria-label={P.pathName(shown.labels[i])} title={P.pathTip(shown.labels[i])} onClick={() => session && onSelectIndex(session.preview.elements.indexOf(a))}>
+                {shown.labels[i]}
+              </button>
+              <span className="ue-path-sep" aria-hidden="true">
+                ›
+              </span>
+            </Fragment>
+          ))}
+          <span className="ue-rlabel" data-selected-label>
+            {el && selected !== null && session ? labelOf(session, selected) : ''}
+          </span>
+        </nav>
+        <button type="button" className="ue-seg-btn ue-selpar" aria-label={P.selectParent} title={P.selectParentTip} disabled={!parentEl} onClick={() => parentEl && session && onSelectIndex(session.preview.elements.indexOf(parentEl))}>
+          {P.selectParent}
+        </button>
         <strong data-env>{view}</strong>
         <label className="ue-linkrow" htmlFor="ue-link" title={tip}>
           <input id="ue-link" type="checkbox" checked={svg ? true : link} disabled={!live || svg} title={tip} onChange={(e) => onLink(e.currentTarget.checked)} />
@@ -520,7 +549,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
             </Row>
           </div>
         </Group>
-        <span className="ue-brk" aria-hidden="true" />
         <Group id="spacing" name={P.groups.spacing}>
           <div className="ue-col">
             <Row>{ctl(P.padding)}</Row>

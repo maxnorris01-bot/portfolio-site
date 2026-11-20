@@ -74,7 +74,8 @@ test('the bar puts Samples at the left edge and the icon groups together at the 
   // Samples is before the tools, and the tools hold View, history, Review and File.
   const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
   assert.ok(bar.indexOf('labels.samplesButton') < bar.indexOf('ue-bar-tools'))
-  for (const part of ['labels.view', 'labels.undo', 'labels.redo', 'labels.resetAll', 'labels.review(', 'labels.file', 'labels.copy', 'labels.download']) assert.ok(bar.indexOf('ue-bar-tools') < bar.indexOf(part), part)
+  // Round 5 removed the File selector and the bar's Copy code (one Download; a Copy button in each code section): they are no longer listed here.
+  for (const part of ['labels.view', 'labels.undo', 'labels.redo', 'labels.resetAll', 'labels.review(', 'labels.download']) assert.ok(bar.indexOf('ue-bar-tools') < bar.indexOf(part), part)
 })
 
 // ---- the ribbon's pure helpers ----
@@ -276,7 +277,8 @@ test('the code view shows the whole file line by line, marks changed lines with 
   assert.match(v, /data-margin-marker/)
   assert.match(v, /\{k !== null \? '\+' : ''\}/, 'a "+" in the margin')
   assert.match(v, /data-removed-after=\{after\}/)
-  assert.match(v, /data-change-counter/)
+  // Round 5: the counter and the Previous and Next buttons are in the tool (one walk over every file's section), not in a per-file view.
+  assert.match(read('src/ui-editor/UiEditorTool.tsx'), /data-change-counter/)
   assert.match(v, /data-change-map/)
   assert.match(v, /data-code-view/)
   assert.match(v, /data-code-text/)

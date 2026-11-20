@@ -97,8 +97,10 @@ export const labels = {
   copy: 'Copy code',
   /** The tooltips (and so the accessible descriptions) of Copy code and Download name the file they act on; the accessible names stay `Copy code` and `Download`. */
   copyTip: (file: string) => `Copy ${file} to the clipboard`,
+  /** The header of one code section, and the word on its Copy button. */
+  copyWord: 'Copy',
   download: 'Download',
-  downloadTip: (file: string) => `Download ${file}`,
+  downloadTip: (files: string[]) => (files.length > 1 ? `Download all ${files.length} files: ${files.join(' and ')}` : `Download ${files[0] ?? 'the file'}`),
   code: 'Updated code',
   result: 'Edit result',
   preview: 'Preview',
@@ -129,6 +131,11 @@ export const panel = {
   dot: (env: string) => `Unlinked: applies to ${env} only`,
   /** The strip above the ribbon, and the seven groups of one ribbon (the group's name sits under its controls). */
   strip: 'Selected element',
+  pathLabel: 'Selected element path',
+  selectParent: 'Select parent',
+  selectParentTip: 'Use the parent of this element as the selection (Alt+Up Arrow).',
+  pathName: (label: string) => `Select ${label}`,
+  pathTip: (label: string) => `Use the ${label} element that holds this one as the selection.`,
   groups: { font: 'Font', paragraph: 'Paragraph', size: 'Size', shape: 'Shape', spacing: 'Spacing', arrange: 'Arrange', grid: 'Grid' },
   fonts: 'Font family',
   fontSize: 'Font size',
@@ -205,7 +212,9 @@ export const messages = {
   noteLead: 'Left alone:',
   copied: (file: string) => `Copied ${file}.`,
   copyFailed: 'Could not copy automatically. The code is selected under Updated code: press Ctrl+C (Cmd+C on a Mac).',
-  downloaded: (file: string) => `Saved ${file}.`,
+  downloaded: (names: string) => `Saved ${names}.`,
+  /** Said when the dragged west or north edge could not follow the pointer (round 5): the old behaviour was used. */
+  edgeFallback: { west: 'The left edge could not follow the pointer for this element, so its right edge moved instead.', north: 'The top edge could not follow the pointer for this element, so its bottom edge moved instead.' },
   opened: (name: string) => `Opened ${name}.`,
   badType: 'Only .html, .htm, .svg and one optional .css file can be opened here.',
   tooMany: 'Choose one HTML or SVG file, and at most one .css file with it.',

@@ -107,9 +107,8 @@ test('one ribbon, no tab bar: a strip, one panel, seven groups in the order Font
   assert.deepEqual([...src.matchAll(/<Group id="(\w+)"/g)].map((m) => m[1]), ['font', 'paragraph', 'size', 'shape', 'spacing', 'position', 'grid'])
   assert.deepEqual([panel.groups.font, panel.groups.paragraph, panel.groups.size, panel.groups.shape, panel.groups.spacing, panel.groups.arrange, panel.groups.grid], ['Font', 'Paragraph', 'Size', 'Shape', 'Spacing', 'Arrange', 'Grid'])
   assert.ok(src.indexOf('data-ribbon-strip') < src.indexOf('data-ribbon-panel'), 'the strip is above the groups')
-  assert.match(src, /<span className="ue-brk" aria-hidden="true" \/>/, 'the band break sits between Shape and Spacing')
-  const brk = src.indexOf('ue-brk')
-  assert.ok(src.indexOf('id="shape"') < brk && brk < src.indexOf('id="spacing"'))
+  // Round 5: no break element; the groups are grid items placed by the stylesheet (tests/uieditorround5.test.ts).
+  assert.doesNotMatch(src, /ue-brk/)
   // The strip holds the element label, the view name, the Link checkbox and the one plain note.
   const strip = src.slice(src.indexOf('data-ribbon-strip'), src.indexOf('data-ribbon-panel'))
   for (const part of ['P.strip', 'data-selected-label', 'data-env', 'id="ue-link"', 'data-ribbon-note']) assert.ok(strip.includes(part), part)
@@ -145,17 +144,14 @@ test('the status line is one slim line under the ribbon, with its height reserve
   assert.match(css, /\.ue-result-line \{[^}]*text-overflow: ellipsis/)
 })
 
-test('the ribbon spreads: the groups grow to fill the band, the break gives two bands from 1000 px and the narrow window wraps with 44 px controls', () => {
+test('the ribbon keeps its container, its 26 px controls and its 44 px narrow rule (round 5 replaced the flex spread by a column grid)', () => {
   const css = read('src/ui-editor/UiEditorTool.css')
-  assert.match(css, /\.ue-rgroup \{[^}]*flex: 1 1 auto/)
-  assert.match(css, /\.ue-gc \{[^}]*align-self: center[^}]*width: max-content/s)
   assert.match(css, /\.ue-tool \.ue-ribbon \{[^}]*container: ue-ribbon \/ inline-size/)
-  assert.match(css, /@media \(min-width: 1000px\) \{\s*@container ue-ribbon \(max-width: \d+px\) \{\s*\.ue-brk \{\s*display: block/)
-  assert.match(css, /\.ue-cl \{[^}]*font-size: 11px/)
+  assert.match(css, /\.ue-cl \{[^}]*font-size: 12px/)
   assert.match(css, /\.ue-tool \.ue-ribbon \.ue-rbtn \{[^}]*height: 26px/s)
-  const narrow = css.slice(css.indexOf('@media (max-width: 999px)'))
-  assert.match(narrow, /\.ue-tool \.ue-ribbon \.ue-al \{[\s\S]*?min-width: 44px;[\s\S]*?height: 44px/)
-  assert.doesNotMatch(css.slice(css.indexOf('/* ---- the ribbon (round 4)'), css.indexOf('.ue-dot {')), /#[0-9a-fA-F]{3,6}\b/, 'tokens only')
+  const narrow = css.slice(css.indexOf('@container ue-ribbon (max-width: 999px)'))
+  assert.match(narrow, /\.ue-tool \.ue-ribbon \.ue-al,[\s\S]*?min-width: 44px;[\s\S]*?height: 44px/)
+  assert.doesNotMatch(css.slice(css.indexOf('/* ---- the card and the ribbon (round 5)'), css.indexOf('.ue-dot {')), /#[0-9a-fA-F]{3,6}\b/, 'tokens only')
 })
 
 test('the quick bar shows the words of Review unlinked and Reset all; Undo and Redo stay icon-only', () => {

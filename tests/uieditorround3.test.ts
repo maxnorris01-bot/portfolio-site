@@ -67,13 +67,12 @@ test('the tool\'s buttons have no colour fade, so a view button that has just be
   assert.match(css, /\.ue-tool \.btn\.ue-icon\[aria-pressed='true'\] \{[^}]*background: var\(--color-navy\)/)
 })
 
-test('Samples, the view buttons, Copy code, Download and the File select are never disabled by the view or by a rebuild', () => {
+test('Samples, the view buttons and Download are never disabled by the view or by a rebuild (round 5: no Copy code in the bar and no File select any more)', () => {
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
-  for (const part of ['labels.samplesButton', 'icon={v.icon}', 'labels.copy}', 'labels.download}', 'id="ue-file"']) assert.ok(bar.includes(part), part)
+  for (const part of ['labels.samplesButton', 'icon={v.icon}', 'labels.download}']) assert.ok(bar.includes(part), part)
   const around = (token: string) => bar.slice(bar.lastIndexOf('<', bar.indexOf(token)), bar.indexOf('>', bar.indexOf(token) + 60) + 40)
-  for (const token of ['labels.copy}', 'labels.download}', 'icon={v.icon}']) assert.doesNotMatch(around(token), /disabled/, token)
-  assert.doesNotMatch(bar.slice(bar.indexOf('id="ue-file"'), bar.indexOf('id="ue-file"') + 120), /disabled/)
+  for (const token of ['labels.download}', 'icon={v.icon}']) assert.doesNotMatch(around(token), /disabled/, token)
 })
 
 // ---- the grid and snap (round 3, item 4) ----
