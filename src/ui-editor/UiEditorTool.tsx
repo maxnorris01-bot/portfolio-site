@@ -606,7 +606,7 @@ export default function UiEditorTool() {
       )}
 
       {hasDoc && (
-        <details ref={codeBox} className="ue-code">
+        <details ref={codeBox} className="ue-code" open>
           <summary>{labels.code}</summary>
           <div className="ue-changes">
             <button type="button" className="btn btn-secondary" disabled={changes.length === 0} onClick={() => visit(stepChange(walkK, changes.length, -1))}>
