@@ -2,7 +2,7 @@ import { Children, Fragment, useEffect, useRef, useState, type CSSProperties, ty
 import { messages, panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { MenuButton, type MenuPart } from './Menu'
-import { DASHES, DOUBLE_MIN, EFFECTS, FONT_SIZES, OUTLINE_WEIGHTS, STANDARD_COLOURS, hexTyped, opaqueHex, pageColours } from './menus'
+import { DASHES, DOUBLE_MIN, EFFECTS, FONT_SIZES, LINE_SPACINGS, OUTLINE_WEIGHTS, STANDARD_COLOURS, hexTyped, opaqueHex, pageColours } from './menus'
 import { htmlFields, rowOfPin, svgFields, type Computed, type Field } from './panelfields'
 import { STEP_OF, alignButtons, familyChoices, kindOf, pressedAlign } from './ribbonfields'
 import { PATH_MAX, chainOf, visiblePath } from './path'
@@ -488,13 +488,28 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     const ok = !svg || (!!el && ['text', 'tspan', 'textpath'].includes(el.localName.toLowerCase()))
     return (
       <>
-        <button type="button" className="ue-rbtn" data-stretch style={minW(28)} aria-label={P.italic} title={P.italicTip} aria-pressed={italic} disabled={!live || !ok} onClick={() => onSet({ 'font-style': italic ? 'normal' : 'italic' }, 'font style')}>
+        <button type="button" className="ue-rbtn" data-fixed-icon aria-label={P.italic} title={P.italicTip} aria-pressed={italic} disabled={!live || !ok} onClick={() => onSet({ 'font-style': italic ? 'normal' : 'italic' }, 'font style')}>
           <Icon name="italic" />
         </button>
-        <button type="button" className="ue-rbtn" data-stretch style={minW(28)} aria-label={P.underline} title={P.underlineTip} aria-pressed={underline} disabled={!live || !ok} onClick={() => onSet({ 'text-decoration-line': underline ? 'none' : 'underline' }, 'text decoration')}>
+        <button type="button" className="ue-rbtn" data-fixed-icon aria-label={P.underline} title={P.underlineTip} aria-pressed={underline} disabled={!live || !ok} onClick={() => onSet({ 'text-decoration-line': underline ? 'none' : 'underline' }, 'text decoration')}>
           <Icon name="underline" />
         </button>
+        {lineSpacing()}
       </>
+    )
+  }
+  /** B3, Line spacing: 1.0, 1.15, 1.5 and 2.0 as a unitless line-height; the one that is current is marked. HTML only. */
+  const lineSpacing = (): ReactNode => {
+    const ratio = cs ? (parseFloat(cs.lineHeight ?? '') || 0) / (parseFloat(cs.fontSize) || 1) : 0
+    return (
+      <MenuButton
+        name={P.lineSpacing}
+        tip={P.lineSpacingTip}
+        disabled={!live || svg}
+        min={62}
+        glyph={<Icon name="lineSpacing" />}
+        spec={() => LINE_SPACINGS.map((l) => ({ label: l.label, role: 'menuitemradio' as const, checked: Math.abs(ratio - parseFloat(l.css)) < 0.01, run: () => onSet({ 'line-height': l.css }, 'line spacing') }))}
+      />
     )
   }
 

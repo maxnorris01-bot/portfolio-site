@@ -184,6 +184,8 @@ export const panel = {
   italicTip: 'Make the text italic or upright again.',
   underline: 'Underline',
   underlineTip: 'Make the text underlined or plain again.',
+  lineSpacing: 'Line spacing',
+  lineSpacingTip: 'Choose the space between lines.',
   shapeEffects: 'Shape Effects',
   shapeEffectsTip: 'Open the shadow choices for this shape.',
   effectsWord: 'Effects',
