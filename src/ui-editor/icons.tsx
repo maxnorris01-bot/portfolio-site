@@ -2,7 +2,7 @@
 // No icon library. Each icon is decoration: the button it sits in carries the accessible name (aria-label) and the tooltip (title).
 import type { ReactNode } from 'react'
 
-export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap'
+export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow'
 
 const PATHS: Record<IconName, ReactNode> = {
   desktop: (
@@ -48,6 +48,23 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="2.5" />
       <path d="M12 3v4.5M12 16.5V21M3 12h4.5M16.5 12H21" />
+    </>
+  ),
+  // Round 6 (the PowerPoint-style ribbon): a menu's chevron, the bucket of Shape Fill, the pencil of Shape Outline, the letter A of the text colour, grow and shrink, italic,
+  // underline, line spacing and the shadow of Shape Effects. Drawn in the same style as the rest.
+  chevron: <path d="m7 10 5 5 5-5" />,
+  bucket: <path d="M6 12 12 4l6.5 7.5-5.5 5.5a2.5 2.5 0 0 1-3.5 0zM6 12h12.5M20 15c1 1.5 1 2.5 0 3.5s-2 .5-2-1 1-2 2-2.5z" />,
+  pencil: <path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3" />,
+  letterA: <path d="M5 19 12 4l7 15M8.2 13.5h7.6" />,
+  textGrow: <path d="M3 19 8.5 6 14 19M5 14.5h7M18 10V4M15 7h6" />,
+  textShrink: <path d="M3 19 8.5 6 14 19M5 14.5h7M15 7h6" />,
+  italic: <path d="M10 4h8M6 20h8M14 4 10 20" />,
+  underline: <path d="M7 4v7a5 5 0 0 0 10 0V4M5 20.5h14" />,
+  lineSpacing: <path d="M10 6h10M10 12h10M10 18h10M5 8V4M3 6l2-2 2 2M5 16v4M3 18l2 2 2-2" />,
+  shadow: (
+    <>
+      <rect x="4" y="4" width="11" height="11" rx="1.5" />
+      <path d="M18 9v10H9" />
     </>
   ),
   // A device outline with a small curved arrow over it.
