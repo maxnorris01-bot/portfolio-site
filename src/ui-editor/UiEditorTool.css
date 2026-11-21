@@ -1250,9 +1250,19 @@
   cursor: pointer;
 }
 
+.ue-menu button[role^='menuitem']:not([data-swatch]) > span {
+  flex: 1 1 auto;
+}
+
+/* A radio item keeps the room for its tick, so the labels of a menu start at one edge whichever item is chosen. */
+.ue-menu button[role='menuitemradio']:not([data-swatch])::before {
+  content: '';
+  flex: none;
+  width: 14px;
+}
+
 .ue-menu button[role='menuitemradio']:not([data-swatch])[aria-checked='true']::before {
   content: '✓';
-  margin-right: 4px;
 }
 
 .ue-menu button[role^='menuitem']:hover:not([aria-disabled='true']) {
@@ -1288,11 +1298,18 @@
   font: inherit;
 }
 
+/* Where the ribbon stacks (its container is under 1000 px: a window of about 1047 px or less) the menu items are 44 px high too; a phone-width window gives a menu the whole width. */
 @media (max-width: 999px) {
   .ue-menu {
     width: calc(100vw - 8px);
   }
 
+  .ue-swatches {
+    max-width: none;
+  }
+}
+
+@media (max-width: 1047px) {
   .ue-menu button[role^='menuitem']:not([data-swatch]) {
     height: 44px;
     min-height: 44px;
@@ -1304,7 +1321,7 @@
   }
 
   .ue-swatches {
-    max-width: none;
+    max-width: 380px;
   }
 
   .ue-hexrow input {

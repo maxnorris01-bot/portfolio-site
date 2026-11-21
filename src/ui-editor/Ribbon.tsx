@@ -656,10 +656,33 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       </Fragment>
     )
   }
-  /** The control of the field with this label, when the selected element has it (an SVG has fewer). */
+  /** What an SVG element does not have is drawn switched off (like PowerPoint's), so the ribbon keeps the same controls and no group is left empty. */
+  const switchedOff = (label: string): ReactNode => {
+    const num = (name: string, key: string) => (
+      <Fragment key={key}>
+        <RowLabel text={P.rowLabels[name] ?? name} wide={LABEL_W[name]} />
+        <NumBox name={name} shown="" stamp={stamp} disabled step={STEP.width} unit="px" onStep={() => {}} onCommit={() => {}} />
+      </Fragment>
+    )
+    if (label === P.width || label === P.height || label === P.borderRadius) return num(label, label)
+    if (label === P.padding || label === P.margin) {
+      return (
+        <Fragment key={label}>
+          {num(label, `${label}-n`)}
+          <button type="button" className="ue-rbtn ue-sidesbtn" data-fixed aria-label={P.sidesName(label)} title={P.sidesTip(label)} aria-expanded={false} disabled>
+            {P.sides}
+          </button>
+        </Fragment>
+      )
+    }
+    if (label === P.textColour) return <MenuButton key={label} name={P.fontColour} tip={P.fontColourTip} disabled fixed glyph={<Icon name="letterA" />} spec={() => []} />
+    if (label === P.background) return <MenuButton key={label} name={P.shapeFill} tip={P.shapeFillTip} disabled min={126} glyph={<Icon name="bucket" />} text={P.shapeFill} spec={() => []} />
+    return null
+  }
+  /** The control of the field with this label, when the selected element has it (an SVG has fewer: the rest is switched off). */
   const ctl = (label: string): ReactNode => {
     const f = fields.find((x) => x.label === label)
-    return f ? renderField(f) : null
+    return f ? renderField(f) : svg ? switchedOff(label) : null
   }
   /** The four sides of padding or margin: a small popover under the Spacing group. */
   const sidesPopover = (label: string): ReactNode => {
