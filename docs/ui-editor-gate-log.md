@@ -302,3 +302,16 @@ step-5 and the new type-once: W06; shadow-wrong: W07a; toggle-not-pressed: W07b;
 failing the written-text check only while the computed-style check still passes; no-gradient: W07d NOT BUILT; tablet-grey, item-40, menu-offscreen: W08). The faults of the earlier
 stubs (59 on `--stub` to `--stub5`, the round 5 stub's in a second pass) were re-run on the changed runner and are all still caught; the round 3 stub's control still fails T10, as it
 did in round 3.
+
+### Existing test assertions updated while building the page (#41, for Max's decision)
+
+The brief says existing tests are not edited or weakened. Three existing unit tests pinned facts that the same brief replaces, so they could not both hold; as in round 5 (`53dcd89`) I changed only the lines that state
+the replaced fact, kept every other line, and said why in a comment in the test. Nothing else in an existing test was touched.
+
+| # | Test | Assertion before | Now | Why |
+|---|---|---|---|---|
+| 41a | `tests/uieditorround4.test.ts`, "every control has its word" | `<CtlLabel text={P.alignCaptions[b.label] ?? b.label} />` and `<CtlLabel text={P.unitLabel} />` are in `Ribbon.tsx` | `<RowLabel text={P.rowLabels[f.label] ?? f.label}` and `data-row-label` are; the `ue-cl` label span and the "no abbreviations" assertion stay | The alignment buttons are icon-only like PowerPoint's (their names and tooltips are unchanged) and the px/% toggle sits in the Width row, so their captions are no longer drawn; a number box has its word beside it. The locked round 6 rules retire the gate checks of the same facts (U03 steps 2, 5, 9). |
+| 41b | `tests/uieditorround4.test.ts`, "the ribbon keeps its container, its 26 px controls and its 44 px narrow rule" | `.ue-tool .ue-ribbon .ue-rbtn { ... height: 26px }`, and the narrow rule names `.ue-al` | The same two facts for the shared rule that now covers buttons, selects and number boxes: `height: 28px`, and `min-width: 44px; height: 44px` in the narrow rule; the "tokens only" slice starts at the round 6 heading | The brief makes every control 28 px high (the gate retires the 26 px checks: U05 steps 2 and 4, T03). The container, the 12 px label size and the 44 px narrow rule are asserted as before. |
+| 41c | `tests/uieditorround5.test.ts`, "the column weights of the grid are the measured widths plus 28 px" | The round 5 weights (290, 200, 209, 288, 197, 296, 260), `padding: 4px 14px 2px`, `.ue-lg` 72 px | The round 6 weights (`RIBBON_COLUMNS`: 225, 143, 182, 273, 187, 205, 133) as both floor and weight of every column, the medium rule, one band from their sum, `padding: 8px`, rows 28 px high with 5 px between | Round 6 replaces the round 5 groups (V01, V02 and V04 are retired whole by the locked rules). The test is rewritten to say the same kind of thing about the new groups, not weakened to say less. |
+
+The new tests are in `tests/uieditorround6.test.ts` (9).
