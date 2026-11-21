@@ -2,7 +2,7 @@ import { Children, Fragment, useEffect, useRef, useState, type CSSProperties, ty
 import { messages, panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { MenuButton, type MenuPart } from './Menu'
-import { DASHES, DOUBLE_MIN, FONT_SIZES, OUTLINE_WEIGHTS, STANDARD_COLOURS, hexTyped, opaqueHex, pageColours } from './menus'
+import { DASHES, DOUBLE_MIN, EFFECTS, FONT_SIZES, OUTLINE_WEIGHTS, STANDARD_COLOURS, hexTyped, opaqueHex, pageColours } from './menus'
 import { htmlFields, rowOfPin, svgFields, type Computed, type Field } from './panelfields'
 import { STEP_OF, alignButtons, familyChoices, kindOf, pressedAlign } from './ribbonfields'
 import { PATH_MAX, chainOf, visiblePath } from './path'
@@ -464,6 +464,22 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     )
   }
 
+  /** B1, Shape Effects: None, Subtle, Medium and Strong, written as a box-shadow; the one that is current is marked. HTML only (a shadow does not apply to an SVG shape). */
+  const shapeEffects = (): ReactNode => {
+    const now$ = cs?.boxShadow ?? ''
+    return (
+      <MenuButton
+        name={P.shapeEffects}
+        tip={P.shapeEffectsTip}
+        disabled={!live || svg}
+        min={84}
+        glyph={<Icon name="shadow" />}
+        text={P.effectsWord}
+        spec={() => EFFECTS.map((e) => ({ label: e.label, role: 'menuitemradio' as const, checked: now$ === e.computed, run: () => onSet({ 'box-shadow': e.css }, 'shadow') }))}
+      />
+    )
+  }
+
   const renderField = (f: Field): ReactNode => {
     const kind = kindOf(f.prop, svg)
     const shown = cs ? f.read(cs) : ''
@@ -712,7 +728,10 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
             {ctl(P.background)}
             {ctl(P.borderColour)}
           </Row>
-          <Row>{ctl(P.borderRadius)}</Row>
+          <Row>
+            {ctl(P.borderRadius)}
+            {shapeEffects()}
+          </Row>
         </Group>
         <Group id="spacing" name={P.groups.spacing}>
           <Row>{ctl(P.padding)}</Row>

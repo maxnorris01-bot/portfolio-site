@@ -8,7 +8,7 @@ export type Group = 'text' | 'box' | 'colours'
 export type Control = 'text' | 'colour' | 'select'
 
 /** The part of getComputedStyle that the fields read. */
-export type Computed = Pick<CSSStyleDeclaration, 'fontFamily' | 'fontSize' | 'fontWeight' | 'color' | 'textAlign' | 'width' | 'height' | 'padding' | 'margin' | 'backgroundColor' | 'borderTopColor' | 'borderTopWidth' | 'borderTopStyle' | 'borderRadius' | 'fill' | 'stroke' | 'strokeWidth' | 'textAnchor'> & { rx?: string }
+export type Computed = Pick<CSSStyleDeclaration, 'fontFamily' | 'fontSize' | 'fontWeight' | 'color' | 'textAlign' | 'width' | 'height' | 'padding' | 'margin' | 'backgroundColor' | 'borderTopColor' | 'borderTopWidth' | 'borderTopStyle' | 'borderRadius' | 'fill' | 'stroke' | 'strokeWidth' | 'textAnchor'> & { rx?: string; boxShadow?: string; fontStyle?: string; textDecorationLine?: string; lineHeight?: string; backgroundImage?: string }
 
 export interface Field {
   /** The ribbon control's `data-field` and what the Review list calls the property. */
