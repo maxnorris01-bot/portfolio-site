@@ -124,8 +124,8 @@ and the five original faults on their stubs (`docs/ui-editor-baseline-round5.md`
 
 ## 2026-11-19, formatting round 6 (`feat/ui-editor-format1`, on top of round 5)
 
-Rules: `docs/ui-editor-gate-rules-round6.md`; specs: `scripts/ui-editor-gate/specs-round6.json` (locked in `3fee931`). No spec, rule, sample or expected value was changed by any entry
-below. The scorer check and the Step 1 stop are in `docs/ui-editor-baseline-round6.md`.
+Rules: `docs/ui-editor-gate-rules-round6.md`; specs: `scripts/ui-editor-gate/specs-round6.json` (locked in `3fee931`, RE-LOCKED in `782f57c` before any page change; see "Re-lock" below). No spec, rule, sample or
+expected value was changed by entries #33 to #36. The scorer check and the Step 1 stop are in `docs/ui-editor-baseline-round6.md`.
 
 | # | Change | Why |
 |---|---|---|
@@ -137,3 +137,168 @@ below. The scorer check and the Step 1 stop are in `docs/ui-editor-baseline-roun
 Covered by the scorer check: the round 6 faults on `reference/round6.html` and the earlier stubs' faults re-run on the changed runner (`docs/ui-editor-baseline-round6.md`).
 
 `scripts/ui-editor-gate/probe-fill.mjs` and `geometry-dump.mjs` (not part of the pass line, not runner changes): the read-only probe of what the engine writes for the properties of the new menus, and the ribbon geometry dump (now at 1000, 1290, 1440 and 1920).
+
+### Re-lock of the round 6 specs (2026-11-20, `782f57c`), labelled amendments
+
+Max decided to re-lock before building (nothing had been scored against the real page, so no tuning is involved). The first lock `3fee931` stays in history. The re-locked
+`docs/ui-editor-gate-rules-round6.md` and `scripts/ui-editor-gate/specs-round6.json` are the locked set from here on. Before re-locking, the steps of the W specs that do not depend
+on the new UI ran once on the existing page through the old controls (a dry run, not scored): Height on `#headline`, `#cta` and `#card-build`, the radius step, font size steps,
+typing, hold-to-repeat (8 steps in 1000 ms), the `%` width, the drag to full width and its `width: 100%` in `landing.css`, the colour edits through the old Background,
+Border colour and Text colour fields (P1, P2, P3, P4 all passed, the edits are in `landing.html`), the element lists, and the engine writes recorded in `docs/ui-editor-baseline-round6.md`.
+
+| # | Amendment | Why |
+|---|---|---|
+| 37 | **Runner:** the `css` assert reads `startsWithAny` (the computed string starts with any listed prefix). Covered by the scorer check (stub faults `gradient-dir-swapped`, `gradient-bottom-omitted`). | Chromium reports `to bottom right` as `to right bottom`. |
+| 38 | **A1, W06:** Height is measured on `#cta` instead of `#card-build` (the click, the three `measure` asserts; the radius step selects `#card-build` first). **Added from the dry run:** a second typed size (`30` after `52` and `24`) and the hold-to-repeat starts from 30. | `#card-build` is a flex-grow item and the engine refuses its height (131 px against 135). `#cta` and `#headline` both passed the dry run; `#cta` was chosen so Height and the font steps do not share an element. On the old page a second typed value in the same box was ignored (the commit flag in `NumberInput` is never reset); W06 types `52` once, so this was not a spec flaw, but the new number box must commit repeatedly and the spec now says so. Stub fault `type-once`. |
+| 39 | **A2, W07a (and W04's unscored P4 annotation):** the export check reads `landing.html`; the P4 annotation names `landing.html`. | `#card-plan` is on the shared class `.card`; with Link on the engine writes an inline style into the HTML file (`landing.css` was my mistake; W04 had the same mistake in an unscored annotation). |
+| 40 | **A3, W07d:** the computed-style check for `to bottom right` accepts `to right bottom`; the export is read for the exact written wording (`linear-gradient(to bottom right,`, `to top`, `to bottom` in `landing.html`, `to right` in `landing.css` for `#art`); a `To bottom` step is added. | The brief's wording is the written text. Chromium reports the computed value with the keywords swapped, and omits `to bottom` (the default) from it, so the export is where that direction can be read. |
+
+The diff of each amendment (`git diff -U1 3fee931 782f57c -- scripts/ui-editor-gate/specs-round6.json`):
+
+**#38 (A1, W06)**
+```diff
+@@ -1408,4 +1408,4 @@
+      "do": "click",
+-     "sel": "#card-build",
+-     "at": "inset"
++     "sel": "#cta",
++     "at": "center"
+     },
+@@ -1423,3 +1423,3 @@
+      "at": "current",
+-     "sel": "#card-build",
++     "sel": "#cta",
+      "q": "height",
+@@ -1441,3 +1441,3 @@
+      "at": "current",
+-     "sel": "#card-build",
++     "sel": "#cta",
+      "q": "height",
+@@ -1459,3 +1459,3 @@
+      "at": "current",
+-     "sel": "#card-build",
++     "sel": "#cta",
+      "q": "height",
+@@ -1465,2 +1465,7 @@
+     },
++    {
++     "do": "click",
++     "sel": "#card-build",
++     "at": "inset"
++    },
+     {
+@@ -1600,2 +1605,18 @@
+     },
++    {
++     "do": "type",
++     "field": "Font size",
++     "text": "30"
++    },
++    {
++     "do": "assert",
++     "p": "P1",
++     "k": "measure",
++     "at": "current",
++     "sel": "#headline",
++     "q": "fontSize",
++     "mode": "abs",
++     "value": 30,
++     "tol": 0.05
++    },
+     {
+@@ -1613,3 +1634,3 @@
+      "max": 16,
+-     "from": 24
++     "from": 30
+     },
+```
+
+**#39 (A2, W07a and W04 P4)**
+```diff
+@@ -552,3 +552,3 @@
+     "files": {
+-     "landing.css": 4
++     "landing.html": 4
+     },
+@@ -1716,3 +1737,3 @@
+     "files": {
+-     "landing.css": 2
++     "landing.html": 2
+     },
+@@ -1806,3 +1827,3 @@
+      "k": "exportHas",
+-     "file": "landing.css",
++     "file": "landing.html",
+      "pattern": "box-shadow:\\s*0 4px 12px rgba\\(0,\\s*0,\\s*0,\\s*\\.?0?\\.25\\)"
+```
+
+**#40 (A3, W07d and the vocabulary line of `css`)**
+```diff
+@@ -111,3 +111,3 @@
+    "menuFits": "P5. The open menu lies inside the window horizontally (0.5 px) and, if taller than the window, scrolls inside (its overflow-y is auto or scroll); every item is at least itemMin high.",
+-   "css": "As before, plus `contains` and `startsWith` on the computed string.",
++   "css": "As before, plus `contains`, `startsWith` and `startsWithAny` (the computed string starts with any listed prefix: Chromium reports `to bottom right` as `to right bottom`) on the computed string.",
+    "pressed": "As before."
+@@ -2081,3 +2102,13 @@
+      "prop": "backgroundImage",
+-     "startsWith": "linear-gradient(to bottom right"
++     "startsWithAny": [
++      "linear-gradient(to bottom right",
++      "linear-gradient(to right bottom"
++     ]
++    },
++    {
++     "do": "assert",
++     "p": "P5",
++     "k": "exportHas",
++     "file": "landing.html",
++     "pattern": "background-image:\\s*linear-gradient\\(to bottom right,"
+     },
+@@ -2103,2 +2134,28 @@
+     },
++    {
++     "do": "assert",
++     "p": "P5",
++     "k": "exportHas",
++     "file": "landing.html",
++     "pattern": "background-image:\\s*linear-gradient\\(to top,"
++    },
++    {
++     "do": "openMenu",
++     "name": "Shape Fill"
++    },
++    {
++     "do": "menuItem",
++     "name": "Gradient"
++    },
++    {
++     "do": "menuItem",
++     "name": "To bottom"
++    },
++    {
++     "do": "assert",
++     "p": "P5",
++     "k": "exportHas",
++     "file": "landing.html",
++     "pattern": "background-image:\\s*linear-gradient\\(to bottom,"
++    },
+     {
+@@ -2195,2 +2252,9 @@
+      "startsWith": "linear-gradient(to right"
++    },
++    {
++     "do": "assert",
++     "p": "P5",
++     "k": "exportHas",
++     "file": "landing.css",
++     "pattern": "background-image:\\s*linear-gradient\\(to right,"
+     }
+```
+The rules file changed in the same commit (its W04, W06 and W07 lines and the new "Re-lock" section).
+
+Scorer check on the re-locked specs (`reference/round6.html`, `--stub7`): the eleven controls W01 to W08 (W07a to W07d included) all PASS; the 21 injected faults all fail the spec they are
+meant to fail (row-short, gap-14, centred: W02; control-32: W03; menu-ignores-escape, swatch-wrong-prop, hex-lax, page-colours-all: W04; weight-no-style, no-dashes-double: W05;
+step-5 and the new type-once: W06; shadow-wrong: W07a; toggle-not-pressed: W07b; gradient-loses and the new gradient-dir-swapped and gradient-bottom-omitted: W07d, the last two
+failing the written-text check only while the computed-style check still passes; no-gradient: W07d NOT BUILT; tablet-grey, item-40, menu-offscreen: W08). The faults of the earlier
+stubs (59 on `--stub` to `--stub5`, the round 5 stub's in a second pass) were re-run on the changed runner and are all still caught; the round 3 stub's control still fails T10, as it
+did in round 3.

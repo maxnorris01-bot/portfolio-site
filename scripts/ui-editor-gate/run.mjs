@@ -790,6 +790,8 @@ async function runSpec(spec) {
         const raw = await page.evaluate(([s, p]) => window.__gate.cssOf('current', s, p), [a.sel, a.prop])
         if (a.equals !== undefined) return R(raw === a.equals, `${a.prop} is "${raw}", want "${a.equals}"`)
         if (a.startsWith !== undefined) return R(typeof raw === 'string' && raw.startsWith(a.startsWith), `${a.prop} is "${raw}", want it to start with "${a.startsWith}"`)
+        // ROUND 6 re-lock (log #37): `startsWithAny` accepts any of several prefixes (Chromium reports `to bottom right` as `to right bottom`).
+        if (a.startsWithAny !== undefined) return R(typeof raw === 'string' && a.startsWithAny.some((p) => raw.startsWith(p)), `${a.prop} is "${raw}", want it to start with one of ${a.startsWithAny.map((p) => `"${p}"`).join(', ')}`)
         if (a.contains !== undefined) return R(typeof raw === 'string' && raw.includes(a.contains), `${a.prop} is "${raw}", want it to contain "${a.contains}"`)
         const now = parseFloat(raw), b = before[`css|${a.sel}|${a.prop}`]
         const want = a.mode === 'abs' ? a.value : b + a.value

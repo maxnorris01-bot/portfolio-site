@@ -587,7 +587,9 @@ function gradientEdit(patch) {
   const c = cs(), g = gradientState() ?? { dir: 'to right', from: isTransparent(c.backgroundColor) ? '#ffffff' : hexOf(c.backgroundColor), to: hexOf(c.color) }
   const n = { ...g, ...patch }
   closeMenus(true)
-  const props = { 'background-image': `linear-gradient(${n.dir}, ${n.from}, ${n.to})` }
+  // faults (round 6 re-lock): the written wording differs from the brief's (the computed style still reads the same, so only the export check sees it)
+  const dirText = F('gradient-dir-swapped') && n.dir === 'to bottom right' ? 'to right bottom' : F('gradient-bottom-omitted') && n.dir === 'to bottom' ? '' : n.dir
+  const props = { 'background-image': `linear-gradient(${dirText ? dirText + ', ' : ''}${n.from}, ${n.to})` }
   // fault: a gradient written as a phone-only rule does not take effect at the Desktop size (it loses to the background shorthand's rule)
   return F('gradient-loses') ? apply({ op: 'set', target: sel, properties: props, environment: 'phone', link: false }) : doSet(props)
 }
@@ -658,11 +660,13 @@ ribbon.addEventListener('click', async (e) => {
   if (b.id === 'ul') { const on = b.getAttribute('aria-pressed') === 'true'; return doSet({ 'text-decoration': on ? 'none' : 'underline' }) }
   if (b.id === 'up' || b.id === 'down') { const el = preview.elements[sel], sib = b.id === 'up' ? el.previousElementSibling : el.nextElementSibling; if (sib) return apply({ op: 'reorder', target: sel, placement: b.id === 'up' ? 'before' : 'after', sibling: idxOf(sib), ...scope() }) }
 })
+const typedOnce = new Set()
 document.addEventListener('keydown', (e) => {
   const t = e.target
   if (e.key === 'Escape' && t.closest?.('[data-sides-popover]')) { e.preventDefault(); closePopovers(true); return }
   if (e.key !== 'Enter' || !t.matches?.('input[type=text]')) return
-  if (t.dataset.num) { const name = t.dataset.num; const v = parseFloat(t.value); if (!Number.isFinite(v)) return; if (/^Nudge/.test(name)) return name.endsWith('X') ? doNudge(Math.round(v), 0) : doNudge(0, Math.round(v)); return write(name, v) }
+  if (t.dataset.num) { const name = t.dataset.num; const v = parseFloat(t.value); if (!Number.isFinite(v)) return; if (F('type-once')) { if (typedOnce.has(name)) return; typedOnce.add(name) } // fault (round 6 re-lock): a second typed value in the same box is ignored, as the round 5 page did
+    if (/^Nudge/.test(name)) return name.endsWith('X') ? doNudge(Math.round(v), 0) : doNudge(0, Math.round(v)); return write(name, v) }
   if (t.dataset.hex) {
     const v = t.value.trim()
     if (!(F('hex-lax') ? /^#?[0-9a-f]{1,8}$/i : /^#([0-9a-f]{3}|[0-9a-f]{6})$/i).test(v)) { closeMenus(true); $('#msg').textContent = 'That is not a colour. Type #rgb or #rrggbb.'; return }
