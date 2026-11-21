@@ -1,0 +1,2065 @@
+{
+ "version": 1,
+ "retired": {
+  "N01": "RETIRED by round 2: assumes three cards and Paste and Upload buttons in the bar (replaced by R01).",
+  "N02": "RETIRED by round 2: assumes three cards and the Paste and Upload route (replaced by R02)."
+ },
+ "vocabulary": {
+  "note": "Specs R01 to R16 (docs/ui-editor-gate-rules-round2.md). The step and assert names of the earlier files keep their meaning. The new ones are listed here; the runner implements them after this file is locked.",
+  "steps": {
+   "ownAction": "click Paste or Upload on the \"Your own code\" card (the gallery is shown first); with files, Upload goes through the real file chooser and the files are given to it",
+   "fill": "type the text into the labelled textarea",
+   "stepper": "click the Increase (dir +) or Decrease (dir -) button of the labelled stepper `times` times, with Shift held when shift is true. Button names: \"Increase <field>\" and \"Decrease <field>\"",
+   "choose": "choose the option with this text in the labelled select",
+   "openCode": "open the \"Updated code\" section if it is closed",
+   "unit": "click the px or % button of the group \"Width unit\"",
+   "tick": "click the change-map button \"Change <k> of <n>\"",
+   "drag": "as before; with dxToParentEdge the distance is measured when the pointer goes down: the right edge of the parent's content box, less `short` px, minus the element's right edge; with hold the pointer stays down until a release step",
+   "release": "release the pointer held by a drag with hold"
+  },
+  "asserts": {
+   "galleryCards": "P5. Exactly n [data-sample-card] with these ids, visible; the three titles are on the sample cards; the own card has the title and a non-empty [data-blank-page] and buttons with the names",
+   "barLacks": "P6. The group \"Editor controls\" has no button with these names (in the DOM or not)",
+   "pasteArea": "The group \"Paste code\" is visible (visible true) or neither in the DOM with a layout box nor focusable (false)",
+   "noSidePanel": "P6. No aside, .ue-side or .ue-panel in the editor, and the words \"side panel\" appear nowhere on the page",
+   "ribbonBox": "P1. [data-ribbon] left and right edges within fullTol of [data-editor]; its height at most maxHeight; at most maxRows distinct group tops (rounded to 6 px)",
+   "ribbonAllDisabled": "P5. At least min buttons, inputs and selects in [data-ribbon] and all match :disabled",
+   "ribbonEnabled": "P5. Each named control (by accessible name) in [data-ribbon] is enabled",
+   "ribbonNote": "P5. [data-ribbon-note] is visible and contains the text",
+   "linkTip": "P5. The labelled checkbox or its label has a title containing the text",
+   "selectOptions": "P5. The labelled select's option texts are: the computed font-family of the element, then rest",
+   "noTextInput": "P5. No input of type text inside [data-field=field]",
+   "css": "P1. The computed style property of sel in the preview: delta (before + value), abs, equals or startsWith; px numbers within tol",
+   "ratio": "P1. The Phone width of sel is phoneFrom x desktopNow / desktopFrom within tol (measured at 390)",
+   "pctField": "P5. The labelled field shows a number and \"%\": the element's width over its parent's content width x 100, within tol",
+   "unitPressed": "P5. The button of the group \"Width unit\" has aria-pressed true",
+   "pctWidth": "P1. The element's width equals the parent's content width x (shown percent + plus) / 100 within tol (shown percent = round(before percent, 2))",
+   "exportHas": "P5. The exported file matches the regular expression",
+   "exportLacks": "P5. The exported file does not match the regular expression",
+   "toParentWidth": "P1. The element's width equals the parent's content width less short, within tol",
+   "eqParent": "P1. The element's width equals the parent's content width at `at` within tol",
+   "ghost": "P5. [data-drag-label] contains the text while the pointer is down",
+   "pressed": "P5. Among the named buttons only `on` has aria-pressed true, the others false",
+   "swatch": "P5. The native input named label has this value",
+   "swatchNative": "P5. The input named label has type color",
+   "markerText": "P5. Every [data-line][data-change] has a [data-margin-marker] with non-empty text, and there are changed lines",
+   "noShowOnly": "P5. No control whose name matches /only changes/i",
+   "codeDiff": "P5. The groups of changed lines, the removal points and the count of the page equal the runner's own diff of the original file and the export (rules, definitions); every line of the file is shown",
+   "codeText": "P5. The plain text of [data-code-text] lines joined by a newline equals the downloaded file",
+   "changeCounter": "P5. [data-change-counter] reads text, or \"<k> of <n>\" with n the runner's count of changes (nFromDiff names the file), or matches pattern",
+   "changeVisible": "P5. The first line or removal point of the change the counter names lies inside the vertical extent of [data-code-view]",
+   "changeMap": "P5. [data-change-map] has n buttons \"Change k of n\", top to bottom in order of k, each in proportion to its first line (rules)",
+   "toolbarEdges": "P5. Samples' left edge and the last toolbar button's right edge within tol of the bar's inner edges",
+   "rotateLabel": "P5. The Rotate button has visible text",
+   "onlyRotateText": "P5. Of the toolbar buttons other than Samples and Rotate none has visible text",
+   "iconsDistinct": "P5. The svg markup of the toolbar icons (all of them) are pairwise different",
+   "bottomSections": "P5. Each title is an h2 under the tool; the three share font-family, font-size, font-weight and class; each section has one list with at most maxItems items",
+   "noMarkers": "P5. No li of the three lists has a list marker (list-style-type none or no li)",
+   "itemRules": "P5. Every li of the three lists has a border-bottom of at least 1 px",
+   "inWindow": "P1. After scrolling the preview iframe to the middle of the window its box is inside the window",
+   "ribbonHit": "P5. Every visible button, input and select in [data-ribbon] is at least min x min CSS px",
+   "noOverflowX": "P5. The page does not scroll horizontally (scrollWidth at most innerWidth + 1)"
+  }
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL",
+  "RETIRED"
+ ],
+ "specs": [
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R01",
+   "name": "First visit: exactly four cards, Paste and Upload are not toolbar buttons, nothing to edit is shown",
+   "sample": "landing",
+   "checks": [
+    "P5",
+    "P6"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "galleryCards",
+     "n": 4,
+     "ids": [
+      "landing",
+      "email",
+      "chart",
+      "own"
+     ],
+     "ownTitle": "Your own code",
+     "ownButtons": [
+      "Paste",
+      "Upload"
+     ],
+     "titles": [
+      "Landing page",
+      "HTML email",
+      "SVG chart"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "barButtons",
+     "names": [
+      "Samples"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "barLacks",
+     "names": [
+      "Paste",
+      "Upload"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "role": "button",
+       "name": "Undo"
+      },
+      {
+       "role": "button",
+       "name": "Redo"
+      },
+      {
+       "role": "button",
+       "name": "Reset all"
+      },
+      {
+       "role": "button",
+       "name": "Desktop"
+      },
+      {
+       "role": "button",
+       "name": "Tablet"
+      },
+      {
+       "role": "button",
+       "name": "Phone"
+      },
+      {
+       "role": "button",
+       "name": "Rotate"
+      },
+      {
+       "role": "button",
+       "name": "Review unlinked"
+      },
+      {
+       "role": "button",
+       "name": "Copy code"
+      },
+      {
+       "role": "button",
+       "name": "Download"
+      },
+      {
+       "selector": "[data-ribbon]"
+      },
+      {
+       "selector": "[data-stage-area]"
+      },
+      {
+       "selector": "[data-code-view]"
+      },
+      {
+       "selector": "iframe[title=\"Preview\"]"
+      },
+      {
+       "text": "Updated code"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R02",
+   "name": "\"Your own code\": Paste loads valid HTML, Upload loads a file; both reach the editor with the toolbar and the ribbon",
+   "sample": "landing",
+   "checks": [
+    "P5",
+    "P6"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "ownAction",
+     "name": "Paste"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pasteArea",
+     "visible": true
+    },
+    {
+     "do": "fill",
+     "label": "HTML or SVG",
+     "text": "<!doctype html><html><head><title>t</title></head><body><h1 id=\"pasted-h\">Pasted heading</h1><p id=\"pasted-p\">Some text.</p></body></html>"
+    },
+    {
+     "do": "button",
+     "name": "Open pasted code"
+    },
+    {
+     "do": "waitMarker",
+     "sel": "#pasted-h"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#pasted-h",
+     "has": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "role": "button",
+       "name": "Undo"
+      },
+      {
+       "role": "button",
+       "name": "Desktop"
+      },
+      {
+       "selector": "[data-ribbon]"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "pasteArea",
+     "visible": false
+    },
+    {
+     "do": "button",
+     "name": "Samples"
+    },
+    {
+     "do": "ownAction",
+     "name": "Upload",
+     "files": [
+      {
+       "name": "uploaded.html",
+       "text": "<!doctype html><html><head><title>u</title></head><body><h1 id=\"up-h\">Uploaded heading</h1></body></html>"
+      }
+     ]
+    },
+    {
+     "do": "waitMarker",
+     "sel": "#up-h"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#up-h",
+     "has": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#pasted-h",
+     "has": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "role": "button",
+       "name": "Undo"
+      },
+      {
+       "role": "button",
+       "name": "Desktop"
+      },
+      {
+       "selector": "[data-ribbon]"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "selector": "[data-gallery]"
+      },
+      {
+       "role": "group",
+       "name": "Paste code"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R03",
+   "name": "The bug: with the paste area open, Samples closes it and shows four cards",
+   "sample": "landing",
+   "checks": [
+    "P5",
+    "P6"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "ownAction",
+     "name": "Paste"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pasteArea",
+     "visible": true
+    },
+    {
+     "do": "button",
+     "name": "Samples"
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "pasteArea",
+     "visible": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "galleryCards",
+     "n": 4,
+     "ids": [
+      "landing",
+      "email",
+      "chart",
+      "own"
+     ],
+     "ownTitle": "Your own code",
+     "ownButtons": [
+      "Paste",
+      "Upload"
+     ],
+     "titles": [
+      "Landing page",
+      "HTML email",
+      "SVG chart"
+     ]
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "button",
+     "name": "Samples"
+    },
+    {
+     "do": "ownAction",
+     "name": "Paste"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pasteArea",
+     "visible": true
+    },
+    {
+     "do": "button",
+     "name": "Samples"
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "pasteArea",
+     "visible": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "galleryCards",
+     "n": 4,
+     "ids": [
+      "landing",
+      "email",
+      "chart",
+      "own"
+     ],
+     "ownTitle": "Your own code",
+     "ownButtons": [
+      "Paste",
+      "Upload"
+     ],
+     "titles": [
+      "Landing page",
+      "HTML email",
+      "SVG chart"
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R04",
+   "name": "No side panel; a full-width ribbon of at most two rows; disabled with nothing selected, enabled after a click, disabled in Tablet",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5",
+    "P6"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "noSidePanel"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonBox",
+     "fullTol": 4,
+     "maxHeight": 130,
+     "maxRows": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonAllDisabled",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonNote",
+     "contains": "Click an element to edit it"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonEnabled",
+     "names": [
+      "Font family",
+      "Font size",
+      "Font weight",
+      "Text colour",
+      "Align left",
+      "Width",
+      "Height",
+      "Padding",
+      "Margin",
+      "Background",
+      "Border colour",
+      "Border width",
+      "Border radius",
+      "Nudge X",
+      "Nudge Y",
+      "Link to Phone"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "h1 #headline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "linkTip",
+     "label": "Link to Phone",
+     "contains": "Review unlinked"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonAllDisabled",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonNote",
+     "contains": "view-only"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonBox",
+     "fullTol": 4,
+     "maxHeight": 130,
+     "maxRows": 2
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonBox",
+     "fullTol": 4,
+     "maxHeight": 130,
+     "maxRows": 2
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R05",
+   "name": "Font family is a select: the page's own family first, then twelve; Arial applies; no free-text input; the export matches",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5"
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "descendants",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    }
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selectOptions",
+     "label": "Font family",
+     "firstComputed": "#headline",
+     "rest": [
+      "Georgia",
+      "Times New Roman",
+      "Arial",
+      "Helvetica",
+      "Verdana",
+      "Trebuchet MS",
+      "Tahoma",
+      "Courier New",
+      "system-ui",
+      "serif",
+      "sans-serif",
+      "monospace"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noTextInput",
+     "field": "font-family"
+    },
+    {
+     "do": "choose",
+     "label": "Font family",
+     "option": "Arial"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "startsWith": "Arial"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "applied"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R06",
+   "name": "Font size stepper: +3 by three clicks, Undo one click, Shift +10, minus 1, a typed 52",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "baseline": [
+    {
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "value": 44,
+     "tol": 0.05
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 3,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "delta",
+     "value": 3,
+     "tol": 0.05
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "delta",
+     "value": 2,
+     "tol": 0.05
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "delta",
+     "value": 12,
+     "tol": 0.05
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "-",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "delta",
+     "value": 11,
+     "tol": 0.05
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "52px",
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R07",
+   "name": "Width +4 (Phone by the ratio rule), padding +4 on all sides, Expand shows four steppers and Top changes only the top, radius +2",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Width",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ratio",
+     "sel": "#art",
+     "q": "width",
+     "desktopFrom": 280,
+     "desktopNow": 284,
+     "phoneFrom": 280,
+     "tol": 0.6
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "stepper",
+     "field": "Padding",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "paddingTop",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "paddingRight",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "paddingBottom",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "paddingLeft",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.05
+    },
+    {
+     "do": "button",
+     "name": "Expand Padding"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "role": "textbox",
+       "name": "Padding top"
+      },
+      {
+       "role": "textbox",
+       "name": "Padding right"
+      },
+      {
+       "role": "textbox",
+       "name": "Padding bottom"
+      },
+      {
+       "role": "textbox",
+       "name": "Padding left"
+      }
+     ]
+    },
+    {
+     "do": "stepper",
+     "field": "Padding top",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "paddingTop",
+     "mode": "delta",
+     "value": 8,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "paddingRight",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "paddingBottom",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "paddingLeft",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.05
+    },
+    {
+     "do": "stepper",
+     "field": "Border radius",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "borderTopLeftRadius",
+     "mode": "delta",
+     "value": 2,
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R08",
+   "name": "Unit switch and snap: % shows the share of the parent and writes %; 6 px short does not snap; the parent's edge snaps to 100% with \"Full width\"; the export matches",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5"
+   ],
+   "p3": {
+    "target": "#cta",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    }
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "inset"
+    },
+    {
+     "do": "unit",
+     "unit": "%"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pctField",
+     "label": "Width",
+     "sel": "#cta",
+     "tol": 0.1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "unitPressed",
+     "unit": "%"
+    },
+    {
+     "do": "stepper",
+     "field": "Width",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pctWidth",
+     "sel": "#cta",
+     "plus": 1,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "width:\\s*\\d+(\\.\\d+)?%"
+    },
+    {
+     "do": "drag",
+     "handle": "e",
+     "sel": "#cta",
+     "dxToParentEdge": {
+      "sel": "#cta",
+      "short": 6
+     }
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "toParentWidth",
+     "sel": "#cta",
+     "at": "current",
+     "short": 6,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportLacks",
+     "file": "landing.css",
+     "pattern": "width:\\s*100%"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "drag",
+     "handle": "e",
+     "sel": "#cta",
+     "dxToParentEdge": {
+      "sel": "#cta",
+      "short": 0
+     },
+     "hold": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ghost",
+     "contains": "Full width"
+    },
+    {
+     "do": "release"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "eqParent",
+     "sel": "#cta",
+     "at": "current",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "width:\\s*100%"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "eqParent",
+     "sel": "#cta",
+     "at": "current",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "applied"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R09",
+   "name": "Alignment buttons and colour: Centre applies and shows pressed; a typed hex sets the colour and the swatch; the swatch is a native colour input",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pressed",
+     "names": [
+      "Align left",
+      "Align centre",
+      "Align right",
+      "Justify"
+     ],
+     "on": "Align left"
+    },
+    {
+     "do": "button",
+     "name": "Align centre"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "textAlign",
+     "equals": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pressed",
+     "names": [
+      "Align left",
+      "Align centre",
+      "Align right",
+      "Justify"
+     ],
+     "on": "Align centre"
+    },
+    {
+     "do": "type",
+     "field": "Text colour",
+     "text": "#112233"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "color",
+     "equals": "rgb(17, 34, 51)"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "swatch",
+     "label": "Pick text colour",
+     "value": "#112233"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "swatchNative",
+     "label": "Pick text colour"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R10",
+   "name": "Position: Move up reorders as before; a nudge stepper moves 1 px, Shift 10 px",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "order",
+     "at": "current",
+     "first": "#card-build",
+     "second": "#card-plan",
+     "q": "left"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "left",
+     "mode": "delta",
+     "value": 1,
+     "tol": 0.6
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 1,
+     "shift": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "left",
+     "mode": "delta",
+     "value": 11,
+     "tol": 0.6
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge Y",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "top",
+     "mode": "delta",
+     "value": 1,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Move up",
+     "disabled": true
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R11",
+   "name": "Code view: highlighted groups equal an independent line diff, removal markers sit where lines went, margin markers are text, no \"Show only changes\"",
+   "sample": "email",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "openCode"
+    },
+    {
+     "do": "click",
+     "sel": "#hello",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "click",
+     "sel": "#pick-two",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "click",
+     "sel": "#fine",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#ffeecc"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "codeDiff",
+     "file": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerText"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noShowOnly"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R12",
+   "name": "Previous/Next change: counter, wrap-around, scrolled into view; the change map has one tick per change, in order and in proportion; \"No changes yet\" before any edit",
+   "sample": "email",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "openCode"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeCounter",
+     "text": "No changes yet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Previous change",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Next change",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeMap",
+     "n": 0
+    },
+    {
+     "do": "click",
+     "sel": "#hello",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "click",
+     "sel": "#pick-two",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "click",
+     "sel": "#fine",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#ffeecc"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeCounter",
+     "pattern": "^0 of (\\d+)$",
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "button",
+     "name": "Next change"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 1,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    },
+    {
+     "do": "button",
+     "name": "Next change"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 2,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    },
+    {
+     "do": "button",
+     "name": "Next change"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 3,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    },
+    {
+     "do": "button",
+     "name": "Next change"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 4,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    },
+    {
+     "do": "button",
+     "name": "Next change"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 1,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    },
+    {
+     "do": "button",
+     "name": "Previous change"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 4,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeMap",
+     "nFromDiff": "email.html",
+     "file": "email.html",
+     "fractionTol": 0.03,
+     "slackPx": 8
+    },
+    {
+     "do": "tick",
+     "k": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 2,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    },
+    {
+     "do": "tick",
+     "k": 4
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 4,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    },
+    {
+     "do": "tick",
+     "k": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": 1,
+     "nFromDiff": "email.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "changeVisible",
+     "file": "email.html"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R13",
+   "name": "Copy, Download and the code view's plain text are the export byte for byte, per file, with highlights showing",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "openCode"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "47"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#ffeecc"
+    },
+    {
+     "do": "selectFile",
+     "name": "landing.css"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "codeText",
+     "file": "landing.css"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "codeDiff",
+     "file": "landing.css"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "copy",
+     "file": "landing.css"
+    },
+    {
+     "do": "selectFile",
+     "name": "landing.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "codeText",
+     "file": "landing.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "codeDiff",
+     "file": "landing.html"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "copy",
+     "file": "landing.html"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R14",
+   "name": "Toolbar at 1440: Samples left, icon group right, the word \"Rotate\" on Rotate only, no two icons alike, names kept",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "host": {
+    "width": 1440,
+    "height": 900
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "toolbarEdges",
+     "tol": 8
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "rotateLabel",
+     "text": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "onlyRotateText"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "iconsDistinct"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "role": "button",
+       "name": "Undo"
+      },
+      {
+       "role": "button",
+       "name": "Redo"
+      },
+      {
+       "role": "button",
+       "name": "Reset all"
+      },
+      {
+       "role": "button",
+       "name": "Rotate"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R15",
+   "name": "Bottom sections: three equal h2 headings, no markers, at most six items, a thin rule between items, columns at 1440 and one at 390, line length 45 to 80",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "host": {
+    "width": 1440,
+    "height": 900
+   },
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "bottomSections",
+     "titles": [
+      "What is measured, and what is not",
+      "Limits",
+      "Data and credits"
+     ],
+     "maxItems": 6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noMarkers"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "itemRules"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "columns",
+     "lists": [
+      0,
+      1,
+      2
+     ],
+     "min": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "lineLength",
+     "min": 45,
+     "max": 80
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "columns",
+     "lists": [
+      0,
+      1,
+      2
+     ],
+     "exact": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "lineLength",
+     "min": 45,
+     "max": 80
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "id": "R16",
+   "name": "Desktop, Phone and Tablet at scale 1 with the ribbon and the whole preview in the window; at 390 the ribbon wraps with 44 px controls and no horizontal scroll",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "desktop",
+     "iframeW": 1280,
+     "scale": 1,
+     "scaleTol": 0.001,
+     "centredTol": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "selector": "[data-ribbon]"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "inWindow"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "phone",
+     "orientation": "portrait",
+     "iframeW": 390,
+     "iframeH": 844,
+     "scale": 1,
+     "scaleTol": 0.001,
+     "centredTol": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "selector": "[data-ribbon]"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "inWindow"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "tablet",
+     "orientation": "portrait",
+     "iframeW": 768,
+     "iframeH": 1024,
+     "scale": 1,
+     "scaleTol": 0.001,
+     "centredTol": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "selector": "[data-ribbon]"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "inWindow"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonHit",
+     "min": 44
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noOverflowX"
+    }
+   ]
+  }
+ ]
+}

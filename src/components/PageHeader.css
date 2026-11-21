@@ -70,6 +70,12 @@
   max-width: 34em;
 }
 
+/* A header that asks for it (fullLead, only the UI Editor's) lets the lead run the full width of its column. The rule above capped every lead at
+   34em and nothing switched the cap off, so the fullLead prop (the is-lead-full class) had no effect. */
+.page-header.is-lead-full .page-lede {
+  max-width: none;
+}
+
 /* A header with tech chips: the title, then the chips on their own row (one block width at every window size). */
 .page-header.has-chips .page-title-row {
   flex-direction: column;

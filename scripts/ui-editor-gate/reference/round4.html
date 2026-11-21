@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UI Editor gate, round 4: scorer-check stub</title>
+<style>
+  :root { --color-text: #0b1b33; --color-text-muted: #6c7686; --color-border: #c9c8c0; }
+  body { font: 14px system-ui, sans-serif; margin: 12px; color: var(--color-text); }
+  button, select, input { font: inherit; color: inherit; }
+  .wrap { max-width: 1780px; margin: 0 auto; }
+  [data-editor] { position: relative; }
+  [hidden] { display: none !important; }
+  button:focus-visible, select:focus-visible, input:focus-visible, [role=tab]:focus-visible, [data-code-view]:focus-visible { outline: 2px solid #e85d3f; outline-offset: 1px; }
+  #bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--color-border); }
+  #bar button, #bar select { height: 32px; min-width: 32px; border: 1px solid var(--color-border); background: #fff; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; cursor: pointer; }
+  #bar button:disabled { opacity: .45; }
+  #bar svg { width: 20px; height: 20px; flex: none; }
+  #tools { display: contents; }
+  .flex { flex: 1 1 0; }
+  .sep { width: 1px; align-self: stretch; background: var(--color-border); margin: 0 12px; }
+  [aria-label="View"] { display: inline-flex; gap: 4px; }
+  #bar [aria-label="View"] button[aria-pressed=true] { background: var(--color-text); color: #fff; border-color: var(--color-text); }
+  body[data-fault=tablet-grey] #bar [aria-label="View"] button[aria-label=Tablet][aria-pressed=true] { background: #888; border-color: #888; }
+  [data-gallery] { display: flex; gap: 16px; margin-top: 12px; }
+  [data-sample-card] { width: 260px; border: 1px solid #ccc; padding: 8px; cursor: pointer; }
+  [data-sample-card] h3 { margin: 4px 0; font-size: 15px; }
+  .mini { position: relative; width: 260px; height: 162px; overflow: hidden; border: 1px solid #eee; }
+  .mini iframe { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; border: 0; transform: scale(0.203); transform-origin: 0 0; pointer-events: none; }
+  [data-blank-page] { width: 100%; height: 100%; background: #fff; }
+  #paste { margin-top: 12px; border: 1px solid #ccc; padding: 8px; }
+  /* the ribbon: a strip, then one panel of seven groups that share the width */
+  :root { --color-text-secondary: #4a5568; }
+  [data-ribbon] { margin-top: 8px; border: 1px solid var(--color-border); box-sizing: border-box; font-size: 12px; }
+  [data-ribbon-strip] { display: flex; align-items: center; gap: 12px; height: 26px; padding: 0 8px; box-sizing: border-box; border-bottom: 1px solid var(--color-border); font-size: 12px; white-space: nowrap; }
+  [data-ribbon-strip] .t { color: var(--color-text-muted); }
+  [data-selected-label] { font-family: ui-monospace, monospace; font-weight: 600; }
+  [data-ribbon-note] { flex: 1 1 0; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-muted); }
+  #striplink { display: inline-flex; align-items: center; gap: 4px; }
+  [data-ribbon-panel] { display: flex; flex-wrap: wrap; align-items: stretch; padding: 3px 4px; box-sizing: border-box; }
+  [data-ribbon-group] { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; padding: 0 8px; border-right: 1px solid var(--color-border); box-sizing: border-box; }
+  [data-ribbon-group]:last-child { border-right: 0; }
+  body[data-fault=left-packed] [data-ribbon-group] { flex: 0 0 auto; }
+  .brk { display: none; flex: 0 0 100%; height: 0; }
+  @media (min-width: 1000px) and (max-width: 1499px) { .brk { display: block; } }
+  body[data-fault=wrong-band] .brk-grid { display: block; }
+  .gc { display: flex; gap: 4px; align-items: flex-start; height: 80px; align-self: center; width: max-content; }
+  .rows { display: flex; flex-direction: column; gap: 2px; }
+  .row { display: flex; gap: 6px; align-items: flex-start; }
+  .ctl { display: flex; flex-direction: column; align-items: stretch; }
+  .ctl.under { flex-direction: column-reverse; }
+  [data-ctl-label] { display: block; font-size: 11px; line-height: 13px; color: var(--color-text-secondary); white-space: nowrap; text-align: left; }
+  .under [data-ctl-label] { text-align: center; }
+  [data-group-label] { font-size: 11px; line-height: 13px; text-align: center; color: var(--color-text-muted); padding-bottom: 2px; }
+  [data-ribbon-panel] button, [data-ribbon-panel] select, [data-ribbon-panel] input:not([type=checkbox]) { height: 26px; box-sizing: border-box; font-size: 12px; border: 1px solid var(--color-border); background: #fff; border-radius: 3px; }
+  [data-ribbon-panel] button:disabled, [data-ribbon-panel] select:disabled, [data-ribbon-panel] input:disabled { opacity: .5; }
+  [data-ribbon-panel] input[type=text] { width: 64px; text-align: center; padding: 0 2px; }
+  [data-ribbon-panel] input[type=text][data-hex] { width: 84px; text-align: left; padding: 0 6px; }
+  [data-ribbon-panel] input[type=color] { width: 26px; padding: 1px; }
+  [data-ribbon-panel] select { max-width: 150px; padding: 0 4px; }
+  #i-ff { width: 130px; }
+  #i-fw { width: 72px; }
+  #spacing { width: 74px; }
+  [data-ribbon-panel] .step button { width: 22px; padding: 0; }
+  .step { display: inline-flex; }
+  [data-ribbon-panel] button.al { width: 40px; padding: 0; }
+  [data-ribbon-panel] button.unit { width: 30px; padding: 0; }
+  [data-ribbon-panel] button.sides { width: 46px; padding: 0; margin-top: 13px; }
+  [data-ribbon-panel] button.lg { width: 52px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; font-size: 11px; }
+  button.lg svg { width: 20px; height: 20px; }
+  [data-ribbon-panel] button[aria-pressed=true] { background: var(--color-text); color: #fff; }
+  [data-sides-popover] { position: absolute; top: 70px; left: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; max-width: 100%; border: 1px solid var(--color-border); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  [data-sides-popover] button, [data-sides-popover] input { height: 26px; }
+  [data-snap-note] { margin: 0; width: 126px; font-size: 11px; line-height: 13px; color: var(--color-text-muted); }
+  [role=status] { height: 28px; line-height: 28px; margin-top: 4px; padding: 0 8px; box-sizing: border-box; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border: 1px solid transparent; font-size: 12px; }
+  body[data-fault=status-tall] [role=status] { height: 64px; white-space: normal; line-height: 16px; }
+  body[data-fault=status-moves-stage] [role=status]:empty { height: 0; }
+  .ue-section { margin-top: 24px; }
+  [data-stage-area] { display: flex; justify-content: center; margin-top: 8px; border: 1px solid #ccc; }
+  [data-device-scale] { flex: none; transform-origin: top center; }
+  .dev { box-sizing: border-box; background: #1b1b1f; position: relative; }
+  .dev:not([data-device-frame]) { background: none; padding: 0 !important; border-radius: 0 !important; }
+  #screen { position: relative; background: #fff; overflow: hidden; }
+  #cover { position: absolute; inset: 0; }
+  [data-grid-overlay] { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(to right, rgba(232,93,63,.45) 1px, transparent 1px), linear-gradient(to bottom, rgba(232,93,63,.45) 1px, transparent 1px); }
+  [data-selection] { position: absolute; outline: 2px solid #e85d3f; pointer-events: none; }
+  [data-handle] { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; background: #fff; border: 2px solid #e85d3f; pointer-events: auto; }
+  [data-drag-label] { position: absolute; background: #123; color: #fff; padding: 2px 6px; z-index: 5; pointer-events: none; }
+  .code { display: flex; gap: 4px; }
+  [data-code-view] { flex: 1; height: 220px; overflow: auto; border: 1px solid #ccc; font: 12px/16px ui-monospace, monospace; white-space: pre; position: relative; }
+  [data-line] { display: flex; height: 16px; }
+  [data-line][data-change] { background: #fff2c9; }
+  [data-margin-marker] { width: 18px; flex: none; text-align: center; }
+  [data-removed] { height: 3px; background: #c33; margin: 0 0 -1px; }
+  [data-change-map] { position: relative; width: 14px; height: 220px; background: #eee; }
+  [data-change-map] button { position: absolute; left: 0; width: 14px; height: 3px; min-height: 0; padding: 0; margin-top: -1.5px; background: #e85d3f; border: 0; }
+  @media (max-width: 999px) {
+    #bar button, #bar select { min-height: 44px; min-width: 44px; }
+    [data-ribbon-strip] { height: auto; flex-wrap: wrap; padding: 4px 8px; white-space: normal; }
+    [data-ribbon-note] { flex-basis: 100%; white-space: normal; }
+    [data-ribbon-group] { flex: 1 1 100%; border-right: 0; border-bottom: 1px solid var(--color-border); padding: 4px 0; }
+    .gc { height: auto; width: auto; flex-wrap: wrap; }
+    .rows, .row { flex-wrap: wrap; }
+    [data-ribbon-panel] button, [data-ribbon-panel] select, [data-ribbon-panel] input:not([type=checkbox]) { min-height: 44px; min-width: 44px; height: 44px; }
+    [data-ribbon-panel] button.lg { height: 60px; }
+    [data-ribbon-panel] button.sides { margin-top: 0; }
+    [data-ribbon-panel] .step button { width: 44px; }
+    [data-ribbon-panel] input[type=text] { width: 56px; }
+    [data-ribbon-panel] input[type=text][data-hex] { width: 90px; }
+    #i-ff { width: 140px; }
+    [data-ribbon-strip] input[type=checkbox] { width: 44px; height: 44px; margin: 0; }
+    #striplink { min-height: 44px; }
+    [data-sides-popover] { position: static; flex-direction: column; box-shadow: none; }
+    [data-snap-note] { width: auto; }
+    [role=status] { white-space: normal; height: auto; min-height: 52px; line-height: 16px; }
+    body[data-fault=small-390] [data-ribbon-panel] button:not(.lg), body[data-fault=small-390] [data-ribbon-panel] select, body[data-fault=small-390] [data-ribbon-panel] input:not([type=checkbox]) { min-height: 0; height: 28px; }
+  }
+  body[data-fault=heights-off] [data-ribbon-panel] button:not(.lg), body[data-fault=heights-off] [data-ribbon-panel] select, body[data-fault=heights-off] [data-ribbon-panel] input:not([type=checkbox]) { height: 34px; }
+  body[data-fault=height-selection].has-sel [data-ribbon-strip] { height: 40px; }
+  body[data-fault=clip-fill] [data-ribbon-panel] input[data-hex] { width: 40px; }
+  body[data-fault=clip-font] #i-ff { width: 60px; }
+  body[data-fault=review-no-words] #review span, body[data-fault=reset-no-words] #reset span { display: none; }
+  #review .badge { font-size: 11px; background: #e85d3f; color: #fff; border-radius: 8px; padding: 0 5px; }
+</style>
+</head>
+<body>
+<!--
+  The round 4 scorer-check stub (docs/ui-editor-gate-rules-round4.md): a deliberately small editor on the real engine that follows the round 4 UI contract
+  (quick bar with words, a strip with the selected element and the Link checkbox, ONE ribbon of seven labelled groups that share the width, a slim status line,
+  Grid, Snap and Grid spacing always enabled, the grid overlay and snap, a multi-file code view, a Limits list) just far enough to run U01 to U13 through the
+  real gate runner, with faults ?fault=NAME:
+    tab-bar            a tab bar is left in the strip (U01)
+    group-missing      the Grid group is missing (U01)
+    wrong-band         the Grid group wraps into a second band at every width (U02; U01 sees it only if it is hidden)
+    group-order        the Grid group stands before Spacing, in the wrong place (U01)
+    left-packed        the groups do not grow: they pack to the left with empty space at the right (U02)
+    no-label           Height has no visible label (U03)
+    single-letter      Width is labelled W (U03)
+    old-abbrev         Border width is labelled Thick (U03)
+    no-tooltip         Border radius has no tooltip (U03)
+    height-selection   the strip is taller while an element is selected (U04)
+    heights-off        small controls are 34 px high (U05)
+    clip-fill          the Fill field is too narrow for "Transparent" (U06)
+    clip-font          the Font family select is too narrow for "Georgia" (U06)
+    status-tall        the status line is a tall card (U07)
+    status-moves-stage the status line has no height until it has a message, so the stage moves (U04, U07)
+    tab-jump           a control with a positive tabindex makes Tab jump over the order (U08)
+    grid-disabled-empty Grid, Snap and Grid spacing are disabled with nothing selected (U09)
+    snap-floor         snap rounds down instead of to the nearest line (U09, U10)
+    review-no-words    Review unlinked shows no words (U11)
+    reset-no-words     Reset all shows no words (U11)
+    small-390          controls are under 44 px at 390 (U12)
+    no-sentence        the Limits list lacks the snapping sentence (U13)
+  It is not the product; it only lets the scorer be checked before the page is built.
+-->
+<div class="wrap">
+<div data-editor>
+  <div id="bar" role="group" aria-label="Editor controls">
+    <button type="button" id="samples" aria-expanded="false">Samples</button>
+    <span id="tools" hidden>
+      <button type="button" id="undo" aria-label="Undo" title="Undo the last edit" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button type="button" id="redo" aria-label="Redo" title="Redo the edit" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+      <button type="button" id="review" aria-label="Review unlinked (0)" title="Review the edits that apply to one size only" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4l16 16"/></svg><span>Review unlinked</span><b class="badge">0</b></button>
+      <span class="flex"></span>
+      <span role="group" aria-label="View"><button type="button" aria-label="Desktop" aria-pressed="true" title="Show the Desktop size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="12"/></svg><span>Desktop</span></button><button type="button" aria-label="Tablet" aria-pressed="false" title="Show the Tablet size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="2" width="14" height="19"/></svg><span>Tablet</span></button><button type="button" aria-label="Phone" aria-pressed="false" title="Show the Phone size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="7" y="2" width="10" height="19"/></svg><span>Phone</span></button></span>
+      <button type="button" id="rotate" aria-label="Rotate" title="Turn the device sideways" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="10" width="6" height="11"/><path d="M6 7.5a8 8 0 0 1 12 0"/></svg><span>Rotate</span></button>
+      <span class="flex"></span>
+      <label for="file" hidden>File</label><select id="file" aria-label="File"></select>
+      <button type="button" id="copy" aria-label="Copy code" title="Copy the file to the clipboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="9" width="11" height="11"/><path d="M5 15V6h9"/></svg><span>Copy code</span></button>
+      <button type="button" id="download" aria-label="Download" title="Download the file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></button>
+      <span class="sep"></span>
+      <button type="button" id="reset" aria-label="Reset all" title="Reset every edit" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 3H6v18h5M13 3l5 5"/></svg><span>Reset all</span></button>
+    </span>
+  </div>
+  <div id="confirm" role="group" aria-label="Confirm" hidden><p>Replace what is open? Your edits will be lost.</p><button type="button" id="discard">Discard edits</button><button type="button" id="keep">Keep editing</button></div>
+  <div data-gallery role="region" aria-label="Sample gallery"></div>
+  <div id="paste" role="group" aria-label="Paste code" hidden>
+    <label for="pm">HTML or SVG</label><textarea id="pm" rows="4"></textarea>
+    <label for="pc">Companion CSS (optional)</label><textarea id="pc" rows="2"></textarea>
+    <button type="button" id="openpaste">Open pasted code</button><button type="button" id="cancelpaste">Cancel</button>
+  </div>
+  <input type="file" id="upfile" accept=".html,.htm,.svg,.css" multiple hidden>
+  <div data-ribbon hidden></div>
+  <div role="status" aria-label="Edit result" id="msg" hidden></div>
+  <div id="work" hidden>
+    <div data-stage-area><div data-device-scale><div class="dev" id="dev"><div id="screen"><div id="host"></div><div id="cover"></div><div data-grid-overlay hidden></div></div></div></div></div>
+  </div>
+  <details id="codebox" hidden><summary>Updated code</summary>
+    <div><button type="button" id="prevc">Previous change</button> <button type="button" id="nextc">Next change</button> <span data-change-counter>No changes yet</span></div>
+    <div class="code"><div data-code-view tabindex="0" aria-label="Updated code"></div><div data-change-map></div></div>
+  </details>
+</div>
+<section class="ue-section"><h2>Limits</h2><ul class="ue-list" id="limits"><li>Tested in Chromium only.</li></ul></section>
+</div>
+<script type="module">
+import * as E from '/engine.js'
+const fault = new URLSearchParams(location.search).get('fault')
+const $ = (s) => document.querySelector(s)
+document.body.dataset.fault = fault ?? ''
+if (fault === 'reset-near-undo') { $('#redo').after($('#reset')); document.querySelector('.sep').remove() }
+const FILES = { landing: ['landing.html', 'landing.css'], email: ['email.html'], chart: ['chart.svg'] }
+const KIND = { landing: 'html', email: 'html', chart: 'svg' }
+const TITLES = { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart' }
+const SIZES = { desktop: { portrait: [1280, null] }, tablet: { portrait: [768, 1024], landscape: [1024, 768] }, phone: { portrait: [390, 844], landscape: [844, 390] } }
+const BEZEL = { phone: { portrait: [28, 12, 24, 12], landscape: [12, 24, 12, 28] }, tablet: { portrait: [12, 12, 12, 12], landscape: [12, 12, 12, 12] } }
+const textOf = async (f) => (await fetch('/samples/' + f)).text()
+let doc = null, originals = {}, edits = [], redo = [], preview = null, session = null, sel = null, view = 'desktop', orient = 'portrait', scale = 1, unit = 'px'
+let jumpK = 0, shownFile = '', handPicked = false, gridOn = false, snapOn = false, spacing = 8, altDown = false
+addEventListener('keydown', (e) => { if (e.key === 'Alt') altDown = true })
+addEventListener('keyup', (e) => { if (e.key === 'Alt') altDown = false })
+
+// ---- the gallery: three samples and "Your own code" ----
+for (const id of Object.keys(FILES)) {
+  const files = {}
+  for (const f of FILES[id]) files[f] = await textOf(f)
+  const [main, ...rest] = FILES[id]
+  const model = E.createModel(files[main], KIND[id], Object.fromEntries(rest.map((r) => [r, files[r]])), main)
+  const c = document.createElement('div')
+  c.setAttribute('data-sample-card', id); c.setAttribute('role', 'button'); c.tabIndex = 0
+  c.innerHTML = `<div class="mini"><iframe data-miniature sandbox="allow-same-origin" tabindex="-1" title="Miniature of ${TITLES[id]}"></iframe></div><h3>${TITLES[id]}</h3><p>A sample.</p>`
+  c.querySelector('iframe').srcdoc = E.previewSource(model)
+  c.addEventListener('click', () => pick(() => loadSample(id)))
+  $('[data-gallery]').appendChild(c)
+}
+{
+  const c = document.createElement('div')
+  c.setAttribute('data-sample-card', 'own')
+  c.innerHTML = `<div class="mini"><div data-blank-page></div></div><h3>Your own code</h3><p>Paste or upload.</p><button type="button" id="own-paste">Paste</button> <button type="button" id="own-upload">Upload</button>`
+  $('[data-gallery]').appendChild(c)
+}
+let pending = null
+const pick = (run) => { if (edits.length) { pending = run; $('#confirm').hidden = false } else run() }
+$('#keep').addEventListener('click', () => { pending = null; $('#confirm').hidden = true })
+$('#discard').addEventListener('click', () => { const r = pending; pending = null; $('#confirm').hidden = true; r() })
+$('#samples').addEventListener('click', () => {
+  const g = $('[data-gallery]'); $('#paste').hidden = true
+  g.hidden = doc ? !g.hidden : false
+  $('#samples').setAttribute('aria-expanded', String(!g.hidden))
+})
+$('#own-paste').addEventListener('click', () => { $('#paste').hidden = false; $('[data-gallery]').hidden = true })
+$('#cancelpaste').addEventListener('click', () => { $('#paste').hidden = true; if (!doc) $('[data-gallery]').hidden = false })
+$('#own-upload').addEventListener('click', () => $('#upfile').click())
+
+async function loadSample(id) {
+  const files = {}
+  for (const f of FILES[id]) files[f] = await textOf(f)
+  open_({ id, order: FILES[id], files, kind: KIND[id], main: FILES[id][0] })
+}
+async function open_(d) {
+  doc = d; originals = { ...d.files }; edits = []; redo = []; sel = null; view = 'desktop'; orient = 'portrait'; jumpK = 0; unit = 'px'
+  shownFile = d.order[0]; handPicked = false
+  $('[data-gallery]').hidden = true; $('#paste').hidden = true; $('#samples').setAttribute('aria-expanded', 'false')
+  $('#tools').hidden = false; $('#work').hidden = false; $('[data-ribbon]').hidden = false; $('#msg').hidden = false; $('#codebox').hidden = false
+  document.querySelectorAll('[aria-label="View"] button').forEach((x) => x.setAttribute('aria-pressed', String(x.getAttribute('aria-label') === 'Desktop')))
+  await rebuild()
+}
+const modelOf = () => { const [main, ...rest] = doc.order; return E.createModel(originals[main], doc.kind, Object.fromEntries(rest.map((r) => [r, originals[r]])), main) }
+
+// ---- the device ----
+function layout() {
+  const [w, h] = SIZES[view][orient]
+  const framed = view !== 'desktop'
+  const [bt, br, bb, bl] = framed ? BEZEL[view][orient] : [0, 0, 0, 0]
+  const ih = h ?? 800
+  const frameW = w + bl + br, frameH = ih + bt + bb
+  const area = $('[data-stage-area]').clientWidth
+  scale = Math.min(1, area / frameW, framed ? (innerHeight - 16) / frameH : 1)
+  const sc = $('[data-device-scale]'), dev = $('#dev')
+  Object.assign(sc.style, { width: frameW + 'px', transform: scale < 1 ? `scale(${scale})` : '', marginBottom: -(frameH * (1 - scale)) + 'px' })
+  dev.toggleAttribute('data-device-frame', framed)
+  if (framed) { dev.dataset.device = view; dev.dataset.orientation = orient } else { delete dev.dataset.device; delete dev.dataset.orientation }
+  Object.assign(dev.style, { width: frameW + 'px', height: frameH + 'px', padding: `${bt}px ${br}px ${bb}px ${bl}px`, borderRadius: framed ? '24px' : '0' })
+  Object.assign($('#screen').style, { width: w + 'px', height: ih + 'px' })
+  if (preview) { preview.iframe.style.height = ih + 'px'; preview.setWidth(w) }
+  $('#rotate').hidden = !framed
+  paintGrid()
+}
+addEventListener('resize', () => { if (preview) { layout(); paint() } })
+const editable = () => view === 'desktop' || (view === 'phone' && orient === 'portrait')
+
+function paintGrid() {
+  const o = $('[data-grid-overlay]')
+  o.hidden = !gridOn
+  const s = fault === 'grid-spacing' ? spacing + 1 : spacing
+  o.style.backgroundSize = `${s}px ${s}px`
+  document.querySelectorAll('[data-fault-grid]').forEach((n) => n.remove())
+  if (fault === 'grid-ignores-scale') {
+    // drawn over the stage in screen px, outside the scaled device, so it does not follow the scale
+    const a = $('[data-stage-area]'); a.style.position = 'relative'
+    if (o.parentElement !== a) a.appendChild(o)
+    const f = $('iframe[title="Preview"]')
+    if (f && gridOn) { const r = f.getBoundingClientRect(), ar = a.getBoundingClientRect(); Object.assign(o.style, { inset: 'auto', left: r.left - ar.left + 'px', top: r.top - ar.top + 'px', width: r.width + 'px', height: r.height + 'px' }) }
+  }
+  if (fault === 'grid-in-doc' && gridOn && preview) {
+    const d = preview.doc.createElement('div'); d.setAttribute('data-grid-overlay', ''); d.setAttribute('data-fault-grid', ''); preview.doc.body.appendChild(d)
+  }
+}
+
+async function rebuild(list = edits) {
+  $('[data-editor]').setAttribute('aria-busy', 'true')
+  preview?.dispose()
+  preview = await E.createPreview(modelOf(), $('#host'), { width: SIZES[view][orient][0], height: SIZES[view][orient][1] ?? 800 })
+  preview.iframe.title = 'Preview'
+  const pair = (e) => ({ ...e, target: typeof e.target === 'string' ? E.select(preview.model, e.target) : e.target })
+  session = E.applyEditSteps(preview, list.map(pair))
+  const last = session.results[session.results.length - 1]
+  $('[data-editor]').removeAttribute('aria-busy')
+  layout(); paint()
+  return last
+}
+const idxOf = (e) => preview.elements.indexOf(e)
+const scope = () => ({ environment: view === 'phone' ? 'phone' : 'desktop', link: doc.kind === 'svg' ? true : $('#link')?.checked !== false })
+/** After any change of the edit list: the counter starts again, and the shown file moves to the first changed file when it has no change of its own (never after a hand pick). */
+function afterEdit() {
+  jumpK = 0
+  if (fault === 'no-switch' || handPicked || !session) return
+  if (fileHunks(shownFile).length === 0) { const f = doc.order.find((x) => fileHunks(x).length > 0); if (f) shownFile = f }
+}
+async function apply(edit) {
+  const path = E.describe(preview.model, edit.target)
+  const list = [...edits, { ...edit, target: path }]
+  const keep = sel !== null && edit.op !== 'reorder' ? path : null
+  const last = await rebuild(list)
+  if (last && !last.ok) { $('#msg').textContent = 'Not applied: ' + last.refusal.message; await rebuild(edits); return }
+  edits = list; redo = []
+  sel = keep ? E.select(preview.model, keep) : null
+  $('#msg').textContent = 'Applied.'
+  afterEdit(); paint()
+}
+
+// ---- the ribbon ----
+const FAMS = ['Georgia', 'Times New Roman', 'Arial', 'Helvetica', 'Verdana', 'Trebuchet MS', 'Tahoma', 'Courier New', 'system-ui', 'serif', 'sans-serif', 'monospace']
+const F = (n) => fault === n
+if (!F('no-sentence')) { const li = document.createElement('li'); li.textContent = 'With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge.'; $('#limits').appendChild(li) }
+const ctl = (label, inner, cls = '') => `<div class="ctl ${cls}">${label === null ? '' : `<span data-ctl-label aria-hidden="true">${label}</span>`}${inner}</div>`
+const stepper = (name, field, label = name, tip = true) => ctl(label, `<span class="step" data-field="${field}"><button type="button" aria-label="Decrease ${name}" title="Decrease ${name} by one step" data-st="${name}|-1">−</button><input type="text" aria-label="${name}"${tip ? ` title="Type the ${name.toLowerCase()}, then press Enter"` : ''} data-num="${name}"><button type="button" aria-label="Increase ${name}" title="Increase ${name} by one step" data-st="${name}|1">+</button></span>`)
+const colour = (name, field, pickName, label) => ctl(label, `<span class="step" data-field="${field}"><input type="text" aria-label="${name}" title="Type a colour, then press Enter" data-hex="${field}"><input type="color" aria-label="${pickName}" title="Pick a ${label.toLowerCase()} from the palette" data-pick="${field}"></span>`)
+const sidesBtn = (name) => `<button type="button" class="sides" aria-label="${name} sides" title="Edit each side of ${name.toLowerCase()}" aria-expanded="false" data-sides-btn="${name}">Sides</button>`
+const popover = (name) => `<div role="dialog" aria-label="${name} sides" data-sides-popover="${name}" hidden>${['top', 'right', 'bottom', 'left'].map((s) => `<span class="step"><button type="button" aria-label="Decrease ${name} ${s}" title="Decrease ${name} ${s} by one step" data-st="${name} ${s}|-1">−</button><input type="text" aria-label="${name} ${s}" title="Type the ${name.toLowerCase()} ${s}, then press Enter" data-num="${name} ${s}"><button type="button" aria-label="Increase ${name} ${s}" title="Increase ${name} ${s} by one step" data-st="${name} ${s}|1">+</button></span>`).join('')}</div>`
+const icon = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="${d}"/></svg>`
+const group = (id, name, body, extra = '') => `<div data-ribbon-group="${id}" role="group" aria-label="${name}"${extra}><div class="gc">${body}</div><span data-group-label>${name}</span></div>`
+const lg = (id, label, tip, d, pressed) => `<button type="button" class="lg" id="${id}" aria-label="${label}" title="${tip}"${pressed === undefined ? '' : ` aria-pressed="${pressed}"`}>${icon(d)}<span>${label}</span></button>`
+const AL = [['left', 'Align left', 'Left'], ['center', 'Align centre', 'Centre'], ['right', 'Align right', 'Right'], ['justify', 'Justify', 'Justify']]
+const fontG = group('font', 'Font', `<div class="rows"><div class="row">${ctl('Font family', `<select id="i-ff" aria-label="Font family" title="Choose the font for this text"></select>`)}${stepper('Font size', 'font-size')}</div><div class="row">${ctl('Weight', `<select id="i-fw" aria-label="Font weight" title="Choose how heavy the text is">${[100, 200, 300, 400, 500, 600, 700, 800, 900].map((w) => `<option>${w}</option>`).join('')}</select>`)}${colour('Text colour', 'color', 'Pick text colour', 'Text colour')}</div></div>`)
+const paraG = group('paragraph', 'Paragraph', `<div class="rows"><div class="row" data-field="text-align" role="group" aria-label="Alignment">${AL.map(([v, n, cap]) => ctl(cap, `<button type="button" class="al" aria-label="${n}" title="Align the text to the ${cap.toLowerCase()}" aria-pressed="false" data-al="${v}">${icon('M4 6h16M4 12h10M4 18h16')}</button>`, 'under')).join('')}</div></div>`)
+const sizeG = group('size', 'Size', `<div class="rows"><div class="row">${stepper('Width', 'width', F('single-letter') ? 'W' : 'Width')}${ctl('Unit', `<span role="group" aria-label="Width unit" class="step"><button type="button" class="unit" aria-pressed="true" aria-label="px" title="Show the width in pixels" data-unit="px">px</button><button type="button" class="unit" aria-pressed="false" aria-label="%" title="Show the width as a share of the parent" data-unit="%">%</button></span>`)}</div><div class="row">${F('no-label') ? stepper('Height', 'height', '').replace(/<span data-ctl-label[^>]*><\/span>/, '') : stepper('Height', 'height')}</div></div>`)
+const shapeG = group('shape', 'Shape', `<div class="rows"><div class="row">${colour('Background', 'background-color', 'Pick background', 'Fill colour')}${colour('Border colour', 'border-color', 'Pick border colour', 'Line colour')}</div><div class="row">${stepper('Border width', 'border-width', F('old-abbrev') ? 'Thick' : 'Line thickness')}${stepper('Border radius', 'border-radius', 'Corner rounding', !F('no-tooltip'))}</div></div>`)
+const spaceG = group('spacing', 'Spacing', `<div class="rows"><div class="row">${stepper('Padding', 'padding')}${sidesBtn('Padding')}</div><div class="row">${stepper('Margin', 'margin')}${sidesBtn('Margin')}</div></div>${popover('Padding')}${popover('Margin')}`)
+const arrG = group('position', 'Arrange', `${lg('up', 'Move up', 'Move this element earlier in the page order.', 'M12 19V6M6 11l6-6 6 6')}${lg('down', 'Move down', 'Move this element later in the page order.', 'M12 5v13M6 13l6 6 6-6')}<div class="rows"><div class="row">${stepper('Nudge X', 'nudge-x')}</div><div class="row">${stepper('Nudge Y', 'nudge-y')}</div></div>`, ' data-field="position"')
+const gridG = group('grid', 'Grid', `${lg('grid', 'Grid', 'Show or hide the grid over the preview', 'M4 4h16v16H4zM4 12h16M12 4v16', 'false')}${lg('snap', 'Snap', 'Snap moves and resizes to the grid', 'M5 19V5M5 19h14M9 15l4-4', String(snapOn))}<div class="rows"><div class="row">${ctl('Grid spacing', `<select id="spacing" aria-label="Grid spacing" title="Choose the distance between grid lines"${F('tab-jump') ? ' tabindex="1"' : ''}>${[4, 8, 16, 32].map((n) => `<option value="${n}"${n === 8 ? ' selected' : ''}>${n} px</option>`).join('')}</select>`)}</div><p data-snap-note hidden>Snap is for HTML pages. SVG moves use the drawing’s own units.</p></div>`)
+$('[data-ribbon]').innerHTML = `
+  <div data-ribbon-strip>${F('tab-bar') ? '<div role="tablist" aria-label="Ribbon tabs"><div role="tab" aria-selected="true" tabindex="0">Home</div></div>' : ''}<span class="t">Selected element</span><span data-selected-label></span><strong data-env>Desktop</strong><span id="striplink"><input type="checkbox" id="link" checked title="Scale the other size by the same ratio when this one changes; with it off the change applies to this size only and is listed under Review unlinked."><label for="link" id="linklabel" title="Scale the other size by the same ratio when this one changes; with it off the change applies to this size only and is listed under Review unlinked.">Link to Phone</label></span><p data-ribbon-note></p></div>
+  <div data-ribbon-panel>${fontG}${paraG}${sizeG}${shapeG}<span class="brk" aria-hidden="true"></span>${F('group-order') ? gridG : ''}${spaceG}${arrG}${F('wrong-band') ? '<span class="brk brk-grid" aria-hidden="true"></span>' : ''}${F('group-missing') || F('group-order') ? '' : gridG}</div>`
+$('#i-ff').innerHTML = ''
+const ribbon = $('[data-ribbon]')
+const ribbonControls = () => [...ribbon.querySelectorAll('[data-ribbon-panel] button, [data-ribbon-panel] input, [data-ribbon-panel] select')]
+const px = (v) => Math.round(parseFloat(v) * 100) / 100
+
+function stepFor(name, shift) {
+  const base = name.replace(/ (top|right|bottom|left)$/, '')
+  const s = { 'Font size': 1, Width: 4, Height: 4, Padding: 4, Margin: 4, 'Border width': 1, 'Border radius': 2, 'Nudge X': 1, 'Nudge Y': 1 }[base] ?? 1
+  return shift ? s * 10 : s
+}
+const cs = () => preview.doc.defaultView.getComputedStyle(preview.elements[sel])
+const parentW = () => { const e = preview.elements[sel], p = e.parentElement, c = preview.doc.defaultView.getComputedStyle(p); return p.clientWidth - parseFloat(c.paddingLeft) - parseFloat(c.paddingRight) }
+const doSet = (properties) => apply({ op: 'set', target: sel, properties, ...scope() })
+const doNudge = (dx, dy) => apply({ op: 'offset', target: sel, dx, dy, ...scope() })
+function current(name) {
+  const c = cs(), n = name.replace(/ (top|right|bottom|left)$/, ''), side = /(top|right|bottom|left)$/.exec(name)?.[1]
+  const cap = side ? side[0].toUpperCase() + side.slice(1) : 'Top'
+  if (n === 'Font size') return px(c.fontSize)
+  if (n === 'Width') return unit === '%' ? Math.round((px(c.width) / parentW()) * 10000) / 100 : px(c.width)
+  if (n === 'Height') return px(c.height)
+  if (n === 'Padding') return px(c['padding' + cap])
+  if (n === 'Margin') return px(c['margin' + cap])
+  if (n === 'Border width') return px(c.borderTopWidth)
+  if (n === 'Border radius') return px(c.borderTopLeftRadius)
+  return 0
+}
+async function write(name, value) {
+  const n = name.replace(/ (top|right|bottom|left)$/, ''), side = /(top|right|bottom|left)$/.exec(name)?.[1]
+  if (n === 'Font size') return doSet({ 'font-size': value + 'px' })
+  if (n === 'Width') return doSet({ width: value + (unit === '%' ? '%' : 'px') })
+  if (n === 'Height') return doSet({ height: value + 'px' })
+  if (n === 'Padding' || n === 'Margin') {
+    const key = n.toLowerCase(), c = cs(), v = Object.fromEntries(['Top', 'Right', 'Bottom', 'Left'].map((x) => [x.toLowerCase(), px(c[key + x])]))
+    if (side && fault !== 'sides-all') v[side] = value; else for (const x of Object.keys(v)) v[x] = value
+    return doSet({ [key]: `${v.top}px ${v.right}px ${v.bottom}px ${v.left}px` })
+  }
+  if (n === 'Border width') return doSet({ 'border-width': value + 'px', ...(cs().borderTopStyle === 'none' ? { 'border-style': 'solid' } : {}) })
+  if (n === 'Border radius') return doSet({ 'border-radius': value + 'px' })
+}
+function closePopovers(focusBtn) {
+  for (const p of document.querySelectorAll('[data-sides-popover]')) if (!p.hidden) { p.hidden = true; const b = document.querySelector(`[data-sides-btn="${p.dataset.sidesPopover}"]`); b.setAttribute('aria-expanded', 'false'); if (focusBtn) b.focus() }
+}
+ribbon.addEventListener('click', async (e) => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return
+  if (b.dataset.sidesBtn) { const p = document.querySelector(`[data-sides-popover="${b.dataset.sidesBtn}"]`); const open = p.hidden; closePopovers(false); p.hidden = !open; b.setAttribute('aria-expanded', String(open)); if (open) p.querySelector('input').focus(); return }
+  if (b.dataset.st) { const [name, dir] = b.dataset.st.split('|'); if (/^Nudge/.test(name)) { const st = stepFor(name, e.shiftKey) * Number(dir); return name.endsWith('X') ? doNudge(st, 0) : doNudge(0, st) } return write(name, current(name) + stepFor(name, e.shiftKey) * Number(dir)) }
+  if (b.dataset.al) return doSet({ 'text-align': b.dataset.al })
+  if (b.dataset.unit) { unit = b.dataset.unit; return paint() }
+  if (b.id === 'grid') { gridOn = !gridOn; return paint() }
+  if (b.id === 'snap') { snapOn = !snapOn; return paint() }
+  if (b.id === 'up' || b.id === 'down') { const el = preview.elements[sel], sib = b.id === 'up' ? el.previousElementSibling : el.nextElementSibling; if (sib) return apply({ op: 'reorder', target: sel, placement: b.id === 'up' ? 'before' : 'after', sibling: idxOf(sib), ...scope() }) }
+})
+ribbon.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && e.target.closest('[data-sides-popover]')) { e.preventDefault(); closePopovers(true); return }
+  if (e.key !== 'Enter' || !e.target.matches('input[type=text]')) return
+  const t = e.target
+  if (t.dataset.num) { const name = t.dataset.num; const v = parseFloat(t.value); if (!Number.isFinite(v)) return; if (/^Nudge/.test(name)) return name.endsWith('X') ? doNudge(Math.round(v), 0) : doNudge(0, Math.round(v)); return write(name, v) }
+  if (t.dataset.hex) return doSet({ [t.dataset.hex]: t.value.trim() })
+})
+ribbon.addEventListener('change', (e) => {
+  const t = e.target
+  if (t.id === 'i-ff') return doSet({ 'font-family': /\s/.test(t.value) ? `"${t.value}"` : t.value })
+  if (t.id === 'i-fw') return doSet({ 'font-weight': t.value })
+  if (t.id === 'spacing') { spacing = Number(t.value); return paintGrid() }
+  if (t.dataset.pick) return doSet({ [t.dataset.pick]: t.value })
+})
+
+function paintRibbon() {
+  const on = sel !== null && !!preview.elements[sel] && editable()
+  const el = on ? preview.elements[sel] : null
+  document.body.classList.toggle('has-sel', sel !== null && !!preview.elements[sel])
+  for (const c of ribbonControls()) c.disabled = fault === 'enabled-empty' ? false : !on
+  $('#link').disabled = !on
+  // the view aids: enabled whenever a document is open (Snap is for HTML only)
+  const svg = doc.kind === 'svg'
+  const aid = fault === 'grid-disabled-empty' ? on : true
+  $('#grid').disabled = !aid
+  $('#spacing').disabled = !aid
+  $('#snap').disabled = !aid || (svg && fault !== 'svg-snap')
+  $('#linklabel').textContent = view === 'phone' ? 'Link to Desktop' : 'Link to Phone'
+  const note = sel === null || !preview.elements[sel] ? (editable() ? 'Click an element to edit it' : 'This size is view-only, so its settings are switched off.') : (editable() ? '' : 'This size is view-only, so its settings are switched off.')
+  $('[data-ribbon-note]').textContent = note
+  $('[data-env]').textContent = view[0].toUpperCase() + view.slice(1)
+  $('[data-selected-label]').textContent = sel !== null && preview.elements[sel] ? preview.elements[sel].localName + (preview.elements[sel].id ? ' #' + preview.elements[sel].id : '') : ''
+  for (const b of document.querySelectorAll('[data-unit]')) b.setAttribute('aria-pressed', String(b.dataset.unit === unit))
+  $('#grid').setAttribute('aria-pressed', String(gridOn)); $('#snap').setAttribute('aria-pressed', String(snapOn))
+  $('[data-snap-note]').hidden = !svg
+  const f = $('#i-ff')
+  if (el) {
+    const c = cs()
+    const first = (st) => st.split(',')[0].trim().replace(/^["']|["']$/g, '')
+    f.innerHTML = [first(c.fontFamily), ...FAMS].map((o) => `<option>${o.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</option>`).join(''); f.selectedIndex = 0
+    f.title = `Choose the font for this text. Now: ${c.fontFamily}.`
+    $('#i-fw').value = c.fontWeight
+    for (const i of ribbon.querySelectorAll('[data-num]')) { const n = i.dataset.num; i.value = /^Nudge/.test(n) ? '0' : (unit === '%' && n === 'Width' ? current(n) + '%' : current(n) + 'px') }
+    const sides = (k) => ['Top', 'Right', 'Bottom', 'Left'].map((x) => px(c[k + x]))
+    for (const k of ['padding', 'margin']) { const s = sides(k); const mixed = s.some((v) => v !== s[0]); ribbon.querySelector(`[data-num="${k[0].toUpperCase() + k.slice(1)}"]`).value = mixed ? 'mixed' : s[0] + 'px' }
+    const hex = (v) => '#' + (v.match(/\d+/g) ?? [0, 0, 0]).slice(0, 3).map((x) => Number(x).toString(16).padStart(2, '0')).join('')
+    const shown = (v) => (/rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)|transparent/.test(v) ? 'Transparent' : hex(v))
+    const map = { color: c.color, 'background-color': c.backgroundColor, 'border-color': c.borderTopColor }
+    for (const [k, v] of Object.entries(map)) { ribbon.querySelector(`[data-hex="${k}"]`).value = shown(v); ribbon.querySelector(`[data-pick="${k}"]`).value = hex(v) }
+    const ta = c.textAlign === 'start' ? 'left' : c.textAlign
+    for (const b of ribbon.querySelectorAll('[data-al]')) b.setAttribute('aria-pressed', String(b.dataset.al === ta))
+  }
+  // An SVG has three anchors, not four alignments: Start, Middle, End (the names of the real page).
+  {
+    const bs = [...ribbon.querySelectorAll('[data-al]')], names = svg ? [['Anchor start', 'Start'], ['Anchor middle', 'Middle'], ['Anchor end', 'End']] : [['Align left', 'Left'], ['Align centre', 'Centre'], ['Align right', 'Right'], ['Justify', 'Justify']]
+    bs.forEach((b, i) => {
+      const n = names[i]
+      b.closest('.ctl').hidden = !n
+      if (!n) return
+      b.setAttribute('aria-label', n[0]); b.title = `Align the text to the ${n[1].toLowerCase()}`
+      b.closest('.ctl').querySelector('[data-ctl-label]').textContent = n[1]
+    })
+  }
+  if (el) {
+    const c = cs()
+    $('#up').disabled = !el.previousElementSibling; $('#down').disabled = !el.nextElementSibling
+  } else closePopovers(false)
+}
+
+// ---- paint: overlay, quick bar state, the code view ----
+function paint() {
+  $('#screen').querySelectorAll('[data-selection]').forEach((n) => n.remove())
+  $('#undo').disabled = !edits.length; $('#redo').disabled = !redo.length; $('#reset').disabled = !edits.length
+  const pins = E.listUnlinked(session?.state ?? E.emptyState())
+  $('#review').setAttribute('aria-label', `Review unlinked (${pins.length})`); $('#review .badge').textContent = String(pins.length); $('#review').disabled = pins.length === 0
+  if (sel !== null && preview.elements[sel]) {
+    const b = preview.elements[sel].getBoundingClientRect()
+    const box = document.createElement('div')
+    box.setAttribute('data-selection', '')
+    Object.assign(box.style, { left: b.left + 'px', top: b.top + 'px', width: b.width + 'px', height: b.height + 'px' })
+    if (editable()) for (const [h, fx, fy] of [['nw', 0, 0], ['n', .5, 0], ['ne', 1, 0], ['e', 1, .5], ['se', 1, 1], ['s', .5, 1], ['sw', 0, 1], ['w', 0, .5]]) {
+      const hd = document.createElement('div'); hd.setAttribute('data-handle', h)
+      Object.assign(hd.style, { left: fx * 100 + '%', top: fy * 100 + '%' })
+      hd.addEventListener('pointerdown', (ev) => startDrag(ev, h)); box.appendChild(hd)
+    }
+    $('#screen').appendChild(box)
+  }
+  paintRibbon(); paintGrid(); paintCode()
+}
+
+// ---- the stub's own line diff and code view over every file ----
+const linesOf = (t) => { const l = t.split('\n'); if (l.length > 1 && l[l.length - 1] === '') l.pop(); return l }
+function hunks(a, b) {
+  const x = linesOf(a), y = linesOf(b), m = x.length, n = y.length
+  const L = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+  for (let i = m - 1; i >= 0; i--) for (let j = n - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1])
+  const out = []; let cur = null, i = 0, j = 0
+  while (i < m || j < n) {
+    if (i < m && j < n && x[i] === y[j]) { cur = null; i++; j++ }
+    else { if (!cur) { cur = { removed: 0, added: 0, after: j }; out.push(cur) } if (j >= n || (i < m && L[i + 1][j] >= L[i][j + 1])) { cur.removed++; i++ } else { cur.added++; j++ } }
+  }
+  return out
+}
+const fileHunks = (f) => (session ? hunks(originals[f], session.files[f] ?? originals[f]) : [])
+const allChanges = () => (fault === 'only-shown' ? fileHunks(shownFile).map((h, i) => ({ f: shownFile, i })) : doc.order.flatMap((f) => fileHunks(f).map((h, i) => ({ f, i }))))
+function paintCode() {
+  const file = shownFile
+  const marks = doc.order.map((f) => [f, fileHunks(f).length])
+  $('#file').innerHTML = marks.map(([f, n]) => `<option value="${f}">${n ? `${f} (${n})` : f}</option>`).join('')
+  $('#file').value = file
+  $('#copy').title = `Copy ${file} to the clipboard`; $('#download').title = `Download ${file}`
+  const now = session.files[file] ?? originals[file]
+  const hs = hunks(originals[file], now)
+  const ls = linesOf(now)
+  const box = $('[data-code-view]'); box.innerHTML = ''
+  ls.forEach((t, i) => {
+    const n = i + 1
+    const k = hs.findIndex((h) => h.added > 0 && n >= h.after + 1 && n <= h.after + h.added) + 1
+    const row = document.createElement('div'); row.setAttribute('data-line', String(n))
+    if (k) row.setAttribute('data-change', String(k))
+    row.innerHTML = `<span data-margin-marker>${k ? '+' : ''}</span><span data-code-text></span>`
+    row.querySelector('[data-code-text]').textContent = t
+    box.appendChild(row)
+  })
+  hs.forEach((h, idx) => {
+    if (!h.removed) return
+    const r = document.createElement('div'); r.setAttribute('data-removed', ''); r.setAttribute('data-removed-after', String(h.after)); r.setAttribute('data-change', String(idx + 1))
+    box.insertBefore(r, box.querySelector(`[data-line="${h.after + 1}"]`))
+  })
+  const map = $('[data-change-map]'); map.innerHTML = ''
+  hs.forEach((h, idx) => { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', `Change ${idx + 1} of ${hs.length}`); b.style.top = (h.after / ls.length) * 100 + '%'; b.addEventListener('click', () => jumpTo(offsetOf(file) + idx + 1)); map.appendChild(b) })
+  counter()
+  const n = allChanges().length
+  $('#prevc').disabled = $('#nextc').disabled = n === 0
+}
+const offsetOf = (file) => { let o = 0; for (const f of doc.order) { if (f === file) return o; o += fileHunks(f).length } return o }
+const counter = () => { const n = allChanges().length; $('[data-change-counter]').textContent = n ? `${Math.min(jumpK, n)} of ${n}` : 'No changes yet' }
+function jumpTo(k) {
+  const all = allChanges(), t = all[k - 1]
+  if (!t) return
+  jumpK = k; shownFile = t.f; paintCode()
+  const box = $('[data-code-view]')
+  const el = box.querySelector(`[data-line][data-change="${t.i + 1}"]`) ?? box.querySelector(`[data-removed][data-change="${t.i + 1}"]`)
+  if (el) box.scrollTop = Math.max(0, el.offsetTop - box.clientHeight / 2)
+}
+$('#nextc').addEventListener('click', () => { const n = allChanges().length; jumpTo(jumpK >= n ? 1 : jumpK + 1) })
+$('#prevc').addEventListener('click', () => { const n = allChanges().length; jumpTo(jumpK <= 1 ? n : jumpK - 1) })
+$('#file').addEventListener('change', (e) => { shownFile = e.target.value; handPicked = true; paintCode() })
+
+// ---- pointer layer, drag, grid snap ----
+$('#cover').addEventListener('pointerdown', (ev) => {
+  const r = $('#cover').getBoundingClientRect()
+  const x = (ev.clientX - r.left) / scale, y = (ev.clientY - r.top) / scale
+  const e = preview.doc.elementFromPoint(x, y)
+  if (!e || ['html', 'body'].includes(e.localName)) { sel = null; paint(); return }
+  if (sel !== null && preview.elements[sel] === e) return startDrag(ev, 'move')
+  sel = idxOf(e); paint()
+})
+const nearest = (v, s) => (fault === 'snap-floor' ? Math.floor(v / s) * s : Math.round(v / s) * s)
+const snapping = (alt) => snapOn && doc.kind !== 'svg' || (fault === 'svg-snap' && snapOn) ? (fault === 'no-alt' ? true : !alt) : false
+function startDrag(ev, kind) {
+  ev.stopPropagation(); ev.target.setPointerCapture?.(ev.pointerId)
+  const el = preview.elements[sel], c = cs()
+  const rect0 = el.getBoundingClientRect()
+  const win = preview.doc.defaultView
+  const d = { kind, x: ev.clientX, y: ev.clientY, w: parseFloat(c.width), h: parseFloat(c.height), right: rect0.right, left: rect0.left, top: rect0.top }
+  const pr = el.parentElement.getBoundingClientRect(), pc = win.getComputedStyle(el.parentElement)
+  const edge = pr.left + el.parentElement.clientLeft + parseFloat(pc.paddingLeft) + parentW()
+  const label = document.createElement('div'); label.setAttribute('data-drag-label', ''); $('#screen').appendChild(label)
+  const move = (m) => {
+    const dx = (m.clientX - d.x) / scale
+    const nr = d.right + dx
+    label.textContent = kind.includes('e') && Math.abs(nr - edge) <= 2 ? 'Full width' : `${Math.round(d.w + dx)}`
+  }
+  addEventListener('pointermove', move)
+  const up = async (u) => {
+    removeEventListener('pointerup', up); removeEventListener('pointermove', move); label.remove()
+    const dx = (u.clientX - d.x) / scale, dy = (u.clientY - d.y) / scale
+    const snap = snapping(u.altKey || altDown)
+    if (kind === 'move') {
+      if (!snap) return doNudge(Math.round(dx), Math.round(dy))
+      const ox = win.scrollX, oy = win.scrollY
+      const tx = nearest(d.left + ox + Math.round(dx), spacing) - (d.left + ox), ty = nearest(d.top + oy + Math.round(dy), spacing) - (d.top + oy)
+      return doNudge(tx, ty)
+    }
+    const props = {}
+    if (kind.includes('e')) {
+      const nr = d.right + dx
+      const full = Math.abs(nr - edge) <= 2
+      if (full && !(snap && fault === 'grid-beats-full')) props.width = '100%'
+      else if (snap) props.width = Math.round(nearest(nr + win.scrollX, spacing) - win.scrollX - d.left) + 'px'
+      else props.width = unit === '%' ? Math.round(((d.w + dx) / parentW()) * 10000) / 100 + '%' : Math.round(d.w + dx) + 'px'
+    }
+    if (kind.includes('s')) props.height = Math.round(d.h + dy) + 'px'
+    await doSet(props)
+  }
+  addEventListener('pointerup', up)
+}
+
+// ---- view, history, export ----
+document.querySelectorAll('[aria-label="View"] button').forEach((b) => b.addEventListener('click', () => {
+  view = b.getAttribute('aria-label').toLowerCase(); orient = 'portrait'
+  document.querySelectorAll('[aria-label="View"] button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+  layout(); paint()
+}))
+$('#rotate').addEventListener('click', () => { orient = orient === 'portrait' ? 'landscape' : 'portrait'; layout(); paint() })
+$('#undo').addEventListener('click', async () => { const keep = sel !== null ? E.describe(preview.model, sel) : null; redo.push(edits.pop()); await rebuild(); sel = keep ? E.select(preview.model, keep) : null; afterEdit(); paint() })
+$('#redo').addEventListener('click', async () => { edits.push(redo.pop()); await rebuild(); afterEdit(); paint() })
+$('#reset').addEventListener('click', async () => { edits = []; redo = []; await rebuild(); afterEdit(); paint() })
+const fileText = () => session.files[$('#file').value]
+$('#copy').addEventListener('click', async () => { await navigator.clipboard.writeText(fault === 'copy-wrong-file' ? session.files[doc.order[0]] : fileText()); $('#msg').textContent = 'Copied ' + $('#file').value + '.' })
+$('#download').addEventListener('click', () => {
+  const name = $('#file').value
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([fileText()])); a.download = name === doc.order[0] ? name.replace(/(\.[^.]+)$/, '-edited$1') : name
+  document.body.appendChild(a); a.click(); a.remove()
+})
+</script>
+</body>
+</html>

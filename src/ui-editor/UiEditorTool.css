@@ -1,4 +1,4 @@
-/* The UI Editor tool: the top bar, the preview with its pointer layer, the side panel and the messages. Tokens only (src/styles/tokens.css). */
+/* The UI Editor tool: the top bar, the editing ribbon, the preview with its pointer layer and the messages. Tokens only (src/styles/tokens.css). */
 .ue-tool {
   display: flex;
   flex-direction: column;
@@ -12,6 +12,9 @@
   padding: 0.4em 0.9em;
   font-size: var(--text-small);
   cursor: pointer;
+  /* No fade: the site's buttons fade their colours over 0.15 s, which catches a view button that has just become selected half way (a grey one),
+     and a busy main thread (the preview rebuilding for a larger device) holds it there. The selected look is applied at once. */
+  transition: none;
 }
 
 .ue-tool .btn:disabled {
@@ -19,7 +22,7 @@
   opacity: 0.45;
 }
 
-.ue-tool .btn.ue-view[aria-pressed='true'] {
+.ue-tool .btn.ue-icon[aria-pressed='true'] {
   background: var(--color-navy);
   color: var(--color-on-navy);
 }
@@ -61,13 +64,14 @@
   line-height: var(--leading);
 }
 
-/* ---- the bar ---- */
+/* ---- the quick bar: Samples at the left, then Undo, Redo and Review unlinked; the view group and Rotate in the middle; File, Copy code and Download; Reset all
+   alone at the far right (a destructive command is kept away from the frequent ones). Spacers share the free room, so nothing is pushed off the edge. ---- */
 .ue-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3) var(--space-4);
+  gap: var(--space-2);
   align-items: center;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -76,8 +80,84 @@
 .ue-bar-group {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-1) 6px;
   align-items: center;
+}
+
+.ue-bar-tools {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: var(--space-2) 0;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.ue-bar-tools > .ue-bar-group {
+  margin: 0 var(--space-1);
+}
+
+.ue-flex {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.ue-sep {
+  align-self: stretch;
+  width: 1px;
+  margin: 0 var(--space-1);
+  background: var(--color-border);
+}
+
+/* Icon buttons: 20 px glyphs in a 36 px square (44 px on a phone), a tooltip from the title, a visible focus ring, and a dimmed look when disabled. */
+.ue-tool .btn.ue-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+
+.ue-icon-svg {
+  display: block;
+  flex: none;
+}
+
+/* An icon button that also shows its word (the view buttons, Rotate, Copy code, Download, Reset all). */
+.ue-tool .btn.ue-icon.has-text {
+  width: auto;
+  gap: var(--space-1);
+  padding: 0 6px;
+}
+
+.ue-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--color-accent);
+  color: var(--color-on-navy);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.ue-tool .btn:focus-visible,
+.ue-tool select:focus-visible,
+.ue-tool input:focus-visible,
+.ue-tool textarea:focus-visible,
+.ue-tool summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .ue-confirm,
@@ -151,12 +231,9 @@
   background: var(--color-bg);
 }
 
-/* ---- the work area: preview left, panel right (below the preview on a narrow window) ---- */
+/* ---- the work area: the preview, full width, under the ribbon ---- */
 .ue-work {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 360px);
-  gap: var(--space-4);
-  align-items: start;
+  display: block;
 }
 
 .ue-preview {
@@ -166,21 +243,128 @@
   min-width: 0;
 }
 
-.ue-empty {
-  margin: 0;
-  padding: var(--space-6) var(--card-pad);
-  border: 1px dashed var(--color-border);
+/* ---- the sample gallery: cards like templates, each with a live miniature (the real sample at 1280 px, scaled down by --ue-mini-scale) ---- */
+.ue-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: var(--text-card);
-  line-height: var(--leading);
-  text-align: center;
 }
 
-/* The preview is never scaled: it is as wide as its view (1280, 768 or 390 CSS px) and a narrower window scrolls it sideways. */
+/* Reopened with the Samples button, the gallery covers the stage (which stays where it is, inert, so nothing is lost). */
+.ue-gallery.is-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  align-content: start;
+  overflow: auto;
+}
+
+.ue-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 22rem));
+  gap: var(--space-4);
+}
+
+.ue-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.ue-card:hover {
+  border-color: var(--color-accent);
+}
+
+.ue-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.ue-mini {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1280 / 800;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.ue-mini iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1280px;
+  height: 800px;
+  border: 0;
+  background: var(--color-surface);
+  pointer-events: none;
+  transform: scale(var(--ue-mini-scale, 0.25));
+  transform-origin: 0 0;
+}
+
+.ue-card.is-own {
+  cursor: default;
+}
+
+.ue-card.is-own:hover {
+  border-color: var(--color-border);
+}
+
+/* The blank page of the "Your own code" card: a plain white sheet on the same 16:10 ground as the sample miniatures. */
+.ue-blank {
+  position: absolute;
+  top: 12%;
+  bottom: 0;
+  left: 50%;
+  width: 46%;
+  border: 1px solid var(--color-border);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1px var(--color-bg);
+  transform: translateX(-50%);
+}
+
+.ue-mini:has(.ue-blank) {
+  background: var(--color-bg);
+}
+
+.ue-card-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.ue-card-title {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-label);
+  font-weight: var(--label-weight);
+}
+
+.ue-card-desc {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-small);
+  line-height: var(--leading);
+}
+
+.ue-preview {
+  position: relative;
+}
+
+/* The stage area: the device is centred in it. A phone or tablet sits in a plain dark outline (CSS only, no real model); Desktop has none. */
 .ue-scroll {
-  overflow-x: auto;
+  padding: var(--space-3);
+  overflow-x: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-bg);
@@ -188,6 +372,88 @@
 
 .ue-scroll[hidden] {
   display: none;
+}
+
+.ue-device-slot {
+  display: flex;
+  align-items: flex-start; /* the device keeps its own height; the slot is given the scaled height */
+  justify-content: center; /* centred even when the unscaled device is wider than the room: it then overflows both sides equally, and the scale pulls it in */
+}
+
+.ue-device-scale {
+  flex: none;
+  transform-origin: top center;
+}
+
+.ue-device {
+  position: relative;
+  box-sizing: border-box;
+}
+
+.ue-device[data-device-frame] {
+  background: #1b1d22;
+  box-shadow: 0 0 0 1px #3a3d45 inset;
+}
+
+.ue-device.is-phone[data-device-frame] {
+  border-radius: 38px;
+}
+
+.ue-device.is-tablet[data-device-frame] {
+  border-radius: 26px;
+}
+
+.ue-device[data-device-frame] .ue-stage {
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+/* The camera dot and the home bar sit in the bezel, never over the screen; they turn with the phone. */
+.ue-device[data-device-frame]::before,
+.ue-device.is-phone[data-device-frame]::after {
+  position: absolute;
+  background: #4a4e58;
+  content: '';
+}
+
+.ue-device[data-device-frame]::before {
+  top: 9px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.ue-device.is-tablet[data-device-frame]::before {
+  top: 3px;
+  width: 6px;
+  height: 6px;
+}
+
+.ue-device.is-phone[data-device-frame]::after {
+  bottom: 9px;
+  left: 50%;
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  transform: translateX(-50%);
+}
+
+.ue-device.is-phone[data-orientation='landscape']::before {
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+}
+
+.ue-device.is-phone[data-orientation='landscape']::after {
+  top: 50%;
+  right: 9px;
+  bottom: auto;
+  left: auto;
+  width: 4px;
+  height: 120px;
+  transform: translateY(-50%);
 }
 
 .ue-stage {
@@ -212,6 +478,15 @@
   cursor: default;
 }
 
+/* The grid: this page's own layer over the preview (never inside the previewed document, so the code, the export and every element are as they were). It lies
+   in the device's wrapper, so it is drawn in the preview's px and scales with the frame; its lines are every `background-size` px from the preview's top-left. */
+.ue-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to right, color-mix(in srgb, var(--color-accent) 45%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--color-accent) 45%, transparent) 1px, transparent 1px);
+}
+
 .ue-overlay:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: -2px;
@@ -223,16 +498,18 @@
 
 .ue-hover {
   position: absolute;
-  outline: 1px solid var(--color-accent);
+  outline: calc(1px * var(--ue-inv, 1)) solid var(--color-accent);
   pointer-events: none;
 }
 
 .ue-selection {
   position: absolute;
-  outline: 2px solid var(--color-accent);
+  outline: calc(2px * var(--ue-inv, 1)) solid var(--color-accent);
   pointer-events: none;
 }
 
+/* The device may be drawn smaller than it is (--ue-inv is 1 over the scale): outlines keep their width on the screen. The handles are drawn in the
+   device's own px, so they shrink with it and a handle's hit area never grows over a small element. */
 .ue-handle {
   position: absolute;
   width: 10px;
@@ -243,7 +520,7 @@
   touch-action: none;
 }
 
-/* The handle is small to look at and 44 CSS px to hit. */
+/* The handle is small to look at and 44 CSS px to hit (in a scaled device the hit area is scaled with it, so it never swallows a small element). */
 .ue-handle::after {
   position: absolute;
   inset: -17px;
@@ -262,7 +539,7 @@
 /* Drag feedback lives in the host layer only; the preview and the engine are not touched until the pointer is released. */
 .ue-ghost {
   position: absolute;
-  outline: 2px dashed var(--color-accent);
+  outline: calc(2px * var(--ue-inv, 1)) dashed var(--color-accent);
   background: color-mix(in srgb, var(--color-accent) 10%, transparent);
   pointer-events: none;
 }
@@ -271,113 +548,584 @@
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: var(--space-1);
-  padding: 2px var(--space-2);
+  margin-top: calc(var(--space-1) * var(--ue-inv, 1));
+  padding: calc(2px * var(--ue-inv, 1)) calc(var(--space-2) * var(--ue-inv, 1));
   border-radius: var(--radius);
   background: var(--color-navy);
   color: var(--color-on-navy);
   font-family: var(--font-mono);
-  font-size: var(--text-small);
+  font-size: calc(var(--text-small) * var(--ue-inv, 1));
   white-space: nowrap;
 }
 
-/* ---- the side panel ---- */
-.ue-side {
-  position: sticky;
-  top: calc(var(--site-header-height, 0px) + var(--space-3));
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-height: calc(100vh - var(--site-header-height, 0px) - var(--space-5));
+/* ---- the card and the ribbon (round 6). ONE bordered card holds the quick bar, the strip, the ribbon and the status line, with hairline rules between them. The ribbon
+   follows PowerPoint: ONE band of seven two-row groups (Font, Paragraph, Size, Shape Styles, Spacing, Arrange, Grid), each row 28 px high with 5 px between the rows and
+   8 px of padding, so the band is at most 96 px high. The columns share the width by weight (fr), the weights being what each group needs MEASURED (its two rows at their
+   smallest, plus 16 px of padding and the 1 px rule): Font 225, Paragraph 143, Size 182, Shape Styles 273, Spacing 187, Arrange 205, Grid 133 (sum 1348); no column is
+   narrower than its weight. THE FILL RULE: in every row the last control ends at the group's inner right edge, the controls
+   are at most 8 px apart, and every row has a control that stretches (a text box, a dropdown, a number box, or a row of icon buttons that share the width); only icon
+   buttons (28 px), row labels, the px/% toggle and the Sides buttons keep a width. Wide (the ribbon is at least 1352 px): one band. Medium (1000 to 1351 px): two bands on
+   shared column edges (Font, Paragraph, Size, Shape Styles; then Spacing under Font, Arrange under Paragraph and Size together, Grid under Shape Styles). Narrow (below
+   1000 px): the groups stack and every control is at least 44 x 44. Tokens only. ---- */
+.ue-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
-/* Only the panel scrolls; the result message stays in view under it. */
-.ue-side > .ue-panel {
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.ue-side > .ue-result {
-  flex: none;
-}
-
-.ue-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
+.ue-sheet {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
 }
 
-.ue-panel-title {
-  font-size: var(--text-label);
-  font-weight: var(--label-weight);
+.ue-sheet > .ue-bar {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
-.ue-env {
-  margin: 0;
-  color: var(--color-text-secondary);
+.ue-tool .ue-ribbon {
+  container: ue-ribbon / inline-size;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
 }
 
-.ue-selected {
-  margin: 0;
-  min-height: 1.5em;
+.ue-strip {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  gap: var(--space-3);
+  height: 27px;
+  padding: 0 var(--space-2);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ue-strip-title {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+/* The selection path: the deepest five elements from the page's root content to the selected one; every one but the last selects its element. */
+.ue-path {
+  display: flex;
+  flex: 0 1 auto;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ue-path-more,
+.ue-path-sep {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.ue-tool .ue-ribbon .ue-seg-btn {
+  flex: none;
+  height: 20px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: none;
+}
+
+.ue-tool .ue-ribbon .ue-seg-btn:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.ue-tool .ue-ribbon .ue-seg-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ue-tool .ue-ribbon .ue-selpar {
+  padding: 0 var(--space-2);
+  font-family: inherit;
+}
+
+.ue-rlabel {
+  flex: none;
   color: var(--color-navy);
   font-family: var(--font-mono);
   font-weight: 600;
-  overflow-wrap: anywhere;
+}
+
+.ue-rlabel:empty::before {
+  content: 'none';
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-weight: 400;
 }
 
 .ue-linkrow {
-  display: flex;
-  gap: var(--space-2);
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
   align-items: center;
-  min-height: 36px;
+  color: var(--color-text-secondary);
+  cursor: help;
 }
 
-.ue-group {
+.ue-linkrow input {
+  margin: 0;
+}
+
+/* The one plain line when nothing can be edited: one line in the strip (cut with an ellipsis if the window is narrow; its whole text is the tooltip). */
+.ue-rnote {
+  flex: 1 1 0;
   min-width: 0;
   margin: 0;
-  padding: var(--space-2) var(--space-3) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  overflow: hidden;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.ue-group legend {
-  padding: 0 var(--space-1);
-  color: var(--color-text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-small);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.ue-rnote[hidden] {
+  display: none;
+}
+
+/* The panel: one grid row of seven columns (see the weights above); each column's floor is the room its two rows need. */
+.ue-rpanel {
+  display: grid;
+  box-sizing: border-box;
+  grid-template-columns: minmax(225px, 225fr) minmax(143px, 143fr) minmax(182px, 182fr) minmax(273px, 273fr) minmax(187px, 187fr) minmax(205px, 205fr) minmax(133px, 133fr);
+  padding: 0;
+}
+
+.ue-rgroup {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 8px;
+  border-right: 1px solid var(--color-border);
+}
+
+.ue-rgroup:last-child {
+  border-right: 0;
+}
+
+.ue-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .ue-row {
-  display: grid;
-  grid-template-columns: 7.5em minmax(0, 1fr) auto;
-  gap: var(--space-2);
+  display: flex;
+  gap: 4px;
   align-items: center;
-  margin: var(--space-1) 0;
+  min-width: 0;
+  height: 28px;
 }
 
-.ue-row label {
-  overflow-wrap: anywhere;
+.ue-glabel {
+  padding-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 14px;
+  text-align: center;
 }
 
-.ue-swatch {
-  width: 36px;
-  height: 36px;
-  padding: 2px;
+[data-stretch] {
+  flex: 1 1 0;
+  min-width: var(--min, 0);
+}
+
+.ue-rl {
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* The popover's own labels (Top, Right, Bottom, Left). */
+.ue-cl {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 13px;
+  white-space: nowrap;
+}
+
+.ue-tool .ue-ribbon .ue-rbtn,
+.ue-tool .ue-ribbon select,
+.ue-tool .ue-ribbon input.ue-num {
+  box-sizing: border-box;
+  height: 28px;
+  min-height: 0;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  transition: none;
+}
+
+.ue-tool .ue-ribbon .ue-rbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: var(--min, 0);
+  cursor: pointer;
+}
+
+.ue-tool .ue-ribbon .ue-rbtn:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.ue-tool .ue-ribbon .ue-rbtn[aria-pressed='true'] {
+  background: var(--color-text);
+  color: var(--color-on-navy);
+}
+
+.ue-tool .ue-ribbon .ue-rbtn:disabled,
+.ue-tool .ue-ribbon select:disabled,
+.ue-tool .ue-ribbon input:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ue-tool .ue-ribbon .ue-icon-svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* A select fills its row cell; the cell is what stretches. */
+.ue-sel {
+  position: relative;
+  display: block;
+}
+
+.ue-tool .ue-ribbon .ue-sel select {
+  width: 100%;
+  min-width: 0;
+}
+
+.ue-tool .ue-ribbon .ue-fam {
+  min-width: 90px;
+}
+
+/* Icon buttons that keep their 28 px. */
+.ue-tool .ue-ribbon [data-fixed-icon] {
+  flex: none;
+  width: 28px;
+  padding: 0;
+}
+
+/* A number box: the number (a real text input) and, at its right, two spin arrows stacked 14 px each; the box shares the row. Fixed (the font size): 62 px, with the
+   presets arrow where the spin arrows would be. */
+.ue-numbox {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14px;
+  grid-template-rows: 14px 14px;
+  height: 28px;
+  min-width: 70px;
+}
+
+.ue-numbox[data-fixed] {
+  flex: none;
+  width: 62px;
+  min-width: 0;
+  grid-template-rows: 28px;
+}
+
+.ue-tool .ue-ribbon .ue-numbox input.ue-num {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 100%;
+  min-width: 0;
+  padding: 0 3px 0 5px;
+  border-radius: 4px 0 0 4px;
+  text-align: left;
+}
+
+.ue-tool .ue-ribbon .ue-spin {
+  position: relative;
+  display: block;
+  grid-column: 2;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.ue-tool .ue-ribbon .ue-spin[data-spin='up'] {
+  grid-row: 1;
+  border-bottom-width: 0;
+  border-radius: 0 4px 0 0;
+}
+
+.ue-tool .ue-ribbon .ue-spin[data-spin='down'] {
+  grid-row: 2;
+  border-radius: 0 0 4px 0;
+}
+
+.ue-tool .ue-ribbon .ue-spin::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -2px 0 0 -3px;
+  border: 3px solid transparent;
+}
+
+.ue-tool .ue-ribbon .ue-spin[data-spin='up']::after {
+  margin-top: -3px;
+  border-top: 0;
+  border-bottom: 4px solid currentcolor;
+}
+
+.ue-tool .ue-ribbon .ue-spin[data-spin='down']::after {
+  border-bottom: 0;
+  border-top: 4px solid currentcolor;
+}
+
+.ue-tool .ue-ribbon .ue-spin:hover:not([aria-disabled='true']) {
+  background: var(--color-border);
+}
+
+.ue-tool .ue-ribbon .ue-spin[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ue-tool .ue-ribbon .ue-numbox[data-fixed] > .ue-rbtn {
+  grid-column: 2;
+  grid-row: 1;
+  width: 16px;
+  padding: 0;
+  border-left: 0;
+  border-radius: 0 4px 4px 0;
+}
+
+/* A menu button: its glyph over a colour bar, its word, a chevron; the chevron is at the right edge. */
+.ue-tool .ue-ribbon .ue-menubtn {
+  position: relative;
+  justify-content: space-between;
+  gap: 3px;
+  padding: 0 4px 0 5px;
+  white-space: nowrap;
+}
+
+.ue-tool .ue-ribbon .ue-menubtn[data-fixed] {
+  flex: none;
+  width: 58px;
+}
+
+.ue-menutext {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.ue-tool .ue-ribbon .ue-menubtn .ue-icon-svg:last-of-type {
+  width: 12px;
+  height: 12px;
+}
+
+.ue-colourbar {
+  position: absolute;
+  bottom: 3px;
+  left: 6px;
+  width: 16px;
+  height: 3px;
+  background: var(--bar, transparent);
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+
+/* The alignment buttons: one segmented row that shares the width equally. */
+.ue-segmented {
+  position: relative;
+  display: flex;
+  min-width: var(--min, 0);
+}
+
+.ue-tool .ue-ribbon .ue-segmented .ue-rbtn {
+  flex: 1 1 0;
+  min-width: 28px;
+  margin-left: -1px;
+  padding: 0;
+  border-radius: 0;
+}
+
+.ue-tool .ue-ribbon .ue-segmented .ue-rbtn:first-child {
+  margin-left: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.ue-tool .ue-ribbon .ue-segmented .ue-rbtn:last-of-type {
+  border-radius: 0 4px 4px 0;
+}
+
+/* The px and % toggle and the Sides button keep their width. */
+.ue-seg2 {
+  display: inline-flex;
+  flex: none;
+}
+
+.ue-tool .ue-ribbon .ue-seg2 .ue-rbtn {
+  width: 24px;
+  margin-left: -1px;
+  padding: 0;
+  border-radius: 0;
+}
+
+.ue-tool .ue-ribbon .ue-seg2 .ue-rbtn:first-child {
+  margin-left: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.ue-tool .ue-ribbon .ue-seg2 .ue-rbtn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.ue-tool .ue-ribbon .ue-sidesbtn {
+  flex: none;
+  width: 44px;
+  padding: 0;
+}
+
+/* Two-word buttons (Move up, Move down, Grid, Snap) share the row. */
+.ue-tool .ue-ribbon .ue-wbtn {
+  gap: 3px;
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+/* The unlinked dot sits on the corner of its control, so it takes no room in the row. */
+.ue-rgroup .ue-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  pointer-events: none;
+}
+
+.ue-rgroup[data-ribbon-group='position'] > .ue-dot {
+  top: 2px;
+  right: 2px;
+}
+
+/* Medium: two bands on four shared column edges. */
+@container ue-ribbon (max-width: 1351px) {
+  .ue-rpanel {
+    grid-template-columns: minmax(225px, 225fr) minmax(143px, 143fr) minmax(182px, 182fr) minmax(273px, 273fr);
+  }
+
+  .ue-rgroup:nth-child(5) {
+    grid-column: 1;
+  }
+
+  .ue-rgroup:nth-child(6) {
+    grid-column: 2 / span 2;
+  }
+
+  .ue-rgroup:nth-child(7) {
+    grid-column: 4;
+  }
+
+  .ue-rgroup:nth-child(n + 5) {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .ue-rgroup:nth-child(4) {
+    border-right: 0;
+  }
+}
+
+/* The Sides popover: the four sides of padding or margin, under the Spacing group; it opens over the preview. */
+.ue-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  gap: var(--space-2) var(--space-4);
+  max-width: 100%;
+  margin-top: 2px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
+  box-shadow: 0 4px 14px rgb(11 27 51 / 0.18);
 }
 
-.ue-moves {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.ue-sidec {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.ue-stp {
+  display: inline-flex;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn {
+  width: 28px;
+  padding: 0;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.ue-tool .ue-ribbon .ue-stp input.ue-num {
+  width: 64px;
+  border-radius: 0;
+  text-align: center;
+}
+
+/* SVG documents: Snap is off, with one plain line of text in the strip. */
+.ue-snapnote {
+  flex: none;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ue-tool .ue-ribbon button:focus-visible,
+.ue-tool .ue-ribbon select:focus-visible,
+.ue-tool .ue-ribbon input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  position: relative;
+  z-index: 1;
+}
+
+.ue-tool .ue-ribbon .ue-spin:focus-visible {
+  outline: 2px solid var(--color-accent);
 }
 
 .ue-dot {
@@ -389,8 +1137,12 @@
   vertical-align: middle;
 }
 
+/* The status line (round 4): one slim line directly under the ribbon, never a card. While a document is open its height is reserved, so a message (an applied
+   edit, a refusal) never moves the stage; a long one is cut with an ellipsis (its whole text is the tooltip and the region's text). Before a document is open the
+   region takes no room until it has a message. */
 .ue-result {
-  min-height: 3.2em;
+  box-sizing: border-box;
+  margin: 0;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -398,78 +1150,524 @@
   line-height: var(--leading);
 }
 
-.ue-result.is-refusal {
-  border-color: var(--color-accent);
-  border-left-width: 4px;
+.ue-tool > .ue-result:empty {
+  min-height: 0;
+  padding: 0;
+  border: 0;
 }
 
-.ue-result p {
+/* Inside the card (a document is open): the last part of it, a rule above it and no border of its own at the sides; its height is reserved. */
+.ue-sheet > .ue-result.is-reserved {
+  display: flex;
+  align-items: center;
+  height: 32px;
   margin: 0;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: transparent;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
-.ue-result ul {
-  margin: var(--space-1) 0 0;
-  padding-left: 1.2em;
+/* A refusal is marked by a bar inside the line's left edge, not by a border. */
+.ue-result.is-refusal {
+  box-shadow: inset 4px 0 0 var(--color-accent);
 }
 
-.ue-result .ue-notes-lead {
-  margin-top: var(--space-1);
-  color: var(--color-text-secondary);
-  font-weight: 600;
+.ue-result-line {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ---- the code ---- */
+/* ---- the menus (round 6): drawn in <body> (the ribbon's container would otherwise be their containing block), so none of these rules is scoped to .ue-tool. Tokens only. ---- */
+.ue-menu {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  min-width: 180px;
+  max-width: calc(100vw - 8px);
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 4px 14px rgb(11 27 51 / 0.2);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.ue-menuhead {
+  padding: 2px 4px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.ue-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 232px;
+  padding: 2px 4px 6px;
+}
+
+.ue-menu [data-swatch] {
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid rgb(11 27 51 / 0.25);
+  border-radius: 3px;
+  background: var(--sw);
+  cursor: pointer;
+}
+
+.ue-menu [data-swatch][aria-checked='true'] {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+.ue-menu button[role^='menuitem']:not([data-swatch]) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ue-menu button[role^='menuitem']:not([data-swatch]) > span {
+  flex: 1 1 auto;
+}
+
+/* A radio item keeps the room for its tick, so the labels of a menu start at one edge whichever item is chosen. */
+.ue-menu button[role='menuitemradio']:not([data-swatch])::before {
+  content: '';
+  flex: none;
+  width: 14px;
+}
+
+.ue-menu button[role='menuitemradio']:not([data-swatch])[aria-checked='true']::before {
+  content: '✓';
+}
+
+.ue-menu button[role^='menuitem']:hover:not([aria-disabled='true']) {
+  background: var(--color-bg);
+}
+
+.ue-menu button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.ue-subarrow {
+  font-style: normal;
+}
+
+.ue-lineprev {
+  display: inline-block;
+  width: 40px;
+  margin-right: 8px;
+}
+
+.ue-hexrow {
+  padding: 4px 8px;
+}
+
+.ue-hexrow input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font: inherit;
+}
+
+/* Where the ribbon stacks (its container is under 1000 px: a window of about 1047 px or less) the menu items are 44 px high too; a phone-width window gives a menu the whole width. */
+@media (max-width: 999px) {
+  .ue-menu {
+    width: calc(100vw - 8px);
+  }
+
+  .ue-swatches {
+    max-width: none;
+  }
+}
+
+@media (max-width: 1047px) {
+  .ue-menu button[role^='menuitem']:not([data-swatch]) {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .ue-menu [data-swatch] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .ue-swatches {
+    max-width: 380px;
+  }
+
+  .ue-hexrow input {
+    height: 44px;
+  }
+}
+
+/* ---- the code: the whole updated file, changed lines tinted and marked with a "+" in the margin, a thin marker where lines were removed, Previous and
+   Next change, and a change map ---- */
 .ue-code summary {
   cursor: pointer;
   font-weight: 600;
 }
 
-.ue-code textarea {
-  display: block;
-  width: 100%;
+.ue-code,
+.ue-codeview,
+.ue-codebody {
+  min-width: 0;
+}
+
+.ue-codeview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   margin-top: var(--space-2);
+}
+
+.ue-changes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* One section per file in the Updated code area, stacked: a header with the file's name and its number of changes, its own Copy button, then the code. */
+.ue-sechead {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ue-sectitle {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.ue-codeview + .ue-codeview {
+  margin-top: var(--space-3);
+}
+
+.ue-counter {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.ue-codebody {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.ue-codebox {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-height: 26rem;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
   font-family: var(--font-mono);
   font-size: var(--text-small);
+  line-height: 1.5;
+}
+
+.ue-codebox:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.ue-line {
+  display: flex;
+  min-width: max-content;
+}
+
+/* The line number and the marker are not part of the code: they cannot be selected, so selecting the code by hand copies the file. */
+.ue-gut {
+  flex: none;
+  width: 3.4em;
+  padding-right: 0.8em;
+  color: var(--color-text-muted);
+  text-align: right;
+  user-select: none;
+}
+
+.ue-mk {
+  flex: none;
+  width: 1.6em;
+  color: var(--color-accent);
+  font-weight: 700;
+  text-align: center;
+  user-select: none;
+}
+
+.ue-ct {
+  white-space: pre;
+}
+
+.ue-line[data-change] {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.ue-line.is-flash {
+  animation: ue-flash 1.4s ease-out;
+}
+
+@keyframes ue-flash {
+  from {
+    background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+}
+
+/* Where lines were removed: a thin line between two lines, with a minus in the margin (the removed lines are not shown as text). */
+.ue-removed {
+  position: relative;
+  height: 4px;
+  background: color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+.ue-rm {
+  position: absolute;
+  top: 50%;
+  left: 3.4em;
+  width: 1.6em;
+  background: var(--color-surface);
+  color: var(--color-accent);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  transform: translateY(-50%);
+  user-select: none;
+}
+
+/* The change map: a narrow strip beside the code with one thin tick per change, placed in proportion to its line number. A pointer aid; the
+   Previous and Next buttons are the keyboard route. */
+.ue-map {
+  position: relative;
+  flex: none;
+  width: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+}
+
+.ue-tick {
+  position: absolute;
+  right: 1px;
+  left: 1px;
+  height: 3px;
+  min-height: 0;
+  margin-top: -1.5px;
+  padding: 0;
+  border: 0;
+  background: var(--color-accent);
+  cursor: pointer;
+}
+
+.ue-tick.is-current {
+  background: var(--color-navy);
+}
+
+.ue-tick:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 1px;
 }
 
 @media (max-width: 1099px) {
-  .ue-work {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ue-side {
-    position: static;
-    max-height: none;
-  }
-
-  .ue-side > .ue-panel {
-    overflow-y: visible;
-  }
-
   .ue-paste {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-/* A phone: every control that can be tapped is at least 44 CSS px tall. */
+/* A phone, or any pointer that is a finger: every control that can be tapped is at least 44 CSS px. */
 @media (max-width: 700px), (pointer: coarse) {
+  .ue-tool .btn.ue-icon {
+    min-width: 44px;
+  }
+
+  .ue-tool .btn.ue-icon:not(.has-text) {
+    width: 44px;
+  }
+
+  .ue-sep {
+    display: none;
+  }
+}
+
+/* Narrow (the ribbon is under 1000 px wide): the groups stack, nothing is collapsed into a menu, and every control, spin arrow and menu item is at least 44 x 44. */
+@container ue-ribbon (max-width: 999px) {
+  .ue-strip {
+    flex-wrap: wrap;
+    height: auto;
+    padding: var(--space-1) var(--space-2);
+    white-space: normal;
+  }
+
+  .ue-path {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .ue-rnote,
+  .ue-snapnote {
+    flex-basis: 100%;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .ue-rpanel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ue-rpanel > .ue-rgroup {
+    grid-column: auto;
+    padding: var(--space-2);
+    border-right: 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .ue-rgroup:last-child {
+    border-bottom: 0;
+  }
+
+  .ue-rows {
+    gap: var(--space-2);
+  }
+
+  .ue-row {
+    flex-wrap: wrap;
+    height: auto;
+  }
+
+  [data-stretch] {
+    flex: 1 1 120px;
+  }
+
+  .ue-popover {
+    position: static;
+    grid-template-columns: minmax(0, max-content);
+    margin-top: var(--space-2);
+    box-shadow: none;
+  }
+
+  .ue-tool .ue-ribbon .ue-rbtn,
+  .ue-tool .ue-ribbon select,
+  .ue-tool .ue-ribbon input.ue-num,
+  .ue-tool .ue-ribbon .ue-seg-btn {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .ue-tool .ue-ribbon [data-fixed-icon] {
+    width: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-seg2 .ue-rbtn,
+  .ue-tool .ue-ribbon .ue-sidesbtn,
+  .ue-tool .ue-ribbon .ue-stp .ue-rbtn {
+    width: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-menubtn[data-fixed] {
+    width: 72px;
+  }
+
+  .ue-numbox {
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    grid-template-rows: 44px;
+    height: 44px;
+    min-width: 150px;
+  }
+
+  .ue-numbox[data-fixed] {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    width: 110px;
+  }
+
+  .ue-tool .ue-ribbon .ue-numbox[data-fixed] > .ue-rbtn {
+    width: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-spin {
+    min-width: 44px;
+    height: 44px;
+    border-width: 1px;
+    border-radius: 0;
+  }
+
+  .ue-tool .ue-ribbon .ue-spin[data-spin='up'] {
+    grid-column: 3;
+    grid-row: 1;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .ue-tool .ue-ribbon .ue-spin[data-spin='down'] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ue-tool .ue-ribbon .ue-numbox input.ue-num {
+    grid-row: 1;
+  }
+
+  .ue-tool .ue-ribbon .ue-linkrow input[type='checkbox'] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-linkrow {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 999px) {
+  /* The status line keeps room for three lines, so a message still never moves the stage. */
+  .ue-sheet > .ue-result.is-reserved {
+    align-items: flex-start;
+    height: 4.6em;
+    padding-top: var(--space-1);
+  }
+
+  .ue-result-line {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    white-space: normal;
+  }
+
   .ue-tool .btn,
   .ue-tool select,
   .ue-tool input[type='text'],
-  .ue-linkrow,
   .ue-review-item,
   .ue-code summary {
     min-height: 44px;
-  }
-
-  .ue-linkrow input[type='checkbox'] {
-    width: 44px;
-    height: 44px;
-  }
-
-  .ue-swatch {
-    width: 44px;
-    height: 44px;
   }
 }
 

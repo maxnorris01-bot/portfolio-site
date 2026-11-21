@@ -1,10 +1,13 @@
 // The glue between the editor and the vendored engine. One Session is one open document with its live preview: the preview is built from the
-// ORIGINAL source and the ordered edit list is replayed on it, so the preview, the panel values and the export all come from the engine's own
+// ORIGINAL source and the ordered edit list is replayed on it, so the preview, the ribbon's values and the export all come from the engine's own
 // result. A new edit is applied to the live preview (the engine's DOM operations); anything that is not "one more edit" (Undo, Redo, Reset,
 // a merged move) replays the list on a fresh preview.
 import * as engine from './vendor/engine.js'
 import type { Edit, EditResult, EditState, ElementNode, Model, Preview, ScaleNote } from './vendor/engine.js'
 import type { Doc } from './intake.ts'
+import type { Viewport } from './devices.ts'
+import type { Handle } from './geometry.ts'
+import { trialOk, type Edges } from './resizeedge.ts'
 
 export interface Session {
   doc: Doc
@@ -16,6 +19,8 @@ export interface Session {
   breakpoint: number
   /** Stylesheets the page links to that were not supplied. */
   missing: string[]
+  /** The screen's height when it has one (Tablet, Phone); null on Desktop, where the frame grows to the page's height. */
+  fixedHeight: number | null
 }
 
 /** The preview is at least this tall (CSS px); it grows to the page's height so the host, not the frame, scrolls. */
@@ -24,11 +29,11 @@ export const PREVIEW_MIN_HEIGHT = 800
 export type Opened = { ok: true; session: Session; results: EditResult[] } | { ok: false; message: string }
 
 /** Build a preview of the original document and replay `edits` on it. Never throws: a failure is a message. */
-export async function openSession(doc: Doc, edits: Edit[], host: HTMLElement, width: number): Promise<Opened> {
+export async function openSession(doc: Doc, edits: Edit[], host: HTMLElement, vp: Viewport): Promise<Opened> {
   let preview: Preview | null = null
   try {
     const model = engine.createModel(doc.source, doc.kind, doc.companions, doc.file)
-    preview = await engine.createPreview(model, host, { width, height: PREVIEW_MIN_HEIGHT })
+    preview = await engine.createPreview(model, host, { width: vp.width, height: vp.height ?? PREVIEW_MIN_HEIGHT })
     preview.iframe.title = 'Preview'
     const run = engine.applyEditSteps(preview, edits, engine.emptyState())
     const bad = run.results.find((r) => !r.ok)
@@ -36,7 +41,7 @@ export async function openSession(doc: Doc, edits: Edit[], host: HTMLElement, wi
       preview.dispose()
       return { ok: false, message: bad.refusal.message }
     }
-    const session: Session = { doc, preview, state: run.state, files: run.files, breakpoint: engine.breakpointOf(model), missing: model.missingStylesheets }
+    const session: Session = { doc, preview, state: run.state, files: run.files, breakpoint: engine.breakpointOf(model), missing: model.missingStylesheets, fixedHeight: vp.height }
     fitHeight(session)
     return { ok: true, session, results: run.results }
   } catch (e) {
@@ -45,8 +50,12 @@ export async function openSession(doc: Doc, edits: Edit[], host: HTMLElement, wi
   }
 }
 
-/** The preview's height follows the page's: the frame never scrolls (the pointer layer covers it), the host does. */
+/** On Desktop the preview's height follows the page's: the frame never scrolls (the pointer layer covers it), the host does. A device keeps its screen height. */
 export function fitHeight(s: Session): void {
+  if (s.fixedHeight !== null) {
+    s.preview.iframe.style.height = `${s.fixedHeight}px`
+    return
+  }
   const root = s.preview.doc.documentElement
   const h = Math.max(PREVIEW_MIN_HEIGHT, Math.ceil(root.getBoundingClientRect().height), s.doc.kind === 'svg' ? 0 : root.scrollHeight)
   s.preview.iframe.style.height = `${h}px`
@@ -69,12 +78,22 @@ export function applyOne(s: Session, edit: Edit): Applied {
   }
 }
 
-export const setWidth = (s: Session, width: number): void => {
-  s.preview.setWidth(width)
+/** Another size for the same preview: Desktop grows to the page, a device keeps its own screen height. */
+export const setViewport = (s: Session, vp: Viewport): void => {
+  s.fixedHeight = vp.height
+  s.preview.setWidth(vp.width)
   fitHeight(s)
 }
 
 export const closeSession = (s: Session | null): void => s?.preview.dispose()
+
+/** The content width of an element's parent in CSS px (its width less its padding): what a percent width resolves against. 0 without a parent. */
+export function parentContentWidth(el: Element): number {
+  const p = el.parentElement
+  if (!p) return 0
+  const c = el.ownerDocument.defaultView!.getComputedStyle(p)
+  return Math.max(0, p.clientWidth - (parseFloat(c.paddingLeft) || 0) - (parseFloat(c.paddingRight) || 0))
+}
 
 // ---- elements ----
 
@@ -111,3 +130,27 @@ export const isSvgElement = (el: Element): boolean => el.namespaceURI === SVG_NS
 
 /** Whether the element has the handles that change width and height: any HTML element, and the SVG elements that have a width and a height of their own. */
 export const canResize = (el: Element): boolean => !isSvgElement(el) || ['rect', 'image', 'svg', 'foreignobject'].includes(el.localName.toLowerCase())
+
+/**
+ * Resizing from the west or north edge, tried before it is done (round 5): the edit is applied on a SCRATCH preview (offscreen, built from the original with the
+ * edit list and the trial edit), and the result is kept only if the dragged edges landed where the pointer wanted them and no other element moved. Nothing of
+ * the live preview is touched. `ok` false (with the engine's reason when it refused the edit) means: use the old behaviour.
+ */
+export async function trialEdges(live: Session, edits: Edit[], edit: Edit, vp: Viewport, target: number, handle: Handle, dLeft: number, dTop: number): Promise<{ ok: boolean; refused?: string }> {
+  const host = document.createElement('div')
+  host.setAttribute('aria-hidden', 'true')
+  host.style.cssText = 'position:fixed;left:-20000px;top:0;width:10px;height:10px;overflow:hidden;visibility:hidden'
+  document.body.appendChild(host)
+  try {
+    const r = await openSession(live.doc, [...edits, edit], host, vp)
+    if (!r.ok) return { ok: false, refused: r.message }
+    const edges = (s: Session): Edges[] => s.preview.elements.map((e) => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom] })
+    const before = edges(live), after = edges(r.session)
+    const t = r.session.preview.elements[target]
+    const inside = r.session.preview.elements.map((e) => !!t && t.contains(e))
+    closeSession(r.session)
+    return { ok: before.length === after.length && trialOk({ before, after, target, inside, handle, dLeft, dTop }) }
+  } finally {
+    host.remove()
+  }
+}

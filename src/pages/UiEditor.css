@@ -61,24 +61,46 @@
   transform: translate(50%, -50%);
 }
 
-.ue-subtitle {
-  margin: var(--space-4) 0 var(--space-2);
-  font-size: var(--text-label);
-  font-weight: var(--label-weight);
-}
-
 .ue-list {
-  /* About 70 characters a line (the style check allows 45 to 80). */
-  max-width: 34em;
+  /* Columns about 26rem wide fill the page width (3 or 4 of them on a wide window, 2 below 1400px); each holds about 47 to 70 characters a line (the
+     style check allows 45 to 80). 16px text (the body token) keeps a column that narrow above 45 characters. */
+  columns: auto 26.5rem;
+  column-gap: var(--space-4);
   margin: 0;
-  padding-left: 1.2em;
+  padding: 0;
+  list-style: none;
   color: var(--color-text-secondary);
-  font-size: var(--text-card);
+  font-size: var(--text-body);
   line-height: var(--leading);
 }
 
-.ue-list li + li {
-  margin-top: var(--space-2);
+/* An item is never split between columns, and never wider than a reading line (about 70 characters), however wide its column is. */
+.ue-list li {
+  max-width: 34em;
+  margin: 0 0 var(--space-2);
+  padding: 0 0 var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  break-inside: avoid;
+}
+
+@media (max-width: 1399px) {
+  .ue-list {
+    columns: 2;
+  }
+}
+
+/* A phone: one column, and text a size smaller so a line still holds about 45 characters in a 358 px column. */
+@media (max-width: 519px) {
+  .ue-list {
+    font-size: var(--text-small);
+  }
+}
+
+/* A narrow window: one column. */
+@media (max-width: 999px) {
+  .ue-list {
+    columns: 1;
+  }
 }
 
 @media (max-width: 1599px) {

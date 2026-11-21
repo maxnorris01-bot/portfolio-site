@@ -1,0 +1,1037 @@
+{
+ "version": 1,
+ "retiredChecks": {
+  "U02": {
+   "wholeSpec": true,
+   "reason": "Its last clause (the gaps between the nearest controls of neighbouring groups differ by at most 8 px, my reading of 'distributed evenly') cannot hold when the contents are left-aligned in columns of weighted width: the dead space at the right of each group differs by design (the round 5 brief). The rest of U02 (bands, edges, separators, no clipping) is replaced by V01 and V02.",
+   "replacedBy": "V01, V02"
+  },
+  "U11": {
+   "steps": [
+    2,
+    4,
+    6,
+    8
+   ],
+   "reason": "The four liveButtons asserts name Copy code and File, which the quick bar no longer has (one Download; a Copy button in each code section). U11's quickBarWords asserts stay.",
+   "replacedBy": "V09"
+  },
+  "T04": {
+   "wholeSpec": true,
+   "reason": "Its one assert orders the quick bar's controls and names Copy code between Rotate and Download; the quick bar no longer has it.",
+   "replacedBy": "V09 (the same order without Copy code)"
+  },
+  "T05": {
+   "steps": [
+    2,
+    5,
+    8,
+    11
+   ],
+   "reason": "The four liveButtons asserts name Copy code. T05's viewStyle asserts stay.",
+   "replacedBy": "V09"
+  },
+  "T06": {
+   "steps": [
+    3,
+    14
+   ],
+   "reason": "The two quickBarEnabled asserts name Copy code and File. T06's other steps stay.",
+   "replacedBy": "V09"
+  },
+  "T13": {
+   "wholeSpec": true,
+   "reason": "Its three codeShowsEdit asserts read the SHOWN file and the File selector's marks (landing.css (1)); there is no shown file and no selector now.",
+   "replacedBy": "V06"
+  },
+  "T14": {
+   "steps": [
+    4,
+    12,
+    18
+   ],
+   "reason": "bugState, walkChanges and handPick are about the shown file switching by itself and a hand-picked file staying; both are gone (the brief: no shown file, no auto-switching). Its Copy step (5) stays, reached through the file's own Copy button.",
+   "replacedBy": "V06"
+  }
+ },
+ "columns": {
+  "Font": 290,
+  "Paragraph": 200,
+  "Size": 209,
+  "Shape": 288,
+  "Spacing": 197,
+  "Arrange": 296,
+  "Grid": 260
+ },
+ "vocabulary": {
+  "steps": {
+   "selectFile": "Mapping (runner change #30): does nothing when the page has no File selector.",
+   "snapshotBoxes": "store the border box of every element of the preview document (at the current width) under `name`.",
+   "clickPath": "click the segment button of the selected-element path at `index` (negative counts from the end; the last BUTTON, the parent, is -1). Before it, and before a key or button step of V08, the runner remembers the name of the last path button (its parent) without the word Select."
+  },
+  "asserts": {
+   "ribbonColumns": "P1. Groups are the visible [data-ribbon-group] elements. mode one-band: exactly one band (group tops within 6 px); each group's width divided by the sum of the seven widths is the constant's share of the sum of the constants within shareTol (relative); the first group's left edge is within edgeTol of the inner left edge of [data-ribbon-panel] and the last group's right edge within edgeTol of its inner right edge. mode two-band: exactly two bands; band 1 is Font, Paragraph, Size, Shape and band 2 Spacing, Arrange, Grid; Spacing's left and right edges equal Font's, Arrange's left equals Paragraph's left and its right equals Size's right, Grid's left and right equal Shape's (tol); no control lies outside its group box (0.5 px); the panel does not scroll sideways (scrollWidth <= clientWidth + 1) and neither does the page.",
+   "ribbonAlign": "P1. For every group: the left edge of the group's leftmost control equals the group's left edge plus pad (tol); every [data-ctl-label] that sits above a control (the label's bottom is not below the control's top and its left edge is within 20 px of the control's left edge, nearest one) has its left edge equal to that control's left edge (tol); the group's topmost label or control top is the same for every group of a band (tol); the [data-group-label] tops are the same for every group of a band (tol). Bands are group tops within 6 px.",
+   "oneCard": "P5. [data-card] exists and has a border of at least 1 px on all four sides; it contains the quick bar (group Editor controls), [data-ribbon-strip], [data-ribbon-panel] and the status region in that order; each of those four has border-left-width and border-right-width 0; each touches the next (the next one's top minus the previous one's bottom within 0.5 px, so no vertical gap); and at each of the three boundaries there is a rule of at least 1 px (the lower part's border-top or the upper part's border-bottom, not transparent).",
+   "ribbonSizes": "P1. Controls are the visible buttons, inputs and selects of [data-ribbon-panel] (a checkbox is not one). Small ones (everything except largeNames) are small[0] to small[1] high; the largeNames buttons are largeWidth wide and largeHeight high; the number fields (text inputs with a sibling button named Decrease <name>) are numberWidth wide; every [data-ctl-label] has a computed font size within labelFont; every control's computed font size within controlFont (icon-only buttons are skipped). All inclusive, 0.5 px tolerance.",
+   "noFileSelector": "P5. Inside [data-editor] there is no select, combobox or input whose accessible name or label is File.",
+   "downloadFiles": "P5. Clicking Download produces exactly len(files) downloads (collected for 3 s after the click), whose names are `names` (the primary file keeps its -edited name, a stylesheet its own name); each file's text equals the plain text of its code section (and, for a file the edit did not change, the sample's own source); the status region's text, read right after the click, contains every name in statusContains.",
+   "codeSections": "P5. After the Updated code area is open: [data-code-section] elements, one per file in `files`, in that order, stacked (each below the previous), each visible (a client rect, not hidden) without choosing anything; each has a header [data-section-header] whose text is `<file>: <n> change` or `<file>: <n> changes` with n the number of hunks of the runner's own line diff of that file's export against the sample, and for an unchanged file exactly the file name (no count); with `unchanged` true no section shows a count. Each section has its own [data-code-view] with data-file and, when it has changes, its own [data-change-map] with one tick per change.",
+   "copyButtons": "P5. Each file's section has a button whose accessible name is names[file]; clicking it puts on the clipboard exactly the file's export (the downloaded text) and sets the status region to Copied <file>.",
+   "walkAll": "P5. The counter [data-change-counter] reads `0 of N` after an edit (N is the total of all sections' changes by the runner's diff); Next change N+1 times reads `1 of N` ... `N of N` then `1 of N`, and the change it points at (the k-th in section order, line order inside) is inside its code box (R12's changeVisible) and its section intersects the window; Previous change then reads `N of N`; each section's change map has one tick per change of that section.",
+   "edgesMoved": "P1. The four edges of the element (left, right, top, bottom, in the preview's CSS px at the current width) minus its remembered box (the snapshot `name`, default the one taken by the last snapshotBoxes) equal `edges` within tolW for the dragged edge (the one whose expected change is not 0, or the only non-zero) and tolO for the others.",
+   "othersUnmoved": "P1. Compared with the snapshot `name`: every element that is neither the target nor inside it has all four edges within tol of its snapshot.",
+   "pathSegments": "P5. The strip's path ([data-ribbon-strip] [data-path]) has at most `max` segments (the last is the selected element itself, [data-selected-label]; the others are buttons named Select <tag> <id or class>, e.g. Select div .hero-copy); the segments are the deepest elements of the chain from the child of body down to the selected element (the runner reads the chain from the preview document); when the chain is longer than max the path starts with a non-button ellipsis (…) and otherwise has none; each button's name equals Select plus the element's tag and its id (#id) or first class (.class) or nothing.",
+   "pathSelected": "P5. which parentOf-previous: the text of [data-selected-label] now equals the remembered name of the parent the selection had just before the last path click, Alt+Up or Select parent (the runner remembers it from the path buttons before acting).",
+   "quickBarOrder": "As round 3 (the names are listed in the spec).",
+   "ribbonLabels": "As round 4 with minFont 12 and maxFont 13; the table is taken from U03's ribbonLabels step (tableFromSpec)."
+  }
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL"
+ ],
+ "specs": [
+  {
+   "expected": "PASS",
+   "id": "V01",
+   "name": "Columns: one grid shared by both bands. At 1920 one band, the seven widths in proportion to the constants; at 1440, 1280 and 1100 two bands whose group edges equal the first band's column edges",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonColumns",
+     "mode": "one-band",
+     "weights": {
+      "Font": 290,
+      "Paragraph": 200,
+      "Size": 209,
+      "Shape": 288,
+      "Spacing": 197,
+      "Arrange": 296,
+      "Grid": 260
+     },
+     "shareTol": 0.03,
+     "edgeTol": 2
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonColumns",
+     "mode": "two-band",
+     "tol": 1
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonColumns",
+     "mode": "two-band",
+     "tol": 1
+    },
+    {
+     "do": "host",
+     "width": 1100,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonColumns",
+     "mode": "two-band",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "V02",
+   "name": "Alignment: controls start 14 px inside their group, every label starts where its control starts, the first row and the group names are on one line in a band",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonAlign",
+     "pad": 14,
+     "tol": 1
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonAlign",
+     "pad": 14,
+     "tol": 1
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonAlign",
+     "pad": 14,
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "V03",
+   "name": "One card: the quick bar, strip, ribbon and status line share one bordered container; none has its own side border or a gap to the next; hairline rules between them",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "oneCard"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "oneCard"
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "oneCard"
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 1080
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "oneCard"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "V04",
+   "name": "Sizes: small controls 26 to 28 px high, large buttons 70 to 74 by 56 to 62, number fields 70 to 74 wide, labels 12 to 13 px, control text 13 to 14 px",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonSizes",
+     "small": [
+      26,
+      28
+     ],
+     "largeNames": [
+      "Move up",
+      "Move down",
+      "Grid",
+      "Snap"
+     ],
+     "largeWidth": [
+      70,
+      74
+     ],
+     "largeHeight": [
+      56,
+      62
+     ],
+     "numberWidth": [
+      70,
+      74
+     ],
+     "labelFont": [
+      12,
+      13
+     ],
+     "controlFont": [
+      13,
+      14
+     ]
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonSizes",
+     "small": [
+      26,
+      28
+     ],
+     "largeNames": [
+      "Move up",
+      "Move down",
+      "Grid",
+      "Snap"
+     ],
+     "largeWidth": [
+      70,
+      74
+     ],
+     "largeHeight": [
+      56,
+      62
+     ],
+     "numberWidth": [
+      70,
+      74
+     ],
+     "labelFont": [
+      12,
+      13
+     ],
+     "controlFont": [
+      13,
+      14
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "V05",
+   "name": "One Download: no File selector; one file saves one file, two files save both under their own names, each byte for byte the export; the status line names them",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noFileSelector"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noFileSelector"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "downloadFiles",
+     "files": [
+      "landing.html",
+      "landing.css"
+     ],
+     "names": {
+      "landing.html": "landing-edited.html",
+      "landing.css": "landing.css"
+     },
+     "statusContains": [
+      "landing-edited.html",
+      "landing.css"
+     ]
+    },
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "downloadFiles",
+     "files": [
+      "email.html"
+     ],
+     "names": {
+      "email.html": "email-edited.html"
+     },
+     "statusContains": [
+      "email-edited.html"
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "V06",
+   "name": "Code sections: one section per file, stacked and visible, headers with file names and change counts, per-file Copy buttons, Next and Previous walking every section, a change map per section",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "openCode"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "codeSections",
+     "files": [
+      "landing.html",
+      "landing.css"
+     ],
+     "unchanged": true
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "codeSections",
+     "files": [
+      "landing.html",
+      "landing.css"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "copyButtons",
+     "files": [
+      "landing.html",
+      "landing.css"
+     ],
+     "names": {
+      "landing.html": "Copy landing.html",
+      "landing.css": "Copy landing.css"
+     }
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "walkAll",
+     "files": [
+      "landing.html",
+      "landing.css"
+     ]
+    },
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "openCode"
+    },
+    {
+     "do": "click",
+     "sel": "#hello",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "codeSections",
+     "files": [
+      "email.html"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "copyButtons",
+     "files": [
+      "email.html"
+     ],
+     "names": {
+      "email.html": "Copy code"
+     }
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "V07",
+   "name": "West and north resize: the dragged edge follows the pointer and the opposite edge stays; nothing else moves; Undo restores; an element a margin cannot compensate keeps the old behaviour with one plain line; a flex-grow element is refused as before",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "p3": {
+    "target": "#cta",
+    "class": "descendants",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 3
+    },
+    "permutation": false
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "uncheck",
+     "label": "Link to Phone"
+    },
+    {
+     "do": "snapshotBoxes",
+     "name": "cta0"
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": "w",
+     "dx": -40,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "edgesMoved",
+     "sel": "#cta",
+     "edges": {
+      "left": -40,
+      "right": 0,
+      "top": 0,
+      "bottom": 0
+     },
+     "tolW": 1.5,
+     "tolO": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "othersUnmoved",
+     "sel": "#cta",
+     "name": "cta0",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "applied"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "edgesMoved",
+     "sel": "#cta",
+     "edges": {
+      "left": 0,
+      "right": 0,
+      "top": 0,
+      "bottom": 0
+     },
+     "tolW": 1,
+     "tolO": 1,
+     "name": "cta0"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "snapshotBoxes",
+     "name": "art0"
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "n",
+     "dx": 0,
+     "dy": -40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "edgesMoved",
+     "sel": "#art",
+     "edges": {
+      "left": 0,
+      "right": 0,
+      "top": -40,
+      "bottom": 0
+     },
+     "tolW": 1.5,
+     "tolO": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "othersUnmoved",
+     "sel": "#art",
+     "name": "art0",
+     "tol": 1
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "snapshotBoxes",
+     "name": "h0"
+    },
+    {
+     "do": "drag",
+     "sel": "#headline",
+     "handle": "w",
+     "dx": -40,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "edgesMoved",
+     "sel": "#headline",
+     "edges": {
+      "left": 0,
+      "right": 40,
+      "top": 0,
+      "bottom": 0
+     },
+     "tolW": 1.5,
+     "tolO": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "could not follow the pointer"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "drag",
+     "sel": "#card-build",
+     "handle": "w",
+     "dx": -30,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "flex-grow is above 0"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "V08",
+   "name": "Selection path: the strip shows the deepest five ancestors as buttons (with a leading ellipsis when longer); clicking one, Select parent and Alt+Up select an ancestor and change nothing",
+   "sample": "email",
+   "checks": [
+    "P2",
+    "P3",
+    "P4",
+    "P5"
+   ],
+   "widths": [
+    1280,
+    481,
+    480,
+    390
+   ],
+   "p3": {
+    "target": "#fine",
+    "class": "none",
+    "against": "original"
+   },
+   "p4": {
+    "files": {},
+    "permutation": false
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "click",
+     "sel": "#fine",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pathSegments",
+     "max": 5
+    },
+    {
+     "do": "clickPath",
+     "index": -1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pathSelected",
+     "which": "parentOf-previous"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "click",
+     "sel": "#fine",
+     "at": "inset"
+    },
+    {
+     "do": "key",
+     "key": "Alt+ArrowUp"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pathSelected",
+     "which": "parentOf-previous"
+    },
+    {
+     "do": "button",
+     "name": "Select parent"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pathSelected",
+     "which": "parentOf-previous"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "V09",
+   "name": "Round 4 kept: labels, no clipping, view aids, quick-bar words, order and live buttons (the quick bar now has one Download and no Copy code or File)",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "host": {
+    "width": 1440,
+    "height": 900
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "quickBarOrder",
+     "order": [
+      "Samples",
+      "Undo",
+      "Redo",
+      "Review unlinked",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Download",
+      "Reset all"
+     ],
+     "gapMin": 24,
+     "gapBetween": [
+      "Redo",
+      "Reset all"
+     ],
+     "rowTol": 20
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "enabledOnly",
+     "names": [
+      "Grid",
+      "Snap",
+      "Grid spacing"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "quickBarWords",
+     "words": [
+      {
+       "name": "Review unlinked",
+       "text": "Review unlinked"
+      },
+      {
+       "name": "Reset all",
+       "text": "Reset all"
+      }
+     ],
+     "iconOnly": [
+      "Undo",
+      "Redo"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "liveButtons",
+     "names": [
+      "Samples",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Download"
+     ]
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonLabels",
+     "minFont": 12,
+     "maxFont": 13,
+     "sentenceCase": true,
+     "maxWords": 3,
+     "colour": "--color-text-secondary",
+     "reach": 14,
+     "forbidden": [
+      "W",
+      "H",
+      "Thick",
+      "Round",
+      "Fill",
+      "Line",
+      "Pad",
+      "Mar",
+      "Size",
+      "Text",
+      "X",
+      "Y"
+     ],
+     "table": {},
+     "captions": {
+      "Align left": "Left",
+      "Align centre": "Centre",
+      "Align right": "Right",
+      "Justify": "Justify"
+     },
+     "exempt": [
+      "Link to Phone",
+      "Link to Desktop"
+     ],
+     "words": [
+      {
+       "name": "Padding sides",
+       "text": "Sides"
+      },
+      {
+       "name": "Margin sides",
+       "text": "Sides"
+      },
+      {
+       "name": "Move up",
+       "text": "Move up"
+      },
+      {
+       "name": "Move down",
+       "text": "Move down"
+      },
+      {
+       "name": "Grid",
+       "text": "Grid"
+      },
+      {
+       "name": "Snap",
+       "text": "Snap"
+      }
+     ],
+     "tableFromSpec": "U03"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "fieldsFit",
+     "sel": "#card-build"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "liveButtons",
+     "names": [
+      "Samples",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Download",
+      "Rotate"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "enabledOnly",
+     "names": [
+      "Grid",
+      "Snap",
+      "Grid spacing"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,4 +1,4 @@
-// The side panel's fields: what each one shows (read from a computed style), what it accepts, and the CSS (or SVG attribute) it writes as one
+// The ribbon's fields: what each one shows (read from a computed style), what it accepts, and the CSS (or SVG attribute) it writes as one
 // `set` edit. HTML and SVG have their own mapping: an SVG shape's "background" is its fill, its "border" is its stroke. Pure, so it runs under
 // node with a stand-in for the computed style (tests/uieditorvalues.test.ts).
 import { panel } from '../data/uiEditor.ts'
@@ -8,10 +8,10 @@ export type Group = 'text' | 'box' | 'colours'
 export type Control = 'text' | 'colour' | 'select'
 
 /** The part of getComputedStyle that the fields read. */
-export type Computed = Pick<CSSStyleDeclaration, 'fontFamily' | 'fontSize' | 'fontWeight' | 'color' | 'textAlign' | 'width' | 'height' | 'padding' | 'margin' | 'backgroundColor' | 'borderTopColor' | 'borderTopWidth' | 'borderTopStyle' | 'borderRadius' | 'fill' | 'stroke' | 'strokeWidth' | 'textAnchor'> & { rx?: string }
+export type Computed = Pick<CSSStyleDeclaration, 'fontFamily' | 'fontSize' | 'fontWeight' | 'color' | 'textAlign' | 'width' | 'height' | 'padding' | 'margin' | 'backgroundColor' | 'borderTopColor' | 'borderTopWidth' | 'borderTopStyle' | 'borderRadius' | 'fill' | 'stroke' | 'strokeWidth' | 'textAnchor'> & { rx?: string; boxShadow?: string; fontStyle?: string; textDecorationLine?: string; lineHeight?: string; backgroundImage?: string }
 
 export interface Field {
-  /** The panel row's `data-field` and what the Review list calls the property. */
+  /** The ribbon control's `data-field` and what the Review list calls the property. */
   prop: string
   label: string
   group: Group
@@ -74,7 +74,7 @@ export function svgFields(el: { localName: string }, sizeable: boolean, cs: Comp
   return out
 }
 
-/** The panel row a pinned property belongs to: padding-top is the Padding row, transform and order are the Position row. */
+/** The ribbon field a pinned property belongs to: padding-top is the Padding row, transform and order are the Position row. */
 export function rowOfPin(property: string, props: string[]): string | null {
   if (property === 'transform' || property === 'order') return 'position'
   const exact = props.find((p) => p === property)

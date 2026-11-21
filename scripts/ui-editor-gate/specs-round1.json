@@ -1,0 +1,1234 @@
+{
+ "version": 1,
+ "vocabulary": {
+  "steps": {
+   "visit": "open the page with a fresh load and nothing opened (the host window is spec.host, else hostViewport)",
+   "openCard": "click the gallery card of this sample (a real mouse click) and wait until the preview holds marker",
+   "clickCard": "click the gallery card of this sample (it may open a confirmation instead of loading)",
+   "waitMarker": "wait until the preview iframe holds the selector",
+   "host": "resize the host window",
+   "view / click / drag / type / button": "as in specs.json (drag moves the real mouse by dx, dy SCREEN px)"
+  },
+  "asserts": {
+   "barButtons": "P6. The visible buttons of the group \"Editor controls\" are exactly names (with includes: at least these)",
+   "absent": "P6. None of the listed controls (by role+name, selector or text) is visible or focusable (not in the DOM counts)",
+   "present": "P5. Every listed control is visible",
+   "cards": "P5. [data-gallery] holds exactly n [data-sample-card] with these titles, a non-empty description, and a miniature iframe whose sandbox has no allow-scripts, whose iframe box is non-zero, whose offsetWidth is minWidth (the sample at its real width) and whose document body has rendered children and a marker element with a non-zero box",
+   "markerIn": "P5. The preview iframe does (has true) or does not contain the selector",
+   "miniFidelity": "P1. Before opening: miniature iframe M of the sample's card, scale s = M screen width / M offsetWidth, marker box in M (CSS px). Then open the sample: marker box R in the real preview at Desktop. For left, top, width, height: |M x s - R x s| <= tol",
+   "device": "P1. Measured: the iframe offsetWidth/offsetHeight (iframeH null: not checked); the transform matrix scale a of [data-device-scale] (scale = number within scaleTol, or scaleBelow: a < the number); [data-device-frame] present with data-device = kind and data-orientation for phone and tablet, absent for desktop; the horizontal centre of the frame (the iframe for desktop) within centredTol px of the centre of [data-stage-area]",
+   "measureScaled": "P1. Like measure with mode delta, but the wanted change is screen / scale CSS px, scale read from the matrix of [data-device-scale] just before the drag",
+   "handles": "P5. Exactly n [data-handle] elements",
+   "noteText": "P5. [data-device-note] reads exactly this text",
+   "textAbsent": "P5. The text is not in the visible page text",
+   "chips": "P5. ul.chip-list.page-chips holds exactly these li.chip texts in this order",
+   "ledeReach": "P1. The right edge of the page header's intro paragraph (.page-lede) is within tol px of the right edge of the content box of the first main .page-container",
+   "columns": "P1. For each list (how: the \"What is measured\" list; limits; credits; all ul.ue-list in that order): the number of distinct item left edges (rounded to 2 px) is at least min, or exactly exact",
+   "lineLength": "P1. Over every item of the three lists with at least two rendered lines: the mean length in characters of its lines except the last (text of each line box, from Range client rects) is between min and max"
+  }
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL"
+ ],
+ "specs": [
+  {
+   "id": "N01",
+   "name": "First visit, nothing open: only Samples, Paste and Upload in the bar; no stage, panel or code area; a gallery of exactly 3 cards with live miniatures",
+   "sample": "landing",
+   "checks": [
+    "P5",
+    "P6"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "barButtons",
+     "names": [
+      "Samples",
+      "Paste",
+      "Upload"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "role": "button",
+       "name": "Desktop"
+      },
+      {
+       "role": "button",
+       "name": "Tablet"
+      },
+      {
+       "role": "button",
+       "name": "Phone"
+      },
+      {
+       "role": "button",
+       "name": "Undo"
+      },
+      {
+       "role": "button",
+       "name": "Redo"
+      },
+      {
+       "role": "button",
+       "name": "Reset all"
+      },
+      {
+       "role": "button",
+       "name": "Review unlinked"
+      },
+      {
+       "role": "button",
+       "name": "Copy code"
+      },
+      {
+       "role": "button",
+       "name": "Download"
+      },
+      {
+       "role": "button",
+       "name": "Rotate"
+      },
+      {
+       "role": "combobox",
+       "name": "File"
+      },
+      {
+       "role": "combobox",
+       "name": "Sample"
+      },
+      {
+       "selector": "[data-stage]"
+      },
+      {
+       "selector": "[data-stage-area]"
+      },
+      {
+       "selector": "aside[aria-label=\"Selected element\"]"
+      },
+      {
+       "selector": "[data-selected-label]"
+      },
+      {
+       "text": "Updated code"
+      },
+      {
+       "selector": "textarea[aria-label^=\"Updated code\"]"
+      },
+      {
+       "selector": "iframe[title=\"Preview\"]"
+      },
+      {
+       "selector": "[data-device-note]"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "selector": "[data-gallery]"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "cards",
+     "n": 3,
+     "titles": [
+      "Landing page",
+      "HTML email",
+      "SVG chart"
+     ],
+     "markers": {
+      "landing": "#headline",
+      "email": "#hello",
+      "chart": "#bar-tue"
+     },
+     "minWidth": 1280
+    }
+   ],
+   "mustNotChange": "nothing is opened or changed by looking at the page"
+  },
+  {
+   "id": "N02",
+   "name": "Picking each of the three cards opens that sample: its marker is in the preview, the toolbar appears, the gallery is gone",
+   "sample": "landing",
+   "checks": [
+    "P5",
+    "P6"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "openCard",
+     "sample": "landing",
+     "marker": "#headline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#headline",
+     "has": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "barButtons",
+     "names": [
+      "Samples",
+      "Paste",
+      "Upload",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Undo",
+      "Redo",
+      "Reset all",
+      "Review unlinked",
+      "Copy code",
+      "Download"
+     ],
+     "includes": true
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "selector": "[data-gallery]"
+      }
+     ]
+    },
+    {
+     "do": "button",
+     "name": "Samples"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "selector": "[data-gallery]"
+      }
+     ]
+    },
+    {
+     "do": "openCard",
+     "sample": "email",
+     "marker": "#hello"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#hello",
+     "has": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#headline",
+     "has": false
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "selector": "[data-gallery]"
+      }
+     ]
+    },
+    {
+     "do": "button",
+     "name": "Samples"
+    },
+    {
+     "do": "openCard",
+     "sample": "chart",
+     "marker": "#bar-tue"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#bar-tue",
+     "has": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#hello",
+     "has": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "barButtons",
+     "names": [
+      "Samples",
+      "Paste",
+      "Upload",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Undo",
+      "Redo",
+      "Reset all",
+      "Review unlinked",
+      "Copy code",
+      "Download"
+     ],
+     "includes": true
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "selector": "[data-gallery]"
+      }
+     ]
+    }
+   ],
+   "mustNotChange": "no edits: the three opens never ask for confirmation"
+  },
+  {
+   "id": "N03",
+   "name": "The Samples button reopens the gallery; with an unsaved edit, picking a card asks to confirm: Keep editing keeps the document and the edit list, Discard edits loads the other sample and clears the list",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5",
+    "P6"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "openCard",
+     "sample": "landing",
+     "marker": "#headline"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "button",
+     "name": "Samples"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "selector": "[data-gallery]"
+      }
+     ]
+    },
+    {
+     "do": "clickCard",
+     "sample": "email"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "role": "button",
+       "name": "Discard edits"
+      },
+      {
+       "role": "button",
+       "name": "Keep editing"
+      }
+     ]
+    },
+    {
+     "do": "button",
+     "name": "Keep editing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#headline",
+     "has": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#hello",
+     "has": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "clickCard",
+     "sample": "email"
+    },
+    {
+     "do": "button",
+     "name": "Discard edits"
+    },
+    {
+     "do": "waitMarker",
+     "sel": "#hello"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#hello",
+     "has": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "markerIn",
+     "sel": "#headline",
+     "has": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "selector": "[data-gallery]"
+      },
+      {
+       "role": "button",
+       "name": "Discard edits"
+      }
+     ]
+    }
+   ],
+   "mustNotChange": "Keep editing: the open document, its edit list and the edited value; Discard edits: the email opens with no edits"
+  },
+  {
+   "id": "N04",
+   "name": "Miniature fidelity: each miniature is the sample at 1280 px, and its marker element, scaled by the card scale, sits where the real sample has it",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "miniFidelity",
+     "sample": "landing",
+     "sel": "#headline",
+     "tol": 2
+    },
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "miniFidelity",
+     "sample": "email",
+     "sel": "#hello",
+     "tol": 2
+    },
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "miniFidelity",
+     "sample": "chart",
+     "sel": "#bar-tue",
+     "tol": 2
+    }
+   ],
+   "mustNotChange": "nothing"
+  },
+  {
+   "id": "N05",
+   "name": "Host 1920 x 1080: Desktop (no frame) and Phone portrait (frame) are centred and render at scale 1; the phone iframe is 390 x 844",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "openCard",
+     "sample": "landing",
+     "marker": "#headline"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "desktop",
+     "orientation": "portrait",
+     "iframeW": 1280,
+     "iframeH": null,
+     "centredTol": 2,
+     "scale": 1,
+     "scaleTol": 0.001
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "selector": "[data-device-frame]"
+      },
+      {
+       "role": "button",
+       "name": "Rotate"
+      }
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "phone",
+     "orientation": "portrait",
+     "iframeW": 390,
+     "iframeH": 844,
+     "centredTol": 2,
+     "scale": 1,
+     "scaleTol": 0.001
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "selector": "[data-device-frame]"
+      },
+      {
+       "role": "button",
+       "name": "Rotate"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewPressed",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "selector": "[data-device-note]"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noteText",
+     "contains": "Previewed at a typical phone width (390 px). Other phones show the same code at their own width."
+    }
+   ],
+   "mustNotChange": "nothing"
+  },
+  {
+   "id": "N06",
+   "name": "Rotate on the phone: 844 x 390, view-only (no handles, panel fields disabled, the sentence shown, a click still selects); rotating back restores 390 x 844 and editing",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "openCard",
+     "sample": "landing",
+     "marker": "#headline"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "handles",
+     "n": 8
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": false
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "phone",
+     "orientation": "landscape",
+     "iframeW": 844,
+     "iframeH": 390,
+     "centredTol": 2,
+     "scale": 1,
+     "scaleTol": 0.001
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "#art"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noHandles"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabletSentence",
+     "contains": "view-only"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selection",
+     "sel": "#art",
+     "tol": 1.5
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "phone",
+     "orientation": "portrait",
+     "iframeW": 390,
+     "iframeH": 844,
+     "centredTol": 2,
+     "scale": 1,
+     "scaleTol": 0.001
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "#art"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "handles",
+     "n": 8
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "textAbsent",
+     "contains": "view-only"
+    }
+   ],
+   "mustNotChange": "no edit is made; Undo stays disabled"
+  },
+  {
+   "id": "N07",
+   "name": "Tablet portrait is 768 x 1024 and landscape 1024 x 768, both centred and both view-only",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "openCard",
+     "sample": "landing",
+     "marker": "#headline"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "tablet",
+     "orientation": "portrait",
+     "iframeW": 768,
+     "iframeH": 1024,
+     "centredTol": 2
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noHandles"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabletSentence",
+     "contains": "view-only"
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "tablet",
+     "orientation": "landscape",
+     "iframeW": 1024,
+     "iframeH": 768,
+     "centredTol": 2
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selected",
+     "contains": "#headline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noHandles"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabletSentence",
+     "contains": "view-only"
+    }
+   ],
+   "mustNotChange": "no edit is made"
+  },
+  {
+   "id": "N08",
+   "name": "Scaled device, resize: host 1366 x 768, Phone frame scales (below 1); an east-handle drag of 40 screen px changes the width by 40 / scale CSS px",
+   "sample": "landing",
+   "host": {
+    "width": 1366,
+    "height": 768
+   },
+   "checks": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5"
+   ],
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "baseline": [
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "value": 280,
+     "tol": 0.6
+    },
+    {
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "value": 180,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "openCard",
+     "sample": "landing",
+     "marker": "#headline"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "phone",
+     "orientation": "portrait",
+     "iframeW": 390,
+     "iframeH": 844,
+     "scaleBelow": 1,
+     "centredTol": 2
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "e",
+     "dx": 40,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measureScaled",
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "screen": 40,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "height",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#art",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    },
+    "permutation": false
+   },
+   "mustNotChange": "the height of the target at every width; every other element's colours, fonts, margins and paddings at every width"
+  },
+  {
+   "id": "N09",
+   "name": "Scaled device, move: host 1366 x 768, Desktop (1280) scales (below 1); a 40 screen px drag-move changes left by 40 / scale CSS px, and nothing else changes",
+   "sample": "landing",
+   "host": {
+    "width": 1366,
+    "height": 768
+   },
+   "checks": [
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5"
+   ],
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "baseline": [
+    {
+     "at": 1280,
+     "sel": "#cta",
+     "q": "left",
+     "value": 90,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#cta",
+     "q": "top",
+     "value": 191.69,
+     "tol": 0.6
+    },
+    {
+     "at": 1280,
+     "sel": "#cta",
+     "q": "width",
+     "value": 195.34,
+     "tol": 0.6
+    }
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "openCard",
+     "sample": "landing",
+     "marker": "#headline"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "desktop",
+     "orientation": "portrait",
+     "iframeW": 1280,
+     "iframeH": null,
+     "scaleBelow": 1,
+     "centredTol": 2
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": null,
+     "dx": 40,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measureScaled",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "left",
+     "screen": 40,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "top",
+     "mode": "same",
+     "value": 0,
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#cta",
+     "q": "width",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#cta",
+     "q": "left",
+     "mode": "same",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ],
+   "p3": {
+    "target": "#cta",
+    "class": "descendants",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 1
+    },
+    "permutation": false
+   },
+   "mustNotChange": "every other element at every width; the target at 390 and 640 px; the target's size"
+  },
+  {
+   "id": "N10",
+   "name": "Header: four chips (TypeScript, React, parse5, postcss) and an intro paragraph whose box reaches within 8 px of the page container's right edge at 1440",
+   "sample": "landing",
+   "host": {
+    "width": 1440,
+    "height": 900
+   },
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "chips",
+     "names": [
+      "TypeScript",
+      "React",
+      "parse5",
+      "postcss"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ledeReach",
+     "tol": 8
+    }
+   ],
+   "mustNotChange": "nothing"
+  },
+  {
+   "id": "N11",
+   "name": "Text columns: the three lists below the tool flow into at least 2 columns at 1440 and exactly 1 at 390; each item's full-line length averages 45 to 80 characters",
+   "sample": "landing",
+   "host": {
+    "width": 1440,
+    "height": 900
+   },
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "columns",
+     "lists": [
+      "how",
+      "limits",
+      "credits"
+     ],
+     "min": 2
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "lineLength",
+     "min": 45,
+     "max": 80
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "columns",
+     "lists": [
+      "how",
+      "limits",
+      "credits"
+     ],
+     "exact": 1
+    }
+   ],
+   "mustNotChange": "nothing"
+  }
+ ]
+}

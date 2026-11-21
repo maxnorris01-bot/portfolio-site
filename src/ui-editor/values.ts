@@ -1,4 +1,4 @@
-// Pure helpers for the side panel: reading a computed value for display, checking what a visitor typed, and the plain sentences for the
+// Pure helpers for the ribbon's fields: reading a computed value for display, checking what a visitor typed, and the plain sentences for the
 // engine's refusals and notes. No DOM, no engine calls, so they run under node (tests/uieditorvalues.test.ts).
 import type { Refusal, ScaleNote } from './vendor/engine.js'
 

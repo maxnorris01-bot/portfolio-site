@@ -1,0 +1,2393 @@
+{
+ "version": 1,
+ "retiredChecks": {
+  "V01": {
+   "wholeSpec": true,
+   "reason": "Round 6 replaces the shared column grid with one band of two-row groups: V01 checks band-2 edges against band-1 columns and the seven widths against the round 5 weights.",
+   "replacedBy": "W01"
+  },
+  "V02": {
+   "wholeSpec": true,
+   "reason": "Its 14 px left padding and first-row tops describe the round 5 groups; round 6 groups have 8 px padding and fill each row to the right edge.",
+   "replacedBy": "W02"
+  },
+  "V04": {
+   "wholeSpec": true,
+   "reason": "Large 72 x 58 buttons and 72 px number fields no longer exist (28 px rows, 28 px buttons).",
+   "replacedBy": "W03"
+  },
+  "V09": {
+   "steps": [
+    6
+   ],
+   "reason": "The ribbonLabels assert reads labels above every control; round 6 puts row labels beside the controls. V09's other steps stay.",
+   "replacedBy": "W03 and the tooltips assert of U03"
+  },
+  "U01": {
+   "steps": [
+    3
+   ],
+   "reason": "ribbonGroups names the old groups (Shape) and controls (the inline colour, thickness and swatch fields). U01's noTabs stays.",
+   "replacedBy": "W01"
+  },
+  "U03": {
+   "steps": [
+    2,
+    5,
+    9
+   ],
+   "reason": "ribbonLabels expects a label above every control; row labels now sit beside their control and several controls carry their word inside (menu buttons). The tooltips asserts stay.",
+   "replacedBy": "W03"
+  },
+  "U05": {
+   "steps": [
+    2,
+    4
+   ],
+   "reason": "controlSizes expects the large buttons 54 to 62 px high and 11 px group names; round 6 has 28 px rows and 12 px group names.",
+   "replacedBy": "W03"
+  },
+  "T03": {
+   "steps": [
+    2,
+    4,
+    6,
+    8
+   ],
+   "reason": "The same controlSizes asserts as U05.",
+   "replacedBy": "W03"
+  },
+  "U06": {
+   "steps": [
+    23
+   ],
+   "reason": "fillShows reads the Background input, which now lives inside the Shape Fill menu (More colours).",
+   "replacedBy": "W04"
+  },
+  "R04": {
+   "steps": [
+    6
+   ],
+   "reason": "ribbonEnabled names Text colour, Background, Border colour and Border width as inline controls; they are menus now (the other names stay enabled by W02, W03 and U09).",
+   "replacedBy": "W04, W05"
+  },
+  "R09": {
+   "steps": [
+    8,
+    9
+   ],
+   "reason": "swatch and swatchNative read the native colour input Pick text colour, which no longer exists; the typed hex (step 6, through the menu) and its computed colour (step 7) stay.",
+   "replacedBy": "W04"
+  }
+ },
+ "vocabulary": {
+  "steps": {
+   "openMenu": "click the visible button `name` (a menu button).",
+   "menuItem": "click the item (role menuitem, menuitemradio or menuitemcheckbox) named `name` in the open menu or its open submenu.",
+   "focusControl": "focus the button or control named `name` from the keyboard side (script focus, then the key steps follow).",
+   "clickPage": "a mouse click at window point (x, y) on a neutral part of the page (not a control).",
+   "holdButton": "press the mouse on the control named `name` and keep it down for `ms`, then release.",
+   "snapshotExport": "store the downloaded text of every file under `name` (one Download).",
+   "type": "Mapping (runner change #33): for the fields Background, Border colour and Text colour, when the field is not shown the runner opens its menu (Shape Fill, Shape Outline, Font colour) and More colours… first.",
+   "aggregate": "W09 has no steps of its own: it is PASS when every spec it lists is PASS in the same run (and not RETIRED), FAIL otherwise.",
+   "stepper": "as before: the Increase or Decrease buttons of the field (the spin arrows are role button spans; Increase Font size and Decrease Font size are the grow and shrink buttons)."
+  },
+  "asserts": {
+   "ribbonBands": "P1. Bands are the distinct tops (6 px) of the visible [data-ribbon-group] elements; mode one: exactly one; two: exactly two; oneOrTwo: one or two (the count is in the detail); stacked: seven bands and every group as wide as the panel (4 px). The page and the panel do not scroll sideways. With one band every group is at most maxBandHeight high. The group names ([data-group-label] text) in document order equal `order`.",
+   "rowFill": "P1. Rows are the [data-row] elements of the visible groups that hold at least one visible control. For each: the right edge of its last visible child is within edgeTol of the group's inner right edge (the group's right edge less its border and padding); the gap between neighbouring visible children is at most gapMax; at least one child has data-stretch. Nothing is centred (the first child's left edge is the group's inner left edge within 2 px).",
+   "ribbonSizes6": "P1. Visible buttons, inputs and selects of [data-ribbon-panel] except spin arrows ([data-spin]) are small[0] to small[1] high; buttons marked [data-fixed-icon] are iconWidth wide; every [data-row-label] has a computed font size within rowLabel; every control's text size within controlFont; every [data-group-label] within groupName (0.5 px tolerance, inclusive).",
+   "menuState": "P5. The button `button`: aria-expanded true and a role menu element visible (open true) or aria-expanded not true and no visible menu (open false); focus: inside means document.activeElement is inside the menu, button means it is the button.",
+   "menuContents": "P5. The open menu of `button`: its menuitemradio items between the headings Page colours and Standard colours are, by aria-label, equal to the document's distinct colours up to 16 in first-use order when pageColours is document (the runner reads the original files in their order, primary first, matching #rgb, #rrggbb, #rrggbbaa, rgb(), rgba(), hsl() and hsla() in text order, lower case, 6-digit hex, no duplicates); the items after Standard colours are the 8 colours of `standard`; the menu has an item `none` (when not null) and an item `more`; `submenus` maps a submenu trigger (menuitem with aria-haspopup) to the labels of its items, found by opening it.",
+   "menuChecked": "P5. In the open menu (reopened if needed) the item `item` has aria-checked equal to `checked`.",
+   "menuFocus": "P5. The focused element is a menu item whose accessible name is `name`.",
+   "submenuOpen": "P5. The submenu trigger `name` has aria-expanded true (open) and a visible submenu, or not.",
+   "exportsEqual": "P5. The two snapshotExport texts (every file) are byte for byte equal and differ from the original source.",
+   "fontPresets": "P5. Opening the arrow of the font size box (button Font size presets) shows menu items whose names are exactly `values` in order; the menu is left open.",
+   "holdSteps": "P1. After holdButton, the element's `q` changed from `from` by a whole number of 1 px steps between min and max.",
+   "togglePressed": "P5. The button `name` has aria-pressed equal to `pressed`.",
+   "lineHeightRatio": "P1. The element's computed line-height divided by its computed font-size equals `value` within `tol`.",
+   "disabledStyle": "P5. The named controls' computed color, background colour and opacity (a signature) are stored under `key`; with sameAs the signature equals the stored one, and every control is disabled.",
+   "touchTargets": "P5. Every visible button, input, select and spin arrow ([data-spin]) of [data-ribbon] is at least `min` px high and wide.",
+   "menuFits": "P5. The open menu lies inside the window horizontally (0.5 px) and, if taller than the window, scrolls inside (its overflow-y is auto or scroll); every item is at least itemMin high.",
+   "css": "As before, plus `contains`, `startsWith` and `startsWithAny` (the computed string starts with any listed prefix: Chromium reports `to bottom right` as `to right bottom`) on the computed string.",
+   "pressed": "As before."
+  }
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL",
+  "NOT BUILT"
+ ],
+ "specs": [
+  {
+   "expected": "PASS",
+   "id": "W01",
+   "name": "Bands: one band at 1920 and 1440, one or two at 1290 (reported), two at 1100, stacked at 390; no overflow; a band at most 96 px high; the seven groups in order",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 1080
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonBands",
+     "mode": "one",
+     "order": [
+      "Font",
+      "Paragraph",
+      "Size",
+      "Shape Styles",
+      "Spacing",
+      "Arrange",
+      "Grid"
+     ],
+     "maxBandHeight": 96
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonBands",
+     "mode": "one",
+     "order": [
+      "Font",
+      "Paragraph",
+      "Size",
+      "Shape Styles",
+      "Spacing",
+      "Arrange",
+      "Grid"
+     ],
+     "maxBandHeight": 96
+    },
+    {
+     "do": "host",
+     "width": 1290,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonBands",
+     "mode": "oneOrTwo",
+     "order": [
+      "Font",
+      "Paragraph",
+      "Size",
+      "Shape Styles",
+      "Spacing",
+      "Arrange",
+      "Grid"
+     ],
+     "maxBandHeight": 96
+    },
+    {
+     "do": "host",
+     "width": 1100,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonBands",
+     "mode": "two",
+     "order": [
+      "Font",
+      "Paragraph",
+      "Size",
+      "Shape Styles",
+      "Spacing",
+      "Arrange",
+      "Grid"
+     ],
+     "maxBandHeight": 96
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonBands",
+     "mode": "stacked",
+     "order": [
+      "Font",
+      "Paragraph",
+      "Size",
+      "Shape Styles",
+      "Spacing",
+      "Arrange",
+      "Grid"
+     ],
+     "maxBandHeight": 96
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W02",
+   "name": "Fill rule: in every row the last control ends at the group's inner right edge, neighbours are at most 8 px apart, and the row has a stretching control, at 1000, 1290, 1440 and 1920 on all three samples",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1290,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 1080
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "click",
+     "sel": "#hello",
+     "at": "center"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1290,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 1080
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1290,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 1080
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "rowFill",
+     "edgeTol": 2,
+     "gapMax": 8
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W03",
+   "name": "Sizes: controls 26 to 28 px high, fixed icon buttons 28 px wide, row labels 12 to 13 px, control text 13 to 14 px, group names 11 to 12 px",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonSizes6",
+     "small": [
+      26,
+      28
+     ],
+     "iconWidth": 28,
+     "rowLabel": [
+      12,
+      13
+     ],
+     "controlFont": [
+      13,
+      14
+     ],
+     "groupName": [
+      11,
+      12
+     ]
+    },
+    {
+     "do": "host",
+     "width": 1290,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonSizes6",
+     "small": [
+      26,
+      28
+     ],
+     "iconWidth": 28,
+     "rowLabel": [
+      12,
+      13
+     ],
+     "controlFont": [
+      13,
+      14
+     ],
+     "groupName": [
+      11,
+      12
+     ]
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "ribbonSizes6",
+     "small": [
+      26,
+      28
+     ],
+     "iconWidth": 28,
+     "rowLabel": [
+      12,
+      13
+     ],
+     "controlFont": [
+      13,
+      14
+     ],
+     "groupName": [
+      11,
+      12
+     ]
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W04",
+   "name": "Colour menus: open by click and key, page colours from the document, 8 standard colours, No fill, More colours; a swatch makes the same edit as the hex box; an invalid hex edits nothing; Escape and an outside click close; the chosen colour is marked",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "p3": {
+    "target": "#card-plan",
+    "class": "descendants",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.html": 4
+    },
+    "permutation": false
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuContents",
+     "button": "Shape Fill",
+     "standard": [
+      "#c00000",
+      "#ff0000",
+      "#ffc000",
+      "#ffff00",
+      "#92d050",
+      "#00b050",
+      "#0070c0",
+      "#7030a0"
+     ],
+     "none": "No fill",
+     "more": "More colours…",
+     "pageColours": "document"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "clickPage",
+     "x": 20,
+     "y": 20
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "focusControl",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "focusControl",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "focusControl",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "key",
+     "key": "Space"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuContents",
+     "button": "Font colour",
+     "standard": [
+      "#c00000",
+      "#ff0000",
+      "#ffc000",
+      "#ffff00",
+      "#92d050",
+      "#00b050",
+      "#0070c0",
+      "#7030a0"
+     ],
+     "none": null,
+     "more": "More colours…",
+     "pageColours": "document"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuContents",
+     "button": "Shape Outline",
+     "standard": [
+      "#c00000",
+      "#ff0000",
+      "#ffc000",
+      "#ffff00",
+      "#92d050",
+      "#00b050",
+      "#0070c0",
+      "#7030a0"
+     ],
+     "none": "No outline",
+     "more": "More colours…",
+     "pageColours": "document"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "#c00000"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(192, 0, 0)"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "swatch"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuChecked",
+     "item": "#c00000",
+     "checked": true
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(255, 255, 255)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "More colours…"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#c00000"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "hex"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportsEqual",
+     "a": "swatch",
+     "b": "hex"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "More colours…"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "red"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "not a colour"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "More colours…"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#12"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "not a colour"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "No fill"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgba(0, 0, 0, 0)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "#0070c0"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "borderTopColor",
+     "equals": "rgb(0, 112, 192)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "#7030a0"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "color",
+     "equals": "rgb(112, 48, 160)"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W05",
+   "name": "Outline menu: Weight (6) and Dashes (4) give the computed line in the preview and the matching export, a visible line appears on an element that had none, Undo restores, Right opens and Left closes a submenu, Double under 3 px says so",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "p3": {
+    "target": "#headline",
+    "class": "flow",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.css": 4
+    },
+    "permutation": false
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "focusControl",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "key",
+     "key": "End"
+    },
+    {
+     "do": "key",
+     "key": "ArrowUp"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuFocus",
+     "name": "Weight"
+    },
+    {
+     "do": "key",
+     "key": "ArrowRight"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "submenuOpen",
+     "name": "Weight",
+     "open": true
+    },
+    {
+     "do": "key",
+     "key": "ArrowLeft"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "submenuOpen",
+     "name": "Weight",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuFocus",
+     "name": "Weight"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Outline",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuContents",
+     "button": "Shape Outline",
+     "submenus": {
+      "Weight": [
+       "1 px",
+       "2 px",
+       "3 px",
+       "4 px",
+       "6 px",
+       "8 px"
+      ],
+      "Dashes": [
+       "Solid",
+       "Dotted",
+       "Dashed",
+       "Double"
+      ]
+     }
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "none"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "menuItem",
+     "name": "3 px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopWidth",
+     "equals": "3px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "solid"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "none"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "menuItem",
+     "name": "1 px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopWidth",
+     "equals": "1px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "solid"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "menuItem",
+     "name": "2 px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopWidth",
+     "equals": "2px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "solid"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "menuItem",
+     "name": "3 px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopWidth",
+     "equals": "3px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "solid"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "menuItem",
+     "name": "4 px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopWidth",
+     "equals": "4px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "solid"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "menuItem",
+     "name": "6 px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopWidth",
+     "equals": "6px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "solid"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "menuItem",
+     "name": "8 px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopWidth",
+     "equals": "8px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "solid"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Dashes"
+    },
+    {
+     "do": "menuItem",
+     "name": "Dotted"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "dotted"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Dashes"
+    },
+    {
+     "do": "menuItem",
+     "name": "Dashed"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "dashed"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Dashes"
+    },
+    {
+     "do": "menuItem",
+     "name": "Double"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "double"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Dashes"
+    },
+    {
+     "do": "menuItem",
+     "name": "Solid"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "borderTopStyle",
+     "equals": "solid"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "menuItem",
+     "name": "1 px"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Dashes"
+    },
+    {
+     "do": "menuItem",
+     "name": "Double"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "3 px or more"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W06",
+   "name": "Number controls: spin step 4 px (2 px radius, 1 px font), Shift times 10, typed 52 becomes 52px, the presets list, hold to repeat, grow and shrink, the px/% toggle and the 100% snap",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Height",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#cta",
+     "q": "height",
+     "mode": "delta",
+     "value": 4,
+     "tol": 0.6
+    },
+    {
+     "do": "stepper",
+     "field": "Height",
+     "dir": "-",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#cta",
+     "q": "height",
+     "mode": "delta",
+     "value": 0,
+     "tol": 0.6
+    },
+    {
+     "do": "stepper",
+     "field": "Height",
+     "dir": "+",
+     "times": 1,
+     "shift": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#cta",
+     "q": "height",
+     "mode": "delta",
+     "value": 40,
+     "tol": 0.6
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "stepper",
+     "field": "Border radius",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "borderTopLeftRadius",
+     "mode": "delta",
+     "value": 2,
+     "tol": 0.05
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "delta",
+     "value": 1,
+     "tol": 0.05
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "+",
+     "times": 1,
+     "shift": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "delta",
+     "value": 11,
+     "tol": 0.05
+    },
+    {
+     "do": "stepper",
+     "field": "Font size",
+     "dir": "-",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "delta",
+     "value": 10,
+     "tol": 0.05
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 52,
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "52px",
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fontPresets",
+     "values": [
+      12,
+      14,
+      16,
+      18,
+      20,
+      24,
+      28,
+      32,
+      36,
+      44,
+      48,
+      60,
+      72
+     ]
+    },
+    {
+     "do": "menuItem",
+     "name": "24"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 24,
+     "tol": 0.05
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 30,
+     "tol": 0.05
+    },
+    {
+     "do": "holdButton",
+     "name": "Increase Font size",
+     "ms": 1000
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "holdSteps",
+     "sel": "#headline",
+     "q": "fontSize",
+     "min": 3,
+     "max": 16,
+     "from": 30
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "inset"
+    },
+    {
+     "do": "unit",
+     "unit": "%"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pctField",
+     "label": "Width",
+     "sel": "#cta",
+     "tol": 0.1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "unitPressed",
+     "unit": "%"
+    },
+    {
+     "do": "stepper",
+     "field": "Width",
+     "dir": "+",
+     "times": 1,
+     "shift": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pctWidth",
+     "sel": "#cta",
+     "plus": 1,
+     "tol": 0.6
+    },
+    {
+     "do": "drag",
+     "handle": "e",
+     "sel": "#cta",
+     "dxToParentEdge": {
+      "sel": "#cta",
+      "short": 0
+     },
+     "hold": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ghost",
+     "contains": "Full width"
+    },
+    {
+     "do": "release"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "eqParent",
+     "sel": "#cta",
+     "at": "current",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "width:\\s*100%"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W07a",
+   "name": "B1 Shape Effects: None, Subtle, Medium and Strong write the stated box-shadow; the current one is marked",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "widths": [
+    1280,
+    641,
+    640,
+    390
+   ],
+   "p3": {
+    "target": "#card-plan",
+    "class": "descendants",
+    "against": "original"
+   },
+   "p4": {
+    "files": {
+     "landing.html": 2
+    },
+    "permutation": false
+   },
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Effects"
+    },
+    {
+     "do": "menuItem",
+     "name": "Subtle"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "boxShadow",
+     "equals": "rgba(0, 0, 0, 0.2) 0px 1px 3px 0px"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Effects"
+    },
+    {
+     "do": "menuItem",
+     "name": "Medium"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "boxShadow",
+     "equals": "rgba(0, 0, 0, 0.25) 0px 4px 12px 0px"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Effects"
+    },
+    {
+     "do": "menuItem",
+     "name": "Strong"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "boxShadow",
+     "equals": "rgba(0, 0, 0, 0.3) 0px 10px 24px 0px"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Effects"
+    },
+    {
+     "do": "menuItem",
+     "name": "None"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "boxShadow",
+     "equals": "none"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Effects"
+    },
+    {
+     "do": "menuItem",
+     "name": "Medium"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.html",
+     "pattern": "box-shadow:\\s*0 4px 12px rgba\\(0,\\s*0,\\s*0,\\s*\\.?0?\\.25\\)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Effects"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuChecked",
+     "item": "Medium",
+     "checked": true
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W07b",
+   "name": "B2 Italic and Underline: the toggles write font-style and text-decoration, show pressed from the element's computed style and clear again",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "button",
+     "name": "Italic"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontStyle",
+     "equals": "italic"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "togglePressed",
+     "name": "Italic",
+     "pressed": true
+    },
+    {
+     "do": "button",
+     "name": "Italic"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontStyle",
+     "equals": "normal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "togglePressed",
+     "name": "Italic",
+     "pressed": false
+    },
+    {
+     "do": "button",
+     "name": "Underline"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "textDecorationLine",
+     "equals": "underline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "togglePressed",
+     "name": "Underline",
+     "pressed": true
+    },
+    {
+     "do": "button",
+     "name": "Underline"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "textDecorationLine",
+     "equals": "none"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "togglePressed",
+     "name": "Underline",
+     "pressed": false
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "togglePressed",
+     "name": "Underline",
+     "pressed": false
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W07c",
+   "name": "B3 Line spacing: 1.0, 1.15, 1.5 and 2.0 write a unitless line-height",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "openMenu",
+     "name": "Line spacing"
+    },
+    {
+     "do": "menuItem",
+     "name": "1.0"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "lineHeightRatio",
+     "sel": "#headline",
+     "value": 1.0,
+     "tol": 0.02
+    },
+    {
+     "do": "openMenu",
+     "name": "Line spacing"
+    },
+    {
+     "do": "menuItem",
+     "name": "1.15"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "lineHeightRatio",
+     "sel": "#headline",
+     "value": 1.15,
+     "tol": 0.02
+    },
+    {
+     "do": "openMenu",
+     "name": "Line spacing"
+    },
+    {
+     "do": "menuItem",
+     "name": "1.5"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "lineHeightRatio",
+     "sel": "#headline",
+     "value": 1.5,
+     "tol": 0.02
+    },
+    {
+     "do": "openMenu",
+     "name": "Line spacing"
+    },
+    {
+     "do": "menuItem",
+     "name": "2.0"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "lineHeightRatio",
+     "sel": "#headline",
+     "value": 2.0,
+     "tol": 0.02
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "line-height:\\s*2"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W07d",
+   "name": "B4 Gradient: two colours and four directions write a linear-gradient on an element with a background colour, No gradient removes it, and the same edit on an element whose rule has a background shorthand takes effect too (the engine does not refuse it; see the round 6 baseline)",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuContents",
+     "button": "Shape Fill",
+     "submenus": {
+      "Gradient": [
+       "From colour",
+       "To colour",
+       "To right",
+       "To bottom",
+       "To bottom right",
+       "To top",
+       "No gradient"
+      ]
+     }
+    },
+    {
+     "do": "menuItem",
+     "name": "To bottom right"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "backgroundImage",
+     "startsWithAny": [
+      "linear-gradient(to bottom right",
+      "linear-gradient(to right bottom"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.html",
+     "pattern": "background-image:\\s*linear-gradient\\(to bottom right,"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "To top"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "backgroundImage",
+     "startsWith": "linear-gradient(to top"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.html",
+     "pattern": "background-image:\\s*linear-gradient\\(to top,"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "To bottom"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.html",
+     "pattern": "background-image:\\s*linear-gradient\\(to bottom,"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "From colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "#c00000"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "backgroundImage",
+     "contains": "rgb(192, 0, 0)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "To colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "#0070c0"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "backgroundImage",
+     "contains": "rgb(0, 112, 192)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "No gradient"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-build",
+     "prop": "backgroundImage",
+     "equals": "none"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "To right"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#art",
+     "prop": "backgroundImage",
+     "startsWith": "linear-gradient(to right"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "background-image:\\s*linear-gradient\\(to right,"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W08",
+   "name": "Environments: Tablet controls are disabled in the same style as with nothing selected and the selected Tablet button is black; at 390 every control, spin arrow and menu item is at least 44 px and a menu stays inside the window",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "disabledStyle",
+     "key": "empty",
+     "names": [
+      "Font family",
+      "Increase Font size",
+      "Shape Fill",
+      "Shape Outline",
+      "Increase Height",
+      "Move up"
+     ]
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewStyle",
+     "selected": "Tablet",
+     "key": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "disabledStyle",
+     "key": "tablet",
+     "sameAs": "empty",
+     "names": [
+      "Font family",
+      "Increase Font size",
+      "Shape Fill",
+      "Shape Outline",
+      "Increase Height",
+      "Move up"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "touchTargets",
+     "min": 44
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuFits",
+     "button": "Shape Fill",
+     "itemMin": 44
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Weight"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuFits",
+     "button": "Shape Outline",
+     "itemMin": 44
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "W09",
+   "name": "Round 5 kept: one card, the selection path, one section per file with its Copy button, two files saved by one Download, and the west and north edges following the pointer (an aggregate of round 5's V03, V05, V06, V07 and V08, which run unchanged in the same gate run)",
+   "sample": "landing",
+   "checks": [],
+   "aggregate": [
+    "V03",
+    "V05",
+    "V06",
+    "V07",
+    "V08"
+   ],
+   "steps": []
+  }
+ ]
+}
