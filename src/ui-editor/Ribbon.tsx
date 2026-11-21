@@ -480,6 +480,24 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     )
   }
 
+  /** B2, Italic and Underline: toggles that show pressed from the element's computed style (also when the style comes from the page) and write font-style or text-decoration-line. */
+  const styleToggles = (): ReactNode => {
+    const italic = cs?.fontStyle === 'italic' || cs?.fontStyle === 'oblique'
+    const underline = !!cs?.textDecorationLine?.includes('underline')
+    // An SVG has text styling only on its text.
+    const ok = !svg || (!!el && ['text', 'tspan', 'textpath'].includes(el.localName.toLowerCase()))
+    return (
+      <>
+        <button type="button" className="ue-rbtn" data-stretch style={minW(28)} aria-label={P.italic} title={P.italicTip} aria-pressed={italic} disabled={!live || !ok} onClick={() => onSet({ 'font-style': italic ? 'normal' : 'italic' }, 'font style')}>
+          <Icon name="italic" />
+        </button>
+        <button type="button" className="ue-rbtn" data-stretch style={minW(28)} aria-label={P.underline} title={P.underlineTip} aria-pressed={underline} disabled={!live || !ok} onClick={() => onSet({ 'text-decoration-line': underline ? 'none' : 'underline' }, 'text decoration')}>
+          <Icon name="underline" />
+        </button>
+      </>
+    )
+  }
+
   const renderField = (f: Field): ReactNode => {
     const kind = kindOf(f.prop, svg)
     const shown = cs ? f.read(cs) : ''
@@ -718,6 +736,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         </Group>
         <Group id="paragraph" name={P.groups.paragraph}>
           <Row>{ctl(P.alignment)}</Row>
+          <Row>{styleToggles()}</Row>
         </Group>
         <Group id="size" name={P.groups.size}>
           <Row>{ctl(P.height)}</Row>
