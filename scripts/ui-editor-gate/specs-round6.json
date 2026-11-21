@@ -109,7 +109,7 @@
    "disabledStyle": "P5. The named controls' computed color, background colour and opacity (a signature) are stored under `key`; with sameAs the signature equals the stored one, and every control is disabled.",
    "touchTargets": "P5. Every visible button, input, select and spin arrow ([data-spin]) of [data-ribbon] is at least `min` px high and wide.",
    "menuFits": "P5. The open menu lies inside the window horizontally (0.5 px) and, if taller than the window, scrolls inside (its overflow-y is auto or scroll); every item is at least itemMin high.",
-   "css": "As before, plus `contains` and `startsWith` on the computed string.",
+   "css": "As before, plus `contains`, `startsWith` and `startsWithAny` (the computed string starts with any listed prefix: Chromium reports `to bottom right` as `to right bottom`) on the computed string.",
    "pressed": "As before."
   }
  },
@@ -550,7 +550,7 @@
    },
    "p4": {
     "files": {
-     "landing.css": 4
+     "landing.html": 4
     },
     "permutation": false
    },
@@ -1406,8 +1406,8 @@
     },
     {
      "do": "click",
-     "sel": "#card-build",
-     "at": "inset"
+     "sel": "#cta",
+     "at": "center"
     },
     {
      "do": "stepper",
@@ -1421,7 +1421,7 @@
      "p": "P1",
      "k": "measure",
      "at": "current",
-     "sel": "#card-build",
+     "sel": "#cta",
      "q": "height",
      "mode": "delta",
      "value": 4,
@@ -1439,7 +1439,7 @@
      "p": "P1",
      "k": "measure",
      "at": "current",
-     "sel": "#card-build",
+     "sel": "#cta",
      "q": "height",
      "mode": "delta",
      "value": 0,
@@ -1457,11 +1457,16 @@
      "p": "P1",
      "k": "measure",
      "at": "current",
-     "sel": "#card-build",
+     "sel": "#cta",
      "q": "height",
      "mode": "delta",
      "value": 40,
      "tol": 0.6
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
     },
     {
      "do": "stepper",
@@ -1599,6 +1604,22 @@
      "tol": 0.05
     },
     {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": "current",
+     "sel": "#headline",
+     "q": "fontSize",
+     "mode": "abs",
+     "value": 30,
+     "tol": 0.05
+    },
+    {
      "do": "holdButton",
      "name": "Increase Font size",
      "ms": 1000
@@ -1611,7 +1632,7 @@
      "q": "fontSize",
      "min": 3,
      "max": 16,
-     "from": 24
+     "from": 30
     },
     {
      "do": "load",
@@ -1714,7 +1735,7 @@
    },
    "p4": {
     "files": {
-     "landing.css": 2
+     "landing.html": 2
     },
     "permutation": false
    },
@@ -1804,7 +1825,7 @@
      "do": "assert",
      "p": "P5",
      "k": "exportHas",
-     "file": "landing.css",
+     "file": "landing.html",
      "pattern": "box-shadow:\\s*0 4px 12px rgba\\(0,\\s*0,\\s*0,\\s*\\.?0?\\.25\\)"
     },
     {
@@ -2079,7 +2100,17 @@
      "k": "css",
      "sel": "#card-build",
      "prop": "backgroundImage",
-     "startsWith": "linear-gradient(to bottom right"
+     "startsWithAny": [
+      "linear-gradient(to bottom right",
+      "linear-gradient(to right bottom"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.html",
+     "pattern": "background-image:\\s*linear-gradient\\(to bottom right,"
     },
     {
      "do": "openMenu",
@@ -2100,6 +2131,32 @@
      "sel": "#card-build",
      "prop": "backgroundImage",
      "startsWith": "linear-gradient(to top"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.html",
+     "pattern": "background-image:\\s*linear-gradient\\(to top,"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "To bottom"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.html",
+     "pattern": "background-image:\\s*linear-gradient\\(to bottom,"
     },
     {
      "do": "openMenu",
@@ -2193,6 +2250,13 @@
      "sel": "#art",
      "prop": "backgroundImage",
      "startsWith": "linear-gradient(to right"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "background-image:\\s*linear-gradient\\(to right,"
     }
    ]
   },
