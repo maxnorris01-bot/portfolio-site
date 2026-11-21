@@ -2,7 +2,7 @@ import { Children, Fragment, useEffect, useRef, useState, type CSSProperties, ty
 import { messages, panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { MenuButton, type MenuPart } from './Menu'
-import { DASHES, DOUBLE_MIN, EFFECTS, FONT_SIZES, LINE_SPACINGS, OUTLINE_WEIGHTS, STANDARD_COLOURS, hexTyped, opaqueHex, pageColours } from './menus'
+import { DASHES, DIRECTIONS, DOUBLE_MIN, EFFECTS, FONT_SIZES, LINE_SPACINGS, OUTLINE_WEIGHTS, STANDARD_COLOURS, gradientCss, hexTyped, opaqueHex, pageColours, readGradient, type Gradient } from './menus'
 import { htmlFields, rowOfPin, svgFields, type Computed, type Field } from './panelfields'
 import { STEP_OF, alignButtons, familyChoices, kindOf, pressedAlign } from './ribbonfields'
 import { PATH_MAX, chainOf, visiblePath } from './path'
@@ -398,6 +398,28 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       />
     )
   }
+  /**
+   * B4, the Gradient submenu of Shape Fill: From and To (each opens the colour choices), the four directions and No gradient, written as `background-image: linear-gradient(...)`.
+   * With no gradient yet, From is the element's fill colour (white when it has none) and To is its text colour. HTML only (an SVG shape has no background image).
+   */
+  const gradientItem = (): MenuPart => {
+    const g = cs ? readGradient(cs.backgroundImage ?? '') : null
+    const base: Gradient = g ?? { dir: 'to right', from: (cs && opaqueHex(cs.backgroundColor)) || '#ffffff', to: (cs && opaqueHex(cs.color)) || '#000000' }
+    const edit = (patch: Partial<Gradient>) => onSet({ 'background-image': gradientCss({ ...base, ...patch }) }, 'gradient')
+    const colourSub = (key: 'from' | 'to') => (): MenuPart[] => [
+      { group: P.pageColours, items: pageColoursOf().map((c) => ({ label: c, role: 'menuitemradio' as const, swatch: c, checked: g?.[key] === c, run: () => edit({ [key]: c }) })) },
+      { group: P.standardColours, items: STANDARD_COLOURS.map((c) => ({ label: c, role: 'menuitemradio' as const, swatch: c, checked: g?.[key] === c, run: () => edit({ [key]: c }) })) },
+    ]
+    return {
+      label: P.gradient,
+      sub: () => [
+        { label: P.fromColour, sub: colourSub('from') },
+        { label: P.toColour, sub: colourSub('to') },
+        ...DIRECTIONS.map((d) => ({ label: d.label, role: 'menuitemradio' as const, checked: g?.dir === d.css, run: () => edit({ dir: d.css }) })),
+        { label: P.noGradient, run: () => onSet({ 'background-image': 'none' }, 'gradient') },
+      ],
+    }
+  }
   /** Shape Fill: the bucket, the fill colour as a bar, the name and a chevron. HTML writes the background colour, an SVG shape its fill. */
   const shapeFill = (f: Field): ReactNode => {
     const current = cs ? opaqueHex(svg ? cs.fill : cs.backgroundColor) : null
@@ -413,7 +435,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         text={P.shapeFill}
         field={f.prop}
         dot={unlinkedDot(f)}
-        spec={() => colourParts(f, current, { label: P.noFill, run: () => writeColour(f, svg ? 'none' : 'transparent') })}
+        spec={() => colourParts(f, current, { label: P.noFill, run: () => writeColour(f, svg ? 'none' : 'transparent') }, svg ? [] : [gradientItem()])}
       />
     )
   }
