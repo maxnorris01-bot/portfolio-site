@@ -6,10 +6,10 @@ import { copyName, nameList, sectionHeader } from '../src/ui-editor/sections.ts'
 import { PATH_MAX, chainOf, segmentLabel, visiblePath } from '../src/ui-editor/path.ts'
 import { compensated, trialOk, type Edges, type Trial } from '../src/ui-editor/resizeedge.ts'
 import { messages } from '../src/data/uiEditor.ts'
+import { RIBBON_COLUMNS } from '../src/ui-editor/ribbonfields.ts'
 
 const root = new URL('..', import.meta.url).pathname
 const read = (p: string) => readFileSync(join(root, p), 'utf8')
-const specs = JSON.parse(read('scripts/ui-editor-gate/specs-round5.json')) as { columns: Record<string, number> }
 
 // ---- formatting round 5: a laid-out ribbon, one Download, west and north resize, the selection path ----
 
@@ -76,15 +76,22 @@ test('a west or north trial is kept only when the dragged edge landed, the oppos
   assert.equal(trialOk(trial([[0, 0, 1000, 600], [100, 10, 300, 90], [400, 50, 600, 90], [110, 15, 150, 30]], { handle: 'n', dLeft: 0, dTop: -40 })), true)
 })
 
-test('the column weights of the grid are the measured widths plus 28 px and are written once, in the stylesheet and the specs', () => {
-  assert.deepEqual(specs.columns, { Font: 290, Paragraph: 200, Size: 209, Shape: 288, Spacing: 197, Arrange: 296, Grid: 260 })
+test('the column weights of the grid are the measured group widths and are written once, in the stylesheet (round 6 replaced the round 5 weights: groups of two 28 px rows with 8 px of padding)', () => {
+  // ROUND 6 (assertion updated, docs/ui-editor-gate-log.md #41): round 5 measured each group's natural width plus 28 px (290, 200, ...) for groups with 14 px padding and 72 px
+  // large buttons; round 6 retires that (V01, V02, V04) and measures each group at its smallest (RIBBON_COLUMNS in ribbonfields.ts).
+  const w = RIBBON_COLUMNS
+  const order = [w.Font, w.Paragraph, w.Size, w['Shape Styles'], w.Spacing, w.Arrange, w.Grid]
   const css = read('src/ui-editor/UiEditorTool.css')
-  assert.match(css, /grid-template-columns: minmax\(0, 290fr\) minmax\(0, 200fr\) minmax\(0, 209fr\) minmax\(0, 288fr\) minmax\(0, 197fr\) minmax\(0, 296fr\) minmax\(0, 260fr\)/)
-  assert.match(css, /@container ue-ribbon \(max-width: 1759px\) \{\s*\.ue-rpanel \{\s*grid-template-columns: minmax\(0, 290fr\) minmax\(0, 200fr\) minmax\(0, 209fr\) minmax\(0, 288fr\)/)
+  const track = (n: number) => `minmax(${n}px, ${n}fr)`
+  assert.ok(css.includes(`grid-template-columns: ${order.map(track).join(' ')};`), 'seven columns')
+  const medium = /@container ue-ribbon \(max-width: (\d+)px\) \{\s*\.ue-rpanel \{\s*grid-template-columns: ([^;]+);/.exec(css)
+  assert.ok(medium, 'a medium rule')
+  assert.equal(medium[2], order.slice(0, 4).map(track).join(' '), 'two bands on the first four columns')
+  assert.equal(Number(medium[1]) + 1, order.reduce((a, b) => a + b, 0) + 4, 'one band from the sum of the weights (and a few px)')
   assert.match(css, /\.ue-rgroup:nth-child\(6\) \{\s*grid-column: 2 \/ span 2/)
-  assert.match(css, /\.ue-rgroup \{[^}]*padding: 4px 14px 2px/)
-  assert.match(css, /\.ue-gc \{[^}]*align-items: flex-start[^}]*justify-content: flex-start/s)
-  assert.match(css, /\.ue-tool \.ue-ribbon \.ue-lg \{[^}]*width: 72px/s)
+  assert.match(css, /\.ue-rgroup \{[^}]*padding: 8px;/)
+  assert.match(css, /\.ue-row \{[^}]*height: 28px/)
+  assert.match(css, /\.ue-rows \{[^}]*gap: 5px/)
 })
 
 test('one card: the bar, the ribbon and the status line are inside one bordered container, the status line without a side border', () => {

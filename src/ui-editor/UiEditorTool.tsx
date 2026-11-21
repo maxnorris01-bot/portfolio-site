@@ -500,6 +500,7 @@ export default function UiEditorTool() {
               pins={mine}
               onSet={onSet}
               onBadValue={onBadValue}
+              onMessage={(text) => show({ kind: 'refusal', text })}
               onMove={onReorder}
               onNudge={onNudge}
               onSelectIndex={(i) => session && setSelPath(pathOf(session.preview.model, i))}

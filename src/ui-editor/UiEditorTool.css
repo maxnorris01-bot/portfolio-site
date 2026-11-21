@@ -558,13 +558,15 @@
   white-space: nowrap;
 }
 
-/* ---- the card and the ribbon (round 5). ONE bordered card holds the quick bar, the strip, the ribbon and the status line, with hairline rules between them. The ribbon is
-   a CSS grid whose column weights (fr) are each group's measured natural content width plus 28 px (14 px each side): Font 290, Paragraph 200, Size 209, Shape 288,
-   Spacing 197, Arrange 296, Grid 260 (sum 1740). Wide (the ribbon is at least 1760 px): ONE band of seven columns. Medium (1000 to 1759 px): TWO bands on the SAME four
-   column edges: Font, Paragraph, Size, Shape, then Spacing under Font, Arrange under Paragraph and Size together, Grid under Shape, so the separators of band 2 sit under
-   those of band 1. Narrow (below 1000 px): the groups stack and every control is at least 44 x 44. Inside a group the controls are left-aligned to its 14 px padding and
-   top-aligned; each control's label (12 px) sits directly above it on its left edge; the group's name (11 px) is on the bottom line of the band. Small controls are 26 px
-   high, the large buttons 72 x 58. Tokens only. ---- */
+/* ---- the card and the ribbon (round 6). ONE bordered card holds the quick bar, the strip, the ribbon and the status line, with hairline rules between them. The ribbon
+   follows PowerPoint: ONE band of seven two-row groups (Font, Paragraph, Size, Shape Styles, Spacing, Arrange, Grid), each row 28 px high with 5 px between the rows and
+   8 px of padding, so the band is at most 96 px high. The columns share the width by weight (fr), the weights being what each group needs MEASURED (its two rows at their
+   smallest, plus 16 px of padding and the 1 px rule): Font 225, Paragraph 143, Size 182, Shape Styles 273, Spacing 187, Arrange 205, Grid 133 (sum 1348); no column is
+   narrower than its weight. THE FILL RULE: in every row the last control ends at the group's inner right edge, the controls
+   are at most 8 px apart, and every row has a control that stretches (a text box, a dropdown, a number box, or a row of icon buttons that share the width); only icon
+   buttons (28 px), row labels, the px/% toggle and the Sides buttons keep a width. Wide (the ribbon is at least 1352 px): one band. Medium (1000 to 1351 px): two bands on
+   shared column edges (Font, Paragraph, Size, Shape Styles; then Spacing under Font, Arrange under Paragraph and Size together, Grid under Shape Styles). Narrow (below
+   1000 px): the groups stack and every control is at least 44 x 44. Tokens only. ---- */
 .ue-sr {
   position: absolute;
   width: 1px;
@@ -699,9 +701,11 @@
   display: none;
 }
 
+/* The panel: one grid row of seven columns (see the weights above); each column's floor is the room its two rows need. */
 .ue-rpanel {
   display: grid;
   box-sizing: border-box;
+  grid-template-columns: minmax(225px, 225fr) minmax(143px, 143fr) minmax(182px, 182fr) minmax(273px, 273fr) minmax(187px, 187fr) minmax(205px, 205fr) minmax(133px, 133fr);
   padding: 0;
 }
 
@@ -712,59 +716,49 @@
   flex-direction: column;
   justify-content: space-between;
   min-width: 0;
-  padding: 4px 14px 2px;
+  padding: 8px;
   border-right: 1px solid var(--color-border);
-}
-
-.ue-rpanel {
-  grid-template-columns: minmax(0, 290fr) minmax(0, 200fr) minmax(0, 209fr) minmax(0, 288fr) minmax(0, 197fr) minmax(0, 296fr) minmax(0, 260fr);
 }
 
 .ue-rgroup:last-child {
   border-right: 0;
 }
 
-/* A group's content sits at its top left; the rows are top-aligned and nothing floats or centres. */
-.ue-gc {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
-  justify-content: flex-start;
-  height: 80px;
-}
-
-.ue-col {
+.ue-rows {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 5px;
 }
 
 .ue-row {
   display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  height: 28px;
 }
 
 .ue-glabel {
-  padding-bottom: 2px;
+  padding-top: 4px;
   color: var(--color-text-muted);
-  font-size: 11px;
-  line-height: 13px;
+  font-size: 12px;
+  line-height: 14px;
   text-align: center;
 }
 
-/* A control: its label above (the label spans the whole control and starts on its left edge), then the control on one line. */
-.ue-rctl {
-  display: flex;
-  flex-direction: column;
+[data-stretch] {
+  flex: 1 1 0;
+  min-width: var(--min, 0);
 }
 
-.ue-rline {
-  display: flex;
-  gap: 3px;
-  align-items: center;
+.ue-rl {
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
+/* The popover's own labels (Top, Right, Bottom, Left). */
 .ue-cl {
   display: block;
   color: var(--color-text-secondary);
@@ -773,26 +767,276 @@
   white-space: nowrap;
 }
 
-.ue-aligns {
-  flex-direction: row;
-  gap: var(--space-1);
-  align-items: flex-start;
+.ue-tool .ue-ribbon .ue-rbtn,
+.ue-tool .ue-ribbon select,
+.ue-tool .ue-ribbon input.ue-num {
+  box-sizing: border-box;
+  height: 28px;
+  min-height: 0;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  transition: none;
 }
 
-.ue-cb {
+.ue-tool .ue-ribbon .ue-rbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: var(--min, 0);
+  cursor: pointer;
+}
+
+.ue-tool .ue-ribbon .ue-rbtn:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.ue-tool .ue-ribbon .ue-rbtn[aria-pressed='true'] {
+  background: var(--color-text);
+  color: var(--color-on-navy);
+}
+
+.ue-tool .ue-ribbon .ue-rbtn:disabled,
+.ue-tool .ue-ribbon select:disabled,
+.ue-tool .ue-ribbon input:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ue-tool .ue-ribbon .ue-icon-svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* A select fills its row cell; the cell is what stretches. */
+.ue-sel {
+  position: relative;
+  display: block;
+}
+
+.ue-tool .ue-ribbon .ue-sel select {
+  width: 100%;
+  min-width: 0;
+}
+
+.ue-tool .ue-ribbon .ue-fam {
+  min-width: 90px;
+}
+
+/* Icon buttons that keep their 28 px. */
+.ue-tool .ue-ribbon [data-fixed-icon] {
+  flex: none;
+  width: 28px;
+  padding: 0;
+}
+
+/* A number box: the number (a real text input) and, at its right, two spin arrows stacked 14 px each; the box shares the row. Fixed (the font size): 62 px, with the
+   presets arrow where the spin arrows would be. */
+.ue-numbox {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14px;
+  grid-template-rows: 14px 14px;
+  height: 28px;
+  min-width: 70px;
+}
+
+.ue-numbox[data-fixed] {
+  flex: none;
+  width: 62px;
+  min-width: 0;
+  grid-template-rows: 28px;
+}
+
+.ue-tool .ue-ribbon .ue-numbox input.ue-num {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  width: 100%;
+  min-width: 0;
+  padding: 0 3px 0 5px;
+  border-radius: 4px 0 0 4px;
+  text-align: left;
+}
+
+.ue-tool .ue-ribbon .ue-spin {
+  position: relative;
+  display: block;
+  grid-column: 2;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.ue-tool .ue-ribbon .ue-spin[data-spin='up'] {
+  grid-row: 1;
+  border-bottom-width: 0;
+  border-radius: 0 4px 0 0;
+}
+
+.ue-tool .ue-ribbon .ue-spin[data-spin='down'] {
+  grid-row: 2;
+  border-radius: 0 0 4px 0;
+}
+
+.ue-tool .ue-ribbon .ue-spin::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -2px 0 0 -3px;
+  border: 3px solid transparent;
+}
+
+.ue-tool .ue-ribbon .ue-spin[data-spin='up']::after {
+  margin-top: -3px;
+  border-top: 0;
+  border-bottom: 4px solid currentcolor;
+}
+
+.ue-tool .ue-ribbon .ue-spin[data-spin='down']::after {
+  border-bottom: 0;
+  border-top: 4px solid currentcolor;
+}
+
+.ue-tool .ue-ribbon .ue-spin:hover:not([aria-disabled='true']) {
+  background: var(--color-border);
+}
+
+.ue-tool .ue-ribbon .ue-spin[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.ue-tool .ue-ribbon .ue-numbox[data-fixed] > .ue-rbtn {
+  grid-column: 2;
+  grid-row: 1;
+  width: 16px;
+  padding: 0;
+  border-left: 0;
+  border-radius: 0 4px 4px 0;
+}
+
+/* A menu button: its glyph over a colour bar, its word, a chevron; the chevron is at the right edge. */
+.ue-tool .ue-ribbon .ue-menubtn {
+  position: relative;
+  justify-content: space-between;
+  gap: 3px;
+  padding: 0 4px 0 5px;
+  white-space: nowrap;
+}
+
+.ue-tool .ue-ribbon .ue-menubtn[data-fixed] {
+  flex: none;
+  width: 58px;
+}
+
+.ue-menutext {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.ue-tool .ue-ribbon .ue-menubtn .ue-icon-svg:last-of-type {
+  width: 12px;
+  height: 12px;
+}
+
+.ue-colourbar {
+  position: absolute;
+  bottom: 3px;
+  left: 6px;
+  width: 16px;
+  height: 3px;
+  background: var(--bar, transparent);
+  box-shadow: 0 0 0 1px var(--color-border);
+}
+
+/* The alignment buttons: one segmented row that shares the width equally. */
+.ue-segmented {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  min-width: var(--min, 0);
 }
 
-.ue-cb .ue-cl {
-  text-align: center;
+.ue-tool .ue-ribbon .ue-segmented .ue-rbtn {
+  flex: 1 1 0;
+  min-width: 28px;
+  margin-left: -1px;
+  padding: 0;
+  border-radius: 0;
 }
 
-/* Medium: two bands on the same four column edges. */
-@container ue-ribbon (max-width: 1759px) {
+.ue-tool .ue-ribbon .ue-segmented .ue-rbtn:first-child {
+  margin-left: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.ue-tool .ue-ribbon .ue-segmented .ue-rbtn:last-of-type {
+  border-radius: 0 4px 4px 0;
+}
+
+/* The px and % toggle and the Sides button keep their width. */
+.ue-seg2 {
+  display: inline-flex;
+  flex: none;
+}
+
+.ue-tool .ue-ribbon .ue-seg2 .ue-rbtn {
+  width: 24px;
+  margin-left: -1px;
+  padding: 0;
+  border-radius: 0;
+}
+
+.ue-tool .ue-ribbon .ue-seg2 .ue-rbtn:first-child {
+  margin-left: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.ue-tool .ue-ribbon .ue-seg2 .ue-rbtn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.ue-tool .ue-ribbon .ue-sidesbtn {
+  flex: none;
+  width: 44px;
+  padding: 0;
+}
+
+/* Two-word buttons (Move up, Move down, Grid, Snap) share the row. */
+.ue-tool .ue-ribbon .ue-wbtn {
+  gap: 3px;
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+/* The unlinked dot sits on the corner of its control, so it takes no room in the row. */
+.ue-rgroup .ue-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  pointer-events: none;
+}
+
+.ue-rgroup[data-ribbon-group='position'] > .ue-dot {
+  top: 2px;
+  right: 2px;
+}
+
+/* Medium: two bands on four shared column edges. */
+@container ue-ribbon (max-width: 1351px) {
   .ue-rpanel {
-    grid-template-columns: minmax(0, 290fr) minmax(0, 200fr) minmax(0, 209fr) minmax(0, 288fr);
+    grid-template-columns: minmax(225px, 225fr) minmax(143px, 143fr) minmax(182px, 182fr) minmax(273px, 273fr);
   }
 
   .ue-rgroup:nth-child(5) {
@@ -814,156 +1058,6 @@
   .ue-rgroup:nth-child(4) {
     border-right: 0;
   }
-}
-
-.ue-tool .ue-ribbon .ue-rbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 26px;
-  padding: 0 4px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-  transition: none;
-}
-
-.ue-tool .ue-ribbon .ue-rbtn:hover:not(:disabled) {
-  background: var(--color-bg);
-}
-
-.ue-tool .ue-ribbon .ue-rbtn[aria-pressed='true'] {
-  background: var(--color-text);
-  color: var(--color-on-navy);
-}
-
-.ue-tool .ue-ribbon .ue-rbtn:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-
-.ue-tool .ue-ribbon .ue-icon-svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* The large buttons: the icon above its word. */
-.ue-tool .ue-ribbon .ue-lg {
-  flex-direction: column;
-  gap: 2px;
-  width: 72px;
-  height: 58px;
-  padding: 0;
-  font-size: 12px;
-  line-height: 14px;
-}
-
-.ue-tool .ue-ribbon .ue-al {
-  width: 40px;
-  padding: 0;
-}
-
-.ue-tool .ue-ribbon .ue-sidesbtn {
-  padding: 0 var(--space-2);
-}
-
-/* A stepper: minus, the number (a real text input), plus, joined. The number is wide enough for a value like 1234.56px. */
-.ue-stp {
-  display: inline-flex;
-}
-
-.ue-tool .ue-ribbon .ue-stp .ue-rbtn {
-  min-width: 22px;
-  padding: 0;
-}
-
-.ue-tool .ue-ribbon .ue-stp .ue-rbtn:first-child {
-  border-radius: 4px 0 0 4px;
-}
-
-.ue-tool .ue-ribbon .ue-stp .ue-rbtn:last-child {
-  border-radius: 0 4px 4px 0;
-}
-
-.ue-tool .ue-ribbon .ue-num {
-  width: 72px;
-  min-height: 0;
-  height: 26px;
-  padding: 0 2px;
-  border-radius: 0;
-  font-size: 13px;
-  text-align: center;
-}
-
-/* A colour field shows its colour in words or hex ("Transparent" in full) and has its swatch joined to it. */
-.ue-tool .ue-ribbon .ue-num.is-wide {
-  width: 96px;
-  padding: 0 6px;
-  border-radius: 4px 0 0 4px;
-  text-align: left;
-}
-
-.ue-tool .ue-ribbon select {
-  min-height: 0;
-  height: 26px;
-  max-width: 11em;
-  padding: 0 4px;
-  font-size: 13px;
-}
-
-/* The font select shows the first family name in full (the whole stack is its tooltip). */
-.ue-tool .ue-ribbon .ue-fam {
-  width: 140px;
-}
-
-.ue-tool .ue-ribbon .ue-wt {
-  width: 76px;
-}
-
-.ue-tool .ue-ribbon .ue-spacing {
-  width: 80px;
-}
-
-/* The swatch is the browser's own colour input, sized like a button. */
-.ue-tool .ue-ribbon .ue-swatch {
-  width: 28px;
-  height: 26px;
-  padding: 2px;
-  border: 1px solid var(--color-border);
-  border-radius: 0 4px 4px 0;
-  background: var(--color-surface);
-  cursor: pointer;
-}
-
-.ue-tool .ue-ribbon .ue-swatch:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-
-.ue-seg {
-  display: inline-flex;
-}
-
-.ue-tool .ue-ribbon .ue-seg .ue-rbtn {
-  border-radius: 0;
-  margin-left: -1px;
-}
-
-.ue-tool .ue-ribbon .ue-seg .ue-rbtn:first-child {
-  border-radius: 4px 0 0 4px;
-  margin-left: 0;
-}
-
-.ue-tool .ue-ribbon .ue-seg .ue-rbtn:last-child {
-  border-radius: 0 4px 4px 0;
-}
-
-.ue-tool .ue-ribbon .ue-unit {
-  min-width: 30px;
 }
 
 /* The Sides popover: the four sides of padding or margin, under the Spacing group; it opens over the preview. */
@@ -989,12 +1083,36 @@
   flex-direction: column;
 }
 
+.ue-stp {
+  display: inline-flex;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn {
+  width: 28px;
+  padding: 0;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.ue-tool .ue-ribbon .ue-stp .ue-rbtn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.ue-tool .ue-ribbon .ue-stp input.ue-num {
+  width: 64px;
+  border-radius: 0;
+  text-align: center;
+}
+
+/* SVG documents: Snap is off, with one plain line of text in the strip. */
 .ue-snapnote {
-  width: 128px;
+  flex: none;
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 11px;
-  line-height: 13px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .ue-tool .ue-ribbon button:focus-visible,
@@ -1004,6 +1122,10 @@
   outline-offset: 1px;
   position: relative;
   z-index: 1;
+}
+
+.ue-tool .ue-ribbon .ue-spin:focus-visible {
+  outline: 2px solid var(--color-accent);
 }
 
 .ue-dot {
@@ -1060,6 +1182,134 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---- the menus (round 6): drawn in <body> (the ribbon's container would otherwise be their containing block), so none of these rules is scoped to .ue-tool. Tokens only. ---- */
+.ue-menu {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  min-width: 180px;
+  max-width: calc(100vw - 8px);
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 4px 14px rgb(11 27 51 / 0.2);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.ue-menuhead {
+  padding: 2px 4px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.ue-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 232px;
+  padding: 2px 4px 6px;
+}
+
+.ue-menu [data-swatch] {
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid rgb(11 27 51 / 0.25);
+  border-radius: 3px;
+  background: var(--sw);
+  cursor: pointer;
+}
+
+.ue-menu [data-swatch][aria-checked='true'] {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+}
+
+.ue-menu button[role^='menuitem']:not([data-swatch]) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ue-menu button[role='menuitemradio']:not([data-swatch])[aria-checked='true']::before {
+  content: '✓';
+  margin-right: 4px;
+}
+
+.ue-menu button[role^='menuitem']:hover:not([aria-disabled='true']) {
+  background: var(--color-bg);
+}
+
+.ue-menu button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.ue-subarrow {
+  font-style: normal;
+}
+
+.ue-lineprev {
+  display: inline-block;
+  width: 40px;
+  margin-right: 8px;
+}
+
+.ue-hexrow {
+  padding: 4px 8px;
+}
+
+.ue-hexrow input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font: inherit;
+}
+
+@media (max-width: 999px) {
+  .ue-menu {
+    width: calc(100vw - 8px);
+  }
+
+  .ue-menu button[role^='menuitem']:not([data-swatch]) {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .ue-menu [data-swatch] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .ue-swatches {
+    max-width: none;
+  }
+
+  .ue-hexrow input {
+    height: 44px;
+  }
 }
 
 /* ---- the code: the whole updated file, changed lines tinted and marked with a "+" in the margin, a thin marker where lines were removed, Previous and
@@ -1253,8 +1503,7 @@
   }
 }
 
-/* Below 1000 px the ribbon's groups wrap onto more rows (nothing is collapsed into a menu), and every control is at least 44 x 44. */
-/* Narrow (the ribbon is under 1000 px wide): the groups stack, nothing is collapsed into a menu, and every control is at least 44 x 44. */
+/* Narrow (the ribbon is under 1000 px wide): the groups stack, nothing is collapsed into a menu, and every control, spin arrow and menu item is at least 44 x 44. */
 @container ue-ribbon (max-width: 999px) {
   .ue-strip {
     flex-wrap: wrap;
@@ -1268,7 +1517,8 @@
     overflow: visible;
   }
 
-  .ue-rnote {
+  .ue-rnote,
+  .ue-snapnote {
     flex-basis: 100%;
     overflow: visible;
     white-space: normal;
@@ -1290,12 +1540,17 @@
     border-bottom: 0;
   }
 
-  .ue-gc,
-  .ue-col,
+  .ue-rows {
+    gap: var(--space-2);
+  }
+
   .ue-row {
     flex-wrap: wrap;
-    width: auto;
     height: auto;
+  }
+
+  [data-stretch] {
+    flex: 1 1 120px;
   }
 
   .ue-popover {
@@ -1306,23 +1561,63 @@
   }
 
   .ue-tool .ue-ribbon .ue-rbtn,
-  .ue-tool .ue-ribbon .ue-stp .ue-rbtn,
-  .ue-tool .ue-ribbon .ue-unit,
-  .ue-tool .ue-ribbon .ue-al,
+  .ue-tool .ue-ribbon select,
+  .ue-tool .ue-ribbon input.ue-num,
   .ue-tool .ue-ribbon .ue-seg-btn {
     min-width: 44px;
     height: 44px;
   }
 
-  .ue-tool .ue-ribbon .ue-lg {
-    height: 60px;
+  .ue-tool .ue-ribbon [data-fixed-icon] {
+    width: 44px;
   }
 
-  .ue-tool .ue-ribbon .ue-num,
-  .ue-tool .ue-ribbon select,
-  .ue-tool .ue-ribbon .ue-swatch {
+  .ue-tool .ue-ribbon .ue-seg2 .ue-rbtn,
+  .ue-tool .ue-ribbon .ue-sidesbtn,
+  .ue-tool .ue-ribbon .ue-stp .ue-rbtn {
+    width: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-menubtn[data-fixed] {
+    width: 72px;
+  }
+
+  .ue-numbox {
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    grid-template-rows: 44px;
+    height: 44px;
+    min-width: 150px;
+  }
+
+  .ue-numbox[data-fixed] {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    width: 110px;
+  }
+
+  .ue-tool .ue-ribbon .ue-numbox[data-fixed] > .ue-rbtn {
+    width: 44px;
+  }
+
+  .ue-tool .ue-ribbon .ue-spin {
     min-width: 44px;
     height: 44px;
+    border-width: 1px;
+    border-radius: 0;
+  }
+
+  .ue-tool .ue-ribbon .ue-spin[data-spin='up'] {
+    grid-column: 3;
+    grid-row: 1;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .ue-tool .ue-ribbon .ue-spin[data-spin='down'] {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ue-tool .ue-ribbon .ue-numbox input.ue-num {
+    grid-row: 1;
   }
 
   .ue-tool .ue-ribbon .ue-linkrow input[type='checkbox'] {

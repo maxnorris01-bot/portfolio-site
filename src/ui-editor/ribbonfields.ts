@@ -88,3 +88,9 @@ export function pressedAlign(computed: string, svg: boolean): string {
   if (svg) return computed
   return computed === 'start' ? 'left' : computed === 'end' ? 'right' : computed
 }
+
+/**
+ * The ribbon's column weights (round 6): each group's measured width at its smallest (its two rows, 16 px of padding and the 1 px rule). The stylesheet's grid uses these
+ * numbers as both the floor and the weight of each column; they add up to the width from which the seven groups sit in one band (a ribbon of 1352 px or more).
+ */
+export const RIBBON_COLUMNS = { Font: 225, Paragraph: 143, Size: 182, 'Shape Styles': 273, Spacing: 187, Arrange: 205, Grid: 133 } as const

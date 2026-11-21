@@ -126,8 +126,10 @@ test('Grid, Snap and Grid spacing are the view aids: enabled whenever a document
 test('every control has its word: the label is a data-ctl-label span (aria-hidden, so names are not doubled), the caption of an icon button is under it', () => {
   const src = read('src/ui-editor/Ribbon.tsx')
   assert.match(src, /<span className="ue-cl" data-ctl-label aria-hidden="true">/)
-  assert.match(src, /<CtlLabel text=\{P\.alignCaptions\[b\.label\] \?\? b\.label\} \/>/)
-  assert.match(src, /<CtlLabel text=\{P\.unitLabel\} \/>/)
+  // ROUND 6 (assertion updated, see docs/ui-editor-gate-log.md #41): the alignment buttons are icon-only like PowerPoint's (name and tooltip unchanged) and the px/% toggle sits in the
+  // Width row, so their two captions are no longer drawn; a number box has its word beside it (a data-row-label span, the words in P.rowLabels).
+  assert.match(src, /<RowLabel text=\{P\.rowLabels\[f\.label\] \?\? f\.label\}/)
+  assert.match(src, /data-row-label/)
   assert.doesNotMatch(src, /P\.caps|<Cap /, 'the old abbreviations are gone')
 })
 
@@ -144,14 +146,15 @@ test('the status line is one slim line under the ribbon, with its height reserve
   assert.match(css, /\.ue-result-line \{[^}]*text-overflow: ellipsis/)
 })
 
-test('the ribbon keeps its container, its 26 px controls and its 44 px narrow rule (round 5 replaced the flex spread by a column grid)', () => {
+test('the ribbon keeps its container, its small controls and its 44 px narrow rule (round 5 replaced the flex spread by a column grid; round 6 made the controls 28 px high)', () => {
   const css = read('src/ui-editor/UiEditorTool.css')
   assert.match(css, /\.ue-tool \.ue-ribbon \{[^}]*container: ue-ribbon \/ inline-size/)
   assert.match(css, /\.ue-cl \{[^}]*font-size: 12px/)
-  assert.match(css, /\.ue-tool \.ue-ribbon \.ue-rbtn \{[^}]*height: 26px/s)
+  // ROUND 6 (assertion updated, log #41): the brief makes every control 28 px high (it was 26), in one rule shared by the buttons, the selects and the number boxes.
+  assert.match(css, /\.ue-tool \.ue-ribbon \.ue-rbtn,[^{]*\{[^}]*height: 28px/s)
   const narrow = css.slice(css.indexOf('@container ue-ribbon (max-width: 999px)'))
-  assert.match(narrow, /\.ue-tool \.ue-ribbon \.ue-al,[\s\S]*?min-width: 44px;[\s\S]*?height: 44px/)
-  assert.doesNotMatch(css.slice(css.indexOf('/* ---- the card and the ribbon (round 5)'), css.indexOf('.ue-dot {')), /#[0-9a-fA-F]{3,6}\b/, 'tokens only')
+  assert.match(narrow, /\.ue-tool \.ue-ribbon \.ue-rbtn,[\s\S]*?min-width: 44px;[\s\S]*?height: 44px/)
+  assert.doesNotMatch(css.slice(css.indexOf('/* ---- the card and the ribbon (round 6)'), css.indexOf('.ue-dot {')), /#[0-9a-fA-F]{3,6}\b/, 'tokens only')
 })
 
 test('the quick bar shows the words of Review unlinked and Reset all; Undo and Redo stay icon-only', () => {
