@@ -143,7 +143,7 @@ export function MenuButton({ name, tip, disabled, fixed, min, glyph, bar, text, 
   }
   const closeSub = (depth: number) => {
     const trigger = path[depth - 2]?.trigger
-    setPath((p) => p.slice(0, depth - 1))
+    setPath((p) => p.slice(0, depth - 2))
     trigger?.focus({ preventScroll: true })
   }
   const choose = (it: MenuItem, el: HTMLElement, depth: number) => {
@@ -236,15 +236,18 @@ function Panel({ label, parts, anchor, depth, expandedLabel, hexOpen, onChoose, 
     const mw = m.offsetWidth, vw = window.innerWidth, vh = window.innerHeight
     const side = depth > 1
     let left = side ? a.right + 2 : a.left
-    const top = side ? a.top : a.bottom + 2
+    let top = side ? a.top : a.bottom + 2
     if (left + mw > vw - 4) left = Math.max(4, side ? a.left - mw - 2 : vw - mw - 4)
-    const room = vh - top - 8
-    m.style.left = `${left}px`
-    m.style.top = `${top}px`
-    if (m.offsetHeight > room) {
-      m.style.maxHeight = `${Math.max(120, room)}px`
+    // Taller than the window: it is as tall as the window and scrolls inside. Too low for its height: it slides up (over its button) until it fits.
+    let h = m.offsetHeight
+    if (h > vh - 8) {
+      h = vh - 8
+      m.style.maxHeight = `${h}px`
       m.style.overflowY = 'auto'
     }
+    if (top + h > vh - 4) top = Math.max(4, vh - 4 - h)
+    m.style.left = `${left}px`
+    m.style.top = `${top}px`
     m.style.visibility = 'visible'
   }, [anchor, depth, hexOpen, parts.length])
 
