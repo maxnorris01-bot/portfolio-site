@@ -315,3 +315,11 @@ the replaced fact, kept every other line, and said why in a comment in the test.
 | 41c | `tests/uieditorround5.test.ts`, "the column weights of the grid are the measured widths plus 28 px" | The round 5 weights (290, 200, 209, 288, 197, 296, 260), `padding: 4px 14px 2px`, `.ue-lg` 72 px | The round 6 weights (`RIBBON_COLUMNS`: 225, 143, 182, 273, 187, 205, 133) as both floor and weight of every column, the medium rule, one band from their sum, `padding: 8px`, rows 28 px high with 5 px between | Round 6 replaces the round 5 groups (V01, V02 and V04 are retired whole by the locked rules). The test is rewritten to say the same kind of thing about the new groups, not weakened to say less. |
 
 The new tests are in `tests/uieditorround6.test.ts` (9).
+
+## 2026-11-22, UI Editor insert round 1 (`feat/ui-editor-insert1`)
+
+Rules: `docs/ui-editor-gate-rules-insert1.md`; specs: `scripts/ui-editor-gate/specs-insert1.json` (locked in `00078b1`). No runner change yet. Baseline and stop: `docs/ui-editor-baseline-insert1.md`.
+
+| # | Change | Why |
+|---|---|---|
+| 1 | `tests/uieditorengine.test.ts`: the constant `COMMIT` is now `a5f954a610cfdf2693fadd2a7b105b4acf59a9e3` (was `27065d8847738f61b7b9538ab6070122559e842f`). Old assertion: the engine's header, the README and the commit equal `27065d8…`. New: they equal `a5f954a…`. | Vendoring the new engine makes the old pin untrue. Not in the brief's list of tests that may change: flagged for Max. |
