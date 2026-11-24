@@ -1733,20 +1733,24 @@
 }
 
 /* ---- insert round 1, stage 2: Comment, pins, the Notes list, Include comments ---- */
-.ue-pin { position: absolute; z-index: 6; width: 22px; height: 22px; padding: 0; margin: -11px 0 0 -11px; border: 0; background: none; cursor: pointer; }
+.ue-pin { position: absolute; z-index: 6; width: 22px; height: 22px; padding: 0; margin: -11px 0 0 -11px; border: 0; background: none; cursor: pointer; transform: scale(var(--ue-inv, 1)); } /* the device may be drawn smaller than it is: the pin keeps its size on the screen, centred on the corner */
 .ue-pin-dot { position: absolute; left: 0; top: 0; box-sizing: border-box; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 11px; border: 2px solid #fff; background: #b4381f; color: #fff; font: 700 12px/18px var(--font-sans, system-ui); text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
 .ue-pin:focus-visible .ue-pin-dot { outline: 3px solid #1a1a1a; outline-offset: 1px; }
 .ue-popbox { position: fixed; z-index: 1000; box-sizing: border-box; width: 320px; max-width: calc(100vw - 8px); padding: 10px; background: #fff; color: #1a1a1a; border: 1px solid #6b6b6b; border-radius: 6px; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28); }
-.ue-noteslist { width: 380px; }
+.ue-noteslist { width: 430px; }
 .ue-notearea { display: block; width: 100%; box-sizing: border-box; min-height: 92px; margin: 0 0 8px; padding: 6px 8px; font: inherit; line-height: 1.4; color: inherit; background: #fff; border: 1px solid #6b6b6b; border-radius: 4px; resize: vertical; }
 .ue-popbtns { display: flex; gap: 8px; flex-wrap: wrap; }
-.ue-popbtns .btn, .ue-notes-row .btn { min-height: 36px; }
-.ue-notes-ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
-.ue-notes-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.ue-notes-row .ue-notetext { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
-.ue-addpage { width: 100%; justify-content: flex-start; }
+.ue-popbtns .btn { min-height: 36px; }
+.ue-notes-ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+/* One row per note: the pin number, the element's label, the text (it takes the room that is left and wraps), then Edit and Delete. */
+.ue-notes-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; align-items: center; column-gap: 6px; padding: 3px 0; border-top: 1px solid #d9d9d3; }
+.ue-notes-row:first-child { border-top: 0; }
+.ue-notes-row .ue-notetext { grid-column: 3; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.ue-notes-row[data-note-row='page'] .ue-notetext { grid-column: 1 / 4; }
+.ue-notes-row .btn { min-height: 28px; padding: 0 10px; font-size: 13px; white-space: nowrap; }
+.ue-addpage { grid-column: 1 / -1; width: 100%; justify-content: flex-start; }
 .ue-pinnum { display: inline-block; min-width: 22px; height: 22px; border-radius: 11px; background: #b4381f; color: #fff; font: 700 12px/22px var(--font-sans, system-ui); text-align: center; }
-.ue-notelabel { min-height: 36px; padding: 0 6px; font: 600 13px var(--font-mono, ui-monospace, monospace); color: #1a1a1a; background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.ue-notelabel { justify-self: start; text-align: left; min-height: 28px; padding: 0 6px; font: 600 13px var(--font-mono, ui-monospace, monospace); color: #1a1a1a; background: none; border: 0; text-decoration: underline; cursor: pointer; }
 .ue-notecount { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px; background: #1a1a1a; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
 .ue-include { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; font-size: 13px; white-space: nowrap; }
 .ue-include input { width: 16px; height: 16px; }
@@ -1754,5 +1758,9 @@
   .ue-pin { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
   .ue-pin-dot { left: 11px; top: 11px; width: 22px; }
   .ue-notes-row .btn, .ue-popbtns .btn, .ue-notelabel { min-height: 44px; }
+  .ue-notes-row { grid-template-columns: auto minmax(0, 1fr) auto auto; row-gap: 2px; }
+  .ue-notes-row .ue-notetext { grid-column: 1 / 3; grid-row: 2; }
+  .ue-notes-row .btn { grid-row: 1 / 3; }
+  .ue-notes-row[data-note-row='page'] .ue-notetext { grid-column: 1 / 3; grid-row: 1; }
   .ue-include { min-height: 44px; }
 }
