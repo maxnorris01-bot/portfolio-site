@@ -49,3 +49,26 @@ assert kinds, `vocabulary` in `specs-insert1.json`), and the round 6 method also
 and `--stub8` mode. That is a piece of work of the size of the whole of round 6's gate, before the page itself (Insert menu, placing, text overlay, Delete, Comment, pins, Notes, Include comments, labels, limits text). I did not
 start a partial stub: a half-working scorer would give false comfort, and the brief says nothing is built until it passes. Recommended split for the next sessions: (a) runner and stub for Y01 to Y05, then build those; (b) Y06 to
 Y10 (comments and notes); (c) Y11 to Y14 and the final run. Locked Y specs can stay as they are (unbuilt parts report FAIL until built).
+
+## Update 2026-11-23: one clean full gate run on the vendored tree (run `A`)
+
+Run on HEAD `a3c1db7` (the vendored tree, working tree clean, no code change), `vite build` with the flag ON served by `vite preview`, the whole gate with `--u06-distinct 15`. To log a
+timestamp and the elapsed time of every spec and step I ran a **throwaway copy of the gate folder** (symlinks to the real `src`, `docs`, `reference`; its `run.mjs` has two `console.log` lines added: one at the
+start of each spec, one at the start of each step); the real runner was not changed for this. Started 05:43:56 UTC, finished 05:47:22 UTC: **205 seconds**, 87 specs, 1,504 timed lines.
+
+| Block | Result |
+|---|---|
+| Originals | 18 PASS, 2 REFUSED, 0 FAIL |
+| Round 1 | 9 PASS (N01, N02 retired) |
+| Round 2 | 16 PASS |
+| Round 3 | 12 PASS, 3 RETIRED, 1 FAIL (T10, the already-failed locked spec) |
+| Round 4 | 12 PASS |
+| Round 5 | 6 PASS, 3 RETIRED |
+| Round 6 | **12 PASS** (W01 to W09, W07a to W07d), none NOT BUILT |
+
+That is the same result as the pre-vendor tree (`b1`). **The earlier "2 PASS, 6 FAIL, 4 NOT BUILT" in round 6 did not repeat**, so there is no first failing spec to chase and the engine change is not shown to
+break anything. I do not know what made `v0` and `v1` fail: they were 25-minute runs that timed out in Playwright after 30 s with "no control Shape Fill"; this one ran in under four minutes. I make no claim about
+the cause. The slowest specs were R08 (8.8 s), W06 (8.1 s), W05 (7.8 s), W04 (5.9 s) and W07d (4.8 s); no spec or step stalled. Because the run was clean, the planned comparison (build engine `27065d8` into a
+copy of the repo and run the same gate there) was not needed; the copy is ready (`27065d8` rebuilds, with the README's command, to exactly the `engine.js` of `bcbf335`, SHA-256
+`03ca8a7232a2839b7c24a7e2e84f0eff696e5521fe802441aa56771432ec180b`) and the engine repo's `git status` is still clean. The raw log of the run is kept outside the repository with the other runs
+(`v0`, `v1`, `o4`, `b0`, `b1` and this one, `A`); every later full run is timed the same way and kept.
