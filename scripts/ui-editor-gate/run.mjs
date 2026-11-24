@@ -2073,15 +2073,15 @@ async function runSpec(spec) {
         return R(p.length === 0, p.length ? p.join('; ') : `Tab visited all ${exp.length} enabled controls in visual order, each with a focus indicator`)
       }
       case 'enabledOnly': {
-        const m = await page.evaluate((names) => {
+        const m = await page.evaluate(([names, alwaysOn]) => {
           const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
-          const els = [...document.querySelectorAll('[data-ribbon] button, [data-ribbon] input:not([type=hidden]), [data-ribbon] select')].filter((e) => e.getClientRects().length && !e.closest('[data-sides-popover]') && !e.closest('[data-path]') && nameOf(e) !== 'Select parent')
+          const els = [...document.querySelectorAll('[data-ribbon] button, [data-ribbon] input:not([type=hidden]), [data-ribbon] select')].filter((e) => e.getClientRects().length && !(alwaysOn.includes(nameOf(e))) && !e.closest('[data-sides-popover]') && !e.closest('[data-path]') && nameOf(e) !== 'Select parent')
           const bad = []
           for (const n of names) { const e = els.find((x) => nameOf(x) === n); if (!e) bad.push(`no control ${n}`); else if (e.matches(':disabled')) bad.push(`${n} is disabled`) }
           const stray = els.filter((e) => !names.includes(nameOf(e)) && !e.matches(':disabled')).map(nameOf)
           if (stray.length) bad.push(`enabled but should not be: ${stray.slice(0, 5).join(', ')}${stray.length > 5 ? ` (${stray.length})` : ''}`)
           return { bad, n: els.length }
-        }, a.names)
+        }, [a.names, STAGE >= 2 ? ['Notes'] : []]) // A15: the Notes button is always on, as the view aids are
         return R(m.bad.length === 0, m.bad.length ? m.bad.join('; ') : `${a.names.join(', ')} enabled, the other ${m.n - a.names.length} controls disabled`)
       }
       case 'quickBarWords': {
