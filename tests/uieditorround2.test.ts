@@ -39,7 +39,9 @@ test('Rotate is drawn as a device outline with a curved arrow, and is the one ic
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   assert.match(tool, /icon="rotate" label=\{labels\.rotate\} text=\{labels\.rotate\}/)
   const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
-  assert.equal((bar.match(/ text=\{/g) ?? []).length, 1, 'only Rotate has a visible label')
+  // INSERT ROUND 1 (assertion updated, docs/ui-editor-gate-log.md): the bar gains the Insert menu, which shows its word like Rotate, so two buttons carry a `text=`: Rotate (an icon button) and Insert (the menu button).
+  assert.equal((bar.match(/ text=\{/g) ?? []).length, 2, 'only Rotate and Insert have a visible label of this kind')
+  assert.match(bar, /text=\{labels\.insert\}/)
 })
 
 test('the Samples button closes the paste area: with it open, Samples shows the gallery again, and the paste area takes the gallery\'s place while it is open', () => {
