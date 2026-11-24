@@ -76,3 +76,33 @@ Comment and pins; Y07 Notes list; Y08 Include comments; Y09 hostile notes; Y10 r
 small screens; Y14 earlier behaviour kept (aggregate of W01 to W06, W08, W09 and the no-op round trips). Each step and assert kind is defined in the
 file's `vocabulary`. Selectors and expected positions were dry-run against the real samples (`landing`, `email`, `chart`) before locking: every
 selector is unique, `#card-build` is the second child of `#plans` (so before/after give indexes 1 and 2), `#art` is an empty `div`.
+
+## 7. Amendments (numbered; the Step 0 lock above and its commit stay as they are)
+
+Added 2026-11-23, after the vendoring and before anything of the round was scored or built. Max split the round into three stages, each ending with a report before the next starts. The
+machine-readable form of this section is `scripts/ui-editor-gate/amendments-insert1.json` (the runner reads it with `--stage N`; without `--stage` the locked specs run as locked).
+
+**A1. The stages and a pass line for each.**
+- **Stage 1** covers Y01 to Y05 (the Insert menu, placing, inserted elements, text editing, Delete) and the kept checks. Pass line: items 1 to 3, 5 to 10 of section 5 as written (original 20 18 PASS 2 REFUSED 0 FAIL; round 1
+  N03 to N11; rounds 2 to 6; tests, `tsc`, `eslint`, build, flag checks; `check:layout`; scorer check; the vendored engine is a build of `a5f954a`; locked files; one final run), and instead of item 4: **Y01 to Y05 PASS as amended
+  (A2 to A5) and Y14 PASS; Y06 to Y13 report NOT BUILT** (never PASS). The scorer check of stage 1 covers the stage 1 faults only. The ribbon is not touched: W01 to W08 pass unchanged.
+- **Stage 2** will cover Y06 to Y10 (Comment and pins, the Notes list, Include comments, hostile notes, reloaded notes) and the clauses moved by A2. **Stage 3** will cover Y11 to Y13, the stage 2 leftovers and the
+  last full run. Their pass lines are written when they start, as numbered amendments, before anything of them is scored.
+
+**A2. Clauses that move out of stage 1 (each listed).**
+1. **Y01 step 2** (`insertBarOrder` with `names` `Insert`, `Comment`): in stage 1 the names are `["Insert"]`; the original step, with `Comment`, runs again in stage 2 when the Comment button exists.
+2. **Y05 steps 1 to 10** (a note given through the Comment popover, deleted with its element, `exportCommentCount` 0 and 0, Undo restores the bytes): they need Comments, so they move to stage 2. Steps 11 to 24 (the
+   button and the keys, Undo, the field that keeps its Delete key) stay in stage 1.
+3. **Y12, Y13** (keyboard and names, small screens) involve the Comment popover, pins and the Notes list; they report NOT BUILT in stage 1 and run in stage 3. The stage 1 controls (`Insert`, `Edit text`, `Delete`)
+   are tested for their 44 px size and their names in stage 3 as well.
+4. **Y14** has no clause that needs notes (it is an aggregate of W01 to W06, W08, W09 plus the no-op round trips of the four files), so it stays whole in stage 1.
+
+**A3. `type` takes `value`.** Y03 writes `{"do":"type","field":...,"value":...}`; the runner's `type` (since round 1) reads `text`. The runner reads `value` as `text` when `text` is absent. Runner change, logged, covered by the scorer check.
+
+**A4. Y05 steps 25 and 26 (select `body`, then `Delete` disabled) cannot be run as written.** The selection path starts below `body` (it shows the deepest five elements from the child of `body`), and a click on the
+empty page selects nothing, so `body` can never be selected on this page and there is no `body` segment to click. The clause is about a place where the engine refuses a removal; the same refusal exists for an implied
+element, which can be selected: the email sample's table has no `<tbody>` in its source, the parser adds one, and the path shows it. The two steps become: load the email, click `#hello`, `selectPath` `tbody`,
+`buttonDisabled` `Delete` `true`. The `body` case cannot arise, so nothing is untested.
+
+**A5. Reading of the status line in Y02 step 14.** `statusContains` `<tr>` is met by the engine's own reason, which contains `<tr>` ("a `<div>` cannot go directly inside `<tr>` ..."); the page shows the engine's reason
+(prefixed with a plain lead), not a rewording that drops the tag.

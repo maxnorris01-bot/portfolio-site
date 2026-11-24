@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "note": "Numbered amendments A1 to A5 of docs/ui-editor-gate-rules-insert1.md section 7 in a form the runner reads (--stage N). The locked specs-insert1.json is never edited.",
+  "stages": {
+    "1": { "run": ["Y01", "Y02", "Y03", "Y04", "Y05", "Y14"], "notBuilt": ["Y06", "Y07", "Y08", "Y09", "Y10", "Y11", "Y12", "Y13"] }
+  },
+  "specs": {
+    "Y01": {
+      "stage1": {
+        "replace": {
+          "2": [{ "do": "assert", "p": "P5", "k": "insertBarOrder", "after": "Redo", "names": ["Insert"] }]
+        },
+        "amendment": "A2.1"
+      }
+    },
+    "Y05": {
+      "stage1": {
+        "skip": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        "replace": {
+          "25": [
+            { "do": "load", "sample": "email" },
+            { "do": "click", "sel": "#hello", "at": "center" },
+            { "do": "selectPath", "name": "tbody" }
+          ]
+        },
+        "amendment": "A2.2, A4"
+      }
+    }
+  }
+}
