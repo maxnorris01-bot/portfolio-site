@@ -51,6 +51,9 @@ interface Props {
   onEditText: (index: number) => void
   /** The Delete or Backspace key with the focus in the preview. */
   onDelete: () => void
+  /** Stage 2: the numbered pins of the notes (drawn in the overlay at each element's top-left corner, never in the preview) and a click on one. */
+  pins: { n: number; index: number }[]
+  onPin: (index: number) => void
 }
 
 /** `snap` is set for a resize of an HTML element whose `width: 100%` would fit its parent: the parent's content width, which a drag near it snaps to. */
@@ -71,7 +74,7 @@ const place = (b: Box) => ({ left: b.left, top: b.top, width: b.width, height: b
  * CSS px number for the engine. A drag changes nothing until the pointer is released: then the page makes ONE edit and
  * the preview is re-derived from the engine's result. Escape cancels a drag. Pointer events with pointer capture, so mouse, pen and touch work.
  */
-export default function Stage({ frameHost, session, rev, selected, editable, view, orientation, onSelect, onMove, onResize, onNudge, grid, snap, spacing, placing, trialInsert, onPlace, onPlaceReason, textEdit, onTextApply, onTextCancel, onEditText, onDelete }: Props) {
+export default function Stage({ frameHost, session, rev, selected, editable, view, orientation, onSelect, onMove, onResize, onNudge, grid, snap, spacing, placing, trialInsert, onPlace, onPlaceReason, textEdit, onTextApply, onTextCancel, onEditText, onDelete, pins, onPin }: Props) {
   const overlay = useRef<HTMLDivElement>(null)
   const slot = useRef<HTMLDivElement>(null)
   const scaler = useRef<HTMLDivElement>(null)
@@ -80,6 +83,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
   const drag = useRef<Drag | null>(null)
   const [hover, setHover] = useState<Box | null>(null)
   const [selBox, setSelBox] = useState<Box | null>(null)
+  const [pinAt, setPinAt] = useState<Record<number, { left: number; top: number }>>({})
   const [ghost, setGhost] = useState<{ box: Box; text: string } | null>(null)
   // Placing: the insertion line (where the element would land, and whether the engine accepts it) and the edit a click would make.
   const [line, setLine] = useState<{ box: Box; zone: Zone; active: boolean } | null>(null)
@@ -92,6 +96,10 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     setLine(null)
   }
   const sel = useRef(selected)
+  const pinsRef = useRef(pins)
+  useLayoutEffect(() => {
+    pinsRef.current = pins
+  }, [pins])
   useLayoutEffect(() => {
     sel.current = selected
   }, [selected])
@@ -103,6 +111,15 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     const measure = () => {
       const el = elementOf(selected)
       setSelBox(el && el.isConnected ? boxOf(el) : null)
+      const at: Record<number, { left: number; top: number }> = {}
+      for (const p of pinsRef.current) {
+        const pe = elementOf(p.index)
+        if (pe && pe.isConnected) {
+          const b = boxOf(pe)
+          at[p.index] = { left: b.left, top: b.top }
+        }
+      }
+      setPinAt(at)
     }
     measure()
     const doc = session?.preview.doc
@@ -116,7 +133,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       ro.disconnect()
       doc.removeEventListener('scroll', measure)
     }
-  }, [session, rev, selected, elementOf])
+  }, [session, rev, selected, elementOf, pins])
 
   // The pointer layer covers the frame, so the wheel is handed on to a screen that scrolls (a phone or tablet); at its end the page scrolls as usual.
   useEffect(() => {
@@ -426,6 +443,15 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
                     }
                   }}
                 />
+              )}
+              {pins.map((p) =>
+                pinAt[p.index] ? (
+                  <button key={p.n} type="button" className="ue-pin" data-pin data-n={p.n} aria-label={labels.noteName(p.n)} style={{ left: pinAt[p.index].left, top: pinAt[p.index].top }} onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()} onClick={() => onPin(p.index)}>
+                    <span className="ue-pin-dot" aria-hidden="true">
+                      {p.n}
+                    </span>
+                  </button>
+                ) : null,
               )}
               {ghost && (
                 <div className="ue-ghost" style={place(ghost.box)} aria-hidden="true">

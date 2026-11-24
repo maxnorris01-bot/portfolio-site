@@ -45,6 +45,10 @@ interface Props {
   onEditText: () => void
   onDelete: () => void
   canDelete: boolean
+  /** Stage 2: the Notes button (always there, with how many notes the code holds) and whether its list is open. */
+  notesCount: number
+  notesOpen: boolean
+  onNotes: () => void
   /** The grid over the preview, snapping to it, and the distance between its lines (CSS px): all the page's, none of them remembered. */
   grid: boolean
   onGrid: (on: boolean) => void
@@ -252,7 +256,7 @@ function RibbonButton({ icon, label, tip, pressed, disabled, min, onClick }: { i
   )
 }
 
-export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, link, onLink, unit, onUnit, pins, onSet, onBadValue, onMessage, onMove, onNudge, onSelectIndex, onEditText, onDelete, canDelete, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
+export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, link, onLink, unit, onUnit, pins, onSet, onBadValue, onMessage, onMove, onNudge, onSelectIndex, onEditText, onDelete, canDelete, notesCount, notesOpen, onNotes, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
   const el = session && selected !== null ? (session.preview.elements[selected] ?? null) : null
   const svg = !!el && isSvgElement(el)
   // The path of the strip: the chain from the child of <body> down to the selected element; the deepest PATH_MAX of it, with a leading ellipsis when it is longer.
@@ -777,6 +781,12 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         </button>
         <button type="button" className="ue-seg-btn ue-selpar" aria-label={labels.deleteElement} title={labels.deleteTip} disabled={!canDelete} onClick={onDelete}>
           {labels.deleteElement}
+        </button>
+        <button type="button" data-opens="notes" className="ue-seg-btn ue-selpar ue-notesbtn" aria-label={labels.notes} aria-expanded={notesOpen} title={labels.notesTip} onClick={onNotes}>
+          {labels.notes}
+          <span className="ue-notecount" aria-hidden="true">
+            {notesCount}
+          </span>
         </button>
         <strong data-env>{view}</strong>
         <label className="ue-linkrow" htmlFor="ue-link" title={tip}>

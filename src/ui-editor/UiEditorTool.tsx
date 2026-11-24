@@ -7,6 +7,8 @@ import { canRotate, isEditable, viewport, type Orientation } from './devices'
 import { cssSizeFor, handleAxes } from './geometry'
 import { compensated } from './resizeedge'
 import { Icon, IconButton, type IconName } from './icons'
+import { CommentPopover, NotesList } from './Popovers'
+import { kindOfFile, noteCount, noteRows, stripNotes } from './notes'
 import { MenuButton } from './Menu'
 import { INSERT_ITEMS } from './place'
 import { fromFiles, fromPaste, downloadName, type Doc, type Incoming } from './intake'
@@ -19,7 +21,7 @@ import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
-import { listUnlinked, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
+import { listNotes, listUnlinked, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
 import './UiEditorTool.css'
 
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
@@ -58,6 +60,10 @@ export default function UiEditorTool() {
   // Insert round 1: the kind being placed, and the path of the element whose text is open for editing.
   const [placing, setPlacing] = useState<InsertKind | null>(null)
   const [editingText, setEditingText] = useState<string | null>(null)
+  // Stage 2: the note being written (the element's index, or 'page') and where it was opened from; the Notes list; whether the code includes the notes.
+  const [commentFor, setCommentFor] = useState<{ target: number | 'page'; opener: 'bar' | 'pin' | 'notes'; pin?: number } | null>(null)
+  const [notesOpen, setNotesOpen] = useState(false)
+  const [include, setInclude] = useState(true)
   const [unitState, setUnitState] = useState<{ path: string | null; unit: WidthUnit }>({ path: null, unit: 'px' })
   // The walk over the changes of all the files: the change last visited (0: none) belongs to the export it was visited in, so the next edit starts it again.
   const [walk, setWalk] = useState<{ k: number; files: Record<string, string> | null; nonce: number }>({ k: 0, files: null, nonce: 0 })
@@ -147,6 +153,8 @@ export default function UiEditorTool() {
     setSelPath(null)
     setPlacing(null)
     setEditingText(null)
+    setCommentFor(null)
+    setNotesOpen(false)
     setWarnings(warn)
     setGalleryOpen(false)
     setReviewOpen(false)
@@ -233,6 +241,7 @@ export default function UiEditorTool() {
   const onBadValue = (label: string) => show({ kind: 'refusal', text: messages.badValue(label.toLowerCase()) })
 
   // ---- insert, text and Delete (insert round 1): content edits, the same at every width, with no Link and no pins ----
+  const commentOff = !session ? '' : !editable ? labels.commentTipViewOnly : selIndex === null ? labels.commentTipNone : ''
   const insertOff = svgDoc ? labels.insertTipSvg : view === 'Tablet' ? labels.insertTipTablet : !editable ? labels.insertTipViewOnly : ''
   const startPlacing = (kind: InsertKind) => {
     if (insertOff || !session) return
@@ -288,6 +297,35 @@ export default function UiEditorTool() {
     const parentIndex = parent ? s.preview.elements.indexOf(parent) : -1
     // The element goes and the selection moves to its parent (its index does not change: the parent comes first in the document).
     if (run({ op: 'remove', target: selIndex }, 'removed', (s2) => (parentIndex >= 0 && parent && parent !== s2.preview.doc.body ? pathOf(s2.preview.model, parentIndex) : null))) show({ kind: 'ok', text: messages.removed })
+  }
+  // ---- notes (stage 2): `note` edits, the same at every width ----
+  const selectIndexOnly = (i: number) => session && setSelPath(pathOf(session.preview.model, i))
+  const saveNote = (target: number | 'page', text: string, existed: boolean) => {
+    const had = existed
+    setCommentFor(null)
+    if (text === '' && !had) return
+    if (run({ op: 'note', target, text }, 'note')) show({ kind: 'ok', text: text === '' ? messages.noteDeleted : messages.noteSaved })
+  }
+  const anchorOf = (c: NonNullable<typeof commentFor>) => (c.opener === 'pin' ? `[data-pin][data-n="${c.pin}"]` : c.opener === 'notes' ? 'button[data-opens="notes"]' : '.ue-bar button[data-opens="comment"]')
+  const openerOf = (c: NonNullable<typeof commentFor>): HTMLElement | null => {
+    const root = rootRef.current
+    if (!root) return null
+    return c.opener === 'pin' ? root.querySelector<HTMLElement>(`[data-pin][data-n="${c.pin}"]`) : root.querySelector<HTMLElement>(c.opener === 'notes' ? 'button[data-opens="notes"]' : 'button[data-opens="comment"]')
+  }
+  const closeComment = () => {
+    const c = commentFor
+    setCommentFor(null)
+    const el = c ? openerOf(c) : null
+    if (el) window.setTimeout(() => el.focus({ preventScroll: true }), 0)
+  }
+  const closeNotes = () => {
+    setNotesOpen(false)
+    const el = rootRef.current?.querySelector<HTMLElement>('button[data-opens="notes"]')
+    if (el) window.setTimeout(() => el.focus({ preventScroll: true }), 0)
+  }
+  const openComment = (c: { target: number | 'page'; opener: 'bar' | 'pin' | 'notes'; pin?: number }) => {
+    setNotesOpen(false)
+    setCommentFor(c)
   }
   const canDelete = !!session && selIndex !== null && editable && trialEdit(session, { op: 'remove', target: selIndex }).ok
 
@@ -367,6 +405,8 @@ export default function UiEditorTool() {
     if (changed.some((e) => e.op === 'reorder' || e.op === 'insert' || e.op === 'remove')) setSelPath(null)
     setPlacing(null)
     setEditingText(null)
+    setCommentFor(null)
+    setNotesOpen(false)
     setList(next)
     startBusy()
     setReplay((n) => n + 1)
@@ -450,13 +490,25 @@ export default function UiEditorTool() {
   // One section per file in the Updated code area, all visible (round 5): there is no shown file, no File selector and no switching. The changes of every
   // file against the file as it was opened (the primary file, or a companion stylesheet by the name the page links it by) are counted per section, and Previous
   // and Next change walk all of them in the order of the sections.
+  // The notes in the code now (comments before elements and the one for the whole page), read by the engine from the model of the edited text; the pins are numbered like the list.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const noteList = useMemo(() => (session ? listNotes(session.preview.model) : { page: null, notes: [] }), [session, rev])
+  const notesTotal = noteCount(noteList)
+  const pinRows = noteRows(noteList)
+  // With no notes the switch is on again, so a note written next is in the code.
+  if (notesTotal === 0 && !include) setInclude(true)
+  // What is copied, downloaded and shown as Updated code: the code as the engine made it, or (Include comments off) the same without its notes and the header.
+  const outFiles = useMemo(() => {
+    const raw = session?.files ?? {}
+    return include ? raw : Object.fromEntries(Object.entries(raw).map(([f, t]) => [f, stripNotes(t, kindOfFile(f))]))
+  }, [session?.files, include])
   const files = session ? Object.keys(session.files) : []
   const hunksByFile = useMemo(() => {
     const out: Record<string, Hunk[]> = {}
     if (!session || !doc) return out
-    for (const f of Object.keys(session.files)) out[f] = diffHunks(f === doc.file ? doc.source : (doc.companions[f] ?? session.files[f]), session.files[f])
+    for (const f of Object.keys(session.files)) out[f] = diffHunks(f === doc.file ? doc.source : (doc.companions[f] ?? outFiles[f]), outFiles[f])
     return out
-  }, [session?.files, doc]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session?.files, doc, outFiles]) // eslint-disable-line react-hooks/exhaustive-deps
   const counts = Object.fromEntries(files.map((f) => [f, hunksByFile[f]?.length ?? 0]))
   const changes = changeOrder(files, counts)
   const walkK = session && walk.files === session.files ? Math.min(walk.k, changes.length) : 0
@@ -467,7 +519,7 @@ export default function UiEditorTool() {
   }
   const targetFor = (file: string) => (session && walk.files === session.files && walkK > 0 && changes[walkK - 1]?.file === file ? { change: changes[walkK - 1].index, nonce: walk.nonce } : null)
   const onCopy = async (file: string) => {
-    const text = session?.files[file]
+    const text = outFiles[file]
     if (text === undefined) return
     try {
       await navigator.clipboard.writeText(text)
@@ -489,7 +541,7 @@ export default function UiEditorTool() {
     if (!files.length || !doc || !session) return
     const saved: string[] = []
     for (const f of files) {
-      const text = session.files[f]
+      const text = outFiles[f]
       const name = downloadName(f, f === doc.file)
       const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
       const a = document.createElement('a')
@@ -539,7 +591,7 @@ export default function UiEditorTool() {
     </div>
   )
   return (
-    <section ref={rootRef} className="ue-tool" data-editor aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
+    <section ref={rootRef} className="ue-tool" data-editor data-edit-list={JSON.stringify(list.edits)} aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
       <div className="ue-sheet" data-card>
       <div className="ue-bar" role="group" aria-label={labels.bar}>
         <div className="ue-bar-group">
@@ -563,6 +615,7 @@ export default function UiEditorTool() {
                   text={labels.insert}
                   spec={() => INSERT_ITEMS.map((i) => ({ label: i.label, role: 'menuitem' as const, run: () => startPlacing(i.kind) }))}
                 />
+                <IconButton icon="comment" label={labels.comment} text={labels.comment} tip={commentOff || labels.commentTip} opens="comment" disabled={!!commentOff || busy} onClick={() => selIndex !== null && openComment({ target: selIndex, opener: 'bar' })} />
                 <IconButton icon="review" label={labels.review(pins.length)} words={labels.reviewWords} tip={labels.reviewTip} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
               </div>
               <span className="ue-flex" />
@@ -574,6 +627,10 @@ export default function UiEditorTool() {
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group">
+                <label className="ue-include" title={labels.includeCommentsTip}>
+                  <input type="checkbox" checked={include} disabled={notesTotal === 0} onChange={(e) => setInclude(e.currentTarget.checked)} />
+                  {labels.includeComments}
+                </label>
                 <IconButton icon="download" label={labels.download} showLabel tip={labels.downloadTip(files)} onClick={onDownload} />
               </div>
               <span className="ue-sep" aria-hidden="true" />
@@ -602,10 +659,13 @@ export default function UiEditorTool() {
               onMessage={(text) => show({ kind: 'refusal', text })}
               onMove={onReorder}
               onNudge={onNudge}
-              onSelectIndex={(i) => session && setSelPath(pathOf(session.preview.model, i))}
+              onSelectIndex={selectIndexOnly}
               onEditText={() => startTextEdit()}
               onDelete={deleteElement}
               canDelete={canDelete}
+              notesCount={notesTotal}
+              notesOpen={notesOpen}
+              onNotes={() => (notesOpen ? closeNotes() : (setCommentFor(null), setNotesOpen(true)))}
               grid={grid}
               onGrid={setGrid}
               snap={snap}
@@ -694,7 +754,7 @@ export default function UiEditorTool() {
           <div className="ue-preview">
             {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
             <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
-              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} placing={placing} trialInsert={trialInsert} onPlace={onPlace} onPlaceReason={onPlaceReason} textEdit={editingText !== null && editingText === selPath} onTextApply={applyText} onTextCancel={() => stopTextEdit(false)} onEditText={(i) => startTextEdit(i)} onDelete={deleteElement} />
+              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} placing={placing} trialInsert={trialInsert} onPlace={onPlace} onPlaceReason={onPlaceReason} textEdit={editingText !== null && editingText === selPath} onTextApply={applyText} onTextCancel={() => stopTextEdit(false)} onEditText={(i) => startTextEdit(i)} onDelete={deleteElement} pins={pinRows} onPin={(i) => { selectIndexOnly(i); openComment({ target: i, opener: 'pin', pin: pinRows.find((r) => r.index === i)?.n }) }} />
             </div>
             <p id="ue-preview-hint" className="ue-hint">
               {labels.previewHint}
@@ -723,9 +783,34 @@ export default function UiEditorTool() {
             </span>
           </div>
           {files.map((file) => (
-            <CodeView key={file} ref={(h) => { codeViews.current[file] = h }} file={file} header={sectionHeader(file, counts[file] ?? 0)} copyName={copyName(files, file)} onCopy={() => void onCopy(file)} text={session?.files[file] ?? ''} hunks={hunksByFile[file] ?? []} total={changes.length} current={walkK} offset={offsetOfFile(files, counts, file)} target={targetFor(file)} onJump={(i) => visit(offsetOfFile(files, counts, file) + i)} />
+            <CodeView key={file} ref={(h) => { codeViews.current[file] = h }} file={file} header={sectionHeader(file, counts[file] ?? 0)} copyName={copyName(files, file)} onCopy={() => void onCopy(file)} text={outFiles[file] ?? ''} hunks={hunksByFile[file] ?? []} total={changes.length} current={walkK} offset={offsetOfFile(files, counts, file)} target={targetFor(file)} onJump={(i) => visit(offsetOfFile(files, counts, file) + i)} />
           ))}
         </details>
+      )}
+      {commentFor && session && (
+        <CommentPopover
+          key={`${commentFor.target}-${rev}`}
+          whole={commentFor.target === 'page'}
+          existing={commentFor.target === 'page' ? noteList.page?.text ?? null : noteList.notes.find((n) => n.index === commentFor.target)?.text ?? null}
+          anchor={anchorOf(commentFor)}
+          onSave={(text) => saveNote(commentFor.target, text, (commentFor.target === 'page' ? noteList.page?.text : noteList.notes.find((n) => n.index === commentFor.target)?.text) !== undefined)}
+          onDelete={() => saveNote(commentFor.target, '', true)}
+          onClose={closeComment}
+        />
+      )}
+      {notesOpen && session && (
+        <NotesList
+          page={noteList.page?.text ?? null}
+          rows={pinRows.map((r) => ({ ...r, label: labelOf(session, r.index) }))}
+          anchor={'button[data-opens="notes"]'}
+          onAddPage={() => openComment({ target: 'page', opener: 'notes' })}
+          onEditPage={() => openComment({ target: 'page', opener: 'notes' })}
+          onDeletePage={() => { setNotesOpen(false); saveNote('page', '', true) }}
+          onJump={(i) => { setNotesOpen(false); selectIndexOnly(i); session.preview.elements[i]?.scrollIntoView?.({ block: 'nearest' }) }}
+          onEdit={(i) => { selectIndexOnly(i); openComment({ target: i, opener: 'notes' }) }}
+          onDelete={(i) => { setNotesOpen(false); saveNote(i, '', true) }}
+          onClose={closeNotes}
+        />
       )}
     </section>
   )

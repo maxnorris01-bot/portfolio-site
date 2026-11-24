@@ -107,7 +107,7 @@ test('one card: the bar, the ribbon and the status line are inside one bordered 
 test('one Download saves every file and there is no File selector; each code section has its own Copy; the walk spans the sections', () => {
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   assert.doesNotMatch(tool, /ue-file|setFileName|fileToShow|handPicked/)
-  assert.match(tool, /for \(const f of files\) \{\s*const text = session\.files\[f\]/)
+  assert.match(tool, /for \(const f of files\) \{\s*const text = outFiles\[f\]/)
   assert.match(tool, /new Blob\(\[text\]/)
   assert.match(tool, /files\.map\(\(file\) => \(\s*<CodeView key=\{file\}/)
   assert.match(tool, /copyName=\{copyName\(files, file\)\}/)

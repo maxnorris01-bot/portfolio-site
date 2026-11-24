@@ -80,3 +80,73 @@ test('Escape cancels placing, F2 opens the text, and Delete is only the preview\
   assert.match(stage, /\(e\.key === 'Delete' \|\| e\.key === 'Backspace'\) && e\.target === e\.currentTarget/)
   assert.match(stage, /e\.stopPropagation\(\) \/\/ no nudge, no Delete of the element, while typing/)
 })
+
+// ---- insert round 1, stage 2: Comment, pins, the Notes list, Include comments ----
+import { HEADER_TEXT, kindOfFile, noteCount, noteRows, stripNotes } from '../src/ui-editor/notes.ts'
+import * as engine from '../src/ui-editor/vendor/engine.js'
+
+const PAGE = '<!DOCTYPE html>\n<html>\n<body>\n  <h1 id="a">Hello</h1>\n  <p id="b">Text</p>\n</body>\n</html>\n'
+
+test('the header text is the engine\'s word for word, and the page writes none of its own', () => {
+  assert.equal(HEADER_TEXT, 'Exported from UI Editor. Comments starting "NOTE FOR AI:" are the designer\'s instructions for the element that follows. Implement them.')
+  assert.doesNotMatch(read('src/ui-editor/UiEditorTool.tsx'), /NOTE FOR AI/, 'the note comments are the engine\'s; the page does not write them')
+})
+
+test('stripNotes: a note and the header that own their lines go whole, with the line; a stylesheet is left alone', () => {
+  const text = `<!DOCTYPE html>\n<!-- ${HEADER_TEXT} -->\n<html>\n<body>\n  <!-- NOTE FOR AI: shorter -->\n  <h1 id="a">Hello</h1>\n  <p id="b">Text</p>\n</body>\n</html>\n`
+  assert.equal(stripNotes(text, 'html'), PAGE)
+  assert.equal(stripNotes('/* NOTE FOR AI: x */ a { color: red }', 'css'), '/* NOTE FOR AI: x */ a { color: red }')
+  assert.equal(stripNotes(PAGE, 'html'), PAGE, 'nothing to remove: the same bytes')
+  assert.equal(stripNotes('<p>x</p> <!-- NOTE FOR AI: n --> <p>y</p>', 'html'), '<p>x</p>  <p>y</p>', 'a note that shares its line goes alone')
+})
+
+test('stripNotes leaves a hand-written comment and a comment that only looks like a note', () => {
+  const text = `<!DOCTYPE html>\n<!-- keep me -->\n<!--NOTE FOR AI: no space-->\n<p>x</p>\n`
+  assert.equal(stripNotes(text, 'html'), text.replace(/<!--NOTE[^\n]*\n/, '<!--NOTE FOR AI: no space-->\n'))
+})
+
+test('the file kind by name, the count of notes and the numbered rows', () => {
+  assert.equal(kindOfFile('a.svg'), 'svg')
+  assert.equal(kindOfFile('a.CSS'), 'css')
+  assert.equal(kindOfFile('index.html'), 'html')
+  assert.equal(noteCount({ page: null, notes: [] } as never), 0)
+  assert.equal(noteCount({ page: { text: 'p' }, notes: [{ index: 2, text: 'a' }] } as never), 2)
+  assert.deepEqual(noteRows({ page: null, notes: [{ index: 4, text: 'a' }, { index: 9, text: 'b' }] } as never), [{ n: 1, index: 4, text: 'a' }, { n: 2, index: 9, text: 'b' }])
+  assert.ok(engine.listNotes)
+})
+
+test('the page: Comment follows Insert in the quick bar, Notes is in the strip, Include comments sits by Download; pins are in the overlay and the popovers in <body>', () => {
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
+  assert.ok(bar.indexOf('name={labels.insert}') < bar.indexOf('label={labels.comment}') && bar.indexOf('label={labels.comment}') < bar.indexOf('icon="review"'), 'Comment is after Insert and before Review unlinked')
+  assert.ok(bar.indexOf('labels.includeComments') < bar.indexOf('icon="download"'), 'Include comments is beside Download')
+  assert.match(read('src/ui-editor/Ribbon.tsx'), /aria-label=\{labels\.notes\}/)
+  const stage = read('src/ui-editor/Stage.tsx')
+  assert.match(stage, /data-pin/)
+  assert.doesNotMatch(stage, /preview\.doc\.[A-Za-z.]*(append|createElement)/, 'no pin is put into the preview document')
+  const pop = read('src/ui-editor/Popovers.tsx')
+  assert.match(pop, /createPortal\(/)
+  assert.match(pop, /data-comment-popover/)
+  assert.match(pop, /data-notes-list/)
+})
+
+test('a note is a content edit (no Link, no environment); what is copied, downloaded and shown is one text, the stripped one when Include comments is off', () => {
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  assert.match(tool, /run\(\{ op: 'note', target, text \}, 'note'\)/)
+  assert.match(tool, /const outFiles = useMemo/)
+  assert.match(tool, /const text = outFiles\[f\]/, 'Download')
+  assert.match(tool, /const text = outFiles\[file\]/, 'Copy')
+  assert.match(tool, /text=\{outFiles\[file\] \?\? ''\}/, 'the Updated code view')
+  assert.match(tool, /data-edit-list=\{JSON\.stringify\(list\.edits\)\}/)
+})
+
+test('the stage 2 words: the names are exactly the brief\'s and Comment disabled says why', () => {
+  assert.equal(labels.comment, 'Comment')
+  assert.equal(labels.notes, 'Notes')
+  assert.equal(labels.includeComments, 'Include comments')
+  assert.equal(labels.noteField, 'Note for the AI')
+  assert.equal(labels.addPageNote, 'Add a note for the whole page')
+  assert.equal(labels.deletePageNote, 'Delete page note')
+  assert.match(labels.commentTipNone, /Select an element/)
+  assert.match(labels.commentTipViewOnly, /view-only/)
+})

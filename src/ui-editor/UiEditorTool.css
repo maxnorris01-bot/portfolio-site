@@ -1731,3 +1731,28 @@
     animation: none !important;
   }
 }
+
+/* ---- insert round 1, stage 2: Comment, pins, the Notes list, Include comments ---- */
+.ue-pin { position: absolute; z-index: 6; width: 22px; height: 22px; padding: 0; margin: -11px 0 0 -11px; border: 0; background: none; cursor: pointer; }
+.ue-pin-dot { position: absolute; left: 0; top: 0; box-sizing: border-box; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 11px; border: 2px solid #fff; background: #b4381f; color: #fff; font: 700 12px/18px var(--font-sans, system-ui); text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+.ue-pin:focus-visible .ue-pin-dot { outline: 3px solid #1a1a1a; outline-offset: 1px; }
+.ue-popbox { position: fixed; z-index: 1000; box-sizing: border-box; width: 320px; max-width: calc(100vw - 8px); padding: 10px; background: #fff; color: #1a1a1a; border: 1px solid #6b6b6b; border-radius: 6px; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28); }
+.ue-noteslist { width: 380px; }
+.ue-notearea { display: block; width: 100%; box-sizing: border-box; min-height: 92px; margin: 0 0 8px; padding: 6px 8px; font: inherit; line-height: 1.4; color: inherit; background: #fff; border: 1px solid #6b6b6b; border-radius: 4px; resize: vertical; }
+.ue-popbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+.ue-popbtns .btn, .ue-notes-row .btn { min-height: 36px; }
+.ue-notes-ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.ue-notes-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ue-notes-row .ue-notetext { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+.ue-addpage { width: 100%; justify-content: flex-start; }
+.ue-pinnum { display: inline-block; min-width: 22px; height: 22px; border-radius: 11px; background: #b4381f; color: #fff; font: 700 12px/22px var(--font-sans, system-ui); text-align: center; }
+.ue-notelabel { min-height: 36px; padding: 0 6px; font: 600 13px var(--font-mono, ui-monospace, monospace); color: #1a1a1a; background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.ue-notecount { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px; background: #1a1a1a; color: #fff; font-size: 11px; line-height: 18px; text-align: center; }
+.ue-include { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; font-size: 13px; white-space: nowrap; }
+.ue-include input { width: 16px; height: 16px; }
+@media (max-width: 999px) {
+  .ue-pin { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
+  .ue-pin-dot { left: 11px; top: 11px; width: 22px; }
+  .ue-notes-row .btn, .ue-popbtns .btn, .ue-notelabel { min-height: 44px; }
+  .ue-include { min-height: 44px; }
+}
