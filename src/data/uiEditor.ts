@@ -89,10 +89,10 @@ export const labels = {
   insertTipTablet: 'Tablet is view-only: switch to Desktop or Phone to insert.',
   insertTipViewOnly: 'This size is view-only: turn the phone upright, or switch to Desktop, to insert.',
   editText: 'Edit text',
-  editTextTip: 'Change the text of this element (also F2 or a double-click).',
+  editTextTip: 'Edit the text of this element (also F2 or a double-click).',
   elementText: 'Element text',
   deleteElement: 'Delete',
-  deleteTip: 'Remove this element from the page (also the Delete key).',
+  deleteTip: 'Use this or the Delete key to remove the element.',
   /** Tooltips: verb first, the name unchanged (the accessible name is the label; the tooltip then becomes the accessible description). */
   undoTip: 'Undo the last edit',
   redoTip: 'Redo the edit you undid',

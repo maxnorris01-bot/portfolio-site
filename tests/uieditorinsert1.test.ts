@@ -42,7 +42,7 @@ test('the names are exactly the brief\'s, each tooltip starts with a verb, and a
   assert.equal(labels.editText, 'Edit text')
   assert.equal(labels.deleteElement, 'Delete')
   assert.equal(labels.elementText, 'Element text')
-  for (const tip of [labels.insertTip, labels.editTextTip, labels.deleteTip]) assert.match(tip, /^(Open|Change|Remove) /)
+  for (const tip of [labels.insertTip, labels.editTextTip, labels.deleteTip]) assert.match(tip, /^(Open|Edit|Use) /) // verbs of the locked U03 tooltips check (it has no Change, Remove or Delete)
   assert.match(labels.insertTipSvg, /SVG/)
   assert.match(labels.insertTipTablet, /Tablet/)
   assert.match(messages.placing('rectangle'), /Escape/)
