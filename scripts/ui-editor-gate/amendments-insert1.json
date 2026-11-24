@@ -300,7 +300,7 @@
     "Y07": {
       "stage2": {
         "insertAfter": {
-          "16": [
+          "15": [
             {
               "do": "click",
               "sel": "#headline",

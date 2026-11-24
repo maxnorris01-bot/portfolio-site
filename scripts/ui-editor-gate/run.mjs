@@ -961,8 +961,8 @@ async function runSpec(spec) {
         return R(a.k === 'present' ? has : !has, `${a.sel} ${has ? 'is' : 'is not'} in the preview`)
       }
       case 'selectedIs': {
-        const m = await page.evaluate((s) => { const sb = window.__gate.selectionBox(); const e = window.__gate.frame().contentDocument.querySelector(s); if (!sb || !e) return { sb: !!sb, e: !!e }; const b = e.getBoundingClientRect(); return { sb: true, e: true, ok: Math.abs(b.left - sb.l) <= 0.6 && Math.abs(b.top - sb.t) <= 0.6 && Math.abs(b.width - sb.w) <= 0.6 && Math.abs(b.height - sb.h) <= 0.6 } }, a.sel)
-        return R(!!m.ok, m.sb ? (m.e ? 'the outline is not around ' + a.sel : `${a.sel} not found`) : 'nothing is selected')
+        const m = await page.evaluate((s) => { const sb = window.__gate.selectionBox(); const e = window.__gate.frame().contentDocument.querySelector(s); if (!sb || !e) return { sb: !!sb, e: !!e }; const b = e.getBoundingClientRect(); return { sb: true, e: true, ok: Math.abs(b.left - sb.l) <= 0.6 && Math.abs(b.top - sb.t) <= 0.6 && Math.abs(b.width - sb.w) <= 0.6 && Math.abs(b.height - sb.h) <= 0.6, got: `outline ${sb.l},${sb.t} ${sb.w}x${sb.h}; element ${b.left},${b.top} ${b.width}x${b.height}` } }, a.sel)
+        return R(!!m.ok, m.sb ? (m.e ? `the outline is not around ${a.sel} (${m.got})` : `${a.sel} not found`) : 'nothing is selected')
       }
       case 'measure': {
         const now = await measureNum(a.at, a.sel, a.q)

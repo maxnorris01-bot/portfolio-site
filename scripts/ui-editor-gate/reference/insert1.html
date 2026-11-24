@@ -1162,7 +1162,7 @@ function openNotesList() {
     const b = e.target.closest('button[data-act]'); if (!b) return
     const act = b.dataset.act, i = Number(b.dataset.i)
     closePopovers2($('#notes'))
-    if (act === 'jump') { if (!F('jump-no-select')) sel = i; paint(); preview.elements[i].scrollIntoView?.({ block: 'center' }) }
+    if (act === 'jump') { preview.elements[i].scrollIntoView?.({ block: 'center' }); if (!F('jump-no-select')) sel = i; paint(); setTimeout(paint, 60) }
     else if (act === 'edit') { sel = i; paint(); openComment(i, $('#notes')) }
     else if (act === 'del') applyNote(i, '')
     else if (act === 'add-page' || act === 'edit-page') openComment('page', $('#notes'))
