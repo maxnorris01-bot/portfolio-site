@@ -118,3 +118,13 @@ Max found the round 5 ribbon "a little better, but a lot of unused space" and as
 - **Tests that had to change.** Three existing tests pinned things the brief replaces (the alignment and unit captions, 26 px controls, the round 5 column weights); I changed only those lines, said why in comments, and listed them in the gate log (#41).
 - **Retired checks (listed for your decision):** V01, V02, V04 as wholes and parts of V09, U01, U03, U05, T03, U06, R04, R09 (`docs/ui-editor-gate-rules-round6.md`). Round 5's amendments stand and are still undecided.
 - **Home planet card.** Unchanged.
+
+## 2026-11-23: UI Editor insert round 1, stage 1 (still behind the flag, not released)
+The engine now has four new edit kinds (insert, text, remove, note); stage 1 puts three of them on the page: Insert with flow placing, text editing and Delete (Comments and Include comments are stages 2 and 3). Record: `docs/sessions/2026-11-23-ui-editor-insert1-stage1.md`; rules, pass line per stage and amendments A1 to A7: `docs/ui-editor-gate-rules-insert1.md`; the vendored engine is a build of `a5f954a` (`src/ui-editor/vendor/README.md`).
+
+- **Placing asks the engine, never the preview.** The insertion line, the Delete button and the text box all use `applyEdit` on the model without committing (a pure function of the model, the edit, the probe and the state), so nothing of the editor is in the preview and nothing changes until the one edit is made. The line, the text box and (stage 2) the pins live in the overlay layer.
+- **Thirds.** The top third of the hovered element is before, the bottom third after, the middle inside (as the last child); over the empty page, inside the body. (Mine; written in the rules.)
+- **Content edits ignore Link and the environment**, so the page does not pass them. Undo, Redo and Reset replay the list; any of them lets the selection go (an insert or a remove changes which element a path names).
+- **Limits.** Flow placement only, HTML only; text editing refuses an element with child elements and takes no line breaks; Delete keeps the page's own rules for the element and does not check links to a removed id.
+- **Tests that had to change:** the engine commit pin (approved) and the bar's `text=` count; both in the gate log (#47).
+- **Spec gaps found before scoring (A6, A7):** the locked Y04 and Y05 could not catch an Escape that applies typed text or a Delete that clears the selection; they were fixed by numbered amendments, not by editing the locked file.

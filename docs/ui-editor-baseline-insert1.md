@@ -72,3 +72,10 @@ the cause. The slowest specs were R08 (8.8 s), W06 (8.1 s), W05 (7.8 s), W04 (5.
 copy of the repo and run the same gate there) was not needed; the copy is ready (`27065d8` rebuilds, with the README's command, to exactly the `engine.js` of `bcbf335`, SHA-256
 `03ca8a7232a2839b7c24a7e2e84f0eff696e5521fe802441aa56771432ec180b`) and the engine repo's `git status` is still clean. The raw log of the run is kept outside the repository with the other runs
 (`v0`, `v1`, `o4`, `b0`, `b1` and this one, `A`); every later full run is timed the same way and kept.
+
+## Stage 1 (2026-11-23): the scorer check, the build and the runs
+
+After the clean run `A` (above) the pass line was split into stages (amendment A1) and stage 1 was done: the runner steps and asserts, a stub page (`reference/insert1.html`, `--stub8`) with 21 fault switches, the scorer check (its first run missed two faults,
+which led to amendments A6 and A7), then the page (Insert, placing, text editing, Delete), the screenshots, and two complete runs on the final code. The Y specs fail on the vendored tree with no UI built (that is what "must fail here" asks for: the
+real page without Insert has no `Insert` button, so `placeCases` cannot start; the stub with the fault `bar-wide` and the others fail where stated). Results, retired checks (none), edited tests and the amendments:
+`docs/sessions/2026-11-23-ui-editor-insert1-stage1.md` and `docs/ui-editor-gate-log.md` #42 to #47.
