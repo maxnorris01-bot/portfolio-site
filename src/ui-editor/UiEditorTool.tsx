@@ -252,8 +252,10 @@ export default function UiEditorTool() {
     run(edit, what, (s, applied) => (applied.selected !== undefined ? pathOf(s.preview.model, applied.selected) : null))
     show({ kind: 'ok', text: messages.inserted(what) })
   }
+  // The engine's reason for a spot it refuses; moving to a spot it accepts says what placing is waiting for again.
   const onPlaceReason = (reason: string | null) => {
     if (reason) show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: reason }) })
+    else if (placing) show({ kind: 'info', text: messages.placing((INSERT_ITEMS.find((i) => i.kind === placing)?.label ?? 'element').toLowerCase()) })
   }
   const startTextEdit = (index?: number) => {
     const s = sessionRef.current

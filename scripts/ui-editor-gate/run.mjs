@@ -47,6 +47,9 @@ const round6File = JSON.parse(readFileSync(join(here, 'specs-round6.json'), 'utf
 // INSERT ROUND 1 (docs/ui-editor-gate-log.md #42 and following): the Y specs run only with --stage N (or --only Yxx); the amendments of docs/ui-editor-gate-rules-insert1.md section 7 are read from amendments-insert1.json.
 const insert1File = JSON.parse(readFileSync(join(here, 'specs-insert1.json'), 'utf8'))
 const amendFile = JSON.parse(readFileSync(join(here, 'amendments-insert1.json'), 'utf8'))
+// --timing: a timestamp and the elapsed time at the start of every spec and every step (insert round 1: to see where a long run first goes wrong).
+const TIMING = flag('--timing')
+const T0 = Date.now()
 const STAGE = args.includes('--stage') ? Number(args[args.indexOf('--stage') + 1]) : null
 // ROUND 4 (docs/ui-editor-gate-log.md #25): the retired checks of round 4 apply to the real page and the round 4 stub, not to the earlier stubs (which still have tabs and
 // are used to show that the earlier faults are still caught by the earlier specs).
@@ -228,6 +231,7 @@ const settle = async (page) => {
 
 // ---- running one spec ----
 async function runSpec(spec) {
+  if (TIMING) console.log(`TIME ${new Date().toISOString()} +${((Date.now() - T0) / 1000).toFixed(1)}s SPEC START ${spec.id}`)
   let src = sources[spec.sample] // ROUND 5 (log #31): follows the sample a `load` step opens (V05 and V06 open two)
   const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
   const page = await ctx.newPage()
@@ -714,6 +718,11 @@ async function runSpec(spec) {
         return R(open === a.open, `editor open ${open}`)
       }
       case 'gone': case 'present': {
+        if (a.items) { // the earlier `present` (round 1): the listed controls are visible
+          const bad = []
+          for (const it of a.items) { const loc = await found(it); if (!(await loc.count()) || !(await loc.first().isVisible())) bad.push(label(it)) }
+          return R(bad.length === 0, bad.length ? `not visible: ${bad.join(', ')}` : 'all visible')
+        }
         const has = await page.evaluate((s) => !!window.__gate.frame().contentDocument.querySelector(s), a.sel)
         return R(a.k === 'present' ? has : !has, `${a.sel} ${has ? 'is' : 'is not'} in the preview`)
       }
@@ -2299,6 +2308,7 @@ async function runSpec(spec) {
     const retired3 = retiredFor(spec.id)
     res.retiredChecks = []
     for (const [stepIndex, step] of spec.steps.entries()) {
+      if (TIMING) console.log(`TIME ${new Date().toISOString()} +${((Date.now() - T0) / 1000).toFixed(1)}s spec ${spec.id} step ${stepIndex} ${step.do}${step.k ? ':' + step.k : ''}`)
       if (retired3?.steps?.includes(stepIndex) || (retired3?.asserts && step.do === 'assert' && retired3.asserts.includes(step.k))) {
         if (!res.retiredChecks.includes(retired3.replacedBy)) res.retiredChecks.push(retired3.replacedBy)
         res.retiredCount = (res.retiredCount ?? 0) + 1
