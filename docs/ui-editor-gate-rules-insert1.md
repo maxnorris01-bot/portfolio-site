@@ -106,3 +106,13 @@ element, which can be selected: the email sample's table has no `<tbody>` in its
 
 **A5. Reading of the status line in Y02 step 14.** `statusContains` `<tr>` is met by the engine's own reason, which contains `<tr>` ("a `<div>` cannot go directly inside `<tr>` ..."); the page shows the engine's reason
 (prefixed with a plain lead), not a rewording that drops the tag.
+
+**A6. Y04 has no step that types new text and then presses Escape (found by the scorer check, before anything was scored).** The brief says "Escape cancels (no edit)", but Y04 opens the text box and
+presses Escape only on the element's unchanged text (steps 3 and 9), and applying the unchanged text is a no-op in the export, so a page whose Escape applies the text would pass (the injected fault
+`edit-escape-applies` passed Y04). In stage 1 and after, five steps are inserted after step 11 (the box is open from the `Edit text` button): `fillText` `Escape must not apply this`, `Escape`,
+`textEditorOpen` false, `exportEqualsOriginal`, then `Edit text` again, so that the original step 12 finds the box open as before.
+
+**A7. Y05 had no check, outside the note steps, that the selection moves to the parent, and no use of the `Delete` button.** Its only `selectedIs` (step 6) and its only `Delete` button click (step 5) are in steps
+1 to 10, which A2 moves to stage 2, so a page that clears the selection after Delete (injected fault `delete-parent-wrong`) passed. In stage 1 and after: `selectedIs` `#plans` is added after step 13 (the Delete
+key on `#card-build`), and after step 15 six steps use the button (select `#card-ship`, `Delete`, `#card-ship` gone, `selectedIs` `#plans`, `Undo`, `exportEqualsOriginal`). Steps 1 to 10 still run in stage 2
+as locked.
