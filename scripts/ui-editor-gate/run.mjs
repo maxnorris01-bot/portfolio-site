@@ -44,6 +44,10 @@ const round3File = JSON.parse(readFileSync(join(here, 'specs-round3.json'), 'utf
 const round4File = JSON.parse(readFileSync(join(here, 'specs-round4.json'), 'utf8'))
 const round5File = JSON.parse(readFileSync(join(here, 'specs-round5.json'), 'utf8'))
 const round6File = JSON.parse(readFileSync(join(here, 'specs-round6.json'), 'utf8'))
+// INSERT ROUND 1 (docs/ui-editor-gate-log.md #42 and following): the Y specs run only with --stage N (or --only Yxx); the amendments of docs/ui-editor-gate-rules-insert1.md section 7 are read from amendments-insert1.json.
+const insert1File = JSON.parse(readFileSync(join(here, 'specs-insert1.json'), 'utf8'))
+const amendFile = JSON.parse(readFileSync(join(here, 'amendments-insert1.json'), 'utf8'))
+const STAGE = args.includes('--stage') ? Number(args[args.indexOf('--stage') + 1]) : null
 // ROUND 4 (docs/ui-editor-gate-log.md #25): the retired checks of round 4 apply to the real page and the round 4 stub, not to the earlier stubs (which still have tabs and
 // are used to show that the earlier faults are still caught by the earlier specs).
 const OLD_STUB = flag('--stub') || flag('--stub2') || flag('--stub3') || flag('--stub4')
@@ -80,11 +84,19 @@ const exportServer = createServer((q, r) => {
   r.setHeader('content-type', MIME[extname(f)] ?? 'text/plain'); r.end(exported.get(f))
 })
 const exportPort = await listen(exportServer)
+// INSERT ROUND 1: a second, plain page that loads the vendored engine, so the gate can compute what the engine itself gives for one edit on given files (the "engine's own result").
+const engineFile = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
+const refServer = createServer((q, r) => {
+  const p = new URL(q.url, 'http://x').pathname
+  if (p === '/engine.js') { r.setHeader('content-type', 'text/javascript'); return r.end(readFileSync(engineFile)) }
+  r.setHeader('content-type', 'text/html; charset=utf-8'); r.end('<!doctype html><meta charset="utf-8"><div id="h"></div>')
+})
+const refPort = await listen(refServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7')) {
+if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -170,7 +182,7 @@ const PAGE_HELPERS = `(() => {
         if (!e) return null
         const k = this.scaleOf()
         const b = e.getBoundingClientRect()
-        return at === 'inset' ? { x: fr.left + (b.left + 12) * k, y: fr.top + (b.top + 12) * k } : { x: fr.left + (b.left + b.width / 2) * k, y: fr.top + (b.top + b.height / 2) * k }
+        return at === 'top' ? { x: fr.left + (b.left + b.width / 2) * k, y: fr.top + (b.top + Math.min(b.height * 0.08, 12)) * k } : at === 'inset' ? { x: fr.left + (b.left + 12) * k, y: fr.top + (b.top + 12) * k } : { x: fr.left + (b.left + b.width / 2) * k, y: fr.top + (b.top + b.height / 2) * k }
       }
       const p0 = at2()
       if (!p0) return null
@@ -187,6 +199,24 @@ const PAGE_HELPERS = `(() => {
       if (last) last.focus()
       return !!last
     },
+    // INSERT ROUND 1: a point at a fraction of an element's box (fx, fy), in window points with the device scale applied, scrolled into view.
+    pointAt(sel, fx, fy) {
+      const at2 = () => { const f = frame(); const fr = f.getBoundingClientRect(); const e = f.contentDocument.querySelector(sel); if (!e) return null; const k = this.scaleOf(); const b = e.getBoundingClientRect(); return { x: fr.left + (b.left + b.width * fx) * k, y: fr.top + (b.top + b.height * fy) * k } }
+      const p0 = at2()
+      if (!p0) return null
+      this.reveal(() => at2().y)
+      return at2()
+    },
+    // The element the selection outline is drawn around: the last element (deepest) whose box is the outline's box. Null with no selection.
+    selectedEl() {
+      const s = document.querySelector('[data-selection]'); if (!s) return null
+      const doc = frame().contentDocument
+      const l = parseFloat(s.style.left), t = parseFloat(s.style.top), w = parseFloat(s.style.width), h = parseFloat(s.style.height)
+      let found = null
+      for (const e of doc.querySelectorAll('*')) { const b = e.getBoundingClientRect(); if (Math.abs(b.left - l) <= 0.6 && Math.abs(b.top - t) <= 0.6 && Math.abs(b.width - w) <= 0.6 && Math.abs(b.height - h) <= 0.6) found = e }
+      return found
+    },
+    selectionBox() { const s = document.querySelector('[data-selection]'); return s ? { l: parseFloat(s.style.left), t: parseFloat(s.style.top), w: parseFloat(s.style.width), h: parseFloat(s.style.height) } : null },
     blankPoint() { this.reveal(() => frame().getBoundingClientRect().bottom - 8); const fr = frame().getBoundingClientRect(); return { x: fr.left + 20, y: fr.bottom - 8 } },
   }
 })()`
@@ -203,7 +233,7 @@ async function runSpec(spec) {
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
-  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2: null, P3: null, P4: null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
+  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: null, P4: null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
   const snaps = {}
   let statusAtCopy = null
   let before = {}
@@ -316,7 +346,8 @@ async function runSpec(spec) {
   const statusHeights = {}
 
   // ---- ROUND 6 (docs/ui-editor-gate-log.md #33): the menus of the new ribbon, and the page colours of a document ----
-  const ribbonBtn = (name) => page.locator('[data-ribbon]').getByRole('button', { name, exact: true })
+  // INSERT ROUND 1: the Insert menu button is in the quick bar, so a menu button is looked for in the ribbon and in the bar.
+  const ribbonBtn = (name) => page.locator('[data-ribbon], [role=group][aria-label="Editor controls"]').getByRole('button', { name, exact: true })
   const spinOf = (field, dir) => page.locator(`[data-ribbon] [data-spin="${dir === '+' ? 'up' : 'down'}"][data-for="${field}"]`)
   const controlNamed = (name) => page.locator(`[data-ribbon] [aria-label="${name}"], [data-ribbon] [data-name="${name}"]`)
   const MENU_FOR = { Background: 'Shape Fill', 'Border colour': 'Shape Outline', 'Text colour': 'Font colour' }
@@ -453,13 +484,243 @@ async function runSpec(spec) {
     return R(p.length === 0, p.length ? p.slice(0, 4).join('; ') : `shown ${st.value}; ${a.files.map((f) => (d[f].length ? `${f} (${d[f].length})` : f)).join(', ')}`)
   }
 
+
+  // ---- INSERT ROUND 1 (docs/ui-editor-gate-log.md #42 and following): placing, text editing, Delete ----
+  let lastZone = null
+  const KIND_OF = { 'Text box': 'text', Rectangle: 'rect', 'Rounded rectangle': 'rounded', Ellipse: 'ellipse', Button: 'button' }
+  const PLACEMENT_OF = { before: 'before', after: 'after', inside: 'last-child' }
+  const fraction = { before: 0.08, after: 0.92, inside: 0.5 }
+  const hoverZone = async (sel, zone) => {
+    const p = await page.evaluate(([s, fy]) => window.__gate.pointAt(s, 0.5, fy), [sel, fraction[zone]])
+    if (!p) { rec('setup', `hover ${sel}`, false, 'element not found'); return null }
+    await page.mouse.move(p.x - 3, p.y - 3)
+    await page.mouse.move(p.x, p.y, { steps: 3 })
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+    lastZone = zone
+    return p
+  }
+  // What the vendored engine itself gives for ONE insert edit on the given files (loaded in the runner's own page; independent of the page under test).
+  const engineAfter = async (files, edit) => {
+    const rp = await ctx.newPage()
+    try {
+      await rp.goto(`http://127.0.0.1:${refPort}/ref.html`)
+      return await rp.evaluate(async ({ files, order, primary, kind, edit }) => {
+        const E = await import('/engine.js')
+        const model = E.createModel(files[primary], kind, Object.fromEntries(order.slice(1).map((f) => [f, files[f]])), primary)
+        const preview = await E.createPreview(model, document.getElementById('h'), { width: 1280, height: 800 })
+        const { sel, ...e } = edit
+        const anchor = preview.elements.indexOf(preview.doc.querySelector(sel))
+        const run = E.applyEditSteps(preview, [{ ...e, anchor }], E.emptyState())
+        const ok = run.results[0]?.ok
+        const out = { ok, files: run.files, className: run.results[0]?.className ?? null }
+        preview.dispose()
+        return out
+      }, { files, order: src.order, primary: src.primary, kind: src.kind, edit })
+    } finally { await rp.close() }
+  }
+  const sameFiles = (a, b) => src.order.every((f) => a[f] === b[f])
+  const originalFiles = () => src.files
+  async function insertStep(step) {
+    if (step.do === 'hoverElement') { await hoverZone(step.sel, step.zone); return }
+    if (step.do === 'dblclickElement') {
+      const p = await page.evaluate(([s]) => window.__gate.point(s, 'center'), [step.sel])
+      if (!p) { rec('setup', `dblclick ${step.sel}`, false, 'element not found'); return }
+      await page.mouse.move(p.x, p.y)
+      await page.mouse.dblclick(p.x, p.y)
+      return
+    }
+    if (step.do === 'fillText') {
+      const loc = step.target === 'commentBox' ? page.getByLabel('Note for the AI', { exact: true }) : page.locator('[data-text-editor]').first()
+      await loc.focus()
+      await page.keyboard.press('ControlOrMeta+a')
+      if (step.text === '') await page.keyboard.press('Backspace')
+      else await page.keyboard.type(step.text)
+      return
+    }
+    if (step.do === 'clickButton') { await page.getByRole('button', { name: step.name, exact: true }).first().click(); return }
+    if (step.do === 'confirm') { await page.getByRole('group', { name: 'Confirm', exact: true }).getByRole('button', { name: step.name, exact: true }).click(); return }
+    if (step.do === 'pressPage') {
+      await page.getByRole('group', { name: 'Preview', exact: true }).focus()
+      await page.keyboard.press(step.key)
+      return
+    }
+    if (step.do === 'focusField') { await fieldOf(step.name).focus(); return }
+    if (step.do === 'selectPath') { await page.locator(`[data-ribbon-strip] [data-path] button[aria-label="Select ${step.name}"], [data-ribbon-strip] [data-path] button[aria-label^="Select ${step.name} "]`).first().click(); return }
+    if (step.do === 'setLink') { await page.locator('#ue-link, #link').first().setChecked(step.checked); return }
+    if (step.do === 'placeCases') {
+      const tol = step.lineTol ?? 2
+      for (const c of step.cases) {
+        const label = `${c.kind} ${c.zone} ${c.sel}`
+        const before = await grabAll()
+        await openMenu('Insert')
+        await clickMenuItem(c.kind)
+        const p = await hoverZone(c.sel, c.zone)
+        if (!p) continue
+        // the insertion line: within tol of the hovered element's edge (before: its top; after: its bottom; inside: its box)
+        const g = await page.evaluate(([s, zone]) => {
+          const l = document.querySelector('[data-insert-line]')
+          if (!l) return null
+          const lr = l.getBoundingClientRect(), b = window.__gate.elementBox(s)
+          return { active: l.getAttribute('data-active'), zone: l.getAttribute('data-zone'), cy: lr.top + lr.height / 2, l: lr.left, t: lr.top, r: lr.right, bt: lr.bottom, box: b }
+        }, [c.sel, c.zone])
+        if (!g) rec('P1', `insertLine ${label}`, false, 'no [data-insert-line]')
+        else {
+          let ok = g.active === 'true' && g.zone === c.zone, why = `active ${g.active}, zone ${g.zone}`
+          if (ok && c.zone === 'before') { ok = Math.abs(g.cy - g.box.top) <= tol; why = `line centre ${g.cy.toFixed(1)}, element top ${g.box.top.toFixed(1)}` }
+          else if (ok && c.zone === 'after') { ok = Math.abs(g.cy - (g.box.top + g.box.height)) <= tol; why = `line centre ${g.cy.toFixed(1)}, element bottom ${(g.box.top + g.box.height).toFixed(1)}` }
+          else if (ok) { ok = Math.abs(g.l - g.box.left) <= tol && Math.abs(g.t - g.box.top) <= tol && Math.abs(g.r - (g.box.left + g.box.width)) <= tol && Math.abs(g.bt - (g.box.top + g.box.height)) <= tol; why = `line box ${g.l.toFixed(1)},${g.t.toFixed(1)},${g.r.toFixed(1)},${g.bt.toFixed(1)}, element box ${g.box.left.toFixed(1)},${g.box.top.toFixed(1)},${(g.box.left + g.box.width).toFixed(1)},${(g.box.top + g.box.height).toFixed(1)}` }
+          rec('P1', `insertLine ${label}`, ok, why)
+        }
+        await page.mouse.click(p.x, p.y)
+        await settle(page)
+        exportMemo.clear()
+        // the new element: selected, with its class, its place in the DOM
+        const info = await page.evaluate(([parent]) => {
+          const e = window.__gate.selectedEl()
+          if (!e) return null
+          const cls = [...e.classList].find((x) => /^new-(box|text|button)/.test(x)) ?? null
+          const par = e.parentElement
+          return { tag: e.localName, cls, parentOk: !!par && par.matches(parent), index: par ? [...par.children].indexOf(e) : -1, box: e.getBoundingClientRect().toJSON(), width: window.__gate.frame().offsetWidth }
+        }, [c.parent])
+        if (!info || !info.cls) rec('P5', `selected ${label}`, false, `selected element: ${info ? info.tag : 'none'}, class ${info?.cls ?? 'none'}`)
+        else {
+          rec('P5', `selected ${label}`, true, `${info.tag}.${info.cls}`)
+          rec('P5', `position ${label}`, info.parentOk && info.index === c.index && info.tag === c.tag, `parent ${info.parentOk ? 'ok' : 'wrong'}, index ${info.index} (want ${c.index}), <${info.tag}> (want <${c.tag}>)`)
+        }
+        // the export is what the engine itself gives for the same edit, and the new element's box in the exported file loaded fresh is its box in the preview
+        const after = await grabAll()
+        const edit = { op: 'insert', kind: KIND_OF[c.kind], sel: c.sel, placement: PLACEMENT_OF[c.zone] }
+        const ref = await engineAfter(before, edit)
+        rec('P2a', `engine ${label}`, ref.ok && sameFiles(after, ref.files), ref.ok ? (sameFiles(after, ref.files) ? 'export equals the engine\'s own result' : `export differs from the engine's result (${src.order.filter((f) => after[f] !== ref.files[f]).join(', ')})`) : 'the engine refused the edit in the reference run')
+        if (info?.cls) {
+          for (const [f, t] of Object.entries(after)) exported.set(f, t)
+          const fresh = await ctx.newPage()
+          await fresh.setViewportSize({ width: info.width, height: specsFile.previewHeight })
+          await fresh.goto(`http://127.0.0.1:${exportPort}/${src.primary}`)
+          const fb = await fresh.evaluate((cls) => { const e = document.querySelector('.' + cls); return e ? e.getBoundingClientRect().toJSON() : null }, info.cls)
+          await fresh.close()
+          const bok = !!fb && ['x', 'y', 'width', 'height'].every((k) => Math.abs(fb[k] - info.box[k]) <= 1)
+          rec('P2a', `box ${label}`, bok, fb ? `preview ${Math.round(info.box.width)}x${Math.round(info.box.height)} at ${Math.round(info.box.x)},${Math.round(info.box.y)}; exported ${Math.round(fb.width)}x${Math.round(fb.height)} at ${Math.round(fb.x)},${Math.round(fb.y)}` : 'the new element is not in the exported file')
+        }
+        if (!c.keep) {
+          await page.getByRole('button', { name: 'Undo', exact: true }).click()
+          await settle(page)
+          exportMemo.clear()
+          const back = await grabAll()
+          rec('P2a', `undo ${label}`, sameFiles(back, before), sameFiles(back, before) ? 'Undo restores the exact bytes' : 'Undo did not restore the bytes')
+        }
+      }
+    }
+  }
+
   async function doAssert(a0) {
     // R12's nine counter asserts were written with the change number in `k`, which overwrote the assert's name (my slip in the locked file, docs/ui-editor-gate-log.md):
     // an assert whose `k` is a number is the change-counter check for that change.
     const a = typeof a0.k === 'number' ? { ...a0, k: 'changeCounter', counterK: a0.k } : a0
-    const bucket = a.p
+    const bucket = a.p === 'P2' ? 'P2a' : a.p // insert round 1: a P2 assert of a Y spec is one of the export checks (docs/ui-editor-gate-log.md)
     const R = (ok, detail) => rec(bucket, a.k + (a.sel ? ' ' + a.sel : '') + (a.q ? ' ' + a.q : '') + (a.at ? ' @' + a.at : '') + (a.field ? ' ' + a.field : '') + (a.label ? ' ' + a.label : '') + (a.name ? ' ' + a.name : ''), ok, detail)
     switch (a.k) {
+      // ---- insert round 1 ----
+      case 'insertBarOrder': {
+        const names = await page.evaluate(() => [...document.querySelectorAll('[role=group][aria-label="Editor controls"] button')].filter((b) => b.getClientRects().length).map((b) => b.getAttribute('aria-label') ?? b.textContent.trim()))
+        const i = names.indexOf(a.after)
+        const got = i < 0 ? [] : names.slice(i + 1, i + 1 + a.names.length)
+        return R(i >= 0 && got.join('|') === a.names.join('|'), `after ${a.after}: ${got.join(', ') || 'nothing'} (bar: ${names.join(', ')})`)
+      }
+      case 'menuItemsOrder': {
+        const got = await page.evaluate((name) => { const m = [...document.querySelectorAll('[role=menu]')].find((e) => e.getAttribute('aria-label') === name && e.getClientRects().length); return m ? [...m.querySelectorAll('[role=menuitem], [role=menuitemradio]')].map((e) => e.getAttribute('aria-label')) : null }, a.button)
+        return R(!!got && got.join('|') === a.names.join('|'), `items: ${got ? got.join(', ') : 'no open menu'}`)
+      }
+      case 'disabledWithReason': {
+        const m = await page.evaluate((name) => { const b = [...document.querySelectorAll('button')].find((e) => e.getAttribute('aria-label') === name && e.getClientRects().length); return b ? { dis: b.disabled || b.getAttribute('aria-disabled') === 'true', tip: (b.getAttribute('title') ?? '') + ' ' + (b.getAttribute('aria-description') ?? '') } : null }, a.name)
+        return R(!!m && m.dis && m.tip.includes(a.contains), m ? `disabled ${m.dis}, tooltip "${m.tip.trim()}"` : `no button ${a.name}`)
+      }
+      case 'insertBarFits': {
+        const m = await page.evaluate(() => {
+          const bar = document.querySelector('[role=group][aria-label="Editor controls"]'), card = document.querySelector('[data-card]')
+          const cr = card.getBoundingClientRect(), br = bar.getBoundingClientRect()
+          const bad = []
+          for (const b of bar.querySelectorAll('button, input, select')) {
+            if (!b.getClientRects().length) continue
+            const r = b.getBoundingClientRect()
+            if (r.left < cr.left - 0.5 || r.right > cr.right + 0.5 || r.left < br.left - 0.5 || r.right > br.right + 0.5 || r.width < 1) bad.push(`${b.getAttribute('aria-label') ?? b.textContent.trim()} ${r.left.toFixed(0)}..${r.right.toFixed(0)} in ${cr.left.toFixed(0)}..${cr.right.toFixed(0)}`)
+          }
+          return { bad, sw: bar.scrollWidth, cw: bar.clientWidth, page: document.documentElement.scrollWidth, iw: innerWidth }
+        })
+        return R(m.bad.length === 0 && m.sw <= m.cw + 1 && m.page <= m.iw + 1, m.bad.length ? m.bad.slice(0, 3).join('; ') : `bar ${m.sw}/${m.cw}, page ${m.page}/${m.iw}`)
+      }
+      case 'placing': {
+        const on = await page.evaluate(() => !!document.querySelector('[data-stage][data-placing]'))
+        return R(on === a.active, `placing ${on}`)
+      }
+      case 'insertLine': {
+        const l = await page.evaluate(() => { const e = document.querySelector('[data-insert-line]'); return e ? { active: e.getAttribute('data-active'), zone: e.getAttribute('data-zone') } : null })
+        const ok = a.active ? !!l && l.active === 'true' && (!lastZone || l.zone === lastZone) : !l || l.active !== 'true'
+        return R(ok, l ? `line active ${l.active}, zone ${l.zone}` : 'no line')
+      }
+      case 'statusContains': {
+        const t = (await region().innerText().catch(() => '')) ?? ''
+        return R(t.includes(a.text), `status "${t.slice(0, 160)}"`)
+      }
+      case 'exportEqualsOriginal': {
+        const got = await grabAll()
+        const bad = src.order.filter((f) => got[f] !== src.files[f])
+        return R(bad.length === 0, bad.length ? `${bad.join(', ')} differ from the original` : 'every file equals the original')
+      }
+      case 'insertedVisible': {
+        const out = []
+        for (const w of a.widths) {
+          const m = await page.evaluate(([w, sel]) => window.__gate.withWidth(w, (doc) => { const e = doc.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { w: b.width, h: b.height, l: b.left, r: b.right } }), [w, a.sel])
+          if (!m) out.push(`@${w}: ${a.sel} not found`)
+          else if (m.w < a.minSize || m.h < a.minSize || m.l < -0.5 || m.r > w + 0.5) out.push(`@${w}: ${Math.round(m.w)}x${Math.round(m.h)} from ${Math.round(m.l)} to ${Math.round(m.r)}`)
+        }
+        return R(out.length === 0, out.length ? out.join('; ') : `${a.sel} visible at ${a.widths.join(', ')}`)
+      }
+      case 'previewText': {
+        const t = await page.evaluate((s) => { const e = window.__gate.frame().contentDocument.querySelector(s); return e ? e.textContent : null }, a.sel)
+        return R(t === a.equals, `text ${JSON.stringify(t)}, want ${JSON.stringify(a.equals)}`)
+      }
+      case 'exportText': case 'exportParse': {
+        const text = (await grab(a.file)).text
+        const m = await page.evaluate(([text, file, a, orig]) => {
+          const svg = file.endsWith('.svg')
+          const parse = (t) => new DOMParser().parseFromString(t, svg ? 'image/svg+xml' : 'text/html')
+          const d = parse(text), o = parse(orig)
+          const count = (x, q) => x.querySelectorAll(q).length
+          const comments = (x) => { let n = 0; const w = x.createTreeWalker(x, NodeFilter.SHOW_COMMENT); while (w.nextNode()) n++; return n }
+          return { elements: count(d, '*'), origElements: count(o, '*'), scripts: count(d, 'script'), origScripts: count(o, 'script'), comments: comments(d), origComments: comments(o), err: svg && !!d.querySelector('parsererror'), texts: Object.fromEntries(Object.keys(a.textOf ?? {}).concat(a.sel ? [a.sel] : []).map((s) => [s, d.querySelector(s) ? d.querySelector(s).textContent : null])) }
+        }, [text, a.file, a, src.files[a.file]])
+        if (a.k === 'exportText') return R(m.texts[a.sel] === a.equals, `exported text ${JSON.stringify(m.texts[a.sel])}, want ${JSON.stringify(a.equals)}`)
+        const p = []
+        if (m.elements - m.origElements !== a.newElements) p.push(`${m.elements - m.origElements} new elements, want ${a.newElements}`)
+        if (m.scripts > m.origScripts + (a.scripts ?? 0)) p.push(`${m.scripts - m.origScripts} new script elements`)
+        if (a.newComments !== undefined && m.comments - m.origComments !== a.newComments) p.push(`${m.comments - m.origComments} new comments, want ${a.newComments}`)
+        for (const [s, t] of Object.entries(a.textOf ?? {})) if (m.texts[s] !== t) p.push(`${s} reads ${JSON.stringify(m.texts[s])}`)
+        if (a.wellFormed && m.err) p.push('the SVG is not well-formed XML')
+        return R(p.length === 0, p.length ? p.join('; ') : `${a.file} parses with no new elements or scripts`)
+      }
+      case 'textEditor': {
+        const m = await page.evaluate((s) => {
+          const t = document.querySelector('[data-text-editor]'); if (!t || !t.getClientRects().length) return null
+          const r = t.getBoundingClientRect(); const eb = window.__gate.elementBox(s)
+          return { r: [r.left, r.top, r.right, r.bottom], e: [eb.left, eb.top, eb.left + eb.width, eb.top + eb.height], value: t.value ?? t.textContent }
+        }, a.sel)
+        if (!m) return R(false, 'no visible [data-text-editor]')
+        const off = m.r.map((v, i) => Math.abs(v - m.e[i]))
+        return R(Math.max(...off) <= a.tol && m.value === a.value, `box off by ${off.map((v) => v.toFixed(1)).join(', ')} (tol ${a.tol}); value ${JSON.stringify(m.value)}`)
+      }
+      case 'textEditorOpen': {
+        const open = await page.evaluate(() => { const t = document.querySelector('[data-text-editor]'); return !!t && t.getClientRects().length > 0 })
+        return R(open === a.open, `editor open ${open}`)
+      }
+      case 'gone': case 'present': {
+        const has = await page.evaluate((s) => !!window.__gate.frame().contentDocument.querySelector(s), a.sel)
+        return R(a.k === 'present' ? has : !has, `${a.sel} ${has ? 'is' : 'is not'} in the preview`)
+      }
+      case 'selectedIs': {
+        const m = await page.evaluate((s) => { const sb = window.__gate.selectionBox(); const e = window.__gate.frame().contentDocument.querySelector(s); if (!sb || !e) return { sb: !!sb, e: !!e }; const b = e.getBoundingClientRect(); return { sb: true, e: true, ok: Math.abs(b.left - sb.l) <= 0.6 && Math.abs(b.top - sb.t) <= 0.6 && Math.abs(b.width - sb.w) <= 0.6 && Math.abs(b.height - sb.h) <= 0.6 } }, a.sel)
+        return R(!!m.ok, m.sb ? (m.e ? 'the outline is not around ' + a.sel : `${a.sel} not found`) : 'nothing is selected')
+      }
       case 'measure': {
         const now = await measureNum(a.at, a.sel, a.q)
         const b = before[`${a.at}|${a.sel}|${a.q}`]
@@ -976,6 +1237,11 @@ async function runSpec(spec) {
         return R(small.length === 0, small.length ? `${small.length} too small: ${small.slice(0, 4).join(', ')}` : 'every ribbon control is at least 44 px')
       }
       case 'noOverflowX': {
+        if (a.widths && spec.id.startsWith('Y')) {
+          const bad = []
+          for (const w of a.widths) { const m = await page.evaluate((w) => window.__gate.withWidth(w, (doc) => ({ sw: doc.documentElement.scrollWidth, cw: doc.documentElement.clientWidth })), w); if (m.sw > m.cw + 1) bad.push(`@${w}: scroll ${m.sw} over ${m.cw}`) }
+          return R(bad.length === 0, bad.length ? bad.join('; ') : `no sideways overflow at ${a.widths.join(', ')}`)
+        }
         const m = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: innerWidth, wide: [...document.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1 && e.getBoundingClientRect().width > 0 && !e.closest('iframe') && !e.closest('[data-code-view]')).slice(0, 3).map((e) => `${e.tagName}.${e.className} right ${Math.round(e.getBoundingClientRect().right)}`) }))
         return R(m.sw <= m.iw + 1, `scrollWidth ${m.sw}, window ${m.iw}${m.wide.length ? `; wider than the window: ${m.wide.join(', ')}` : ''}`)
       }
@@ -1917,7 +2183,7 @@ async function runSpec(spec) {
       }
       case 'menuState': {
         const m = await page.evaluate((name) => {
-          const b = [...document.querySelectorAll('[data-ribbon] button')].find((x) => x.getAttribute('aria-label') === name)
+          const b = [...document.querySelectorAll('[data-ribbon] button, [role=group][aria-label="Editor controls"] button')].find((x) => x.getAttribute('aria-label') === name)
           if (!b) return null
           const menus = [...document.querySelectorAll('[role=menu]')].filter((e) => e.getClientRects().length)
           const ae = document.activeElement
@@ -2115,13 +2381,15 @@ async function runSpec(spec) {
         await page.evaluate(PAGE_HELPERS)
         await page.locator('[data-editor]').first().waitFor()
         continue
+      } else if (step.do === 'hoverElement' || step.do === 'dblclickElement' || step.do === 'placeCases' || step.do === 'fillText' || step.do === 'clickButton' || step.do === 'confirm' || step.do === 'pressPage' || step.do === 'focusField' || step.do === 'selectPath' || step.do === 'setLink') {
+        await insertStep(step)
       } else if (step.do === 'type') {
         const f = fieldOf(step.field)
         // ROUND 6 (log #33): the colour fields live inside the Shape Fill, Shape Outline and Font colour menus (More colours…); a page that still shows the field is typed into directly.
         if (MENU_FOR[step.field] && !((await f.count()) && (await f.first().isVisible().catch(() => false)))) { await openMenu(MENU_FOR[step.field]); await clickMenuItem('More colours…') }
         await reveal(f)
         await f.click({ clickCount: 3 })
-        await page.keyboard.type(step.text)
+        await page.keyboard.type(step.text ?? step.value) // insert round 1, amendment A3: Y03 writes `value`
         await page.keyboard.press('Enter')
       } else if (step.do === 'uncheck') {
         await reveal(fieldOf(step.label))
@@ -2208,7 +2476,9 @@ async function runSpec(spec) {
 
     // ---- after the steps: P3 needs the preview now, P2 needs the export (round 1 specs list the checks that apply) ----
     const wants = (k) => !spec.checks || spec.checks.includes(k)
-    if (wants('P2') || wants('P3') || wants('P4')) {
+    const isY = /^Y\d/.test(spec.id)
+    if (isY && wants('P2')) res.P2 = { ok: res.P2a.length > 0 && res.P2a.every((c) => c.ok), detail: res.P2a.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) }
+    if (!isY && (wants('P2') || wants('P3') || wants('P4'))) {
     const afterDump = await dumps()
     const exports = await grabAll()
     for (const [f, t] of Object.entries(exports)) exported.set(f, t)
@@ -2335,6 +2605,28 @@ async function noop() {
   return rows
 }
 
+// INSERT ROUND 1 (amendments A1 to A5): with --stage N the Y specs of that stage run with their amendments applied (steps skipped or replaced), the others are NOT BUILT; without --stage
+// they are left out (the earlier gate runs are as they were), unless they are asked for with --only (then as locked).
+function amended(spec) {
+  const a = STAGE ? amendFile.specs?.[spec.id]?.[`stage${STAGE}`] : null
+  if (!a) return spec
+  const steps = []
+  spec.steps.forEach((st, i) => {
+    if (a.skip?.includes(i)) return
+    if (a.replace?.[String(i)]) steps.push(...a.replace[String(i)])
+    else steps.push(st)
+    if (a.insertAfter?.[String(i)]) steps.push(...a.insertAfter[String(i)])
+  })
+  return { ...spec, steps, amendment: a.amendment }
+}
+function insertSpecs() {
+  if (STAGE) {
+    const st = amendFile.stages[String(STAGE)]
+    return insert1File.specs.map((s) => (st.notBuilt.includes(s.id) ? { ...s, notBuilt: true } : amended(s)))
+  }
+  return only && only.some((id) => /^Y\d/.test(id)) ? insert1File.specs : []
+}
+
 let exitCode = 0
 if (flag('--noop')) {
   const rows = await noop()
@@ -2343,7 +2635,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs].filter((s) => !only || only.includes(s.id))
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs()].filter((s) => !only || only.includes(s.id))
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -2355,9 +2647,15 @@ if (flag('--noop')) {
       continue
     }
     // ROUND 6 (log #33): W09 has no steps, it is PASS when the round 5 specs it lists are PASS in this run; W07a to W07d read NOT BUILT when the page lacks their control.
+    if (spec.notBuilt) {
+      results.push({ id: spec.id, name: spec.name, outcome: 'NOT BUILT', checks: spec.checks, P1: [], P5: [], P6: [], setup: [], notes: [] })
+      console.log(`${spec.id}  NOT BUILT  (stage ${STAGE}: ${spec.id} belongs to a later stage; docs/ui-editor-gate-rules-insert1.md section 7)`)
+      continue
+    }
     if (spec.aggregate) {
       const need = spec.aggregate.map((id) => results.find((x) => x.id === id))
-      const ok = need.every((x) => x && x.outcome === 'PASS')
+      let ok = need.every((x) => x && x.outcome === 'PASS')
+      if (spec.noop) { const rows = await noop(); const bad = rows.filter((r) => !r.ok); ok = ok && bad.length === 0; if (bad.length) console.log(`      no-op round trip differs: ${bad.map((r) => r.sample + '/' + r.file).join(', ')}`) }
       const r = { id: spec.id, name: spec.name, outcome: need.length && ok ? 'PASS' : 'FAIL', checks: [], P1: [], P5: [], P6: [], setup: [], notes: need.some((x) => !x) ? ['a listed spec did not run'] : [], detail: need.map((x) => `${x?.id}:${x?.outcome}`).join(' ') }
       results.push(r); console.log(`${r.id}  ${r.outcome.padEnd(7)} ${r.detail}  ${r.name.slice(0, 80)}`)
       continue
@@ -2369,7 +2667,7 @@ if (flag('--noop')) {
     }
     const r = await runSpec(spec)
     results.push(r)
-    const fails = [...r.setup, ...r.P1, ...r.P5, ...r.P6].filter((c) => !c.ok)
+    const fails = [...r.setup, ...r.P1, ...(r.P2a ?? []), ...r.P5, ...r.P6].filter((c) => !c.ok)
     const mark = (ok) => (ok === null ? '-' : ok ? 'ok' : 'XX')
     const pOf = (arr) => (arr.length ? (arr.every((c) => c.ok) ? 'ok' : 'XX') : '-')
     console.log(`${r.id}  ${r.outcome.padEnd(7)} P1 ${pOf(r.P1)} P2 ${mark(r.P2?.ok ?? null)} P3 ${mark(r.P3?.ok ?? null)} P4 ${mark(r.P4?.ok ?? null)} P5 ${pOf(r.P5)}${r.checks ? ` P6 ${pOf(r.P6)}` : ''}  ${r.name}`)
@@ -2379,7 +2677,7 @@ if (flag('--noop')) {
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
     if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVW]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWY]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
   const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length, retired: tally(round4, 'RETIRED') }, round5: { pass: tally(round5, 'PASS'), fail: tally(round5, 'FAIL'), retired: tally(round5, 'RETIRED'), total: round5.length }, round6: { pass: tally(round6, 'PASS'), fail: tally(round6, 'FAIL'), notBuilt: tally(round6, 'NOT BUILT'), total: round6.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
@@ -2388,6 +2686,7 @@ if (flag('--noop')) {
   if (round3.length) console.log(`Round 3:   PASS ${summary.round3.pass}  FAIL ${summary.round3.fail}${summary.round3.retired ? `  RETIRED ${summary.round3.retired}` : ''}  of ${summary.round3.total}${summary.round3.withRetiredChecks.length ? ` (retired checks skipped in ${summary.round3.withRetiredChecks.join(', ')})` : ''}`)
   if (round5.length) console.log(`Round 5:   PASS ${summary.round5.pass}  FAIL ${summary.round5.fail}${summary.round5.retired ? `  RETIRED ${summary.round5.retired}` : ''}  of ${summary.round5.total}`)
   if (round6.length) console.log(`Round 6:   PASS ${summary.round6.pass}  FAIL ${summary.round6.fail}${summary.round6.notBuilt ? `  NOT BUILT ${summary.round6.notBuilt}` : ''}  of ${summary.round6.total}`)
+  if (insert1.length) console.log(`Insert 1 (stage ${STAGE ?? 'as locked'}): PASS ${tally(insert1, 'PASS')}  FAIL ${tally(insert1, 'FAIL')}${tally(insert1, 'NOT BUILT') ? `  NOT BUILT ${tally(insert1, 'NOT BUILT')}` : ''}  of ${insert1.length}`)
   if (round4.length) console.log(`Round 4:   PASS ${summary.round4.pass}  FAIL ${summary.round4.fail}${summary.round4.notApplicable ? `  NOT APPLICABLE ${summary.round4.notApplicable}` : ''}  of ${summary.round4.total}`)
   writeFileSync(join(outDir, `results${fault ? '-' + fault : ''}${only ? '-' + only.join('') : ''}.json`), JSON.stringify({ summary, results: results.map(({ exports, ...r }) => r) }, null, 1))
   // Pass line: originals 18 PASS + 2 REFUSED + 0 FAIL when all 20 ran; round 1 N03 to N11 all PASS (N01 and N02 retired); round 2 R01 to R16 all PASS (retired checks skipped);
@@ -2401,9 +2700,11 @@ if (flag('--noop')) {
   const r4Ok = round4.length !== 13 || round4.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED' || (r.id === 'U13' && flag('--u13-na') && r.outcome === 'NOT APPLICABLE'))
   const r5Ok = round5.length !== 9 || round5.every((r) => r.outcome === 'PASS' || (ROUND6 && r.outcome === 'RETIRED'))
   const r6Ok = round6.length !== 12 || round6.every((r) => r.outcome === 'PASS' || r.outcome === 'NOT BUILT')
-  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok ? 0 : 1
+  const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT'))
+  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && yOk ? 0 : 1
 }
 await browser.close()
 exportServer.close()
+refServer.close()
 stubServer?.close()
 process.exit(exitCode)
