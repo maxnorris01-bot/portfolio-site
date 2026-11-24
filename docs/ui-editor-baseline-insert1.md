@@ -76,6 +76,6 @@ copy of the repo and run the same gate there) was not needed; the copy is ready 
 ## Stage 1 (2026-11-23): the scorer check, the build and the runs
 
 After the clean run `A` (above) the pass line was split into stages (amendment A1) and stage 1 was done: the runner steps and asserts, a stub page (`reference/insert1.html`, `--stub8`) with 21 fault switches, the scorer check (its first run missed two faults,
-which led to amendments A6 and A7), then the page (Insert, placing, text editing, Delete), the screenshots, and two complete runs on the final code. The Y specs fail on the vendored tree with no UI built (that is what "must fail here" asks for: the
-real page without Insert has no `Insert` button, so `placeCases` cannot start; the stub with the fault `bar-wide` and the others fail where stated). Results, retired checks (none), edited tests and the amendments:
+which led to amendments A6 and A7), then the page (Insert, placing, text editing, Delete), the screenshots, and two complete runs on the final code. The Y specs fail on the vendored tree with no UI built, as Step 1.2 requires (run on the build of `a3c1db7` with the stage 1 runner, after the runner was written: Y01 to Y05 all FAIL, 0 of 5 PASS; Y01 on its names and order, Y02 and Y03 because there is no
+`Insert` button to open, Y04 because no text box opens, Y05 because there is no `Delete` button). Results, retired checks (none), edited tests and the amendments:
 `docs/sessions/2026-11-23-ui-editor-insert1-stage1.md` and `docs/ui-editor-gate-log.md` #42 to #47.
