@@ -116,3 +116,27 @@ presses Escape only on the element's unchanged text (steps 3 and 9), and applyin
 1 to 10, which A2 moves to stage 2, so a page that clears the selection after Delete (injected fault `delete-parent-wrong`) passed. In stage 1 and after: `selectedIs` `#plans` is added after step 13 (the Delete
 key on `#card-build`), and after step 15 six steps use the button (select `#card-ship`, `Delete`, `#card-ship` gone, `selectedIs` `#plans`, `Undo`, `exportEqualsOriginal`). Steps 1 to 10 still run in stage 2
 as locked.
+
+### Stage 2 amendments (2026-11-24; stage 1 was accepted)
+
+**What ran in Y05 in stage 1, and what A2 moved.** Stage 1 ran step 0 (load), steps 11 to 24 (the Delete key on `#card-build`, Undo and the exact bytes; the Backspace key on `#card-plan`; the Width field that keeps its Delete key),
+step 26 (`Delete` disabled) after the replacement of step 25 (A4: load the email, click `#hello`, select `tbody`), and the six-plus-one steps A7 added (`selectedIs` `#plans` after the key; the `Delete` button on `#card-ship`, `#card-ship` gone,
+`selectedIs` `#plans`, Undo, the exact bytes). A2 moved only steps 1 to 10: select `#card-ship`, give it a note through the Comment popover, Save, click `Delete`, `selectedIs` `#plans`, `#card-ship` gone, `exportCommentCount` 0 and 0, Undo,
+the exact bytes. **None of Y05's Delete button, Delete key or selection behaviour was skipped in stage 1**: the button, the keys and the selection moving to the parent were all run (the button and the selection by A7's additions, which stage 1 needed
+because the locked steps that held them were the moved ones); what stage 1 could not run was "its note goes with it", which needs Comments.
+
+**A8. The stage 2 pass line.** Items 1 to 3 and 5 to 10 of section 5 as in A1 (original 20 18 PASS 2 REFUSED 0 FAIL; round 1 N03 to N11; rounds 2 to 6; tests, `tsc`, `eslint`, build, flag checks; `check:layout`; scorer check; the vendored engine is a build of `a5f954a`;
+locked files; one final run), and instead of item 4: **Y01 to Y10 PASS as amended (A2 to A10) and Y14 PASS; Y11 to Y13 report NOT BUILT**. The scorer check of stage 2 covers the stage 2 faults (a pin 12 px off, a pin in the iframe DOM, Delete leaving its note,
+a header left after the last note is deleted, Include comments OFF leaving the header, a download that differs from the code view, a note with `-->` left raw, notes not read back on reload, and a few more of mine for the other asserts) and re-runs the stage 1 faults and the earlier ones.
+
+**A9. Readings of steps and asserts the locked vocabulary leaves open or gets wrong** (found by reading Y05 to Y10 against the runner before anything was built; each is a runner change, logged and covered by the scorer check):
+1. Y08 step 3 `fillStyle` is not in the vocabulary. It is read as `type` into the ribbon field named (`Font size`, `50px`): a style edit made through the ribbon, as its place in the spec (a style edit before the note) says.
+2. Y06 step 17 `exportLacks` has `text` (a literal) where the earlier `exportLacks` has `file` and `pattern`. With `text` it is read as: no exported file contains that literal.
+3. `rotate` ("as before") is the click on the `Rotate` button; the earlier specs wrote it as `button Rotate`.
+4. `exportCommentCount` takes either a `file` (the downloaded export now) or a `snapshot` name and a `file` (a stored export); `comments` counts the comments starting ` NOTE FOR AI` (the whole-page note included), `headers` the header comment.
+5. `equalsListWithout` needs the edit list the page holds. The page puts it, read only, in `data-edit-list` (JSON) on the editor element (`[data-editor]`); the gate removes the `note` edits and asks the vendored engine, in its own page, for the export of what is left on the original files. (A hook of the page for the gate, written in section 2 as mine.)
+6. `iframeClean` is read as: the preview document has no element with a `data-pin` attribute, and as many elements as the original document plus one for each insert minus one for each removal in the edit list.
+7. `noteEach` selects each target the way a visitor can: a click inside it (its inset, else its centre), else a click on a descendant followed by the path segment of the target (a group or a container that a click cannot reach). A target the runner cannot select is a FAIL of its spec, not a skip.
+8. Row actions of the Notes list: `jump`, `Edit`, `Delete` and, on the page row, `Add a note for the whole page` and `Delete page note`; each one closes the list (the spec opens it again with `Notes` before the next action).
+
+**A10. Stage 2 runs the clauses A2 moved, as locked.** Y01 step 2 (`insertBarOrder` after `Redo`: `Insert`, `Comment`) and Y05 steps 1 to 10 run unamended in stage 2. A4 (the `tbody` replacement of step 25), A6 (Y04) and A7 (Y05's added steps) stay, since they added checks and removed none.

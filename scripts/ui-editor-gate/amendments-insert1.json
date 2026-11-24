@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Numbered amendments A1 to A7 of docs/ui-editor-gate-rules-insert1.md section 7 in a form the runner reads (--stage N). The locked specs-insert1.json is never edited.",
+  "note": "Numbered amendments A1 to A10 of docs/ui-editor-gate-rules-insert1.md section 7 in a form the runner reads (--stage N). The locked specs-insert1.json is never edited.",
   "stages": {
     "1": {
       "run": [
@@ -17,6 +17,26 @@
         "Y08",
         "Y09",
         "Y10",
+        "Y11",
+        "Y12",
+        "Y13"
+      ]
+    },
+    "2": {
+      "run": [
+        "Y01",
+        "Y02",
+        "Y03",
+        "Y04",
+        "Y05",
+        "Y06",
+        "Y07",
+        "Y08",
+        "Y09",
+        "Y10",
+        "Y14"
+      ],
+      "notBuilt": [
         "Y11",
         "Y12",
         "Y13"
@@ -116,10 +136,103 @@
             }
           ]
         }
+      },
+      "stage2": {
+        "replace": {
+          "25": [
+            {
+              "do": "load",
+              "sample": "email"
+            },
+            {
+              "do": "click",
+              "sel": "#hello",
+              "at": "center"
+            },
+            {
+              "do": "selectPath",
+              "name": "tbody"
+            }
+          ]
+        },
+        "insertAfter": {
+          "13": [
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "selectedIs",
+              "sel": "#plans"
+            }
+          ],
+          "15": [
+            {
+              "do": "click",
+              "sel": "#card-ship",
+              "at": "inset"
+            },
+            {
+              "do": "clickButton",
+              "name": "Delete"
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "gone",
+              "sel": "#card-ship"
+            },
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "selectedIs",
+              "sel": "#plans"
+            },
+            {
+              "do": "clickButton",
+              "name": "Undo"
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportEqualsOriginal"
+            }
+          ]
+        },
+        "amendment": "A4, A7 (steps 1 to 10 run as locked in stage 2, A10)"
       }
     },
     "Y04": {
       "stage1": {
+        "insertAfter": {
+          "11": [
+            {
+              "do": "fillText",
+              "target": "textEditor",
+              "text": "Escape must not apply this"
+            },
+            {
+              "do": "key",
+              "key": "Escape"
+            },
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "textEditorOpen",
+              "open": false
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportEqualsOriginal"
+            },
+            {
+              "do": "clickButton",
+              "name": "Edit text"
+            }
+          ]
+        },
+        "amendment": "A6"
+      },
+      "stage2": {
         "insertAfter": {
           "11": [
             {
