@@ -1184,6 +1184,60 @@
   white-space: nowrap;
 }
 
+/* ---- insert round 1: the Insert menu in the quick bar, the insertion line, the text box over an element ---- */
+.ue-tool .btn.ue-barmenu .ue-menutext {
+  flex: none;
+}
+
+.ue-tool .btn.ue-barmenu .ue-icon-svg:last-of-type {
+  width: 12px;
+  height: 12px;
+}
+
+/* The line shows where the element would land: a bar across the edge (before, after) or the element's box (inside); it is grey when the engine would refuse that spot. */
+.ue-insert-line {
+  position: absolute;
+  z-index: 5;
+  box-sizing: border-box;
+  background: var(--color-accent);
+  pointer-events: none;
+}
+
+.ue-insert-line[data-zone='inside'] {
+  border: 2px solid var(--color-accent);
+  background: rgb(232 93 63 / 0.1);
+}
+
+.ue-insert-line[data-active='false'] {
+  border-color: var(--color-text-muted);
+  background: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.ue-insert-line[data-zone='inside'][data-active='false'] {
+  background: transparent;
+}
+
+.ue-overlay.is-placing {
+  cursor: crosshair;
+}
+
+/* The text box sits exactly over the element's box (outside the preview's document), one line, no line breaks. */
+.ue-tool input.ue-text-editor[type='text'] {
+  position: absolute;
+  z-index: 6;
+  min-height: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 4px;
+  border: 2px solid var(--color-accent);
+  border-radius: 2px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+}
+
 /* ---- the menus (round 6): drawn in <body> (the ribbon's container would otherwise be their containing block), so none of these rules is scoped to .ue-tool. Tokens only. ---- */
 .ue-menu {
   position: fixed;

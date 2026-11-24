@@ -2,7 +2,7 @@
 // No icon library. Each icon is decoration: the button it sits in carries the accessible name (aria-label) and the tooltip (title).
 import type { ReactNode } from 'react'
 
-export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow'
+export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow' | 'insert'
 
 const PATHS: Record<IconName, ReactNode> = {
   desktop: (
@@ -65,6 +65,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="4" y="4" width="11" height="11" rx="1.5" />
       <path d="M18 9v10H9" />
+    </>
+  ),
+  // Insert (round 1): a plus in a rounded square.
+  insert: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+      <path d="M12 8.5v7M8.5 12h7" />
     </>
   ),
   // A device outline with a small curved arrow over it.

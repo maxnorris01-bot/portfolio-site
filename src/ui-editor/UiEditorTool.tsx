@@ -6,18 +6,20 @@ import Gallery from './Gallery'
 import { canRotate, isEditable, viewport, type Orientation } from './devices'
 import { cssSizeFor, handleAxes } from './geometry'
 import { compensated } from './resizeedge'
-import { IconButton, type IconName } from './icons'
+import { Icon, IconButton, type IconName } from './icons'
+import { MenuButton } from './Menu'
+import { INSERT_ITEMS } from './place'
 import { fromFiles, fromPaste, downloadName, type Doc, type Incoming } from './intake'
 import Ribbon, { type ViewName } from './Ribbon'
 import { chainOf } from './path'
 import { copyName, nameList, sectionHeader } from './sections'
 import { SAMPLES, type SampleId } from './samples'
-import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, type Session } from './session'
+import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, trialEdit, type Applied, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
-import { listUnlinked, type Edit, type Environment } from './vendor/engine.js'
+import { listUnlinked, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
 import './UiEditorTool.css'
 
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
@@ -53,6 +55,9 @@ export default function UiEditorTool() {
   const [grid, setGrid] = useState(false)
   const [snap, setSnap] = useState(false)
   const [spacing, setSpacing] = useState(8)
+  // Insert round 1: the kind being placed, and the path of the element whose text is open for editing.
+  const [placing, setPlacing] = useState<InsertKind | null>(null)
+  const [editingText, setEditingText] = useState<string | null>(null)
   const [unitState, setUnitState] = useState<{ path: string | null; unit: WidthUnit }>({ path: null, unit: 'px' })
   // The walk over the changes of all the files: the change last visited (0: none) belongs to the export it was visited in, so the next edit starts it again.
   const [walk, setWalk] = useState<{ k: number; files: Record<string, string> | null; nonce: number }>({ k: 0, files: null, nonce: 0 })
@@ -140,6 +145,8 @@ export default function UiEditorTool() {
   const load = (next: Doc, warn: string[]) => {
     setList(emptyList())
     setSelPath(null)
+    setPlacing(null)
+    setEditingText(null)
     setWarnings(warn)
     setGalleryOpen(false)
     setReviewOpen(false)
@@ -195,7 +202,7 @@ export default function UiEditorTool() {
   const scope = () => ({ environment, link: svgDoc ? true : link })
 
   /** One more edit on the live preview. A refusal shows the engine's reason and changes nothing. */
-  const run = (edit: Edit, what: string, nextSel?: string | null, extra?: string): boolean => {
+  const run = (edit: Edit, what: string, nextSel?: string | null | ((s: Session, applied: Extract<Applied, { ok: true }>) => string | null), extra?: string): boolean => {
     const s = sessionRef.current
     if (!s || busyRef.current || !editable) return false
     const applied = applyOne(s, edit)
@@ -206,7 +213,7 @@ export default function UiEditorTool() {
     const last = listRef.current.edits[listRef.current.edits.length - 1]
     const merges = mergeOffsets(last, edit) !== undefined
     setList(listReduce(listRef.current, { type: 'apply', edit }))
-    if (nextSel !== undefined) setSelPath(nextSel)
+    if (nextSel !== undefined) setSelPath(typeof nextSel === 'function' ? nextSel(s, applied) : nextSel)
     show({ kind: 'ok', text: messages.applied(what), notes: applied.notes.map(noteSentence), extra })
     // Two moves in a row are one edit: the preview is rebuilt so it shows exactly what the list says.
     if (merges) {
@@ -224,6 +231,63 @@ export default function UiEditorTool() {
     run({ op: 'set', target: t, properties, ...scope() }, `${label.toLowerCase()} set to ${Object.values(properties)[0]}`)
   }
   const onBadValue = (label: string) => show({ kind: 'refusal', text: messages.badValue(label.toLowerCase()) })
+
+  // ---- insert, text and Delete (insert round 1): content edits, the same at every width, with no Link and no pins ----
+  const insertOff = svgDoc ? labels.insertTipSvg : view === 'Tablet' ? labels.insertTipTablet : !editable ? labels.insertTipViewOnly : ''
+  const startPlacing = (kind: InsertKind) => {
+    if (insertOff || !session) return
+    setEditingText(null)
+    setPlacing(kind)
+    show({ kind: 'info', text: messages.placing((INSERT_ITEMS.find((i) => i.kind === kind)?.label ?? 'element').toLowerCase()) })
+  }
+  const cancelPlacing = () => {
+    if (!placing) return
+    setPlacing(null)
+    show({ kind: 'info', text: messages.placingCancelled })
+  }
+  const trialInsert = (edit: Edit) => (session ? trialEdit(session, edit) : null)
+  const onPlace = (edit: Edit) => {
+    const what = (INSERT_ITEMS.find((i) => i.kind === (edit as { kind?: InsertKind }).kind)?.label ?? 'element').toLowerCase()
+    setPlacing(null)
+    run(edit, what, (s, applied) => (applied.selected !== undefined ? pathOf(s.preview.model, applied.selected) : null))
+    show({ kind: 'ok', text: messages.inserted(what) })
+  }
+  const onPlaceReason = (reason: string | null) => {
+    if (reason) show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: reason }) })
+  }
+  const startTextEdit = (index?: number) => {
+    const s = sessionRef.current
+    if (!s || busyRef.current || !editable || placing) return
+    const i = index ?? selIndex
+    if (i === null || i === undefined) return
+    const el = s.preview.elements[i]
+    if (!el) return
+    // The engine says whether this element's text can be replaced: an element with child elements is refused, and nothing opens.
+    const t = trialEdit(s, { op: 'text', target: i, text: el.textContent ?? '' })
+    if (!t.ok) return show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: t.message }) })
+    const path = pathOf(s.preview.model, i)
+    setSelPath(path)
+    setEditingText(path)
+  }
+  const stopTextEdit = (focusPreview: boolean) => {
+    setEditingText(null)
+    if (focusPreview) window.setTimeout(() => rootRef.current?.querySelector<HTMLElement>('.ue-overlay')?.focus({ preventScroll: true }), 0)
+  }
+  const applyText = (text: string) => {
+    const t = selIndex
+    stopTextEdit(true)
+    if (t === null) return
+    if (run({ op: 'text', target: t, text }, 'text')) show({ kind: 'ok', text: messages.textChanged })
+  }
+  const deleteElement = () => {
+    const s = sessionRef.current
+    if (!s || selIndex === null || !editable) return
+    const parent = s.preview.elements[selIndex]?.parentElement
+    const parentIndex = parent ? s.preview.elements.indexOf(parent) : -1
+    // The element goes and the selection moves to its parent (its index does not change: the parent comes first in the document).
+    if (run({ op: 'remove', target: selIndex }, 'removed', (s2) => (parentIndex >= 0 && parent && parent !== s2.preview.doc.body ? pathOf(s2.preview.model, parentIndex) : null))) show({ kind: 'ok', text: messages.removed })
+  }
+  const canDelete = !!session && selIndex !== null && editable && trialEdit(session, { op: 'remove', target: selIndex }).ok
 
   const onMove = (dx: number, dy: number) => {
     const t = target()
@@ -298,7 +362,9 @@ export default function UiEditorTool() {
     if (next === before) return
     const changed = action.type === 'undo' ? before.edits.slice(next.edits.length) : action.type === 'redo' ? next.edits.slice(before.edits.length) : before.edits
     // A reorder changes which element a path names: the selection is let go rather than guessed.
-    if (changed.some((e) => e.op === 'reorder')) setSelPath(null)
+    if (changed.some((e) => e.op === 'reorder' || e.op === 'insert' || e.op === 'remove')) setSelPath(null)
+    setPlacing(null)
+    setEditingText(null)
     setList(next)
     startBusy()
     setReplay((n) => n + 1)
@@ -340,8 +406,30 @@ export default function UiEditorTool() {
     return () => window.removeEventListener('keydown', on)
   }, [])
 
+  // Escape cancels placing (no edit); F2 opens the text of the selected element (not while a field has the focus).
+  const latestKeys = useRef({ cancelPlacing, startTextEdit })
+  useEffect(() => {
+    latestKeys.current = { cancelPlacing, startTextEdit }
+  })
+  useEffect(() => {
+    const on = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') latestKeys.current.cancelPlacing()
+      else if (e.key === 'F2') {
+        const a = document.activeElement as HTMLElement | null
+        if (a?.matches('input, textarea, select')) return
+        if (a && a !== document.body && !rootRef.current?.contains(a)) return
+        e.preventDefault()
+        latestKeys.current.startTextEdit()
+      }
+    }
+    window.addEventListener('keydown', on)
+    return () => window.removeEventListener('keydown', on)
+  }, [])
+
   // ---- views ----
   const showSize = (v: ViewName, o: Orientation) => {
+    setPlacing(null)
+    setEditingText(null)
     setView(v)
     setOrientation(o)
     viewRef.current = v
@@ -464,6 +552,15 @@ export default function UiEditorTool() {
               <div className="ue-bar-group">
                 <IconButton icon="undo" label={labels.undo} tip={labels.undoTip} disabled={!canUndo(list) || busy} onClick={onUndo} />
                 <IconButton icon="redo" label={labels.redo} tip={labels.redoTip} disabled={!canRedo(list) || busy} onClick={onRedo} />
+                <MenuButton
+                  quickBar
+                  name={labels.insert}
+                  tip={insertOff || labels.insertTip}
+                  disabled={!!insertOff || busy}
+                  glyph={<Icon name="insert" />}
+                  text={labels.insert}
+                  spec={() => INSERT_ITEMS.map((i) => ({ label: i.label, role: 'menuitem' as const, run: () => startPlacing(i.kind) }))}
+                />
                 <IconButton icon="review" label={labels.review(pins.length)} words={labels.reviewWords} tip={labels.reviewTip} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
               </div>
               <span className="ue-flex" />
@@ -504,6 +601,9 @@ export default function UiEditorTool() {
               onMove={onReorder}
               onNudge={onNudge}
               onSelectIndex={(i) => session && setSelPath(pathOf(session.preview.model, i))}
+              onEditText={() => startTextEdit()}
+              onDelete={deleteElement}
+              canDelete={canDelete}
               grid={grid}
               onGrid={setGrid}
               snap={snap}
@@ -592,7 +692,7 @@ export default function UiEditorTool() {
           <div className="ue-preview">
             {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
             <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
-              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} />
+              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} placing={placing} trialInsert={trialInsert} onPlace={onPlace} onPlaceReason={onPlaceReason} textEdit={editingText !== null && editingText === selPath} onTextApply={applyText} onTextCancel={() => stopTextEdit(false)} onEditText={(i) => startTextEdit(i)} onDelete={deleteElement} />
             </div>
             <p id="ue-preview-hint" className="ue-hint">
               {labels.previewHint}

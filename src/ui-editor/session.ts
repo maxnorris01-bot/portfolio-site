@@ -61,7 +61,7 @@ export function fitHeight(s: Session): void {
   s.preview.iframe.style.height = `${h}px`
 }
 
-export type Applied = { ok: true; notes: ScaleNote[]; placement: string } | { ok: false; message: string }
+export type Applied = { ok: true; notes: ScaleNote[]; placement: string; /** `insert`: the new element's index in the model after the edit (the engine's `selected`). */ selected?: number } | { ok: false; message: string }
 
 /** One more edit on the live preview. A refusal changes nothing (the engine decides before it touches anything). */
 export function applyOne(s: Session, edit: Edit): Applied {
@@ -72,7 +72,20 @@ export function applyOne(s: Session, edit: Edit): Applied {
     s.state = run.state
     s.files = run.files
     fitHeight(s)
-    return { ok: true, notes: r.notes ?? [], placement: r.placement }
+    return { ok: true, notes: r.notes ?? [], placement: r.placement, selected: r.selected }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) }
+  }
+}
+
+/**
+ * Whether the engine would take this edit now, without taking it: `applyEdit` is a pure function of the model, the edit, the probe and the state, so the preview, the model and the edit
+ * list are not touched (insert round 1: the placing line, the Delete button and the text editor ask before they act). `selected` is the new element's index for an insert.
+ */
+export function trialEdit(s: Session, edit: Edit): { ok: true; selected?: number } | { ok: false; message: string } {
+  try {
+    const r = engine.applyEdit(s.preview.model, edit, s.preview.probe, s.state)
+    return r.ok ? { ok: true, selected: r.selected } : { ok: false, message: r.refusal.message }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : String(e) }
   }

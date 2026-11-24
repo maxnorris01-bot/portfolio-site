@@ -82,6 +82,17 @@ export const labels = {
   redo: 'Redo',
   resetAll: 'Reset all',
   rotate: 'Rotate',
+  /** Insert round 1: the Insert menu in the quick bar, and Edit text and Delete in the selection strip. The names are exactly these; each tooltip starts with a verb. */
+  insert: 'Insert',
+  insertTip: 'Open the list of things you can insert.',
+  insertTipSvg: 'Insert is for HTML pages: an SVG cannot take new elements.',
+  insertTipTablet: 'Tablet is view-only: switch to Desktop or Phone to insert.',
+  insertTipViewOnly: 'This size is view-only: turn the phone upright, or switch to Desktop, to insert.',
+  editText: 'Edit text',
+  editTextTip: 'Change the text of this element (also F2 or a double-click).',
+  elementText: 'Element text',
+  deleteElement: 'Delete',
+  deleteTip: 'Remove this element from the page (also the Delete key).',
   /** Tooltips: verb first, the name unchanged (the accessible name is the label; the tooltip then becomes the accessible description). */
   undoTip: 'Undo the last edit',
   redoTip: 'Redo the edit you undid',
@@ -104,7 +115,7 @@ export const labels = {
   code: 'Updated code',
   result: 'Edit result',
   preview: 'Preview',
-  previewHint: 'Click an element to select it. Drag it to move it, or drag a handle to resize it. With an element selected, the arrow keys nudge it by 1 px (10 px with Shift). Handles are for the pointer; the ribbon controls and the arrow keys do the same from the keyboard.',
+  previewHint: 'Click an element to select it. Drag it to move it, or drag a handle to resize it. Double-click an element, or press F2, to change its text; the Delete key removes it. With an element selected, the arrow keys nudge it by 1 px (10 px with Shift). Handles are for the pointer; the ribbon controls and the arrow keys do the same from the keyboard.',
   discard: 'Discard edits',
   keep: 'Keep editing',
   openPaste: 'Open pasted code',
@@ -258,6 +269,13 @@ export const messages = {
   missingCss: (href: string) => `This page links to the stylesheet "${href}", which was not supplied, so those styles are missing from the preview. Add it with Upload or Paste.`,
   unusedCss: (name: string) => `The stylesheet "${name}" is not linked from the page, so it has no effect on the preview.`,
   badValue: (label: string) => `Not applied: that is not a value ${label} can take.`,
+  /** Insert round 1: placing, and what an insert, a text edit and a Delete say. */
+  placing: (what: string) => `Click where the ${what} should go, or press Escape to cancel.`,
+  placingCancelled: 'Cancelled: nothing was inserted.',
+  inserted: (what: string) => `Applied: inserted a ${what}.`,
+  removed: 'Applied: removed the element.',
+  textChanged: 'Applied: changed the text.',
+  cannotEditText: 'Not applied:',
   notAColour: 'Not applied: that is not a colour. Type #rgb or #rrggbb.',
   doubleNeedsThree: 'Not applied: a double line needs a weight of 3 px or more.',
   replayFailed: 'The edits could not be replayed, so the editor went back to the original.',
@@ -301,17 +319,21 @@ export const limits = {
     'Tablet is view-only, and so is a phone turned sideways; in between, the page’s own rules decide.',
     'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units are left as the page wrote them, and the editor does not always say so.',
     'A flex item that grows (flex-grow above 0, such as flex: 1) cannot be sized exactly, so resizing it is refused.',
-    'Dragging an element to move it applies to one size only, and it is listed under Review unlinked.',
+    'Dragging an element to move it applies to one size only, listed under Review unlinked.',
     // Verified with the engine before it was written (docs/ui-editor-baseline-round4.md): an east drag on a left-anchored element lands its right edge on the line, and on the
     // element fixed to the right of its row the right edge does not move at all.
     'With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge.',
-    'One element at a time: a shared class is never changed for everyone, and invented elements cannot be edited.',
-    'An edit the engine cannot make safely is refused with the reason, and nothing changes.',
-    'Examples: an element under a transformed parent, an SVG element reused through use or defs, or a style that fights an !important rule.',
-    'Tested in Chromium only; the numbers above come from the engine’s own gate and a few real files.',
+    // Insert round 1 (engine limits, docs/known-limits.md of the engine): flow placement only; text editing needs an element without child elements; Delete leaves the page's own rules.
+    'Insert places a new element before, after or inside the one you point at, in HTML only.',
+    'Text editing refuses an element with child elements, and takes no line breaks.',
+    'Delete keeps the page’s own rules for the element, and links to a removed id are not checked.',
+    'One element at a time: a shared class is never changed for everyone.',
+    'An edit the engine cannot make safely is refused, with the reason.',
+    'Examples: a transformed parent, an SVG element reused through use or defs, or an !important rule.',
+    'Tested in Chromium only.',
   ],
   /** How many consecutive sentences make each paragraph shown. */
-  groups: [3, 3, 2, 2, 2, 2],
+  groups: [3, 3, 2, 2, 3, 4],
 }
 
 /** The paragraphs a list shows: `items` joined in runs of the given sizes (every item once, in order). */
