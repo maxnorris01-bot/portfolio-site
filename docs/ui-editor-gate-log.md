@@ -323,3 +323,40 @@ Rules: `docs/ui-editor-gate-rules-insert1.md`; specs: `scripts/ui-editor-gate/sp
 | # | Change | Why |
 |---|---|---|
 | 1 | `tests/uieditorengine.test.ts`: the constant `COMMIT` is now `a5f954a610cfdf2693fadd2a7b105b4acf59a9e3` (was `27065d8847738f61b7b9538ab6070122559e842f`). Old assertion: the engine's header, the README and the commit equal `27065d8…`. New: they equal `a5f954a…`. | Vendoring the new engine makes the old pin untrue. Not in the brief's list of tests that may change: flagged for Max. |
+
+## 2026-11-23, insert round 1, stage 1 (`feat/ui-editor-insert1`, on top of `main` at `bcbf335`)
+
+Rules: `docs/ui-editor-gate-rules-insert1.md` (locked in `00078b1`; numbered amendments A1 to A7 in its section 7, in a form the runner reads: `scripts/ui-editor-gate/amendments-insert1.json`); specs:
+`scripts/ui-editor-gate/specs-insert1.json` (never edited). Stage 1 covers Y01 to Y05 and the kept checks (Y14); Y06 to Y13 report NOT BUILT. The scorer-check stub is `reference/insert1.html` (`--stub8`).
+
+| # | Change | Why |
+|---|---|---|
+| 42 | The runner loads `specs-insert1.json` and `amendments-insert1.json`. `--stage N` runs the Y specs of that stage with their amendments applied (steps skipped, replaced or added after) and reports the others NOT BUILT; Y14 is an aggregate (W01 to W06, W08, W09 PASS in the same run) plus the four no-op round trips. Without `--stage` (or `--only Yxx`) the Y specs are not run, so the earlier gate runs are as they were. `--stub8` serves `reference/insert1.html`. A plain page (`/ref.html`) loads the vendored engine so the gate can ask it for its own result of one edit on given files (placing). | The brief's stages and amendments A1 to A7. |
+| 43 | New steps: `hoverElement`, `dblclickElement`, `placeCases`, `fillText`, `clickButton`, `confirm`, `pressPage`, `focusField`, `selectPath`, `setLink`; `click` reads `at: top`. New asserts: `insertBarOrder`, `menuItemsOrder`, `disabledWithReason`, `insertBarFits`, `placing`, `insertLine`, `statusContains`, `exportEqualsOriginal`, `insertedVisible`, `previewText`, `exportText`, `exportParse`, `textEditor`, `textEditorOpen`, `gone`, `present` (with `sel`; the earlier `present` with `items` keeps its meaning), `selectedIs`; `noOverflowX` with `widths` measures the preview at each width. | The Y specs' `vocabulary`. |
+| 44 | **Readings:** a P2 assert of a Y spec is one of the export checks, and a Y spec's P2 is PASS when it has such asserts and all hold (the dump comparison of the earlier specs needs `widths`, which Y specs do not have). `type` reads `value` when `text` is absent (A3). A menu button, and `menuState`, are looked for in the quick bar as well as the ribbon (Insert is in the bar). The selected element is the deepest element whose box is the selection outline's box (`selectedEl`); `selectedIs` compares boxes. `placeCases` takes the files before the click, asks the vendored engine for the same one insert on them, and compares byte for byte; the new element's box is read in the exported file loaded fresh at the preview's width. | Operational definitions, mine. |
+| 45 | `--timing`: a timestamp and the elapsed time at the start of every spec and step. | Asked for by Max, to see where a long run first goes wrong. |
+| 46 | **A runner bug of mine, found and fixed:** my first `present` assert for the Y specs shadowed the earlier `present` (a `switch` takes the first matching case), so the round 1 and round 2 specs that use it (R02, R14) failed on their own stub control. The re-run of the earlier faults found it (the control of `--stub3` failed); it was fixed, and the whole earlier fault set was run again. The first run is kept (`earlier-results-run1-present-bug`). | The re-run did its job. |
+| 47 | **Existing tests edited** (see below). | The brief lists them as allowed. |
+
+**Scorer check (stage 1, `--stub8`).** Controls: Y01 to Y05 PASS, Y06 to Y13 NOT BUILT. 21 injected faults, each must fail where stated: insertion line 12 px off (`line-12`), a click that inserts at the wrong place (`wrong-place`),
+Escape that still inserts (`escape-inserts`), Escape that does not cancel placing (`escape-keeps-placing`), the line active at a refused spot (`refused-line-active`): Y02; no engine reason in the status line
+(`status-no-reason`): Y02 and Y04; a text edit applied on Escape (`edit-escape-applies`), typed `<script>` as markup (`script-markup`), the text box 12 px off (`editor-12-off`), double-click that opens nothing
+(`dblclick-no-open`), F2 that opens nothing (`f2-no-open`), a text box over an element with child elements (`edit-child-opens`): Y04; menu items out of order (`insert-order`), Insert not disabled on SVG
+(`insert-no-svg-disable`), no reason in its tooltip (`insert-no-reason`), a 760 px Insert button (`bar-wide`): Y01; the selection cleared after Delete (`delete-parent-wrong`), the Delete key deleting while a field has
+focus (`delete-in-field`), Delete enabled on an implied element (`delete-implied`): Y05. **The first run missed two** (`edit-escape-applies` and `delete-parent-wrong` passed), which STOPPED the build until the spec was fixed:
+amendments A6 and A7 (see the rules, section 7); after them both fail, and the other 19 failed already. Stage 2 and 3 faults (a note left by Delete, pins, headers, Include comments, hostile notes, reloaded notes, a pin
+after Move up, a 40 px control at 390) are not part of this stage. The earlier faults were re-run on the changed runner: 59 (`--stub` to `--stub5`), 13 (round 5 stub) and 21 (round 6 stub) = 93 fault runs, all caught; the
+controls of the earlier stubs are as before (only T10 on the round 3 stub, as in round 3).
+
+**Existing test assertions edited (for Max's decision).**
+| # | Test | Before | Now | Why |
+|---|---|---|---|---|
+| 47a | `tests/uieditorengine.test.ts` (approved by Max, added to the list) | `const COMMIT = '27065d8847738f61b7b9538ab6070122559e842f'` | `const COMMIT = 'a5f954a610cfdf2693fadd2a7b105b4acf59a9e3'` | The test names the commit the vendored engine is a build of; the vendoring changed it. One line. |
+| 47b | `tests/uieditorround2.test.ts`, "Rotate is drawn as a device outline ... the one icon button that shows its word" | `assert.equal((bar.match(/ text=\{/g) ?? []).length, 1, 'only Rotate has a visible label')` | the count is 2, with a second assertion that the other is `text={labels.insert}` | The quick bar gains the Insert menu button, which shows its word like Rotate (the brief lists assertions that count the bar's controls). |
+
+The new tests are in `tests/uieditorinsert1.test.ts` (8). No locked check is retired by stage 1 (none of the new controls changes what a locked check names), and no locked file was edited.
+
+**Runs kept** (the raw logs are outside the repository, in the session's scratch folder; the numbers are here): `A` (the vendored tree, clean: 205 s, 87 specs); the stage 1 scorer-check runs (first with the two misses, then
+after A6 and A7); the earlier faults twice (the first with the `present` bug); the final run 1 on `bc70f83` (gate 06:37:11 to 06:41:11 UTC: **one miss, U03**, see below) and the final run 2 on `8233ed8` (gate 06:43:30 to
+06:47:54, clean). **Iteration 1 (labelled):** run 1's only miss was U03's tooltip check: the tooltips of `Edit text` (`Change the text ...`) and `Delete` (`Remove this element ...`) do not start with one of the verbs of
+that locked check (it has no Change, Remove or Delete). The two tooltips were rewritten (`Edit the text ...`, `Use this or the Delete key to remove the element.`) and everything was run again. Nothing else changed.
