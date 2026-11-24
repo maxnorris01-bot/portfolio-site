@@ -296,6 +296,20 @@
         },
         "amendment": "A12"
       }
+    },
+    "Y07": {
+      "stage2": {
+        "insertAfter": {
+          "16": [
+            {
+              "do": "click",
+              "sel": "#headline",
+              "at": "center"
+            }
+          ]
+        },
+        "amendment": "A13"
+      }
     }
   }
 }

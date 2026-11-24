@@ -250,7 +250,9 @@ async function runSpec(spec) {
   let lastEditMessage = null
   // ROUND 5 (log #30): ONE Download saves every file of the document (a page with the File selector of the earlier rounds saves the shown one). The runner clicks
   // it once, collects the downloads and returns the one for the file asked for; the primary file has the -edited name, a stylesheet its own.
-  const downloadName = (file) => (file === src.primary ? file.replace(/(\.[^.]+)$/, '-edited$1') : file)
+  // insert round 1 stage 2: a document opened again by Paste or Upload has another file name (the alias of the primary file).
+  const alias = {}
+  const downloadName = (file) => (file === src.primary ? (alias[file] ?? file).replace(/(\.[^.]+)$/, '-edited$1') : file)
   const downloadAll = async (expected) => {
     const got = []
     const on = (d) => got.push(d)
@@ -522,9 +524,137 @@ async function runSpec(spec) {
       }, { files, order: src.order, primary: src.primary, kind: src.kind, edit })
     } finally { await rp.close() }
   }
+  const engineCount = async (files, order, primary, kind) => {
+    const rp = await ctx.newPage()
+    try {
+      await rp.goto(`http://127.0.0.1:${refPort}/ref.html`)
+      return await rp.evaluate(async ({ files, order, primary, kind }) => {
+        const E = await import('/engine.js')
+        const model = E.createModel(files[primary], kind, Object.fromEntries(order.slice(1).map((f) => [f, files[f]])), primary)
+        const preview = await E.createPreview(model, document.getElementById('h'), { width: 1280, height: 800 })
+        const n = preview.doc.querySelectorAll('*').length
+        preview.dispose()
+        return n
+      }, { files, order, primary, kind })
+    } finally { await rp.close() }
+  }
+  // What the vendored engine gives for a whole edit list on the original files (the indexes of the list are the page's own, valid at each step).
+  const engineReplay = async (files, edits) => {
+    const rp = await ctx.newPage()
+    try {
+      await rp.goto(`http://127.0.0.1:${refPort}/ref.html`)
+      return await rp.evaluate(async ({ files, order, primary, kind, edits }) => {
+        const E = await import('/engine.js')
+        const model = E.createModel(files[primary], kind, Object.fromEntries(order.slice(1).map((f) => [f, files[f]])), primary)
+        const preview = await E.createPreview(model, document.getElementById('h'), { width: 1280, height: 800 })
+        const run = E.applyEditSteps(preview, edits, E.emptyState())
+        const ok = run.results.every((r) => r.ok)
+        preview.dispose()
+        return { ok, files: run.files }
+      }, { files, order: src.order, primary: src.primary, kind: src.kind, edits })
+    } finally { await rp.close() }
+  }
   const sameFiles = (a, b) => src.order.every((f) => a[f] === b[f])
   const originalFiles = () => src.files
+
+  // ---- INSERT ROUND 1, STAGE 2: Comment, pins, the Notes list, Include comments, reloaded notes ----
+  const noteTexts = []
+  const REPEAT = 'abcdefghi '.repeat(500)
+  const neutral = (t) => t.replace(/-{2,}/g, (m) => m.split('').join(' ')).replace(/\0/g, '').replace(/\r\n?/g, '\n')
+  const labelOfSel = (sel) => page.evaluate((s) => { const e = window.__gate.frame().contentDocument.querySelector(s); if (!e) return null; const id = e.getAttribute('id'), c = (e.getAttribute('class') ?? '').trim().split(/\s+/)[0]; return e.localName + (id ? ' #' + id : c ? ' .' + c : '') }, sel)
+  const selectionIs = (sel) => page.evaluate((s) => { const sb = window.__gate.selectionBox(); const e = window.__gate.frame().contentDocument.querySelector(s); if (!sb || !e) return false; const b = e.getBoundingClientRect(); return Math.abs(b.left - sb.l) <= 0.6 && Math.abs(b.top - sb.t) <= 0.6 && Math.abs(b.width - sb.w) <= 0.6 && Math.abs(b.height - sb.h) <= 0.6 }, sel)
+  // (A9.7) select an element the way a visitor can: a click inside it (inset, then centre), else a click on a descendant and then its segment of the path.
+  const selectTarget = async (sel) => {
+    for (const at of ['inset', 'center', [0.03, 0.5], [0.97, 0.5], [0.25, 0.5], [0.75, 0.5], [0.1, 0.5]]) { // (A9.7) a point of the element a visitor can click: inside it, else along it (a line has no height; a bar may lie over its middle)
+      const p = Array.isArray(at) ? await page.evaluate(([s, fx, fy]) => window.__gate.pointAt(s, fx, fy), [sel, at[0], at[1]]) : await page.evaluate(([s, a]) => window.__gate.point(s, a), [sel, at])
+      if (!p) return false
+      await page.mouse.move(p.x, p.y); await page.mouse.click(p.x, p.y); await settle(page)
+      if (await selectionIs(sel)) return true
+    }
+    const kid = await page.evaluate((s) => { const e = window.__gate.frame().contentDocument.querySelector(s); const k = e && [...e.querySelectorAll('*')].find((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().height > 0); return k ? window.__gate.keyFor(s) && true : false }, sel)
+    if (kid) {
+      const p = await page.evaluate((s) => { const f = window.__gate.frame(); const e = f.contentDocument.querySelector(s); const k = [...e.querySelectorAll('*')].find((x) => x.getBoundingClientRect().width > 0 && x.getBoundingClientRect().height > 0); const fr = f.getBoundingClientRect(); const kk = window.__gate.scaleOf(); const b = k.getBoundingClientRect(); window.__gate.reveal(() => fr.top + (b.top + b.height / 2) * kk); const fr2 = f.getBoundingClientRect(); return { x: fr2.left + (b.left + b.width / 2) * kk, y: fr2.top + (b.top + b.height / 2) * kk } }, sel)
+      await page.mouse.move(p.x, p.y); await page.mouse.click(p.x, p.y); await settle(page)
+      const lab = await labelOfSel(sel)
+      await page.locator(`[data-ribbon-strip] [data-path] button[aria-label="Select ${lab}"]`).first().click({ timeout: 3000 }).catch(() => {})
+      await settle(page)
+      if (await selectionIs(sel)) return true
+    }
+    return false
+  }
+  const openNotes = async () => { if (!(await page.locator('[data-notes-list]').isVisible().catch(() => false))) { await page.getByRole('button', { name: 'Notes', exact: true }).click(); await settle(page) } }
+  const pasteOrUpload = async (via, files) => {
+    await page.getByRole('button', { name: 'Samples', exact: true }).click()
+    await settle(page)
+    const own = page.locator('[data-sample-card="own"]')
+    if (via === 'paste') {
+      await own.getByRole('button', { name: 'Paste', exact: true }).click()
+      await page.getByLabel('HTML or SVG', { exact: true }).fill(files.markup)
+      if (files.css !== undefined) await page.getByLabel('Companion CSS (optional)', { exact: true }).fill(files.css)
+      await page.getByRole('button', { name: 'Open pasted code', exact: true }).click()
+    } else {
+      const chooser = page.waitForEvent('filechooser')
+      await own.getByRole('button', { name: 'Upload', exact: true }).click()
+      await (await chooser).setFiles(files.list.map(([name, text]) => ({ name, mimeType: name.endsWith('.css') ? 'text/css' : 'text/html', buffer: Buffer.from(text) })))
+    }
+    await settle(page)
+    const c = page.getByRole('group', { name: 'Confirm', exact: true })
+    if (await c.isVisible().catch(() => false)) await c.getByRole('button', { name: 'Discard edits', exact: true }).click()
+    await page.waitForFunction(() => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.body && !document.querySelector('[aria-busy="true"]'))
+    await settle(page)
+  }
+  async function insertStep2(step) {
+    if (step.do === 'clickPin') { await page.locator(`[data-pin][data-n="${step.n}"]`).first().click(); await settle(page); return }
+    if (step.do === 'clickNotesRow') {
+      await openNotes()
+      const row = step.n ? page.locator(`[data-notes-list] [data-note-row][data-n="${step.n}"]`) : page.locator('[data-notes-list] [data-note-row="page"]')
+      if (step.action === 'jump') await row.locator('[data-note-label]').first().click()
+      else await row.getByRole('button', { name: step.action, exact: true }).first().click()
+      await settle(page)
+      return
+    }
+    if (step.do === 'noteEach') {
+      for (let i = 0; i < step.targets.length; i++) {
+        const t = step.targets[i], text = step.texts[i] === 'REPEAT5000' ? REPEAT : step.texts[i]
+        if (!(await selectTarget(t))) { rec('setup', `noteEach ${t}`, false, 'the element could not be selected by a click or by the path'); continue }
+        await page.getByRole('button', { name: 'Comment', exact: true }).click()
+        const box = page.getByRole('textbox', { name: 'Note for the AI', exact: true })
+        await box.focus()
+        await box.fill(text)
+        await page.getByRole('button', { name: 'Save', exact: true }).click()
+        await settle(page)
+        noteTexts.push(text)
+      }
+      return
+    }
+    if (step.do === 'snapshotCopy') {
+      const out = {}
+      const multi = src.order.length > 1
+      for (const f of src.order) {
+        await page.getByRole('button', { name: multi ? `Copy ${f}` : 'Copy code', exact: true }).click()
+        await page.waitForTimeout(150)
+        out[f] = await page.evaluate(() => navigator.clipboard.readText())
+      }
+      snapExports[step.name] = out
+      return
+    }
+    if (step.do === 'setBox') { await page.getByRole('checkbox', { name: step.name, exact: true }).setChecked(step.checked); await settle(page); exportMemo.clear(); return }
+    if (step.do === 'rotate') { await page.getByRole('button', { name: 'Rotate', exact: true }).click(); await settle(page); return }
+    if (step.do === 'reloadFromExport') {
+      const snap = snapExports[step.name]
+      const files = Object.entries(snap)
+      const primary = files.find(([f]) => f === src.primary)
+      const css = files.find(([f]) => f !== src.primary)
+      const upName = downloadName(src.primary)
+      if (step.via === 'paste') { await pasteOrUpload('paste', { markup: primary[1], css: css?.[1] }); alias[src.primary] = 'pasted.html' }
+      else { await pasteOrUpload('upload', { list: [[upName, primary[1]], ...(css ? [[css[0], css[1]]] : [])] }); alias[src.primary] = upName }
+      exportMemo.clear()
+      return
+    }
+  }
+
   async function insertStep(step) {
+    if (['clickPin', 'clickNotesRow', 'noteEach', 'snapshotCopy', 'setBox', 'rotate', 'reloadFromExport'].includes(step.do)) return insertStep2(step)
     if (step.do === 'hoverElement') { await hoverZone(step.sel, step.zone); return }
     if (step.do === 'dblclickElement') {
       const p = await page.evaluate(([s]) => window.__gate.point(s, 'center'), [step.sel])
@@ -534,7 +664,7 @@ async function runSpec(spec) {
       return
     }
     if (step.do === 'fillText') {
-      const loc = step.target === 'commentBox' ? page.getByLabel('Note for the AI', { exact: true }) : page.locator('[data-text-editor]').first()
+      const loc = step.target === 'commentBox' ? page.getByRole('textbox', { name: 'Note for the AI', exact: true }) : page.locator('[data-text-editor]').first()
       await loc.focus()
       await page.keyboard.press('ControlOrMeta+a')
       if (step.text === '') await page.keyboard.press('Backspace')
@@ -624,6 +754,110 @@ async function runSpec(spec) {
     const bucket = a.p === 'P2' ? 'P2a' : a.p // insert round 1: a P2 assert of a Y spec is one of the export checks (docs/ui-editor-gate-log.md)
     const R = (ok, detail) => rec(bucket, a.k + (a.sel ? ' ' + a.sel : '') + (a.q ? ' ' + a.q : '') + (a.at ? ' @' + a.at : '') + (a.field ? ' ' + a.field : '') + (a.label ? ' ' + a.label : '') + (a.name ? ' ' + a.name : ''), ok, detail)
     switch (a.k) {
+      // ---- insert round 1, stage 2 ----
+      case 'checkboxState': {
+        const c = page.getByRole('checkbox', { name: a.name, exact: true })
+        if (!(await c.count())) return R(false, `no checkbox ${a.name}`)
+        const ck = await c.isChecked(), dis = await c.isDisabled()
+        return R(ck === a.checked && dis === a.disabled, `checked ${ck}, disabled ${dis}`)
+      }
+      case 'commentPopover': {
+        const m = await page.evaluate((field) => {
+          const p = document.querySelector('[data-comment-popover]'); if (!p || !p.getClientRects().length) return null
+          const t = [...p.querySelectorAll('textarea')].find((x) => x.getAttribute('aria-label') === field)
+          return { hasField: !!t, value: t ? t.value : null, buttons: [...p.querySelectorAll('button')].filter((b) => b.getClientRects().length).map((b) => b.getAttribute('aria-label') ?? b.textContent.trim()) }
+        }, a.field)
+        if (!a.open) return R(!m, m ? 'the popover is open' : 'closed')
+        if (!m) return R(false, 'no open [data-comment-popover]')
+        const p = []
+        if (!m.hasField) p.push(`no text area named ${a.field}`)
+        if (a.value !== undefined && m.value !== a.value) p.push(`value ${JSON.stringify(m.value)}`)
+        if (a.buttons && m.buttons.join('|') !== a.buttons.join('|')) p.push(`buttons ${m.buttons.join(', ')}`)
+        return R(p.length === 0, p.length ? p.join('; ') : `popover: ${m.buttons.join(', ')}`)
+      }
+      case 'pin': {
+        const m = await page.evaluate(([n, s]) => {
+          const pin = document.querySelector(`[data-pin][data-n="${n}"]`); if (!pin || !pin.getClientRects().length) return null
+          const inFrame = !!window.__gate.frame().contentDocument.querySelector('[data-pin]')
+          const r = pin.getBoundingClientRect(), eb = window.__gate.elementBox(s)
+          return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, ex: eb.left, ey: eb.top, inFrame }
+        }, [a.n, a.sel])
+        if (!m) return R(false, `no visible pin ${a.n}`)
+        const d = Math.max(Math.abs(m.cx - m.ex), Math.abs(m.cy - m.ey))
+        return R(d <= a.tol && !m.inFrame, `pin centre ${m.cx.toFixed(1)},${m.cy.toFixed(1)}, element top-left ${m.ex.toFixed(1)},${m.ey.toFixed(1)} (off by ${d.toFixed(1)}, tol ${a.tol})`)
+      }
+      case 'iframeClean': {
+        const edits = JSON.parse((await page.locator('[data-editor]').first().getAttribute('data-edit-list')) ?? '[]')
+        const want = (await engineCount(src.files, src.order, src.primary, src.kind)) + edits.filter((e) => e.op === 'insert').length - edits.filter((e) => e.op === 'remove').length
+        const m = await page.evaluate(() => { const d = window.__gate.frame().contentDocument; return { pins: d.querySelectorAll('[data-pin]').length, n: d.querySelectorAll('*').length } })
+        return R(m.pins === 0 && m.n === want, `${m.pins} elements with data-pin, ${m.n} elements (the original and the edits give ${want})`)
+      }
+      case 'exportCommentCount': {
+        const text = a.snapshot ? snapExports[a.snapshot]?.[a.file] : (await grab(a.file)).text
+        if (text === undefined) return R(false, 'no such export')
+        const m = await page.evaluate(([t, file]) => { const d = new DOMParser().parseFromString(t, file.endsWith('.svg') ? 'image/svg+xml' : 'text/html'); const out = []; const w = d.createTreeWalker(d, NodeFilter.SHOW_COMMENT); while (w.nextNode()) out.push(w.currentNode.data); return out }, [text, a.file])
+        const notes = m.filter((c) => c.startsWith(' NOTE FOR AI')).length, headers = m.filter((c) => c.startsWith(' Exported from UI Editor.')).length
+        return R(notes === a.comments && headers === a.headers, `${notes} notes (want ${a.comments}), ${headers} headers (want ${a.headers})`)
+      }
+      case 'exportNotes': {
+        const text = (await grab(a.file)).text
+        const m = await page.evaluate(([t, a]) => {
+          const svg = a.file.endsWith('.svg'); const d = new DOMParser().parseFromString(t, svg ? 'image/svg+xml' : 'text/html')
+          const prevComment = (e) => { let n = e.previousSibling; while (n && n.nodeType === 3 && !n.data.trim()) n = n.previousSibling; return n && n.nodeType === 8 ? n.data : null }
+          const all = []; const w = d.createTreeWalker(d, NodeFilter.SHOW_COMMENT); while (w.nextNode()) all.push(w.currentNode)
+          const header = all.filter((c) => c.data.startsWith(' Exported from UI Editor.'))
+          const p = []
+          for (const n of a.notes) { const e = d.querySelector(n.sel); const got = e ? prevComment(e) : null; if (got !== ' NOTE FOR AI: ' + n.text + ' ') p.push(`${n.sel}: ${JSON.stringify(got)}`) }
+          const nNotes = all.filter((c) => c.data.startsWith(' NOTE FOR AI')).length
+          if (nNotes !== a.notes.length + (a.pageNote !== undefined ? 1 : 0)) p.push(`${nNotes} NOTE comments, want ${a.notes.length + (a.pageNote !== undefined ? 1 : 0)}`)
+          if (header.length !== a.headers) p.push(`${header.length} headers, want ${a.headers}`)
+          if (header[0] && a.headerAfter) {
+            const nodes = [...d.childNodes]; const hi = nodes.indexOf(header[0])
+            if (a.headerAfter === 'doctype' && !(hi > 0 && nodes[hi - 1].nodeType === 10)) p.push('the header is not directly after the DOCTYPE')
+            if (a.headerAfter === 'start' && hi !== 0) p.push(`the header is node ${hi}, not the first`)
+          }
+          if (a.pageNote !== undefined) { const nx = header[0]?.nextSibling; let q = nx; while (q && q.nodeType === 3 && !q.data.trim()) q = q.nextSibling; if (!(q && q.nodeType === 8 && q.data === ' NOTE FOR AI (whole page): ' + a.pageNote + ' ')) p.push('the page note is not right after the header') }
+          return p
+        }, [text, a])
+        return R(m.length === 0, m.length ? m.slice(0, 3).join('; ') : 'every note sits before its element, one header')
+      }
+      case 'notesList': {
+        if (a.open === undefined) await openNotes()
+        const m = await page.evaluate(() => {
+          const l = document.querySelector('[data-notes-list]'); if (!l || !l.getClientRects().length) return null
+          return [...l.querySelectorAll('[data-note-row]')].map((r) => ({ page: r.getAttribute('data-note-row') === 'page', n: r.getAttribute('data-n'), label: r.querySelector('[data-note-label]')?.textContent.trim() ?? null, text: r.querySelector('[data-note-text]')?.textContent.trim() ?? null, buttons: [...r.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent.trim()) }))
+        })
+        if (!m) return R(false, 'the Notes list is not open')
+        const p = []
+        if (!m[0]?.page) p.push('the first row is not the page row')
+        else if (a.pageRow !== undefined && m[0].text !== a.pageRow) p.push(`page row "${m[0].text}", want "${a.pageRow}"`)
+        const rows = m.slice(1)
+        if (rows.length !== a.rows.length) p.push(`${rows.length} note rows, want ${a.rows.length}`)
+        a.rows.forEach((w, i) => { const r = rows[i]; if (!r) return; if (r.n !== String(w.n) || r.label !== w.label || r.text !== w.text) p.push(`row ${i + 1}: ${r.n} ${r.label} "${r.text}"`); if (!r.buttons.includes('Edit') || !r.buttons.includes('Delete')) p.push(`row ${i + 1} lacks Edit or Delete (${r.buttons.join(', ')})`) })
+        return R(p.length === 0, p.length ? p.slice(0, 3).join('; ') : `${rows.length} notes listed`)
+      }
+      case 'codeViewEquals': {
+        const snap = snapExports[a.snapshot]; const bad = []
+        for (const f of src.order) {
+          const t = await page.evaluate((f) => { const b = document.querySelector(`[data-code-view][data-file="${CSS.escape(f)}"]`); return b ? [...b.querySelectorAll('[data-line] [data-code-text]')].map((x) => x.textContent).join('\n') : null }, f)
+          const trim = (x) => (x ?? '').replace(/\n$/, '')
+          if (t === null || trim(t) !== trim(snap?.[f])) bad.push(f)
+        }
+        return R(bad.length === 0, bad.length ? `the Updated code view of ${bad.join(', ')} differs from the snapshot` : 'the Updated code view equals the snapshot')
+      }
+      case 'equalsListWithout': {
+        const edits = JSON.parse((await page.locator('[data-editor]').first().getAttribute('data-edit-list')) ?? '[]').filter((e) => e.op !== 'note')
+        const ref = await engineReplay(src.files, edits)
+        const snap = snapExports[a.snapshot]; const bad = src.order.filter((f) => ref.files[f] !== snap?.[f])
+        return R(ref.ok && bad.length === 0, ref.ok ? (bad.length ? `${bad.join(', ')} differ from the engine's export of the list without its note edits` : 'equals the engine\'s export of the list without its note edits') : 'the engine refused the replay')
+      }
+      case 'notesReadBack': {
+        const text = (await grab(a.file)).text
+        const got = await page.evaluate(([t, file]) => { const d = new DOMParser().parseFromString(t, file.endsWith('.svg') ? 'image/svg+xml' : 'text/html'); const out = []; const w = d.createTreeWalker(d, NodeFilter.SHOW_COMMENT); while (w.nextNode()) if (w.currentNode.data.startsWith(' NOTE FOR AI: ')) out.push(w.currentNode.data); return out }, [text, a.file])
+        const want = noteTexts.map((t) => ' NOTE FOR AI: ' + neutral(t) + ' ').sort(), have = got.sort()
+        const ok = want.length === have.length && want.every((w, i) => w === have[i])
+        return R(ok, ok ? `${have.length} notes read back as the neutralised text` : `${have.length} comments read back, want ${want.length}; first difference: ${JSON.stringify(have.find((h, i) => h !== want[i])?.slice(0, 60))}`)
+      }
       // ---- insert round 1 ----
       case 'insertBarOrder': {
         const names = await page.evaluate(() => [...document.querySelectorAll('[role=group][aria-label="Editor controls"] button')].filter((b) => b.getClientRects().length).map((b) => b.getAttribute('aria-label') ?? b.textContent.trim()))
@@ -1089,6 +1323,10 @@ async function runSpec(spec) {
         return R(Math.abs(w - want) <= a.tol, `width ${w}, want ${want.toFixed(2)} (parent ${pw}) +-${a.tol}`)
       }
       case 'exportHas': case 'exportLacks': {
+        if (a.text !== undefined && a.file === undefined) { // insert round 1 stage 2 (A9.2): no exported file holds the literal
+          const all = await grabAll(); const has = Object.entries(all).filter(([, t]) => t.includes(a.text)).map(([f]) => f)
+          return R(a.k === 'exportLacks' ? has.length === 0 : has.length > 0, has.length ? `${has.join(', ')} holds ${JSON.stringify(a.text)}` : `no file holds ${JSON.stringify(a.text)}`)
+        }
         const t = (await grab(a.file)).text
         const has = new RegExp(a.pattern).test(t)
         return R(a.k === 'exportHas' ? has : !has, `${a.file} ${has ? 'matches' : 'does not match'} /${a.pattern}/`)
@@ -2317,6 +2555,7 @@ async function runSpec(spec) {
       if (!(step.do === 'assert' || step.do === 'tick' || step.do === 'openCode' || (step.do === 'button' && /change$/.test(step.name)))) exportMemo.clear()
       if (['load', 'visit', 'openCard', 'clickCard', 'click', 'clickBlank', 'drag', 'release', 'type', 'stepper', 'choose', 'fill', 'unit', 'uncheck', 'ownAction', 'menuItem', 'holdButton'].includes(step.do) || (step.do === 'button' && !/change$/.test(step.name))) lastEditMessage = null
       if (step.do === 'load') {
+        noteTexts.length = 0
         src = sources[step.sample]
         await page.goto(baseUrl)
         await page.evaluate(PAGE_HELPERS)
@@ -2391,9 +2630,9 @@ async function runSpec(spec) {
         await page.evaluate(PAGE_HELPERS)
         await page.locator('[data-editor]').first().waitFor()
         continue
-      } else if (step.do === 'hoverElement' || step.do === 'dblclickElement' || step.do === 'placeCases' || step.do === 'fillText' || step.do === 'clickButton' || step.do === 'confirm' || step.do === 'pressPage' || step.do === 'focusField' || step.do === 'selectPath' || step.do === 'setLink') {
+      } else if (step.do === 'hoverElement' || step.do === 'dblclickElement' || step.do === 'placeCases' || step.do === 'fillText' || step.do === 'clickButton' || step.do === 'confirm' || step.do === 'pressPage' || step.do === 'focusField' || step.do === 'selectPath' || step.do === 'setLink' || step.do === 'clickPin' || step.do === 'clickNotesRow' || step.do === 'noteEach' || step.do === 'snapshotCopy' || step.do === 'setBox' || step.do === 'rotate' || step.do === 'reloadFromExport') {
         await insertStep(step)
-      } else if (step.do === 'type') {
+      } else if (step.do === 'type' || step.do === 'fillStyle') {
         const f = fieldOf(step.field)
         // ROUND 6 (log #33): the colour fields live inside the Shape Fill, Shape Outline and Font colour menus (More colours…); a page that still shows the field is typed into directly.
         if (MENU_FOR[step.field] && !((await f.count()) && (await f.first().isVisible().catch(() => false)))) { await openMenu(MENU_FOR[step.field]); await clickMenuItem('More colours…') }

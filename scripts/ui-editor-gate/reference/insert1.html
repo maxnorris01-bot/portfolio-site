@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>UI Editor gate, insert round 1: scorer-check stub (stage 1)</title>
+<title>UI Editor gate, insert round 1: scorer-check stub (stages 1 and 2)</title>
 <style>
   :root { --color-text: #0b1b33; --color-text-muted: #6c7686; --color-border: #c9c8c0; }
   body { font: 14px system-ui, sans-serif; margin: 12px; color: var(--color-text); }
@@ -132,8 +132,15 @@
   [data-text-editor] { position: absolute; z-index: 7; box-sizing: border-box; margin: 0; padding: 0 4px; border: 2px solid #e85d3f; background: #fff; font: 14px system-ui, sans-serif; }
   #edittext, #delete { height: 20px; font-size: 11px; padding: 0 6px; border: 1px solid var(--color-border); background: #fff; border-radius: 3px; }
   #edittext:disabled, #delete:disabled { opacity: .45; }
+  [data-pin] { position: absolute; z-index: 8; width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 1px solid #fff; background: #e85d3f; color: #fff; font: 10px system-ui; line-height: 16px; text-align: center; cursor: pointer; }
+  [data-comment-popover], [data-notes-list] { position: fixed; z-index: 70; width: 300px; max-width: calc(100vw - 16px); box-sizing: border-box; padding: 8px; background: #fff; border: 1px solid var(--color-border); box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+  [data-comment-popover] textarea { display: block; width: 100%; height: 90px; box-sizing: border-box; margin-bottom: 6px; }
+  [data-comment-popover] button, [data-notes-list] button { height: 28px; margin-right: 4px; }
+  [data-notes-list] ul { margin: 0; padding: 0; list-style: none; } [data-notes-list] li { display: flex; gap: 6px; align-items: center; padding: 3px 0; }
+  #notes b { margin-left: 4px; font-size: 11px; } #notes, #comment { height: 20px; font-size: 11px; padding: 0 6px; border: 1px solid var(--color-border); background: #fff; border-radius: 3px; } #comment { height: 32px; font-size: 14px; } #notes:disabled, #comment:disabled { opacity: .45; }
   body[data-fault=bar-wide] #insert { min-width: 760px; }
   @media (max-width: 999px) {
+    [data-comment-popover] button, [data-notes-list] button, #notes, #comment { min-height: 44px; min-width: 44px; } [data-pin] { width: 44px; height: 44px; }
     #edittext, #delete { min-height: 44px; min-width: 44px; }
     #bar button, #bar select { min-height: 44px; min-width: 44px; }
     [data-ribbon-strip] { height: auto; flex-wrap: wrap; padding: 4px 8px; white-space: normal; }
@@ -205,12 +212,13 @@
       <button type="button" id="undo" aria-label="Undo" title="Undo the last edit" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
       <button type="button" id="redo" aria-label="Redo" title="Redo the edit" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
       <button type="button" id="insert" data-menu-button="Insert" aria-haspopup="menu" aria-expanded="false" aria-label="Insert" title="Open the list of things you can insert." disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14"/></svg><span>Insert</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m7 10 5 5 5-5"/></svg></button>
+      <button type="button" id="comment" aria-label="Comment" title="Open a note for the AI about this element." disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 5h14v10H10l-5 4z"/></svg><span>Comment</span></button>
       <button type="button" id="review" aria-label="Review unlinked (0)" title="Review the edits that apply to one size only" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4l16 16"/></svg><span>Review unlinked</span><b class="badge">0</b></button>
       <span class="flex"></span>
       <span role="group" aria-label="View"><button type="button" aria-label="Desktop" aria-pressed="true" title="Show the Desktop size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="12"/></svg><span>Desktop</span></button><button type="button" aria-label="Tablet" aria-pressed="false" title="Show the Tablet size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="5" y="2" width="14" height="19"/></svg><span>Tablet</span></button><button type="button" aria-label="Phone" aria-pressed="false" title="Show the Phone size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="7" y="2" width="10" height="19"/></svg><span>Phone</span></button></span>
       <button type="button" id="rotate" aria-label="Rotate" title="Turn the device sideways" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="9" y="10" width="6" height="11"/><path d="M6 7.5a8 8 0 0 1 12 0"/></svg><span>Rotate</span></button>
       <span class="flex"></span>
-      <button type="button" id="download" aria-label="Download" title="Download every file of the document"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></button>
+      <label id="inclwrap" title="Keep the notes for the AI in the code you copy and download."><input type="checkbox" id="incl" checked disabled> Include comments</label><button type="button" id="download" aria-label="Download" title="Download every file of the document"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>Download</span></button>
       <span class="sep"></span>
       <button type="button" id="reset" aria-label="Reset all" title="Reset every edit" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 3H6v18h5M13 3l5 5"/></svg><span>Reset all</span></button>
     </span>
@@ -291,9 +299,10 @@ async function loadSample(id) {
   open_({ id, order: FILES[id], files, kind: KIND[id], main: FILES[id][0] })
 }
 async function open_(d) {
+  document.querySelectorAll('[data-notes-list], [data-comment-popover]').forEach((n) => n.remove())
   doc = d; originals = { ...d.files }; edits = []; redo = []; sel = null; view = 'desktop'; orient = 'portrait'; jumpK = 0; unit = 'px'
   $('[data-gallery]').hidden = true; $('#paste').hidden = true; $('#samples').setAttribute('aria-expanded', 'false')
-  $('#tools').hidden = false; $('#work').hidden = false; $('[data-ribbon]').hidden = false; $('#msg').hidden = false; $('#codebox').hidden = false
+  $('#codebox').open = true; $('#tools').hidden = false; $('#work').hidden = false; $('[data-ribbon]').hidden = false; $('#msg').hidden = false; $('#codebox').hidden = false
   document.querySelectorAll('[aria-label="View"] button').forEach((x) => x.setAttribute('aria-pressed', String(x.getAttribute('aria-label') === 'Desktop')))
   await rebuild()
 }
@@ -344,7 +353,7 @@ async function rebuild(list = edits) {
   preview?.dispose()
   preview = await E.createPreview(modelOf(), $('#host'), { width: SIZES[view][orient][0], height: SIZES[view][orient][1] ?? 800 })
   preview.iframe.title = 'Preview'
-  const pair = (e) => ({ ...e, target: typeof e.target === 'string' ? E.select(preview.model, e.target) : e.target })
+  const pair = (e) => ({ ...e, target: typeof e.target === 'string' && e.target !== 'page' ? E.select(preview.model, e.target) : e.target })
   session = E.applyEditSteps(preview, list.map(pair))
   const last = session.results[session.results.length - 1]
   $('[data-editor]').removeAttribute('aria-busy')
@@ -415,7 +424,7 @@ const gridG = group('grid', 'Grid', [
   `<select id="spacing" data-stretch aria-label="Grid spacing" title="Choose the distance between grid lines"${F('tab-jump') ? ' tabindex="1"' : ''}>${[4, 8, 16, 32].map((n) => `<option value="${n}"${n === 8 ? ' selected' : ''}>${n} px</option>`).join('')}</select>`,
 ])
 $('[data-ribbon]').innerHTML = `
-  <div data-ribbon-strip><span class="t">Selected element</span><nav data-path aria-label="Selected element path"></nav>${F('no-select-parent') ? '' : '<button type="button" id="selparent" aria-label="Select parent" title="Use the parent of this element as the selection (Alt+Up Arrow).">Select parent</button>'}<button type="button" id="edittext" aria-label="Edit text" title="Change the text of this element." disabled>Edit text</button><button type="button" id="delete" aria-label="Delete" title="Remove this element from the page." disabled>Delete</button><strong data-env>Desktop</strong><span id="striplink"><input type="checkbox" id="link" checked title="Scale the other size by the same ratio when this one changes; with it off the change applies to this size only and is listed under Review unlinked."><label for="link" id="linklabel" title="Scale the other size by the same ratio when this one changes; with it off the change applies to this size only and is listed under Review unlinked.">Link to Phone</label></span><p data-ribbon-note></p><p data-snap-note hidden>Snap is for HTML pages. SVG moves use the drawing’s own units.</p></div>
+  <div data-ribbon-strip><span class="t">Selected element</span><nav data-path aria-label="Selected element path"></nav>${F('no-select-parent') ? '' : '<button type="button" id="selparent" aria-label="Select parent" title="Use the parent of this element as the selection (Alt+Up Arrow).">Select parent</button>'}<button type="button" id="notes" aria-label="Notes" aria-expanded="false" title="List the notes for the AI.">Notes<b id="notecount">0</b></button><button type="button" id="edittext" aria-label="Edit text" title="Change the text of this element." disabled>Edit text</button><button type="button" id="delete" aria-label="Delete" title="Remove this element from the page." disabled>Delete</button><strong data-env>Desktop</strong><span id="striplink"><input type="checkbox" id="link" checked title="Scale the other size by the same ratio when this one changes; with it off the change applies to this size only and is listed under Review unlinked."><label for="link" id="linklabel" title="Scale the other size by the same ratio when this one changes; with it off the change applies to this size only and is listed under Review unlinked.">Link to Phone</label></span><p data-ribbon-note></p><p data-snap-note hidden>Snap is for HTML pages. SVG moves use the drawing’s own units.</p></div>
   <div data-ribbon-panel>${fontG}${paraG}${sizeG}${shapeG}${spaceG}${arrG}${gridG}</div>`
 $('[data-ribbon-panel]').insertAdjacentHTML('beforeend', popover('Padding') + popover('Margin'))
 // the sides popovers belong to the Spacing group (position: absolute under it)
@@ -798,14 +807,14 @@ function hunks(a, b) {
   }
   return out
 }
-const fileHunks = (f) => (session ? hunks(originals[f], session.files[f] ?? originals[f]) : [])
+const fileHunks = (f) => (session ? hunks(originals[f], outText(f)) : [])
 const allChanges = () => doc.order.flatMap((f) => fileHunks(f).map((h, i) => ({ f, i })))
 const offsetOf = (file) => { let o = 0; for (const f of doc.order) { if (f === file) return o; o += fileHunks(f).length } return o }
 function paintCode() {
   const host = $('#sections'); host.innerHTML = ''
   const one = doc.order.length === 1, total = allChanges().length
   doc.order.forEach((file, fi) => {
-    const now = session.files[file] ?? originals[file]
+    const now = outText(file)
     const hs = hunks(originals[file], now), ls = linesOf(now), n = hs.length
     const sec = document.createElement('section'); sec.setAttribute('data-code-section', ''); sec.dataset.file = file
     const head = n ? `${file}: ${n} ${n === 1 ? 'change' : 'changes'}` : file
@@ -827,7 +836,7 @@ function paintCode() {
     })
     const map = sec.querySelector('[data-change-map]')
     hs.forEach((h, idx) => { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', `Change ${offsetOf(file) + idx + 1} of ${total}`); b.style.top = (h.after / ls.length) * 100 + '%'; b.addEventListener('click', () => jumpTo(offsetOf(file) + idx + 1)); map.appendChild(b) })
-    sec.querySelector('.cp').addEventListener('click', async () => { const f = fault === 'copy-wrong' && fi === 1 ? doc.order[0] : file; await navigator.clipboard.writeText(session.files[f] ?? originals[f]); $('#msg').textContent = 'Copied ' + file + '.' })
+    sec.querySelector('.cp').addEventListener('click', async () => { const f = fault === 'copy-wrong' && fi === 1 ? doc.order[0] : file; await navigator.clipboard.writeText(F('copy-differs') && hasNotes() ? outText(f) + ' ' : outText(f)); $('#msg').textContent = 'Copied ' + file + '.' })
     host.appendChild(sec)
   })
   counter()
@@ -932,7 +941,7 @@ document.querySelectorAll('[aria-label="View"] button').forEach((b) => b.addEven
   layout(); paint()
 }))
 $('#rotate').addEventListener('click', () => { orient = orient === 'portrait' ? 'landscape' : 'portrait'; layout(); paint() })
-$('#undo').addEventListener('click', async () => { const keep = sel !== null ? E.describe(preview.model, sel) : null; redo.push(edits.pop()); await rebuild(); sel = keep ? E.select(preview.model, keep) : null; if (sel < 0) sel = null; afterEdit(); paint() })
+$('#undo').addEventListener('click', async () => { leftover = null; const keep = sel !== null ? E.describe(preview.model, sel) : null; redo.push(edits.pop()); await rebuild(); sel = keep ? E.select(preview.model, keep) : null; if (sel < 0) sel = null; afterEdit(); paint() })
 $('#redo').addEventListener('click', async () => { edits.push(redo.pop()); await rebuild(); afterEdit(); paint() })
 $('#reset').addEventListener('click', () => pick(async () => { edits = []; redo = []; sel = null; await rebuild(); afterEdit(); paint() }))
 $('#download').addEventListener('click', () => {
@@ -941,7 +950,7 @@ $('#download').addEventListener('click', () => {
   for (const f of files) {
     const name = f === doc.order[0] ? f.replace(/(\.[^.]+)$/, '-edited$1') : f
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([session.files[f] + (fault === 'download-bytes' ? ' ' : '')])); a.download = name
+    a.href = URL.createObjectURL(new Blob([outText(f) + (fault === 'download-bytes' ? ' ' : '') + (F('download-differs-from-view') && hasNotes() ? ' ' : '')])); a.download = name
     document.body.appendChild(a); a.click(); a.remove(); names.push(name)
   }
   $('#msg').textContent = 'Saved ' + names.join(' and ') + '.'
@@ -1055,6 +1064,7 @@ async function deleteSelected() {
   const el = preview.elements[sel]
   const parent = el.parentElement ? idxOf(el.parentElement) : null
   const edit = { op: 'remove', target: sel }
+  leftover = noteList().notes.find((n) => n.index === sel)?.text ?? null
   const r = trial(edit)
   if (!r.ok) { $('#msg').textContent = 'Not applied: ' + r.refusal.message; return }
   const list = [...edits, edit]
@@ -1066,7 +1076,7 @@ async function deleteSelected() {
   afterEdit(); paint(); $('#cover').focus()
 }
 // the state of the new controls
-function paintInsert() {
+var paintInsert = function () {
   const svg = doc.kind === 'svg', tablet = view === 'tablet', off = svg || !editable()
   const b = $('#insert')
   b.disabled = F('insert-no-svg-disable') ? !editable() : off
@@ -1080,6 +1090,130 @@ $('#insert').addEventListener('click', () => openMenuFor($('#insert')))
 $('#insert').addEventListener('keydown', (e) => { if (e.key === 'ArrowDown' && !e.target.disabled) { e.preventDefault(); if ($('#insert').getAttribute('aria-expanded') !== 'true') openMenuFor($('#insert')) } })
 const paintRibbonBase = paintRibbon
 paintRibbon = function () { paintRibbonBase(); paintInsert() }
+
+
+// ---- insert round 1, stage 2: Comment, pins, the Notes list, Include comments, reloaded notes ----
+const HEADER = 'Exported from UI Editor. Comments starting "NOTE FOR AI:" are the designer\'s instructions for the element that follows. Implement them.'
+let include = true, reloaded = false, everNoted = false, leftover = null
+const noteList = () => { if (!preview || F('reload-no-notes') && reloaded) return { page: null, notes: [] }; try { return E.listNotes(preview.model) } catch { return { page: null, notes: [] } } }
+const hasNotes = () => { const n = noteList(); return !!n.page || n.notes.length > 0 }
+function stripNotes(t, kind) {
+  const cs = E.parse(t, kind, 'x').comments.filter((c) => c.data.startsWith(' NOTE FOR AI') || (!F('include-off-keeps-header') && c.data === ' ' + HEADER + ' ')).sort((a, b) => b.start - a.start)
+  for (const c of cs) {
+    let a = c.start, b = c.end
+    const ls = t.lastIndexOf('\n', a - 1) + 1, le = t.indexOf('\n', b), lineEnd = le < 0 ? t.length : le
+    if (!t.slice(ls, a).trim() && !t.slice(b, lineEnd).trim()) { a = ls; b = le < 0 ? t.length : le + 1 }
+    t = t.slice(0, a) + t.slice(b)
+  }
+  return t
+}
+function outText(f) {
+  let t = session?.files[f] ?? originals[f]
+  if (!t) return t
+  const kind = f.endsWith('.svg') ? 'svg' : f.endsWith('.css') ? 'css' : 'html'
+  if (kind === 'css') return t
+  if (!include) t = stripNotes(t, kind)
+  if (F('note-raw')) t = t.replace(/- ->/g, '-->')
+  if (F('delete-leaves-note') && leftover && f === doc.order[0] && include) t = t.replace(/<\/body>|<\/svg>/, (m) => `<!-- NOTE FOR AI: ${leftover} -->\n` + m)
+  if (F('header-left') && everNoted && !hasNotes() && !t.includes(HEADER)) { const k = t.indexOf('\n') + 1; t = t.slice(0, k) + '<!-- ' + HEADER + ' -->\n' + t.slice(k) }
+  return t
+}
+function closePopovers2(focusTo) { document.querySelectorAll('[data-comment-popover], [data-notes-list]').forEach((n) => n.remove()); $('#notes').setAttribute('aria-expanded', 'false'); if (focusTo) focusTo.focus() }
+let commentOpener = null
+function openComment(target, opener) {
+  closePopovers2(null)
+  commentOpener = opener ?? $('#comment')
+  const nl = noteList()
+  const existing = target === 'page' ? nl.page?.text : nl.notes.find((n) => n.index === target)?.text
+  const pop = document.createElement('div'); pop.setAttribute('data-comment-popover', ''); pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Note for the AI')
+  pop.innerHTML = `<textarea aria-label="Note for the AI"></textarea><button type="button" data-save aria-label="Save">Save</button>${existing !== undefined ? '<button type="button" data-delnote aria-label="Delete note">Delete note</button>' : ''}${F('popover-extra-button') ? '<button type="button" aria-label="Cancel">Cancel</button>' : ''}`
+  const ta = pop.querySelector('textarea'); ta.value = existing ?? ''
+  const a = $('#screen').getBoundingClientRect()
+  Object.assign(pop.style, { left: Math.max(8, Math.min(innerWidth - 316, a.left + 20)) + 'px', top: Math.max(8, Math.min(innerHeight - 190, a.top + 20)) + 'px' })
+  const save = async (text) => { const keep = target === 'page' ? null : sel; closePopovers2(commentOpener); if (text === '' && (existing === undefined || F('blank-keeps-note'))) return; await applyNote(target, text); if (keep !== null) { sel = keep; paint() } }
+  pop.querySelector('[data-save]').addEventListener('click', () => save(F('save-trims-all') ? ta.value.trim() : ta.value))
+  pop.querySelector('[data-delnote]')?.addEventListener('click', () => save(''))
+  pop.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePopovers2(commentOpener) } })
+  document.body.appendChild(pop); ta.focus()
+}
+async function applyNote(target, text) {
+  const list = [...edits, { op: 'note', target, text }]
+  const last = await rebuild(list)
+  if (last && !last.ok) { await rebuild(edits); $('#msg').textContent = 'Not applied: ' + last.refusal.message; return }
+  edits = list; redo = []
+  if (text) everNoted = true
+  $('#msg').textContent = text ? 'Applied: note saved.' : 'Applied: note deleted.'
+  afterEdit(); paint()
+}
+$('#comment').addEventListener('click', () => { if (sel !== null) openComment(sel, $('#comment')) })
+function openNotesList() {
+  closePopovers2(null)
+  const nl = noteList()
+  const box = document.createElement('div'); box.setAttribute('data-notes-list', ''); box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Notes')
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  let html = '<ul>'
+  if (!F('notes-no-page-row')) html += nl.page ? `<li data-note-row="page"><span data-note-text>${esc(nl.page.text)}</span><button type="button" data-act="edit-page" aria-label="Edit">Edit</button><button type="button" data-act="del-page" aria-label="Delete page note">Delete page note</button></li>` : `<li data-note-row="page"><button type="button" data-act="add-page" aria-label="Add a note for the whole page"><span data-note-text>Add a note for the whole page</span></button></li>`
+  const order = F('notes-order') ? [...nl.notes].reverse() : nl.notes
+  order.forEach((n, i) => { const num = nl.notes.indexOf(n) + 1; html += `<li data-note-row data-n="${num}"><span data-pinnum>${num}</span><button type="button" data-note-label data-act="jump" data-i="${n.index}">${esc(lab(preview.elements[n.index]))}</button><span data-note-text>${esc(n.text)}</span><button type="button" data-act="edit" data-i="${n.index}" aria-label="Edit">Edit</button><button type="button" data-act="del" data-i="${n.index}" aria-label="Delete">Delete</button></li>` })
+  box.innerHTML = html + '</ul>'
+  const r = $('#notes').getBoundingClientRect()
+  Object.assign(box.style, { left: Math.max(8, Math.min(innerWidth - 316, r.left)) + 'px', top: r.bottom + 4 + 'px' })
+  box.addEventListener('click', async (e) => {
+    const b = e.target.closest('button[data-act]'); if (!b) return
+    const act = b.dataset.act, i = Number(b.dataset.i)
+    closePopovers2($('#notes'))
+    if (act === 'jump') { if (!F('jump-no-select')) sel = i; paint(); preview.elements[i].scrollIntoView?.({ block: 'center' }) }
+    else if (act === 'edit') { sel = i; paint(); openComment(i, $('#notes')) }
+    else if (act === 'del') applyNote(i, '')
+    else if (act === 'add-page' || act === 'edit-page') openComment('page', $('#notes'))
+    else if (act === 'del-page') applyNote('page', '')
+  })
+  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePopovers2($('#notes')) } })
+  document.body.appendChild(box); $('#notes').setAttribute('aria-expanded', 'true'); box.querySelector('button')?.focus()
+}
+$('#notes').addEventListener('click', () => { if (document.querySelector('[data-notes-list]')) closePopovers2($('#notes')); else openNotesList() })
+document.addEventListener('click', (e) => { if (e.target.closest('[data-comment-popover], [data-notes-list], #notes, #comment, [data-pin]')) return; document.querySelectorAll('[data-notes-list], [data-comment-popover]').forEach((n) => n.remove()); $('#notes').setAttribute('aria-expanded', 'false') })
+if (F('include-default-off')) { $('#incl').checked = false; include = false }
+$('#incl').addEventListener('change', () => { include = $('#incl').checked; paintCode() })
+function paintNotes() {
+  document.querySelectorAll('[data-pin]').forEach((n) => n.remove())
+  const nl = noteList()
+  nl.notes.forEach((n, k) => {
+    const el = preview.elements[n.index]; if (!el) return
+    const b = el.getBoundingClientRect(), num = F('pin-wrong-n') ? nl.notes.length - k : k + 1
+    const pin = document.createElement('button'); pin.type = 'button'; pin.setAttribute('data-pin', ''); pin.dataset.n = String(num); pin.setAttribute('aria-label', 'Note ' + num); pin.textContent = String(num)
+    const off = F('pin-12-off') ? 12 : 0
+    Object.assign(pin.style, { left: b.left - 9 + off + 'px', top: b.top - 9 + 'px' })
+    pin.addEventListener('pointerdown', (e) => e.stopPropagation()); pin.addEventListener('click', (e) => { e.stopPropagation(); sel = n.index; paint(); openComment(n.index, pin) })
+    $('#screen').appendChild(pin)
+  })
+  if (F('pin-in-iframe') && nl.notes.length) { const x = preview.doc.createElement('span'); x.setAttribute('data-pin', ''); preview.doc.body.appendChild(x) }
+  const total = nl.notes.length + (nl.page ? 1 : 0)
+  $('#notecount').textContent = String(nl.notes.length)
+  $('#incl').disabled = F('include-enabled-empty') ? false : total === 0
+  $('#comment').disabled = sel === null || !preview.elements[sel] || !editable()
+  $('[data-editor]').setAttribute('data-edit-list', JSON.stringify(edits))
+}
+const paintInsertBase = paintInsert
+paintInsert = function () { paintInsertBase(); paintNotes() }
+// Paste and Upload (the own-code card)
+function openOwn(files) {
+  const html = files.find(([n]) => /\.(html?|svg)$/i.test(n)); if (!html) return
+  const kind = /\.svg$/i.test(html[0]) ? 'svg' : 'html'
+  const css = files.filter(([n]) => /\.css$/i.test(n)), order = [html[0], ...css.map(([n]) => n)]
+  const fl = Object.fromEntries(files.filter(([n]) => order.includes(n)))
+  pick(() => { reloaded = true; return open_({ id: 'own', order, files: fl, kind, main: html[0] }) })
+}
+$('#openpaste').addEventListener('click', () => {
+  const markup = $('#pm').value, css = $('#pc').value
+  const kind = /^\s*(<\?xml[\s\S]*?\?>\s*)?(<!--[\s\S]*?-->\s*)*(<!doctype\s+svg[^>]*>\s*)?<svg[\s>]/i.test(markup) ? 'svg' : 'html'
+  const href = /<link\b[^>]*rel=["']?stylesheet["']?[^>]*href=["']?([^"'\s>]+)/i.exec(markup)?.[1] ?? /<link\b[^>]*href=["']?([^"'\s>]+)[^>]*rel=["']?stylesheet/i.exec(markup)?.[1]
+  openOwn([[kind === 'svg' ? 'pasted.svg' : 'pasted.html', markup], ...(css && href ? [[href, css]] : [])])
+})
+$('#upfile').addEventListener('change', async (e) => {
+  const fs = [...e.target.files]; const read = await Promise.all(fs.map(async (f) => [f.name, await f.text()])); e.target.value = ''
+  openOwn(read)
+})
 
 </script>
 </body>
