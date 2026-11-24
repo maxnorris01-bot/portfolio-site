@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Numbered amendments A1 to A10 of docs/ui-editor-gate-rules-insert1.md section 7 in a form the runner reads (--stage N). The locked specs-insert1.json is never edited.",
+  "note": "Numbered amendments A1 to A12 of docs/ui-editor-gate-rules-insert1.md section 7 in a form the runner reads (--stage N). The locked specs-insert1.json is never edited.",
   "stages": {
     "1": {
       "run": [
@@ -195,9 +195,23 @@
               "p": "P2",
               "k": "exportEqualsOriginal"
             }
+          ],
+          "9": [
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportCommentCount",
+              "file": "landing.html",
+              "comments": 1,
+              "headers": 1
+            },
+            {
+              "do": "clickButton",
+              "name": "Undo"
+            }
           ]
         },
-        "amendment": "A4, A7 (steps 1 to 10 run as locked in stage 2, A10)"
+        "amendment": "A4, A7, A11 (steps 1 to 10 run as locked, A10)"
       }
     },
     "Y04": {
@@ -262,6 +276,25 @@
           ]
         },
         "amendment": "A6"
+      }
+    },
+    "Y10": {
+      "stage2": {
+        "insertAfter": {
+          "10": [
+            {
+              "do": "clickButton",
+              "name": "Notes"
+            }
+          ],
+          "14": [
+            {
+              "do": "clickButton",
+              "name": "Notes"
+            }
+          ]
+        },
+        "amendment": "A12"
       }
     }
   }
