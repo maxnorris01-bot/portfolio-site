@@ -638,6 +638,19 @@ async function runSpec(spec) {
       snapExports[step.name] = out
       return
     }
+    if (step.do === 'measureAt') { // A18.2: the current export, loaded fresh at each width
+      const all = await grabAll()
+      for (const [f, t] of Object.entries(all)) exported.set(f, t)
+      for (const w of Object.keys(step.widths)) {
+        const fresh = await ctx.newPage()
+        await fresh.setViewportSize({ width: Number(w), height: specsFile.previewHeight })
+        await fresh.goto(`http://127.0.0.1:${exportPort}/${src.primary}`)
+        const have = await fresh.evaluate(([s, p]) => { const e = document.querySelector(s); return e ? getComputedStyle(e).getPropertyValue(p) : null }, [step.sel, step.prop])
+        await fresh.close()
+        rec('P2a', `measureAt ${step.prop} of ${step.sel} at ${w}`, have === step.widths[w], `${have}, want ${step.widths[w]}`)
+      }
+      return
+    }
     if (step.do === 'setBox') { await page.getByRole('checkbox', { name: step.name, exact: true }).setChecked(step.checked); await settle(page); exportMemo.clear(); return }
     if (step.do === 'rotate') { await page.getByRole('button', { name: 'Rotate', exact: true }).click(); await settle(page); return }
     if (step.do === 'reloadFromExport') {
@@ -654,7 +667,7 @@ async function runSpec(spec) {
   }
 
   async function insertStep(step) {
-    if (['clickPin', 'clickNotesRow', 'noteEach', 'snapshotCopy', 'setBox', 'rotate', 'reloadFromExport'].includes(step.do)) return insertStep2(step)
+    if (['clickPin', 'clickNotesRow', 'noteEach', 'snapshotCopy', 'setBox', 'rotate', 'reloadFromExport', 'measureAt'].includes(step.do)) return insertStep2(step)
     if (step.do === 'hoverElement') { await hoverZone(step.sel, step.zone); return }
     if (step.do === 'dblclickElement') {
       const p = await page.evaluate(([s]) => window.__gate.point(s, 'center'), [step.sel])
@@ -754,6 +767,42 @@ async function runSpec(spec) {
     const bucket = a.p === 'P2' ? 'P2a' : a.p // insert round 1: a P2 assert of a Y spec is one of the export checks (docs/ui-editor-gate-log.md)
     const R = (ok, detail) => rec(bucket, a.k + (a.sel ? ' ' + a.sel : '') + (a.q ? ' ' + a.q : '') + (a.at ? ' @' + a.at : '') + (a.field ? ' ' + a.field : '') + (a.label ? ' ' + a.label : '') + (a.name ? ' ' + a.name : ''), ok, detail)
     switch (a.k) {
+      // ---- insert round 1, stage 3 ----
+      case 'uniqueNames': { // A18.4
+        const m = await page.evaluate((names) => {
+          const root = document.querySelector('[data-editor]')
+          const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
+          const els = [...root.querySelectorAll('button, input, select, textarea')].filter((e) => e.getClientRects().length)
+          return names.map((n) => [n, els.filter((e) => nameOf(e) === n).length])
+        }, a.names)
+        const bad = m.filter(([, n]) => n !== 1)
+        return R(bad.length === 0, bad.length ? bad.map(([n, c]) => `${n}: ${c}`).join(', ') : `${a.names.length} names, each on one control`)
+      }
+      case 'newTouchTargets': { // A18.5
+        const m = await page.evaluate(([names, min]) => {
+          const nameOf = (e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()
+          const root = document.querySelector('[data-editor]')
+          const size = (e) => { const r = e.getBoundingClientRect(); return [r.width, r.height] }
+          const small = []
+          for (const n of names) {
+            const scopes = [root, ...document.querySelectorAll('[role=dialog]')]
+            const cands = scopes.flatMap((sc) => [...sc.querySelectorAll('button, input, select, textarea')]).filter((e) => e.getClientRects().length && nameOf(e) === n)
+            if (!cands.length) { small.push(`${n}: not found`); continue }
+            for (const e of cands) {
+              let [w, h] = size(e)
+              if (e.matches('input[type=checkbox]') && e.labels && e.labels[0]) { const [lw, lh] = size(e.labels[0]); w = Math.max(w, lw); h = Math.max(h, lh) }
+              if (w < min - 0.5 || h < min - 0.5) small.push(`${n} ${w.toFixed(1)}x${h.toFixed(1)}`)
+            }
+          }
+          for (const pop of document.querySelectorAll('[role=dialog]')) if (pop.getClientRects().length) for (const b of pop.querySelectorAll('button')) if (b.getClientRects().length) { const [w, h] = size(b); if (w < min - 0.5 || h < min - 0.5) small.push(`${nameOf(b)} ${w.toFixed(1)}x${h.toFixed(1)} (in a popover)`) }
+          return small
+        }, [a.within, a.min])
+        return R(m.length === 0, m.length ? 'under ' + a.min + ' px: ' + m.slice(0, 5).join('; ') : `every control named is at least ${a.min} px`)
+      }
+      case 'pinHit': { // A18.6
+        const m = await page.evaluate((n) => { const p = document.querySelector(`[data-pin][data-n="${n}"]`); if (!p || !p.getClientRects().length) return null; const r = p.getBoundingClientRect(); return [r.width, r.height] }, a.n)
+        return R(!!m && m[0] >= a.min - 0.5 && m[1] >= a.min - 0.5, m ? `pin ${a.n} hit area ${m[0].toFixed(1)}x${m[1].toFixed(1)}` : `no visible pin ${a.n}`)
+      }
       // ---- insert round 1, stage 2 ----
       case 'checkboxState': {
         const c = page.getByRole('checkbox', { name: a.name, exact: true })
@@ -997,6 +1046,16 @@ async function runSpec(spec) {
         return R((n > 0) === a.on, `dots on ${a.field}: ${n}, want ${a.on ? 'some' : 'none'}`)
       }
       case 'review': {
+        if (a.count !== undefined) { // A18.1
+          const btn = page.getByRole('button', { name: /^Review unlinked \(\d+\)$/ }).first()
+          const n = Number(/\((\d+)\)/.exec((await btn.getAttribute('aria-label')) ?? '')?.[1] ?? -1)
+          const live = !(await btn.isDisabled())
+          if (live) { await btn.click(); await settle(page) }
+          const items = live ? await page.getByRole('list', { name: 'Unlinked edits' }).getByRole('listitem').allInnerTexts().catch(() => []) : []
+          if (live) { await btn.click(); await settle(page) }
+          const miss = a.names.filter((nm) => !items.some((t) => t.includes(nm)))
+          return R(n === a.count && items.length === a.count && miss.length === 0, `badge ${n}, ${items.length} items (${items.map((t) => t.replace(/\s+/g, ' ').slice(0, 40)).join(' | ')}), want ${a.count} naming ${a.names.join(', ')}${miss.length ? '; missing ' + miss.join(', ') : ''}`)
+        }
         // The count is in the button's accessible name; an icon button draws it as a badge, so the name is read, not the text (round 1).
         const btn = page.getByRole('button', { name: /^Review unlinked \(\d+\)$/ }).first()
         const t = (await btn.getAttribute('aria-label').catch(() => null)) ?? (await btn.innerText().catch(() => ''))
@@ -1644,7 +1703,7 @@ async function runSpec(spec) {
       }
       case 'popover': {
         const m = await page.evaluate((o) => {
-          const d = [...document.querySelectorAll('[role=dialog], [data-sides-popover]')].find((e) => e.getAttribute('aria-label') === o.name)
+          const d = o.name === undefined ? [...document.querySelectorAll('[role=dialog]')].find((e) => e.getClientRects().length > 0) : [...document.querySelectorAll('[role=dialog], [data-sides-popover]')].find((e) => e.getAttribute('aria-label') === o.name) // A18.3
           const shown = !!d && d.getClientRects().length > 0
           const out = { shown, inputs: [], inside: false }
           if (d && shown) { const nm = (e) => e.getAttribute('aria-label') || ''; out.inputs = [...d.querySelectorAll('input')].map(nm); out.inside = d.contains(document.activeElement) }
@@ -2630,7 +2689,7 @@ async function runSpec(spec) {
         await page.evaluate(PAGE_HELPERS)
         await page.locator('[data-editor]').first().waitFor()
         continue
-      } else if (step.do === 'hoverElement' || step.do === 'dblclickElement' || step.do === 'placeCases' || step.do === 'fillText' || step.do === 'clickButton' || step.do === 'confirm' || step.do === 'pressPage' || step.do === 'focusField' || step.do === 'selectPath' || step.do === 'setLink' || step.do === 'clickPin' || step.do === 'clickNotesRow' || step.do === 'noteEach' || step.do === 'snapshotCopy' || step.do === 'setBox' || step.do === 'rotate' || step.do === 'reloadFromExport') {
+      } else if (step.do === 'hoverElement' || step.do === 'dblclickElement' || step.do === 'placeCases' || step.do === 'fillText' || step.do === 'clickButton' || step.do === 'confirm' || step.do === 'pressPage' || step.do === 'focusField' || step.do === 'selectPath' || step.do === 'setLink' || step.do === 'clickPin' || step.do === 'clickNotesRow' || step.do === 'noteEach' || step.do === 'snapshotCopy' || step.do === 'setBox' || step.do === 'rotate' || step.do === 'reloadFromExport' || step.do === 'measureAt') {
         await insertStep(step)
       } else if (step.do === 'type' || step.do === 'fillStyle') {
         const f = fieldOf(step.field)

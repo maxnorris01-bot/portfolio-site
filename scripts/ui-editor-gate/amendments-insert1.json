@@ -465,6 +465,19 @@
         },
         "amendment": "A13"
       }
+    },
+    "Y11": {
+      "stage3": {
+        "insertAfter": {
+          "12": [
+            {
+              "do": "setLink",
+              "checked": true
+            }
+          ]
+        },
+        "amendment": "A19"
+      }
     }
   }
 }

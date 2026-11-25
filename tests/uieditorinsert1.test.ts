@@ -151,3 +151,22 @@ test('the stage 2 words: the names are exactly the brief\'s and Comment disabled
   assert.match(labels.commentTipNone, /Select an element/)
   assert.match(labels.commentTipViewOnly, /view-only/)
 })
+
+// ---- insert round 1, stage 3: keyboard focus and small screens ----
+test('focus goes back to what opened a popover or the text box (Comment, a pin, Notes, Edit text), and Escape in the text box gives it back too', () => {
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  assert.match(tool, /const textFromButton = useRef\(false\)/)
+  assert.match(tool, /onTextCancel=\{\(\) => stopTextEdit\(true\)\}/)
+  assert.match(tool, /onEditText=\{\(\) => startTextEdit\(undefined, true\)\}/)
+  assert.match(tool, /The focus goes back to what opened the popover/)
+  assert.match(read('src/ui-editor/Popovers.tsx'), /e\.key === 'Escape'/)
+})
+
+test('the text box is at least 16 px on the screen and, on a scaled device, at least 44 x 160 px; at full size it is exactly the element\'s box', () => {
+  const css = read('src/ui-editor/UiEditorTool.css')
+  const rule = css.slice(css.indexOf("input.ue-text-editor[type='text']"), css.indexOf('/* ---- the menus (round 6)'))
+  assert.match(rule, /font-size: calc\(16px \* var\(--ue-inv, 1\)\)/)
+  assert.match(rule, /min-height: calc\(44px \* var\(--ue-inv, 1\) \* var\(--ue-small, 0\)\)/)
+  assert.match(rule, /min-width: calc\(160px \* var\(--ue-inv, 1\) \* var\(--ue-small, 0\)\)/)
+  assert.match(read('src/ui-editor/Stage.tsx'), /\['--ue-small' as string\]: scale < 1 \? '1' : '0'/)
+})

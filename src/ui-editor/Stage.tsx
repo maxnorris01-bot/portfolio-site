@@ -387,7 +387,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
         ref={scaler}
         className="ue-device-scale"
         data-device-scale
-        style={{ width: frameSize(view, orientation, 0).width, transform: scale < 1 ? `scale(${scale})` : undefined, ['--ue-inv' as string]: String(1 / scale) }}
+        style={{ width: frameSize(view, orientation, 0).width, transform: scale < 1 ? `scale(${scale})` : undefined, ['--ue-inv' as string]: String(1 / scale), ['--ue-small' as string]: scale < 1 ? '1' : '0' }}
       >
         <div
           className={`ue-device is-${view.toLowerCase()}`}

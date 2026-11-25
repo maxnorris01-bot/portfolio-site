@@ -1235,7 +1235,12 @@
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 14px;
+  /* At least 16 px on the screen, also when the device is drawn smaller than it is (--ue-inv); then the box is at least 44 x 160 px on the screen, growing from the element's corner
+     (at full size it stays exactly the element's box). */
+  font-size: calc(16px * var(--ue-inv, 1));
+  min-height: calc(44px * var(--ue-inv, 1) * var(--ue-small, 0));
+  min-width: calc(160px * var(--ue-inv, 1) * var(--ue-small, 0));
+  border-width: calc(2px * var(--ue-inv, 1));
 }
 
 /* ---- the menus (round 6): drawn in <body> (the ribbon's container would otherwise be their containing block), so none of these rules is scoped to .ue-tool. Tokens only. ---- */

@@ -266,7 +266,9 @@ export default function UiEditorTool() {
     if (reason) show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: reason }) })
     else if (placing) show({ kind: 'info', text: messages.placing((INSERT_ITEMS.find((i) => i.kind === placing)?.label ?? 'element').toLowerCase()) })
   }
-  const startTextEdit = (index?: number) => {
+  // Opened by the Edit text button: closing the text box gives the focus back to that button (stage 3, Y12), else to the preview.
+  const textFromButton = useRef(false)
+  const startTextEdit = (index?: number, fromButton = false) => {
     const s = sessionRef.current
     if (!s || busyRef.current || !editable || placing) return
     const i = index ?? selIndex
@@ -277,12 +279,13 @@ export default function UiEditorTool() {
     const t = trialEdit(s, { op: 'text', target: i, text: el.textContent ?? '' })
     if (!t.ok) return show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: t.message }) })
     const path = pathOf(s.preview.model, i)
+    textFromButton.current = fromButton
     setSelPath(path)
     setEditingText(path)
   }
   const stopTextEdit = (focusPreview: boolean) => {
     setEditingText(null)
-    if (focusPreview) window.setTimeout(() => rootRef.current?.querySelector<HTMLElement>('.ue-overlay')?.focus({ preventScroll: true }), 0)
+    if (focusPreview) window.setTimeout(() => rootRef.current?.querySelector<HTMLElement>(textFromButton.current ? 'button[aria-label="' + labels.editText + '"]:not(:disabled)' : '.ue-overlay')?.focus({ preventScroll: true }), 0)
   }
   const applyText = (text: string) => {
     const t = selIndex
@@ -302,7 +305,11 @@ export default function UiEditorTool() {
   const selectIndexOnly = (i: number) => session && setSelPath(pathOf(session.preview.model, i))
   const saveNote = (target: number | 'page', text: string, existed: boolean) => {
     const had = existed
+    const c = commentFor
     setCommentFor(null)
+    // The focus goes back to what opened the popover (the Comment button, the pin or Notes), once the popover is gone.
+    const el = c ? document.querySelector<HTMLElement>(anchorOf(c)) : null
+    if (el) window.setTimeout(() => (el.isConnected ? el : document.querySelector<HTMLElement>(anchorOf(c!)))?.focus({ preventScroll: true }), 0)
     if (text === '' && !had) return
     if (run({ op: 'note', target, text }, 'note')) show({ kind: 'ok', text: text === '' ? messages.noteDeleted : messages.noteSaved })
   }
@@ -662,7 +669,7 @@ export default function UiEditorTool() {
               onMove={onReorder}
               onNudge={onNudge}
               onSelectIndex={selectIndexOnly}
-              onEditText={() => startTextEdit()}
+              onEditText={() => startTextEdit(undefined, true)}
               onDelete={deleteElement}
               canDelete={canDelete}
               notesCount={notesTotal}
@@ -756,7 +763,7 @@ export default function UiEditorTool() {
           <div className="ue-preview">
             {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
             <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
-              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} placing={placing} trialInsert={trialInsert} onPlace={onPlace} onPlaceReason={onPlaceReason} textEdit={editingText !== null && editingText === selPath} onTextApply={applyText} onTextCancel={() => stopTextEdit(false)} onEditText={(i) => startTextEdit(i)} onDelete={deleteElement} pins={pinRows} onPin={(i) => { selectIndexOnly(i); openComment({ target: i, opener: 'pin', pin: pinRows.find((r) => r.index === i)?.n }) }} />
+              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} placing={placing} trialInsert={trialInsert} onPlace={onPlace} onPlaceReason={onPlaceReason} textEdit={editingText !== null && editingText === selPath} onTextApply={applyText} onTextCancel={() => stopTextEdit(true)} onEditText={(i) => startTextEdit(i)} onDelete={deleteElement} pins={pinRows} onPin={(i) => { selectIndexOnly(i); openComment({ target: i, opener: 'pin', pin: pinRows.find((r) => r.index === i)?.n }) }} />
             </div>
             <p id="ue-preview-hint" className="ue-hint">
               {labels.previewHint}

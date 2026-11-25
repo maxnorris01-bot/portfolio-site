@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>UI Editor gate, insert round 1: scorer-check stub (stages 1 and 2)</title>
+<title>UI Editor gate, insert round 1: scorer-check stub (stages 1 to 3)</title>
 <style>
   :root { --color-text: #0b1b33; --color-text-muted: #6c7686; --color-border: #c9c8c0; }
   body { font: 14px system-ui, sans-serif; margin: 12px; color: var(--color-text); }
@@ -141,7 +141,7 @@
   body[data-fault=bar-wide] #insert { min-width: 760px; }
   @media (max-width: 999px) {
     [data-comment-popover] button, [data-notes-list] button, #notes, #comment { min-height: 44px; min-width: 44px; } [data-pin] { width: 44px; height: 44px; }
-    #edittext, #delete { min-height: 44px; min-width: 44px; }
+    #edittext, #delete { min-height: 44px; min-width: 44px; } #inclwrap { display: inline-flex; align-items: center; min-height: 44px; }
     #bar button, #bar select { min-height: 44px; min-width: 44px; }
     [data-ribbon-strip] { height: auto; flex-wrap: wrap; padding: 4px 8px; white-space: normal; }
     [data-path] button, #selparent { min-height: 44px; min-width: 44px; }
@@ -151,6 +151,9 @@
     [role=menu] button[role^=menuitem]:not([data-swatch]) { height: 44px; min-height: 44px; }
     [data-swatch] { width: 44px; height: 44px; }
     [data-swatches] { max-width: none; }
+    body[data-fault=small-390] #delete { min-height: 40px; height: 40px; }
+    body[data-fault=pin-small-390] [data-pin] { width: 30px; height: 30px; }
+    body[data-fault=save-small-390] [data-comment-popover] button { min-height: 40px; height: 40px; }
     body[data-fault=item-40] [role=menu] button[role^=menuitem]:not([data-swatch]) { height: 40px; min-height: 40px; }
   }
   @container ue-ribbon (max-width: 999px) {
@@ -256,7 +259,7 @@ const TITLES = { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart
 const SIZES = { desktop: { portrait: [1280, null] }, tablet: { portrait: [768, 1024], landscape: [1024, 768] }, phone: { portrait: [390, 844], landscape: [844, 390] } }
 const BEZEL = { phone: { portrait: [28, 12, 24, 12], landscape: [12, 24, 12, 28] }, tablet: { portrait: [12, 12, 12, 12], landscape: [12, 12, 12, 12] } }
 const textOf = async (f) => (await fetch('/samples/' + f)).text()
-let doc = null, originals = {}, edits = [], redo = [], preview = null, session = null, sel = null, view = 'desktop', orient = 'portrait', scale = 1, unit = 'px'
+let reviewPins = [], doc = null, originals = {}, edits = [], redo = [], preview = null, session = null, sel = null, view = 'desktop', orient = 'portrait', scale = 1, unit = 'px'
 let jumpK = 0, gridOn = false, snapOn = false, spacing = 8, altDown = false
 addEventListener('keydown', (e) => { if (e.key === 'Alt') altDown = true })
 addEventListener('keyup', (e) => { if (e.key === 'Alt') altDown = false })
@@ -368,7 +371,11 @@ window.__edits = () => edits
 async function apply(edit, extra = '', verify = null) {
   const path = E.describe(preview.model, edit.target)
   const list = [...edits, edit]
-  const keep = sel !== null && edit.op !== 'reorder' ? path : null
+  let keep = sel !== null && edit.op !== 'reorder' ? path : null
+  if (sel !== null && edit.op === 'reorder') { // the element keeps its selection at its new place (the page's moveTarget)
+    const m = preview.model.primary.elements[edit.target], kids = m?.parent?.children ?? [], i = kids.indexOf(m), j = edit.placement === 'before' ? i - 1 : i + 1
+    if (m && j >= 0 && j < kids.length) { const order = kids.map((k) => k.ltag); [order[i], order[j]] = [order[j], order[i]]; keep = `${E.describe(preview.model, m.parent.index)}/${m.ltag}[${order.slice(0, j + 1).filter((t) => t === m.ltag).length}]` }
+  }
   const last = await rebuild(list)
   if (last && !last.ok) { $('#msg').textContent = 'Not applied: ' + last.refusal.message; await rebuild(edits); return 'refused' }
   if (verify && !verify()) { await rebuild(edits); return 'rejected' }
@@ -777,7 +784,12 @@ var paintRibbon = function () {
 function paint() {
   $('#screen').querySelectorAll('[data-selection]').forEach((n) => n.remove())
   $('#undo').disabled = !edits.length; $('#redo').disabled = !redo.length; $('#reset').disabled = !edits.length
-  const pins = E.listUnlinked(session?.state ?? E.emptyState())
+  let pins = E.listUnlinked(session?.state ?? E.emptyState())
+  if (fault === 'pin-lost-move-up' && edits.some((e) => e.op === 'reorder')) pins = []
+  if (fault === 'pin-lost-insert' && edits.some((e) => e.op === 'insert')) pins = []
+  if (fault === 'pin-lost-delete' && edits.some((e) => e.op === 'remove')) pins = []
+  if (fault === 'review-wrong-name') pins = pins.map((p) => ({ ...p, selector: 'body' }))
+  reviewPins = pins
   $('#review').setAttribute('aria-label', `Review unlinked (${pins.length})`); $('#review .badge').textContent = String(pins.length); $('#review').disabled = pins.length === 0
   if (sel !== null && preview.elements[sel]) {
     const b = preview.elements[sel].getBoundingClientRect()
@@ -1011,7 +1023,8 @@ $('#cover').addEventListener('pointerdown', async (ev) => {
 
 function elText(el) { return el.textContent }
 let textEditorFor = null
-function closeTextEditor(focus = true) { document.querySelectorAll('[data-text-editor]').forEach((n) => n.remove()); textEditorFor = null; if (focus) $('#cover').focus() }
+let textFromButton = false
+function closeTextEditor(focus = true) { document.querySelectorAll('[data-text-editor]').forEach((n) => n.remove()); textEditorFor = null; if (focus) (textFromButton && !F('edit-focus-lost') ? $('#edittext') : $('#cover')).focus() }
 function openTextEditor() {
   if (sel === null || !preview.elements[sel] || !editable()) return
   const el = preview.elements[sel]
@@ -1045,10 +1058,10 @@ $('#cover').addEventListener('dblclick', (ev) => {
   const r = $('#cover').getBoundingClientRect()
   const e = preview.doc.elementFromPoint((ev.clientX - r.left) / scale, (ev.clientY - r.top) / scale)
   if (!e || ['html', 'body'].includes(e.localName)) return
-  sel = idxOf(e); paint(); openTextEditor()
+  sel = idxOf(e); paint(); openTextEditor(); textFromButton = false
 })
 addEventListener('keydown', (ev) => {
-  if (ev.key === 'F2' && !F('f2-no-open') && sel !== null && !ev.target.matches?.('input, textarea, select')) { ev.preventDefault(); openTextEditor() }
+  if (ev.key === 'F2' && !F('f2-no-open') && sel !== null && !ev.target.matches?.('input, textarea, select')) { ev.preventDefault(); openTextEditor(); textFromButton = false }
   if (ev.key === 'Escape' && placing && !F('escape-keeps-placing')) {
     ev.preventDefault()
     const c = lastCandidate, k = placing
@@ -1057,7 +1070,7 @@ addEventListener('keydown', (ev) => {
   }
   if ((ev.key === 'Delete' || ev.key === 'Backspace') && sel !== null && (F('delete-in-field') || ev.target.id === 'cover') && !(ev.target.matches?.('[data-text-editor]'))) { ev.preventDefault(); deleteSelected() }
 })
-$('#edittext').addEventListener('click', openTextEditor)
+$('#edittext').addEventListener('click', () => { openTextEditor(); textFromButton = true })
 $('#delete').addEventListener('click', () => deleteSelected())
 async function deleteSelected() {
   if (sel === null || !preview.elements[sel] || !editable()) return
@@ -1130,10 +1143,11 @@ function openComment(target, opener) {
   const ta = pop.querySelector('textarea'); ta.value = existing ?? ''
   const a = $('#screen').getBoundingClientRect()
   Object.assign(pop.style, { left: Math.max(8, Math.min(innerWidth - 316, a.left + 20)) + 'px', top: Math.max(8, Math.min(innerHeight - 190, a.top + 20)) + 'px' })
-  const save = async (text) => { const keep = target === 'page' ? null : sel; closePopovers2(commentOpener); if (text === '' && (existing === undefined || F('blank-keeps-note'))) return; await applyNote(target, text); if (keep !== null) { sel = keep; paint() } }
+  const save = async (text) => { const keep = target === 'page' ? null : sel; closePopovers2(F('save-no-focus') ? null : commentOpener); if (text === '' && (existing === undefined || F('blank-keeps-note'))) return; await applyNote(target, text); if (keep !== null) { sel = keep; paint() } }
   pop.querySelector('[data-save]').addEventListener('click', () => save(F('save-trims-all') ? ta.value.trim() : ta.value))
   pop.querySelector('[data-delnote]')?.addEventListener('click', () => save(''))
   pop.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePopovers2(commentOpener) } })
+  if (F('popover-off-screen')) pop.style.left = Math.max(8, innerWidth - 120) + 'px'
   document.body.appendChild(pop); ta.focus()
 }
 async function applyNote(target, text) {
@@ -1168,12 +1182,25 @@ function openNotesList() {
     else if (act === 'add-page' || act === 'edit-page') openComment('page', $('#notes'))
     else if (act === 'del-page') applyNote('page', '')
   })
-  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePopovers2($('#notes')) } })
+  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); closePopovers2(F('notes-esc-no-focus') ? null : $('#notes')) } })
   document.body.appendChild(box); $('#notes').setAttribute('aria-expanded', 'true'); box.querySelector('button')?.focus()
 }
 $('#notes').addEventListener('click', () => { if (document.querySelector('[data-notes-list]')) closePopovers2($('#notes')); else openNotesList() })
 document.addEventListener('click', (e) => { if (e.target.closest('[data-comment-popover], [data-notes-list], #notes, #comment, [data-pin]')) return; document.querySelectorAll('[data-notes-list], [data-comment-popover]').forEach((n) => n.remove()); $('#notes').setAttribute('aria-expanded', 'false') })
 if (F('include-default-off')) { $('#incl').checked = false; include = false }
+$('#review').addEventListener('click', () => {
+  const had = document.querySelector('ul[aria-label="Unlinked edits"]')
+  document.querySelectorAll('ul[aria-label="Unlinked edits"]').forEach((n) => n.remove())
+  if (had) return
+  const ul = document.createElement('ul'); ul.setAttribute('aria-label', 'Unlinked edits')
+  for (const p of reviewPins) {
+    let i = -1; try { i = E.select(preview.model, p.selector) } catch { i = -1 }
+    const li = document.createElement('li'); li.textContent = `${i >= 0 && preview.elements[i] ? lab(preview.elements[i]) : p.selector} · ${p.property} · ${p.environment === 'phone' ? 'Phone' : 'Desktop'} only: ${p.value}`
+    ul.appendChild(li)
+  }
+  $('#msg').after(ul)
+})
+if (F('dup-name')) $('#notes').setAttribute('aria-label', 'Comment')
 $('#incl').addEventListener('change', () => { include = $('#incl').checked; paintCode() })
 function paintNotes() {
   document.querySelectorAll('[data-pin]').forEach((n) => n.remove())
@@ -1183,7 +1210,8 @@ function paintNotes() {
     const b = el.getBoundingClientRect(), num = F('pin-wrong-n') ? nl.notes.length - k : k + 1
     const pin = document.createElement('button'); pin.type = 'button'; pin.setAttribute('data-pin', ''); pin.dataset.n = String(num); pin.setAttribute('aria-label', 'Note ' + num); pin.textContent = String(num)
     const off = F('pin-12-off') ? 12 : 0
-    Object.assign(pin.style, { left: b.left - 9 + off + 'px', top: b.top - 9 + 'px' })
+    const pw = F('pin-small-390') ? 30 : innerWidth < 1000 ? 44 : 18
+    Object.assign(pin.style, { left: b.left - pw / 2 + off + 'px', top: b.top - pw / 2 + 'px', width: pw + 'px', height: pw + 'px', transform: `scale(${1 / scale})` })
     pin.addEventListener('pointerdown', (e) => e.stopPropagation()); pin.addEventListener('click', (e) => { e.stopPropagation(); sel = n.index; paint(); openComment(n.index, pin) })
     $('#screen').appendChild(pin)
   })
