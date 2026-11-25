@@ -138,3 +138,9 @@ Comment, pins, the Notes list and Include comments are on the page; Y01 to Y10 a
 - **Notes is always on** (A15), though round 4's U09 says every other strip control is disabled with nothing selected.
 - **Lesson:** an extra state update in a layout effect makes React flush the pending rebuild effect early, so keys pressed while the preview rebuilds are dropped; keep per-draw work small (stable keys, memoised JSON).
 - **Spec slips of mine caught by running them:** A11 to A14 (the second Undo, the list opened after a reload, a jump that started from the selected element, my own off-by-one in step numbers).
+
+## 2026-11-24: UI Editor insert round 1, stage 3 (final; still behind the flag, not released)
+Y11 to Y13 pass and the whole round passes: Y01 to Y14, the earlier rounds as before. Record: `docs/sessions/2026-11-24-ui-editor-insert1-stage3.md`; gate log #54 to #56; amendments A17 to A19.
+- **Focus returns to the opener** (Comment, a pin, Notes, Edit text) when a popover or the text box closes.
+- **The text box is 16 px or more on the screen**, 44 x 160 px at least on a scaled device, exactly the element's box at full size.
+- **Spec slip caught by the scorer check:** Y11's Move up was refused by the engine (Link off), so nothing was tested; A19 turns Link on first.

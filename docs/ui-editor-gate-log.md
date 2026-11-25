@@ -381,3 +381,19 @@ Runner (`scripts/ui-editor-gate/run.mjs`), stub (`reference/insert1.html`, `--st
 **Existing test assertions edited.** `tests/uieditorround5.test.ts` ("one Download saves every file ..."): `for (const f of files) { const text = session.files[f]` is now `const text = outFiles[f]` (Download saves what the page shows: the notes stripped when Include comments is off). One line. The round 2 test of the bar's words (#47b) is not touched again (Comment has no word). New tests: 7 more in `tests/uieditorinsert1.test.ts` (15 in all).
 
 **Retired checks.** None in stage 2.
+
+## 2026-11-24, insert round 1, stage 3 (`feat/ui-editor-insert1`)
+
+| # | Change | Why |
+|---|---|---|
+| 54 | New step `measureAt` (the current export loaded fresh at each width, computed `font-size` read) and asserts `uniqueNames`, `newTouchTargets`, `pinHit`; `review` with `count` and `names` (opens the Review list and reads it); `popover` without a name means any open dialog. | Y11 to Y13 name them; readings in A18. |
+| 55 | Amendments before scoring: A17 (pass line: Y01 to Y14 all PASS, none NOT BUILT), A18 (readings; its `measureAt` text was corrected the same day, my first draft read the preview, whose width is its view's), A19 (Y11 `Move up` was refused by the engine with Link off, so no reorder had happened; `setLink` true is inserted before it). | Found by running the stub and the page. |
+| 56 | Stub `insert1.html`: a Review list, selection kept after a reorder (as the page's `moveTarget`), Edit text button returning focus, pins at screen size, 44 px rules at phone width. | The stage 3 specs need them. |
+
+**Scorer check (stage 3, `--stub8 --stage 3`).** Controls: Y01 to Y14 PASS. Twelve faults, each failing where stated: a pin lost after Move up (`pin-lost-move-up`), after an insert (`pin-lost-insert`), after a Delete (`pin-lost-delete`), Review naming the wrong element (`review-wrong-name`): Y11; a 40 px Delete at 390 (`small-390`), a 40 px Save in the popover (`save-small-390`), a 30 px pin (`pin-small-390`), a popover off the window (`popover-off-screen`): Y13; a duplicate accessible name (`dup-name`), no focus back on Comment after Save (`save-no-focus`), none on Notes after Escape (`notes-esc-no-focus`), none on Edit text after Escape (`edit-focus-lost`): Y12. **All twelve failed**; the two the brief names (pin after Move up, 40 px control at 390) are among them. **The first run of `pin-lost-move-up` passed**, which would have STOPPED the round: it was the spec gap A19 (the Move up never happened, with Link off the engine refuses it), fixed by amendment before building; after A19 the control passes and the fault fails. Re-run with `--stage 3`: the 21 stage 1 faults, the 17 stage 2 faults, and the 99 runs of the earlier scripts: all caught, controls as before (only T10 on the round 3 stub).
+
+**Page bugs found by the gate, fixed.** Y12 failed on the page twice: after Save in the Comment popover the focus was on the page, not on the Comment button; Escape in the text box (opened with the Edit text button) left the focus on the page. Both now return the focus to the opener. Y11 and Y13 passed on the page at the first try.
+
+**Page change not asked for by a spec.** The text box is at least 16 px on the screen (it was 14 CSS px, 3.8 px on screen at 390), and on a scaled device at least 44 x 160 px, growing from the element's corner; at full size it is still exactly the element's box (Y04 holds).
+
+**Existing tests edited in stage 3.** None. New tests: 2 more in `tests/uieditorinsert1.test.ts` (17 in all). **Retired checks.** None.

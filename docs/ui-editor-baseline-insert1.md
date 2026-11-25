@@ -83,3 +83,6 @@ which led to amendments A6 and A7), then the page (Insert, placing, text editing
 ## Stage 2 (2026-11-24): Comments
 
 Runner steps and asserts, the stub's Comment, pins, Notes list, Include comments and reload parts and eight named faults (all failing where stated; one extra needed amendment A13), the page (Comment in the quick bar, pins in the overlay, the Comment popover, the Notes list, Include comments, the code from the stripped text), the screenshots and the final run: `docs/sessions/2026-11-24-ui-editor-insert1-stage2.md` and `docs/ui-editor-gate-log.md` #48 to #53. Final run on `17fde71`: Y01 to Y10 and Y14 PASS, Y11 to Y13 NOT BUILT; the earlier rounds as before (T10 the known miss).
+
+## Stage 3 (2026-11-24): the final run
+Y11 to Y13 and the final complete run: `docs/sessions/2026-11-24-ui-editor-insert1-stage3.md`, gate log #54 to #56. Final run on `546bf0e`: Y01 to Y14 PASS; the earlier rounds as before (T10 the known miss).
