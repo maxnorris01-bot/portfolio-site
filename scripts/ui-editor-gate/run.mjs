@@ -2104,7 +2104,9 @@ async function runSpec(spec) {
         const p = []
         if (m.shown !== a.expect) p.push(`shows "${m.shown}", want "${a.expect}"`)
         if (!m.title.includes(a.stackContains)) p.push(`tooltip "${m.title}" does not hold the stack (${a.stackContains})`)
-        if (m.options.join('|') !== a.options.join('|')) p.push(`options ${m.options.join(', ')}`)
+        // docs/ui-editor-gate-rules-round7a.md section 7, A1: from round 7a the list goes on after the twelve originals, so the page (and the round 7a stub) is read by its first options; the earlier stubs have exactly these.
+        const head = flag('--stub') || flag('--stub2') || flag('--stub3') || flag('--stub4') || flag('--stub5') || flag('--stub6') || flag('--stub7') ? m.options : m.options.slice(0, a.options.length)
+        if (head.join('|') !== a.options.join('|')) p.push(`options ${m.options.join(', ')}`)
         if (m.options.some((o) => o.includes(','))) p.push('an option shows a whole stack')
         return R(p.length === 0, p.length ? p.join('; ') : `shows "${m.shown}", options by name, stack in the tooltip`)
       }

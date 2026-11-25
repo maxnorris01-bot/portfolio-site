@@ -71,3 +71,5 @@ Each injected fault must fail where stated, on the stub page (`--stub8`, `refere
 
 ## 7. Amendments
 (none yet; numbered amendments are appended below this line)
+
+**A1. Round 4's `fontShows` (U06) lists the select's options exactly; round 7a appends 29 options after them (found by the first run of U06 on the built page, before the final run; no spec was scored).** The brief itself keeps the twelve originals at the head and appends more, so an exact list cannot hold. From round 7a, on the real page and the round 7a stub (`--stub8`) the assert compares `options` with the FIRST `len(options)` options of the select (the page's own family and the twelve, as before); the earlier stubs (`--stub` to `--stub7`) have exactly those and are still read exactly. Everything else in the assert is unchanged (the shown name, the stack in the tooltip, no option shows a whole stack). Z02 is the spec that reads the whole list.
