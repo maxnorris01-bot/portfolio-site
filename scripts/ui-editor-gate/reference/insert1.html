@@ -723,7 +723,7 @@ ribbon.addEventListener('click', async (e) => {
   const b = e.target.closest('button, [data-spin]'); if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true') return
   if (b.dataset.swallow) { delete b.dataset.swallow; return }
   if (b.dataset.menuButton) return openMenuFor(b)
-  if (b.dataset.sidesBtn) { const p = document.querySelector(`[data-sides-popover="${b.dataset.sidesBtn}"]`); const open = p.hidden; closePopovers(false); p.hidden = !open; b.setAttribute('aria-expanded', String(open)); if (open) { p.style.marginLeft = ''; const r = p.getBoundingClientRect(), over = r.right - (innerWidth - 8); if (over > 0 && fault !== 'sides-cap') p.style.marginLeft = `-${Math.min(over, Math.max(0, r.left - 8))}px`; p.querySelector('input').focus() } return }
+  if (b.dataset.sidesBtn) { const p = document.querySelector(`[data-sides-popover="${b.dataset.sidesBtn}"]`); const open = p.hidden; closePopovers(false); p.hidden = !open; b.setAttribute('aria-expanded', String(open)); if (open) { p.style.marginLeft = ''; const r = p.getBoundingClientRect(), over = r.right - (innerWidth - 8); if (over > 0 && fault !== 'sides-cap' && fault !== 'sides-off-390') p.style.marginLeft = `-${Math.min(over, Math.max(0, r.left - 8))}px`; p.querySelector('input').focus() } return }
   if (b.dataset.st) { const [name, dir] = b.dataset.st.split('|'); return stepOnce(name, Number(dir), e.shiftKey) }
   if (b.dataset.al) return doSet({ 'text-align': b.dataset.al })
   if (b.dataset.unit) { unit = b.dataset.unit; return paint() }
