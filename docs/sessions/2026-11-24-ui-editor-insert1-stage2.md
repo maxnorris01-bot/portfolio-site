@@ -16,7 +16,7 @@ Y01 to Y10 and Y14 PASS; Y11 to Y13 NOT BUILT; items 1 to 3 and 5 to 10 as in A1
 | Y01 to Y10, Y14 | all PASS (as amended: A2 to A16); Y11 to Y13 NOT BUILT |
 | Regression | 899 tests, 883 pass, 0 fail, 16 skipped (892 / 876 after stage 1; 7 new); `tsc`, `eslint`, builds ON and OFF clean; flags 16 of 16; no-op round trips (4 files) PASS; extras 20 of 20 |
 | check:layout | Home meets every target (the known misses only); UI Editor style check met |
-| Scorer check | all 8 named faults caught; one of my 9 extras missed (spec gap, A13); 21 stage 1 faults and 98 earlier fault runs re-run, all caught |
+| Scorer check | all 8 named faults caught; one of my 9 extras missed (spec gap, A13); 21 stage 1 faults and the 99 runs of the earlier scripts (controls included) re-run, all caught |
 | Vendored engine | exactly a build of `a5f954a`, rebuilt twice, SHA-256 `7d23069c...7916` both times, equal to `engine.js`; engine repo `git status` clean |
 | Locked files | 0 diff lines for the seven earlier locks and the insert specs; the insert rules lock text is an exact prefix of the file |
 
