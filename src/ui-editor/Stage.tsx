@@ -96,6 +96,8 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     setLine(null)
   }
   const sel = useRef(selected)
+  // The pins are measured again when the set of pinned elements changes, not when the parent draws a new array of the same ones.
+  const pinKey = pins.map((p) => p.index).join(',')
   const pinsRef = useRef(pins)
   useLayoutEffect(() => {
     pinsRef.current = pins
@@ -119,7 +121,11 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
           at[p.index] = { left: b.left, top: b.top }
         }
       }
-      setPinAt(at)
+      // No new object when nothing moved: a state update here would draw the stage again for every measure (and, with no notes, for nothing).
+      setPinAt((prev) => {
+        const k = Object.keys(at)
+        return k.length === Object.keys(prev).length && k.every((i) => prev[Number(i)] && prev[Number(i)].left === at[Number(i)].left && prev[Number(i)].top === at[Number(i)].top) ? prev : at
+      })
     }
     measure()
     const doc = session?.preview.doc
@@ -133,7 +139,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       ro.disconnect()
       doc.removeEventListener('scroll', measure)
     }
-  }, [session, rev, selected, elementOf, pins])
+  }, [session, rev, selected, elementOf, pinKey])
 
   // The pointer layer covers the frame, so the wheel is handed on to a screen that scrolls (a phone or tablet); at its end the page scrolls as usual.
   useEffect(() => {

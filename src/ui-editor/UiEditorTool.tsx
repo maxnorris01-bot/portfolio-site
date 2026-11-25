@@ -493,6 +493,8 @@ export default function UiEditorTool() {
   // The notes in the code now (comments before elements and the one for the whole page), read by the engine from the model of the edited text; the pins are numbered like the list.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const noteList = useMemo(() => (session ? listNotes(session.preview.model) : { page: null, notes: [] }), [session, rev])
+  // The edit list as the gate reads it (a read-only attribute of the tool): written again only when the list changed.
+  const editListJson = useMemo(() => JSON.stringify(list.edits), [list.edits])
   const notesTotal = noteCount(noteList)
   const pinRows = noteRows(noteList)
   // With no notes the switch is on again, so a note written next is in the code.
@@ -591,7 +593,7 @@ export default function UiEditorTool() {
     </div>
   )
   return (
-    <section ref={rootRef} className="ue-tool" data-editor data-edit-list={JSON.stringify(list.edits)} aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
+    <section ref={rootRef} className="ue-tool" data-editor data-edit-list={editListJson} aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
       <div className="ue-sheet" data-card>
       <div className="ue-bar" role="group" aria-label={labels.bar}>
         <div className="ue-bar-group">
