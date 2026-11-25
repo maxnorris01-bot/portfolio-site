@@ -1,5 +1,5 @@
 import { Children, Fragment, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { messages, panel as P } from '../data/uiEditor'
+import { labels, messages, panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { MenuButton, type MenuPart } from './Menu'
 import { DASHES, DIRECTIONS, DOUBLE_MIN, EFFECTS, FONT_SIZES, LINE_SPACINGS, OUTLINE_WEIGHTS, STANDARD_COLOURS, gradientCss, hexTyped, opaqueHex, pageColours, readGradient, type Gradient } from './menus'
@@ -41,6 +41,14 @@ interface Props {
   onNudge: (dx: number, dy: number) => void
   /** Select another element of the preview by its index (a segment of the path, Select parent): the selection only, never an edit. */
   onSelectIndex: (index: number) => void
+  /** Insert round 1: the strip's Edit text and Delete (the page decides what they do; Delete is off when the engine would refuse). */
+  onEditText: () => void
+  onDelete: () => void
+  canDelete: boolean
+  /** Stage 2: the Notes button (always there, with how many notes the code holds) and whether its list is open. */
+  notesCount: number
+  notesOpen: boolean
+  onNotes: () => void
   /** The grid over the preview, snapping to it, and the distance between its lines (CSS px): all the page's, none of them remembered. */
   grid: boolean
   onGrid: (on: boolean) => void
@@ -248,7 +256,7 @@ function RibbonButton({ icon, label, tip, pressed, disabled, min, onClick }: { i
   )
 }
 
-export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, link, onLink, unit, onUnit, pins, onSet, onBadValue, onMessage, onMove, onNudge, onSelectIndex, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
+export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, link, onLink, unit, onUnit, pins, onSet, onBadValue, onMessage, onMove, onNudge, onSelectIndex, onEditText, onDelete, canDelete, notesCount, notesOpen, onNotes, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
   const el = session && selected !== null ? (session.preview.elements[selected] ?? null) : null
   const svg = !!el && isSvgElement(el)
   // The path of the strip: the chain from the child of <body> down to the selected element; the deepest PATH_MAX of it, with a leading ellipsis when it is longer.
@@ -767,6 +775,18 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         </nav>
         <button type="button" className="ue-seg-btn ue-selpar" aria-label={P.selectParent} title={P.selectParentTip} disabled={!parentEl} onClick={() => parentEl && session && onSelectIndex(session.preview.elements.indexOf(parentEl))}>
           {P.selectParent}
+        </button>
+        <button type="button" className="ue-seg-btn ue-selpar" aria-label={labels.editText} title={labels.editTextTip} disabled={!live} onClick={onEditText}>
+          {labels.editText}
+        </button>
+        <button type="button" className="ue-seg-btn ue-selpar" aria-label={labels.deleteElement} title={labels.deleteTip} disabled={!canDelete} onClick={onDelete}>
+          {labels.deleteElement}
+        </button>
+        <button type="button" data-opens="notes" className="ue-seg-btn ue-selpar ue-notesbtn" aria-label={labels.notes} aria-expanded={notesOpen} title={labels.notesTip} onClick={onNotes}>
+          {labels.notes}
+          <span className="ue-notecount" aria-hidden="true">
+            {notesCount}
+          </span>
         </button>
         <strong data-env>{view}</strong>
         <label className="ue-linkrow" htmlFor="ue-link" title={tip}>

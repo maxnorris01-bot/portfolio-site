@@ -6,18 +6,22 @@ import Gallery from './Gallery'
 import { canRotate, isEditable, viewport, type Orientation } from './devices'
 import { cssSizeFor, handleAxes } from './geometry'
 import { compensated } from './resizeedge'
-import { IconButton, type IconName } from './icons'
+import { Icon, IconButton, type IconName } from './icons'
+import { CommentPopover, NotesList } from './Popovers'
+import { kindOfFile, noteCount, noteRows, stripNotes } from './notes'
+import { MenuButton } from './Menu'
+import { INSERT_ITEMS } from './place'
 import { fromFiles, fromPaste, downloadName, type Doc, type Incoming } from './intake'
 import Ribbon, { type ViewName } from './Ribbon'
 import { chainOf } from './path'
 import { copyName, nameList, sectionHeader } from './sections'
 import { SAMPLES, type SampleId } from './samples'
-import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, type Session } from './session'
+import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, trialEdit, type Applied, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
-import { listUnlinked, type Edit, type Environment } from './vendor/engine.js'
+import { listNotes, listUnlinked, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
 import './UiEditorTool.css'
 
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
@@ -53,6 +57,13 @@ export default function UiEditorTool() {
   const [grid, setGrid] = useState(false)
   const [snap, setSnap] = useState(false)
   const [spacing, setSpacing] = useState(8)
+  // Insert round 1: the kind being placed, and the path of the element whose text is open for editing.
+  const [placing, setPlacing] = useState<InsertKind | null>(null)
+  const [editingText, setEditingText] = useState<string | null>(null)
+  // Stage 2: the note being written (the element's index, or 'page') and where it was opened from; the Notes list; whether the code includes the notes.
+  const [commentFor, setCommentFor] = useState<{ target: number | 'page'; opener: 'bar' | 'pin' | 'notes'; pin?: number } | null>(null)
+  const [notesOpen, setNotesOpen] = useState(false)
+  const [include, setInclude] = useState(true)
   const [unitState, setUnitState] = useState<{ path: string | null; unit: WidthUnit }>({ path: null, unit: 'px' })
   // The walk over the changes of all the files: the change last visited (0: none) belongs to the export it was visited in, so the next edit starts it again.
   const [walk, setWalk] = useState<{ k: number; files: Record<string, string> | null; nonce: number }>({ k: 0, files: null, nonce: 0 })
@@ -140,6 +151,10 @@ export default function UiEditorTool() {
   const load = (next: Doc, warn: string[]) => {
     setList(emptyList())
     setSelPath(null)
+    setPlacing(null)
+    setEditingText(null)
+    setCommentFor(null)
+    setNotesOpen(false)
     setWarnings(warn)
     setGalleryOpen(false)
     setReviewOpen(false)
@@ -195,7 +210,7 @@ export default function UiEditorTool() {
   const scope = () => ({ environment, link: svgDoc ? true : link })
 
   /** One more edit on the live preview. A refusal shows the engine's reason and changes nothing. */
-  const run = (edit: Edit, what: string, nextSel?: string | null, extra?: string): boolean => {
+  const run = (edit: Edit, what: string, nextSel?: string | null | ((s: Session, applied: Extract<Applied, { ok: true }>) => string | null), extra?: string): boolean => {
     const s = sessionRef.current
     if (!s || busyRef.current || !editable) return false
     const applied = applyOne(s, edit)
@@ -206,7 +221,7 @@ export default function UiEditorTool() {
     const last = listRef.current.edits[listRef.current.edits.length - 1]
     const merges = mergeOffsets(last, edit) !== undefined
     setList(listReduce(listRef.current, { type: 'apply', edit }))
-    if (nextSel !== undefined) setSelPath(nextSel)
+    if (nextSel !== undefined) setSelPath(typeof nextSel === 'function' ? nextSel(s, applied) : nextSel)
     show({ kind: 'ok', text: messages.applied(what), notes: applied.notes.map(noteSentence), extra })
     // Two moves in a row are one edit: the preview is rebuilt so it shows exactly what the list says.
     if (merges) {
@@ -224,6 +239,102 @@ export default function UiEditorTool() {
     run({ op: 'set', target: t, properties, ...scope() }, `${label.toLowerCase()} set to ${Object.values(properties)[0]}`)
   }
   const onBadValue = (label: string) => show({ kind: 'refusal', text: messages.badValue(label.toLowerCase()) })
+
+  // ---- insert, text and Delete (insert round 1): content edits, the same at every width, with no Link and no pins ----
+  const commentOff = !session ? '' : !editable ? labels.commentTipViewOnly : selIndex === null ? labels.commentTipNone : ''
+  const insertOff = svgDoc ? labels.insertTipSvg : view === 'Tablet' ? labels.insertTipTablet : !editable ? labels.insertTipViewOnly : ''
+  const startPlacing = (kind: InsertKind) => {
+    if (insertOff || !session) return
+    setEditingText(null)
+    setPlacing(kind)
+    show({ kind: 'info', text: messages.placing((INSERT_ITEMS.find((i) => i.kind === kind)?.label ?? 'element').toLowerCase()) })
+  }
+  const cancelPlacing = () => {
+    if (!placing) return
+    setPlacing(null)
+    show({ kind: 'info', text: messages.placingCancelled })
+  }
+  const trialInsert = (edit: Edit) => (session ? trialEdit(session, edit) : null)
+  const onPlace = (edit: Edit) => {
+    const what = (INSERT_ITEMS.find((i) => i.kind === (edit as { kind?: InsertKind }).kind)?.label ?? 'element').toLowerCase()
+    setPlacing(null)
+    run(edit, what, (s, applied) => (applied.selected !== undefined ? pathOf(s.preview.model, applied.selected) : null))
+    show({ kind: 'ok', text: messages.inserted(what) })
+  }
+  // The engine's reason for a spot it refuses; moving to a spot it accepts says what placing is waiting for again.
+  const onPlaceReason = (reason: string | null) => {
+    if (reason) show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: reason }) })
+    else if (placing) show({ kind: 'info', text: messages.placing((INSERT_ITEMS.find((i) => i.kind === placing)?.label ?? 'element').toLowerCase()) })
+  }
+  // Opened by the Edit text button: closing the text box gives the focus back to that button (stage 3, Y12), else to the preview.
+  const textFromButton = useRef(false)
+  const startTextEdit = (index?: number, fromButton = false) => {
+    const s = sessionRef.current
+    if (!s || busyRef.current || !editable || placing) return
+    const i = index ?? selIndex
+    if (i === null || i === undefined) return
+    const el = s.preview.elements[i]
+    if (!el) return
+    // The engine says whether this element's text can be replaced: an element with child elements is refused, and nothing opens.
+    const t = trialEdit(s, { op: 'text', target: i, text: el.textContent ?? '' })
+    if (!t.ok) return show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: t.message }) })
+    const path = pathOf(s.preview.model, i)
+    textFromButton.current = fromButton
+    setSelPath(path)
+    setEditingText(path)
+  }
+  const stopTextEdit = (focusPreview: boolean) => {
+    setEditingText(null)
+    if (focusPreview) window.setTimeout(() => rootRef.current?.querySelector<HTMLElement>(textFromButton.current ? 'button[aria-label="' + labels.editText + '"]:not(:disabled)' : '.ue-overlay')?.focus({ preventScroll: true }), 0)
+  }
+  const applyText = (text: string) => {
+    const t = selIndex
+    stopTextEdit(true)
+    if (t === null) return
+    if (run({ op: 'text', target: t, text }, 'text')) show({ kind: 'ok', text: messages.textChanged })
+  }
+  const deleteElement = () => {
+    const s = sessionRef.current
+    if (!s || selIndex === null || !editable) return
+    const parent = s.preview.elements[selIndex]?.parentElement
+    const parentIndex = parent ? s.preview.elements.indexOf(parent) : -1
+    // The element goes and the selection moves to its parent (its index does not change: the parent comes first in the document).
+    if (run({ op: 'remove', target: selIndex }, 'removed', (s2) => (parentIndex >= 0 && parent && parent !== s2.preview.doc.body ? pathOf(s2.preview.model, parentIndex) : null))) show({ kind: 'ok', text: messages.removed })
+  }
+  // ---- notes (stage 2): `note` edits, the same at every width ----
+  const selectIndexOnly = (i: number) => session && setSelPath(pathOf(session.preview.model, i))
+  const saveNote = (target: number | 'page', text: string, existed: boolean) => {
+    const had = existed
+    const c = commentFor
+    setCommentFor(null)
+    // The focus goes back to what opened the popover (the Comment button, the pin or Notes), once the popover is gone.
+    const el = c ? document.querySelector<HTMLElement>(anchorOf(c)) : null
+    if (el) window.setTimeout(() => (el.isConnected ? el : document.querySelector<HTMLElement>(anchorOf(c!)))?.focus({ preventScroll: true }), 0)
+    if (text === '' && !had) return
+    if (run({ op: 'note', target, text }, 'note')) show({ kind: 'ok', text: text === '' ? messages.noteDeleted : messages.noteSaved })
+  }
+  const anchorOf = (c: NonNullable<typeof commentFor>) => (c.opener === 'pin' ? `[data-pin][data-n="${c.pin}"]` : c.opener === 'notes' ? 'button[data-opens="notes"]' : '.ue-bar button[data-opens="comment"]')
+  const openerOf = (c: NonNullable<typeof commentFor>): HTMLElement | null => {
+    const root = rootRef.current
+    if (!root) return null
+    return c.opener === 'pin' ? root.querySelector<HTMLElement>(`[data-pin][data-n="${c.pin}"]`) : root.querySelector<HTMLElement>(c.opener === 'notes' ? 'button[data-opens="notes"]' : 'button[data-opens="comment"]')
+  }
+  const closeComment = () => {
+    const c = commentFor
+    setCommentFor(null)
+    const el = c ? openerOf(c) : null
+    if (el) window.setTimeout(() => el.focus({ preventScroll: true }), 0)
+  }
+  const closeNotes = () => {
+    setNotesOpen(false)
+    const el = rootRef.current?.querySelector<HTMLElement>('button[data-opens="notes"]')
+    if (el) window.setTimeout(() => el.focus({ preventScroll: true }), 0)
+  }
+  const openComment = (c: { target: number | 'page'; opener: 'bar' | 'pin' | 'notes'; pin?: number }) => {
+    setNotesOpen(false)
+    setCommentFor(c)
+  }
+  const canDelete = !!session && selIndex !== null && editable && trialEdit(session, { op: 'remove', target: selIndex }).ok
 
   const onMove = (dx: number, dy: number) => {
     const t = target()
@@ -298,7 +409,11 @@ export default function UiEditorTool() {
     if (next === before) return
     const changed = action.type === 'undo' ? before.edits.slice(next.edits.length) : action.type === 'redo' ? next.edits.slice(before.edits.length) : before.edits
     // A reorder changes which element a path names: the selection is let go rather than guessed.
-    if (changed.some((e) => e.op === 'reorder')) setSelPath(null)
+    if (changed.some((e) => e.op === 'reorder' || e.op === 'insert' || e.op === 'remove')) setSelPath(null)
+    setPlacing(null)
+    setEditingText(null)
+    setCommentFor(null)
+    setNotesOpen(false)
     setList(next)
     startBusy()
     setReplay((n) => n + 1)
@@ -340,8 +455,30 @@ export default function UiEditorTool() {
     return () => window.removeEventListener('keydown', on)
   }, [])
 
+  // Escape cancels placing (no edit); F2 opens the text of the selected element (not while a field has the focus).
+  const latestKeys = useRef({ cancelPlacing, startTextEdit })
+  useEffect(() => {
+    latestKeys.current = { cancelPlacing, startTextEdit }
+  })
+  useEffect(() => {
+    const on = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') latestKeys.current.cancelPlacing()
+      else if (e.key === 'F2') {
+        const a = document.activeElement as HTMLElement | null
+        if (a?.matches('input, textarea, select')) return
+        if (a && a !== document.body && !rootRef.current?.contains(a)) return
+        e.preventDefault()
+        latestKeys.current.startTextEdit()
+      }
+    }
+    window.addEventListener('keydown', on)
+    return () => window.removeEventListener('keydown', on)
+  }, [])
+
   // ---- views ----
   const showSize = (v: ViewName, o: Orientation) => {
+    setPlacing(null)
+    setEditingText(null)
     setView(v)
     setOrientation(o)
     viewRef.current = v
@@ -360,13 +497,27 @@ export default function UiEditorTool() {
   // One section per file in the Updated code area, all visible (round 5): there is no shown file, no File selector and no switching. The changes of every
   // file against the file as it was opened (the primary file, or a companion stylesheet by the name the page links it by) are counted per section, and Previous
   // and Next change walk all of them in the order of the sections.
+  // The notes in the code now (comments before elements and the one for the whole page), read by the engine from the model of the edited text; the pins are numbered like the list.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const noteList = useMemo(() => (session ? listNotes(session.preview.model) : { page: null, notes: [] }), [session, rev])
+  // The edit list as the gate reads it (a read-only attribute of the tool): written again only when the list changed.
+  const editListJson = useMemo(() => JSON.stringify(list.edits), [list.edits])
+  const notesTotal = noteCount(noteList)
+  const pinRows = noteRows(noteList)
+  // With no notes the switch is on again, so a note written next is in the code.
+  if (notesTotal === 0 && !include) setInclude(true)
+  // What is copied, downloaded and shown as Updated code: the code as the engine made it, or (Include comments off) the same without its notes and the header.
+  const outFiles = useMemo(() => {
+    const raw = session?.files ?? {}
+    return include ? raw : Object.fromEntries(Object.entries(raw).map(([f, t]) => [f, stripNotes(t, kindOfFile(f))]))
+  }, [session?.files, include])
   const files = session ? Object.keys(session.files) : []
   const hunksByFile = useMemo(() => {
     const out: Record<string, Hunk[]> = {}
     if (!session || !doc) return out
-    for (const f of Object.keys(session.files)) out[f] = diffHunks(f === doc.file ? doc.source : (doc.companions[f] ?? session.files[f]), session.files[f])
+    for (const f of Object.keys(session.files)) out[f] = diffHunks(f === doc.file ? doc.source : (doc.companions[f] ?? outFiles[f]), outFiles[f])
     return out
-  }, [session?.files, doc]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session?.files, doc, outFiles]) // eslint-disable-line react-hooks/exhaustive-deps
   const counts = Object.fromEntries(files.map((f) => [f, hunksByFile[f]?.length ?? 0]))
   const changes = changeOrder(files, counts)
   const walkK = session && walk.files === session.files ? Math.min(walk.k, changes.length) : 0
@@ -377,7 +528,7 @@ export default function UiEditorTool() {
   }
   const targetFor = (file: string) => (session && walk.files === session.files && walkK > 0 && changes[walkK - 1]?.file === file ? { change: changes[walkK - 1].index, nonce: walk.nonce } : null)
   const onCopy = async (file: string) => {
-    const text = session?.files[file]
+    const text = outFiles[file]
     if (text === undefined) return
     try {
       await navigator.clipboard.writeText(text)
@@ -399,7 +550,7 @@ export default function UiEditorTool() {
     if (!files.length || !doc || !session) return
     const saved: string[] = []
     for (const f of files) {
-      const text = session.files[f]
+      const text = outFiles[f]
       const name = downloadName(f, f === doc.file)
       const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
       const a = document.createElement('a')
@@ -449,7 +600,7 @@ export default function UiEditorTool() {
     </div>
   )
   return (
-    <section ref={rootRef} className="ue-tool" data-editor aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
+    <section ref={rootRef} className="ue-tool" data-editor data-edit-list={editListJson} aria-label={labels.tool} aria-busy={busy || undefined} onKeyDown={onRootKey}>
       <div className="ue-sheet" data-card>
       <div className="ue-bar" role="group" aria-label={labels.bar}>
         <div className="ue-bar-group">
@@ -464,6 +615,16 @@ export default function UiEditorTool() {
               <div className="ue-bar-group">
                 <IconButton icon="undo" label={labels.undo} tip={labels.undoTip} disabled={!canUndo(list) || busy} onClick={onUndo} />
                 <IconButton icon="redo" label={labels.redo} tip={labels.redoTip} disabled={!canRedo(list) || busy} onClick={onRedo} />
+                <MenuButton
+                  quickBar
+                  name={labels.insert}
+                  tip={insertOff || labels.insertTip}
+                  disabled={!!insertOff || busy}
+                  glyph={<Icon name="insert" />}
+                  text={labels.insert}
+                  spec={() => INSERT_ITEMS.map((i) => ({ label: i.label, role: 'menuitem' as const, run: () => startPlacing(i.kind) }))}
+                />
+                <IconButton icon="comment" label={labels.comment} tip={commentOff || labels.commentTip} opens="comment" disabled={!!commentOff || busy} onClick={() => selIndex !== null && openComment({ target: selIndex, opener: 'bar' })} />
                 <IconButton icon="review" label={labels.review(pins.length)} words={labels.reviewWords} tip={labels.reviewTip} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
               </div>
               <span className="ue-flex" />
@@ -475,6 +636,10 @@ export default function UiEditorTool() {
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group">
+                <label className="ue-include" title={labels.includeCommentsTip}>
+                  <input type="checkbox" checked={include} disabled={notesTotal === 0} onChange={(e) => setInclude(e.currentTarget.checked)} />
+                  {labels.includeComments}
+                </label>
                 <IconButton icon="download" label={labels.download} showLabel tip={labels.downloadTip(files)} onClick={onDownload} />
               </div>
               <span className="ue-sep" aria-hidden="true" />
@@ -503,7 +668,13 @@ export default function UiEditorTool() {
               onMessage={(text) => show({ kind: 'refusal', text })}
               onMove={onReorder}
               onNudge={onNudge}
-              onSelectIndex={(i) => session && setSelPath(pathOf(session.preview.model, i))}
+              onSelectIndex={selectIndexOnly}
+              onEditText={() => startTextEdit(undefined, true)}
+              onDelete={deleteElement}
+              canDelete={canDelete}
+              notesCount={notesTotal}
+              notesOpen={notesOpen}
+              onNotes={() => (notesOpen ? closeNotes() : (setCommentFor(null), setNotesOpen(true)))}
               grid={grid}
               onGrid={setGrid}
               snap={snap}
@@ -592,7 +763,7 @@ export default function UiEditorTool() {
           <div className="ue-preview">
             {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
             <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
-              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} />
+              <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} placing={placing} trialInsert={trialInsert} onPlace={onPlace} onPlaceReason={onPlaceReason} textEdit={editingText !== null && editingText === selPath} onTextApply={applyText} onTextCancel={() => stopTextEdit(true)} onEditText={(i) => startTextEdit(i)} onDelete={deleteElement} pins={pinRows} onPin={(i) => { selectIndexOnly(i); openComment({ target: i, opener: 'pin', pin: pinRows.find((r) => r.index === i)?.n }) }} />
             </div>
             <p id="ue-preview-hint" className="ue-hint">
               {labels.previewHint}
@@ -621,9 +792,34 @@ export default function UiEditorTool() {
             </span>
           </div>
           {files.map((file) => (
-            <CodeView key={file} ref={(h) => { codeViews.current[file] = h }} file={file} header={sectionHeader(file, counts[file] ?? 0)} copyName={copyName(files, file)} onCopy={() => void onCopy(file)} text={session?.files[file] ?? ''} hunks={hunksByFile[file] ?? []} total={changes.length} current={walkK} offset={offsetOfFile(files, counts, file)} target={targetFor(file)} onJump={(i) => visit(offsetOfFile(files, counts, file) + i)} />
+            <CodeView key={file} ref={(h) => { codeViews.current[file] = h }} file={file} header={sectionHeader(file, counts[file] ?? 0)} copyName={copyName(files, file)} onCopy={() => void onCopy(file)} text={outFiles[file] ?? ''} hunks={hunksByFile[file] ?? []} total={changes.length} current={walkK} offset={offsetOfFile(files, counts, file)} target={targetFor(file)} onJump={(i) => visit(offsetOfFile(files, counts, file) + i)} />
           ))}
         </details>
+      )}
+      {commentFor && session && (
+        <CommentPopover
+          key={`${commentFor.target}-${rev}`}
+          whole={commentFor.target === 'page'}
+          existing={commentFor.target === 'page' ? noteList.page?.text ?? null : noteList.notes.find((n) => n.index === commentFor.target)?.text ?? null}
+          anchor={anchorOf(commentFor)}
+          onSave={(text) => saveNote(commentFor.target, text, (commentFor.target === 'page' ? noteList.page?.text : noteList.notes.find((n) => n.index === commentFor.target)?.text) !== undefined)}
+          onDelete={() => saveNote(commentFor.target, '', true)}
+          onClose={closeComment}
+        />
+      )}
+      {notesOpen && session && (
+        <NotesList
+          page={noteList.page?.text ?? null}
+          rows={pinRows.map((r) => ({ ...r, label: labelOf(session, r.index) }))}
+          anchor={'button[data-opens="notes"]'}
+          onAddPage={() => openComment({ target: 'page', opener: 'notes' })}
+          onEditPage={() => openComment({ target: 'page', opener: 'notes' })}
+          onDeletePage={() => { setNotesOpen(false); saveNote('page', '', true) }}
+          onJump={(i) => { setNotesOpen(false); selectIndexOnly(i); session.preview.elements[i]?.scrollIntoView?.({ block: 'nearest' }) }}
+          onEdit={(i) => { selectIndexOnly(i); openComment({ target: i, opener: 'notes' }) }}
+          onDelete={(i) => { setNotesOpen(false); saveNote(i, '', true) }}
+          onClose={closeNotes}
+        />
       )}
     </section>
   )

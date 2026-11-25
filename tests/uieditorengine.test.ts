@@ -6,7 +6,7 @@ import { SAMPLE_FILES } from '../src/ui-editor/samples/manifest.ts'
 
 const dir = new URL('../src/ui-editor/vendor/', import.meta.url)
 const read = (f: string) => readFileSync(new URL(f, dir), 'utf8')
-const COMMIT = '27065d8847738f61b7b9538ab6070122559e842f'
+const COMMIT = 'a5f954a610cfdf2693fadd2a7b105b4acf59a9e3'
 
 type Engine = {
   createModel: (source: string, kind: 'html' | 'svg', companions?: Record<string, string>, file?: string) => { primary: { elements: unknown[]; source: string }; sheets: unknown[] }

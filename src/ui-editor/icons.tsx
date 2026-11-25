@@ -2,7 +2,7 @@
 // No icon library. Each icon is decoration: the button it sits in carries the accessible name (aria-label) and the tooltip (title).
 import type { ReactNode } from 'react'
 
-export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow'
+export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow' | 'insert' | 'comment'
 
 const PATHS: Record<IconName, ReactNode> = {
   desktop: (
@@ -67,6 +67,15 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M18 9v10H9" />
     </>
   ),
+  // Comment (stage 2): a speech bubble.
+  comment: <path d="M5 5h14v10h-8l-4.5 4V15H5z" />,
+  // Insert (round 1): a plus in a rounded square.
+  insert: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+      <path d="M12 8.5v7M8.5 12h7" />
+    </>
+  ),
   // A device outline with a small curved arrow over it.
   rotate: (
     <>
@@ -101,14 +110,16 @@ interface Props {
   words?: string
   /** The tooltip, when it says more than the name (the name is the aria-label, and the tooltip then becomes the accessible description). */
   tip?: string
+  /** Stage 2: marks the button that opens a popover, so the popover can give the focus back to it and ignore its click. */
+  opens?: 'comment' | 'notes'
   onClick: () => void
 }
 
 /** An icon button: aria-label for the name, title for the visible tooltip, a focus ring from the stylesheet. */
-export function IconButton({ icon, label, tip, disabled, pressed, expanded, badge, text, showLabel, words, onClick }: Props) {
+export function IconButton({ icon, label, tip, disabled, pressed, expanded, badge, text, showLabel, words, opens, onClick }: Props) {
   const word = text ?? words ?? (showLabel ? label : undefined)
   return (
-    <button type="button" className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
+    <button type="button" data-opens={opens} className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
       <Icon name={icon} />
       {word && <span className="ue-icon-text">{word}</span>}
       {badge ? (

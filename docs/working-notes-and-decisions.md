@@ -118,3 +118,29 @@ Max found the round 5 ribbon "a little better, but a lot of unused space" and as
 - **Tests that had to change.** Three existing tests pinned things the brief replaces (the alignment and unit captions, 26 px controls, the round 5 column weights); I changed only those lines, said why in comments, and listed them in the gate log (#41).
 - **Retired checks (listed for your decision):** V01, V02, V04 as wholes and parts of V09, U01, U03, U05, T03, U06, R04, R09 (`docs/ui-editor-gate-rules-round6.md`). Round 5's amendments stand and are still undecided.
 - **Home planet card.** Unchanged.
+
+## 2026-11-23: UI Editor insert round 1, stage 1 (still behind the flag, not released)
+The engine now has four new edit kinds (insert, text, remove, note); stage 1 puts three of them on the page: Insert with flow placing, text editing and Delete (Comments and Include comments are stages 2 and 3). Record: `docs/sessions/2026-11-23-ui-editor-insert1-stage1.md`; rules, pass line per stage and amendments A1 to A7: `docs/ui-editor-gate-rules-insert1.md`; the vendored engine is a build of `a5f954a` (`src/ui-editor/vendor/README.md`).
+
+- **Placing asks the engine, never the preview.** The insertion line, the Delete button and the text box all use `applyEdit` on the model without committing (a pure function of the model, the edit, the probe and the state), so nothing of the editor is in the preview and nothing changes until the one edit is made. The line, the text box and (stage 2) the pins live in the overlay layer.
+- **Thirds.** The top third of the hovered element is before, the bottom third after, the middle inside (as the last child); over the empty page, inside the body. (Mine; written in the rules.)
+- **Content edits ignore Link and the environment**, so the page does not pass them. Undo, Redo and Reset replay the list; any of them lets the selection go (an insert or a remove changes which element a path names).
+- **Limits.** Flow placement only, HTML only; text editing refuses an element with child elements and takes no line breaks; Delete keeps the page's own rules for the element and does not check links to a removed id.
+- **Tests that had to change:** the engine commit pin (approved) and the bar's `text=` count; both in the gate log (#47).
+- **Spec gaps found before scoring (A6, A7):** the locked Y04 and Y05 could not catch an Escape that applies typed text or a Delete that clears the selection; they were fixed by numbered amendments, not by editing the locked file.
+
+## 2026-11-24: UI Editor insert round 1, stage 2 (Comments; still behind the flag, not released)
+Comment, pins, the Notes list and Include comments are on the page; Y01 to Y10 and Y14 pass, Y11 to Y13 are stage 3. Record: `docs/sessions/2026-11-24-ui-editor-insert1-stage2.md`; runner changes #48 to #53 in `docs/ui-editor-gate-log.md`; amendments A8 to A16 in the rules.
+
+- **A note is the engine's, not the page's.** The page writes no comment text; it sends `note` edits and reads `listNotes`. Include comments OFF strips the notes and header from the engine's text (whole line when the comment owns it), and that equals the export of the edit list with its note edits left out.
+- **Pins live in the overlay**, centred on the element's corner and drawn at screen size; the gate reads the edit list from a read-only `data-edit-list` attribute on the tool.
+- **Comment is icon-only**: with its word the bar overflowed at 1280 px once the Review badge showed.
+- **Notes is always on** (A15), though round 4's U09 says every other strip control is disabled with nothing selected.
+- **Lesson:** an extra state update in a layout effect makes React flush the pending rebuild effect early, so keys pressed while the preview rebuilds are dropped; keep per-draw work small (stable keys, memoised JSON).
+- **Spec slips of mine caught by running them:** A11 to A14 (the second Undo, the list opened after a reload, a jump that started from the selected element, my own off-by-one in step numbers).
+
+## 2026-11-24: UI Editor insert round 1, stage 3 (final; still behind the flag, not released)
+Y11 to Y13 pass and the whole round passes: Y01 to Y14, the earlier rounds as before. Record: `docs/sessions/2026-11-24-ui-editor-insert1-stage3.md`; gate log #54 to #56; amendments A17 to A19.
+- **Focus returns to the opener** (Comment, a pin, Notes, Edit text) when a popover or the text box closes.
+- **The text box is 16 px or more on the screen**, 44 x 160 px at least on a scaled device, exactly the element's box at full size.
+- **Spec slip caught by the scorer check:** Y11's Move up was refused by the engine (Link off), so nothing was tested; A19 turns Link on first.

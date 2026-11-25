@@ -1,5 +1,5 @@
 // Types for engine.js, the vendored UI Editor engine (see README.md). Written by hand from the engine's own source (ui-editor repo,
-// commit 27065d8847738f61b7b9538ab6070122559e842f: engine/src/types.ts, dom.ts, edit.ts, responsive.ts, model.ts, patch.ts, index.ts).
+// commit a5f954a610cfdf2693fadd2a7b105b4acf59a9e3: engine/src/types.ts, dom.ts, edit.ts, responsive.ts, model.ts, patch.ts, index.ts).
 // Strict: no `any`. Offsets are UTF-16 code unit indexes into the ORIGINAL source string of the file they belong to.
 
 export type Kind = 'html' | 'svg' | 'css'
@@ -99,6 +99,19 @@ export interface ParsedFile {
   /** Rules (CSS files only). */
   rules: RuleNode[]
   parseErrors: number
+  /** Every comment node of an HTML/SVG file in source order (empty for CSS). */
+  comments: CommentInfo[]
+}
+
+/** One comment node: its source range, the text between `<!--` and `-->`, and the element it directly precedes. */
+export interface CommentInfo {
+  start: number
+  end: number
+  data: string
+  /** Index of the element the comment sits in, or -1 at document level. */
+  parent: number
+  /** Index of the element that follows with only whitespace between, or -1. */
+  precedes: number
 }
 
 export interface Model {
@@ -121,10 +134,23 @@ export interface EditScope {
   link?: boolean
 }
 
-export type Edit =
+/** The kinds of element `insert` can add (HTML only). */
+export type InsertKind = 'text' | 'rect' | 'rounded' | 'ellipse' | 'button'
+
+export type ElementEdit =
   | ({ op: 'set'; target: number; properties: Record<string, string> } & EditScope)
   | ({ op: 'offset'; target: number; dx: number; dy: number } & EditScope)
   | ({ op: 'reorder'; target: number; placement: 'before' | 'after'; sibling: number } & EditScope)
+
+/** Content edits: they apply at every screen width, ignore `environment` and `link`, and make no pins. */
+export type ContentEdit =
+  | ({ op: 'insert'; kind: InsertKind; anchor: number; placement: 'before' | 'after' | 'first-child' | 'last-child' } & EditScope)
+  | ({ op: 'text'; target: number; text: string } & EditScope)
+  | ({ op: 'remove'; target: number } & EditScope)
+  /** `target` is an element index, or 'page' for the whole-page note; blank text deletes the note. */
+  | ({ op: 'note'; target: number | 'page'; text: string } & EditScope)
+
+export type Edit = ElementEdit | ContentEdit
 
 /** An unlinked value pinned in one environment (pure data; the review list is built from it). */
 export interface Pin {
@@ -154,6 +180,9 @@ export type DomOp =
   | { type: 'attr'; index: number; name: string; value: string }
   | { type: 'html'; index: number; html: string }
   | { type: 'css'; index: number; text: string }
+  | { type: 'css-remove'; index: number; text: string }
+  | { type: 'insert'; index: number; position: 'beforebegin' | 'afterbegin' | 'beforeend' | 'afterend'; html: string }
+  | { type: 'remove'; index: number }
 
 export interface Refusal {
   code: string
@@ -161,7 +190,18 @@ export interface Refusal {
 }
 
 export type EditResult =
-  | { ok: true; patches: Patch[]; dom: DomOp[]; warnings: string[]; placement: string; notes?: ScaleNote[]; state?: EditState }
+  | {
+      ok: true
+      patches: Patch[]
+      dom: DomOp[]
+      warnings: string[]
+      placement: string
+      notes?: ScaleNote[]
+      state?: EditState
+      /** `insert`: index of the new element in the model of the PATCHED text, and its class name. */
+      selected?: number
+      className?: string
+    }
   | { ok: false; refusal: Refusal; warnings: string[] }
 
 /** What the engine needs to know from a live document. Implemented over the preview iframe. */
@@ -230,6 +270,20 @@ export function envCondition(env: Environment, breakpoint: number): string
 export function chainEnv(chain: string[], breakpoint: number): Environment | 'both' | 'none'
 export function chainMatches(chain: string[], width: number): boolean
 export function listUnlinked(state: EditState): UnlinkedItem[]
+/** A note for an AI found in a file. */
+export interface NoteInfo {
+  index: number
+  path: string
+  /** The note text without the leading `NOTE FOR AI: `. */
+  text: string
+}
+export interface NoteList {
+  page: { text: string } | null
+  notes: NoteInfo[]
+}
+export function listNotes(model: Model): NoteList
+/** The text a note is written with: every run of two or more hyphens gets a space between each pair; NUL removed; CR normalised. */
+export function neutralise(text: string): string
 export function scaleValue(value: string, ratios: number[]): Scaled
 
 export function createModel(source: string, kind: Exclude<Kind, 'css'>, companions?: Record<string, string>, file?: string): Model

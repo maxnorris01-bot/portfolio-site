@@ -315,3 +315,85 @@ the replaced fact, kept every other line, and said why in a comment in the test.
 | 41c | `tests/uieditorround5.test.ts`, "the column weights of the grid are the measured widths plus 28 px" | The round 5 weights (290, 200, 209, 288, 197, 296, 260), `padding: 4px 14px 2px`, `.ue-lg` 72 px | The round 6 weights (`RIBBON_COLUMNS`: 225, 143, 182, 273, 187, 205, 133) as both floor and weight of every column, the medium rule, one band from their sum, `padding: 8px`, rows 28 px high with 5 px between | Round 6 replaces the round 5 groups (V01, V02 and V04 are retired whole by the locked rules). The test is rewritten to say the same kind of thing about the new groups, not weakened to say less. |
 
 The new tests are in `tests/uieditorround6.test.ts` (9).
+
+## 2026-11-22, UI Editor insert round 1 (`feat/ui-editor-insert1`)
+
+Rules: `docs/ui-editor-gate-rules-insert1.md`; specs: `scripts/ui-editor-gate/specs-insert1.json` (locked in `00078b1`). No runner change yet. Baseline and stop: `docs/ui-editor-baseline-insert1.md`.
+
+| # | Change | Why |
+|---|---|---|
+| 1 | `tests/uieditorengine.test.ts`: the constant `COMMIT` is now `a5f954a610cfdf2693fadd2a7b105b4acf59a9e3` (was `27065d8847738f61b7b9538ab6070122559e842f`). Old assertion: the engine's header, the README and the commit equal `27065d8…`. New: they equal `a5f954a…`. | Vendoring the new engine makes the old pin untrue. Not in the brief's list of tests that may change: flagged for Max. |
+
+## 2026-11-23, insert round 1, stage 1 (`feat/ui-editor-insert1`, on top of `main` at `bcbf335`)
+
+Rules: `docs/ui-editor-gate-rules-insert1.md` (locked in `00078b1`; numbered amendments A1 to A7 in its section 7, in a form the runner reads: `scripts/ui-editor-gate/amendments-insert1.json`); specs:
+`scripts/ui-editor-gate/specs-insert1.json` (never edited). Stage 1 covers Y01 to Y05 and the kept checks (Y14); Y06 to Y13 report NOT BUILT. The scorer-check stub is `reference/insert1.html` (`--stub8`).
+
+| # | Change | Why |
+|---|---|---|
+| 42 | The runner loads `specs-insert1.json` and `amendments-insert1.json`. `--stage N` runs the Y specs of that stage with their amendments applied (steps skipped, replaced or added after) and reports the others NOT BUILT; Y14 is an aggregate (W01 to W06, W08, W09 PASS in the same run) plus the four no-op round trips. Without `--stage` (or `--only Yxx`) the Y specs are not run, so the earlier gate runs are as they were. `--stub8` serves `reference/insert1.html`. A plain page (`/ref.html`) loads the vendored engine so the gate can ask it for its own result of one edit on given files (placing). | The brief's stages and amendments A1 to A7. |
+| 43 | New steps: `hoverElement`, `dblclickElement`, `placeCases`, `fillText`, `clickButton`, `confirm`, `pressPage`, `focusField`, `selectPath`, `setLink`; `click` reads `at: top`. New asserts: `insertBarOrder`, `menuItemsOrder`, `disabledWithReason`, `insertBarFits`, `placing`, `insertLine`, `statusContains`, `exportEqualsOriginal`, `insertedVisible`, `previewText`, `exportText`, `exportParse`, `textEditor`, `textEditorOpen`, `gone`, `present` (with `sel`; the earlier `present` with `items` keeps its meaning), `selectedIs`; `noOverflowX` with `widths` measures the preview at each width. | The Y specs' `vocabulary`. |
+| 44 | **Readings:** a P2 assert of a Y spec is one of the export checks, and a Y spec's P2 is PASS when it has such asserts and all hold (the dump comparison of the earlier specs needs `widths`, which Y specs do not have). `type` reads `value` when `text` is absent (A3). A menu button, and `menuState`, are looked for in the quick bar as well as the ribbon (Insert is in the bar). The selected element is the deepest element whose box is the selection outline's box (`selectedEl`); `selectedIs` compares boxes. `placeCases` takes the files before the click, asks the vendored engine for the same one insert on them, and compares byte for byte; the new element's box is read in the exported file loaded fresh at the preview's width. | Operational definitions, mine. |
+| 45 | `--timing`: a timestamp and the elapsed time at the start of every spec and step. | Asked for by Max, to see where a long run first goes wrong. |
+| 46 | **A runner bug of mine, found and fixed:** my first `present` assert for the Y specs shadowed the earlier `present` (a `switch` takes the first matching case), so the round 1 and round 2 specs that use it (R02, R14) failed on their own stub control. The re-run of the earlier faults found it (the control of `--stub3` failed); it was fixed, and the whole earlier fault set was run again. The first run is kept (`earlier-results-run1-present-bug`). | The re-run did its job. |
+| 47 | **Existing tests edited** (see below). | The brief lists them as allowed. |
+
+**Scorer check (stage 1, `--stub8`).** Controls: Y01 to Y05 PASS, Y06 to Y13 NOT BUILT. 21 injected faults, each must fail where stated: insertion line 12 px off (`line-12`), a click that inserts at the wrong place (`wrong-place`),
+Escape that still inserts (`escape-inserts`), Escape that does not cancel placing (`escape-keeps-placing`), the line active at a refused spot (`refused-line-active`): Y02; no engine reason in the status line
+(`status-no-reason`): Y02 and Y04; a text edit applied on Escape (`edit-escape-applies`), typed `<script>` as markup (`script-markup`), the text box 12 px off (`editor-12-off`), double-click that opens nothing
+(`dblclick-no-open`), F2 that opens nothing (`f2-no-open`), a text box over an element with child elements (`edit-child-opens`): Y04; menu items out of order (`insert-order`), Insert not disabled on SVG
+(`insert-no-svg-disable`), no reason in its tooltip (`insert-no-reason`), a 760 px Insert button (`bar-wide`): Y01; the selection cleared after Delete (`delete-parent-wrong`), the Delete key deleting while a field has
+focus (`delete-in-field`), Delete enabled on an implied element (`delete-implied`): Y05. **The first run missed two** (`edit-escape-applies` and `delete-parent-wrong` passed), which STOPPED the build until the spec was fixed:
+amendments A6 and A7 (see the rules, section 7); after them both fail, and the other 19 failed already. Stage 2 and 3 faults (a note left by Delete, pins, headers, Include comments, hostile notes, reloaded notes, a pin
+after Move up, a 40 px control at 390) are not part of this stage. The earlier faults were re-run on the changed runner: 59 (`--stub` to `--stub5`), 13 (round 5 stub) and 21 (round 6 stub) = 93 fault runs, all caught; the
+controls of the earlier stubs are as before (only T10 on the round 3 stub, as in round 3).
+
+**Existing test assertions edited (for Max's decision).**
+| # | Test | Before | Now | Why |
+|---|---|---|---|---|
+| 47a | `tests/uieditorengine.test.ts` (approved by Max, added to the list) | `const COMMIT = '27065d8847738f61b7b9538ab6070122559e842f'` | `const COMMIT = 'a5f954a610cfdf2693fadd2a7b105b4acf59a9e3'` | The test names the commit the vendored engine is a build of; the vendoring changed it. One line. |
+| 47b | `tests/uieditorround2.test.ts`, "Rotate is drawn as a device outline ... the one icon button that shows its word" | `assert.equal((bar.match(/ text=\{/g) ?? []).length, 1, 'only Rotate has a visible label')` | the count is 2, with a second assertion that the other is `text={labels.insert}` | The quick bar gains the Insert menu button, which shows its word like Rotate (the brief lists assertions that count the bar's controls). |
+
+The new tests are in `tests/uieditorinsert1.test.ts` (8). No locked check is retired by stage 1 (none of the new controls changes what a locked check names), and no locked file was edited.
+
+**Runs kept** (the raw logs are outside the repository, in the session's scratch folder; the numbers are here): `A` (the vendored tree, clean: 205 s, 87 specs); the stage 1 scorer-check runs (first with the two misses, then
+after A6 and A7); the earlier faults twice (the first with the `present` bug); the final run 1 on `bc70f83` (gate 06:37:11 to 06:41:11 UTC: **one miss, U03**, see below) and the final run 2 on `8233ed8` (gate 06:43:30 to
+06:47:54, clean). **Iteration 1 (labelled):** run 1's only miss was U03's tooltip check: the tooltips of `Edit text` (`Change the text ...`) and `Delete` (`Remove this element ...`) do not start with one of the verbs of
+that locked check (it has no Change, Remove or Delete). The two tooltips were rewritten (`Edit the text ...`, `Use this or the Delete key to remove the element.`) and everything was run again. Nothing else changed.
+
+## 2026-11-24, insert round 1, stage 2 (`feat/ui-editor-insert1`)
+
+Runner (`scripts/ui-editor-gate/run.mjs`), stub (`reference/insert1.html`, `--stub8`) and amendments (`amendments-insert1.json`, rules section 7, A8 to A16). Nothing in a locked file was edited.
+
+| # | Change | Why |
+|---|---|---|
+| 48 | New steps `clickPin`, `clickNotesRow`, `noteEach`, `snapshotCopy`, `setBox`, `rotate`, `reloadFromExport`; `fillStyle` runs as `type`; downloaded names follow a reloaded document (alias of the primary file). | The stage 2 specs name them (A9). |
+| 49 | New asserts `checkboxState`, `commentPopover`, `pin`, `iframeClean`, `exportCommentCount`, `exportNotes`, `notesList`, `codeViewEquals`, `equalsListWithout`, `notesReadBack`; `exportLacks` with `text`. `equalsListWithout` reads the page's read-only `data-edit-list` (JSON of the edit list on `[data-editor]`) and replays it, minus the note edits, with the vendored engine in the runner's own `/ref.html`; `iframeClean` counts elements with the same attribute. | Readings in A9. |
+| 50 | `noteEach` selects a target the way a visitor can: click inside (inset, centre, then points along it, a line has no height), else a click on a descendant and its segment of the path; a target that cannot be selected is a FAIL. | A9.7. |
+| 51 | `selectedIs` now says where the outline is and where the element is when it fails. | Found while chasing A13. |
+| 52 | `enabledOnly` leaves the control named `Notes` out of both lists (stage 2 on). | A15: the Notes button is always on, as the view aids are; round 4's U09 failed on it. |
+| 53 | **Amendments found by running the stub and the page, each before anything was scored:** A11 (Y05 needs a second Undo after the noted element comes back), A12 (Y10 opens the Notes list after each reload), A13 (Y07's jump starts from another selection; found by an extra fault), A14 (my step numbers in A11 to A13 were off by one; the JSON keys are 0-based), A15 and A16 (above). | Spec gaps and my own slips, each logged. |
+
+**Scorer check (stage 2, `--stub8 --stage 2`).** Controls: Y01 to Y10 PASS, Y11 to Y13 NOT BUILT. The eight faults named for the stage, each failing where stated: a pin 12 px off (`pin-12-off`, Y06), a pin present in the iframe DOM (`pin-in-iframe`, Y06), Delete leaving its note (`delete-leaves-note`, Y05), a header left after the last note is deleted (`header-left`, Y05 and Y07), Include comments OFF leaving the header (`include-off-keeps-header`, Y08), a download that differs from the code view (`download-differs-from-view`, Y08), a note with `-->` left raw (`note-raw`, Y09), notes not read back on reload (`reload-no-notes`, Y10). **All eight failed.** My extras, nine more: pins numbered the wrong way (`pin-wrong-n`, Y06 and Y10), an extra button in the popover (`popover-extra-button`, Y06), no page row in the list (`notes-no-page-row`), rows in the wrong order (`notes-order`), blank text that keeps the note (`blank-keeps-note`), a jump that selects nothing (`jump-no-select`): Y07; Copy differing from Download (`copy-differs`), Include enabled with no notes (`include-enabled-empty`), Include OFF by default (`include-default-off`): Y08. Eight of the nine failed at once; **`jump-no-select` passed**, which is the spec gap fixed by A13 (the element was already selected before the jump); after A13 (and a fix to the stub, which did not scroll before drawing) the control passes and the fault fails. The 21 stage 1 faults were re-run with `--stage 2`: all caught. The earlier fault runs (the three scripts: 22 + 64 + 13 = 99 runs, controls included) were re-run: all caught as before, controls as before (only T10 on the round 3 stub; W07d `no-gradient` reports NOT BUILT, as before).
+
+**Page bugs found by the gate, fixed (labelled iterations).** (1) First full run on the page: U09 failed (`Notes` enabled with nothing selected, A15), U04 failed (with the word `Comment` beside its icon the quick bar no longer fits at 1280 px once Review unlinked shows its badge, so the stage moved down a row: Comment is icon-only, A16, and the round 2 test that counts the bar's words is not edited), T10 failed (already failed since round 3). (2) The extras check "arrow keys nudge by 1 px, Shift by 10 px" failed (moved 2) and "Ctrl-Shift-Z redoes while the editor has focus" failed in the first final run on `183b6af`: a second nudge rebuilds the preview, and the keys that arrive while it rebuilds are dropped; the extra draws I had added (the pins measured on every parent draw, the edit list written to an attribute on every draw) made the window longer. The pins are now measured on a stable key and the JSON is memoised. The check is timing-sensitive: the stage 1 build, run eight times, passes five times (moved 14) and fails three (2 or 4); the stage 2 build passes eight of eight. Final run 1 (kept) is on `183b6af`; the final run is on `17fde71`.
+
+**Existing test assertions edited.** `tests/uieditorround5.test.ts` ("one Download saves every file ..."): `for (const f of files) { const text = session.files[f]` is now `const text = outFiles[f]` (Download saves what the page shows: the notes stripped when Include comments is off). One line. The round 2 test of the bar's words (#47b) is not touched again (Comment has no word). New tests: 7 more in `tests/uieditorinsert1.test.ts` (15 in all).
+
+**Retired checks.** None in stage 2.
+
+## 2026-11-24, insert round 1, stage 3 (`feat/ui-editor-insert1`)
+
+| # | Change | Why |
+|---|---|---|
+| 54 | New step `measureAt` (the current export loaded fresh at each width, computed `font-size` read) and asserts `uniqueNames`, `newTouchTargets`, `pinHit`; `review` with `count` and `names` (opens the Review list and reads it); `popover` without a name means any open dialog. | Y11 to Y13 name them; readings in A18. |
+| 55 | Amendments before scoring: A17 (pass line: Y01 to Y14 all PASS, none NOT BUILT), A18 (readings; its `measureAt` text was corrected the same day, my first draft read the preview, whose width is its view's), A19 (Y11 `Move up` was refused by the engine with Link off, so no reorder had happened; `setLink` true is inserted before it). | Found by running the stub and the page. |
+| 56 | Stub `insert1.html`: a Review list, selection kept after a reorder (as the page's `moveTarget`), Edit text button returning focus, pins at screen size, 44 px rules at phone width. | The stage 3 specs need them. |
+
+**Scorer check (stage 3, `--stub8 --stage 3`).** Controls: Y01 to Y14 PASS. Twelve faults, each failing where stated: a pin lost after Move up (`pin-lost-move-up`), after an insert (`pin-lost-insert`), after a Delete (`pin-lost-delete`), Review naming the wrong element (`review-wrong-name`): Y11; a 40 px Delete at 390 (`small-390`), a 40 px Save in the popover (`save-small-390`), a 30 px pin (`pin-small-390`), a popover off the window (`popover-off-screen`): Y13; a duplicate accessible name (`dup-name`), no focus back on Comment after Save (`save-no-focus`), none on Notes after Escape (`notes-esc-no-focus`), none on Edit text after Escape (`edit-focus-lost`): Y12. **All twelve failed**; the two the brief names (pin after Move up, 40 px control at 390) are among them. **The first run of `pin-lost-move-up` passed**, which would have STOPPED the round: it was the spec gap A19 (the Move up never happened, with Link off the engine refuses it), fixed by amendment before building; after A19 the control passes and the fault fails. Re-run with `--stage 3`: the 21 stage 1 faults, the 17 stage 2 faults, and the 99 runs of the earlier scripts: all caught, controls as before (only T10 on the round 3 stub).
+
+**Page bugs found by the gate, fixed.** Y12 failed on the page twice: after Save in the Comment popover the focus was on the page, not on the Comment button; Escape in the text box (opened with the Edit text button) left the focus on the page. Both now return the focus to the opener. Y11 and Y13 passed on the page at the first try.
+
+**Page change not asked for by a spec.** The text box is at least 16 px on the screen (it was 14 CSS px, 3.8 px on screen at 390), and on a scaled device at least 44 x 160 px, growing from the element's corner; at full size it is still exactly the element's box (Y04 holds).
+
+**Existing tests edited in stage 3.** None. New tests: 2 more in `tests/uieditorinsert1.test.ts` (17 in all). **Retired checks.** None.

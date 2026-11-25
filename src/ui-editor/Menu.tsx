@@ -52,6 +52,8 @@ interface ButtonProps {
   fixed?: boolean
   /** The room the button needs at least when it shares its row (px). */
   min?: number
+  /** A button of the quick bar (the look of its other buttons) instead of a ribbon control. */
+  quickBar?: boolean
   glyph?: ReactNode
   /** The colour bar under the glyph: a CSS colour, or null for "no colour" (transparent, drawn hatched). Omitted: no bar. */
   bar?: string | null
@@ -64,7 +66,7 @@ interface ButtonProps {
 }
 
 /** The button of a menu and the menu itself. */
-export function MenuButton({ name, tip, disabled, fixed, min, glyph, bar, text, chevron = true, spec, field, dot }: ButtonProps) {
+export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, glyph, bar, text, chevron = true, spec, field, dot }: ButtonProps) {
   const [open, setOpen] = useState(false)
   /** The labels of the submenus open now, with the element that opened each (for placing and for the focus on closing). */
   const [path, setPath] = useState<{ label: string; trigger: HTMLElement }[]>([])
@@ -166,9 +168,9 @@ export function MenuButton({ name, tip, disabled, fixed, min, glyph, bar, text, 
       <button
         ref={setButton}
         type="button"
-        className="ue-rbtn ue-menubtn"
+        className={inBar ? 'btn btn-secondary ue-icon has-text ue-barmenu' : 'ue-rbtn ue-menubtn'}
         data-menu-button={name}
-        data-stretch={fixed ? undefined : ''}
+        data-stretch={fixed || inBar ? undefined : ''}
         data-fixed={fixed ? '' : undefined}
         style={min ? ({ '--min': `${min}px` } as CSSProperties) : undefined}
         data-field={field}

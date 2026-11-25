@@ -1,0 +1,483 @@
+{
+  "version": 1,
+  "note": "Numbered amendments A1 to A18 of docs/ui-editor-gate-rules-insert1.md section 7 in a form the runner reads (--stage N). The locked specs-insert1.json is never edited.",
+  "stages": {
+    "1": {
+      "run": [
+        "Y01",
+        "Y02",
+        "Y03",
+        "Y04",
+        "Y05",
+        "Y14"
+      ],
+      "notBuilt": [
+        "Y06",
+        "Y07",
+        "Y08",
+        "Y09",
+        "Y10",
+        "Y11",
+        "Y12",
+        "Y13"
+      ]
+    },
+    "2": {
+      "run": [
+        "Y01",
+        "Y02",
+        "Y03",
+        "Y04",
+        "Y05",
+        "Y06",
+        "Y07",
+        "Y08",
+        "Y09",
+        "Y10",
+        "Y14"
+      ],
+      "notBuilt": [
+        "Y11",
+        "Y12",
+        "Y13"
+      ]
+    },
+    "3": {
+      "run": [
+        "Y01",
+        "Y02",
+        "Y03",
+        "Y04",
+        "Y05",
+        "Y06",
+        "Y07",
+        "Y08",
+        "Y09",
+        "Y10",
+        "Y11",
+        "Y12",
+        "Y13",
+        "Y14"
+      ],
+      "notBuilt": []
+    }
+  },
+  "specs": {
+    "Y01": {
+      "stage1": {
+        "replace": {
+          "2": [
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "insertBarOrder",
+              "after": "Redo",
+              "names": [
+                "Insert"
+              ]
+            }
+          ]
+        },
+        "amendment": "A2.1"
+      }
+    },
+    "Y05": {
+      "stage1": {
+        "skip": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "replace": {
+          "25": [
+            {
+              "do": "load",
+              "sample": "email"
+            },
+            {
+              "do": "click",
+              "sel": "#hello",
+              "at": "center"
+            },
+            {
+              "do": "selectPath",
+              "name": "tbody"
+            }
+          ]
+        },
+        "amendment": "A2.2, A4, A7",
+        "insertAfter": {
+          "13": [
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "selectedIs",
+              "sel": "#plans"
+            }
+          ],
+          "15": [
+            {
+              "do": "click",
+              "sel": "#card-ship",
+              "at": "inset"
+            },
+            {
+              "do": "clickButton",
+              "name": "Delete"
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "gone",
+              "sel": "#card-ship"
+            },
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "selectedIs",
+              "sel": "#plans"
+            },
+            {
+              "do": "clickButton",
+              "name": "Undo"
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportEqualsOriginal"
+            }
+          ]
+        }
+      },
+      "stage2": {
+        "replace": {
+          "25": [
+            {
+              "do": "load",
+              "sample": "email"
+            },
+            {
+              "do": "click",
+              "sel": "#hello",
+              "at": "center"
+            },
+            {
+              "do": "selectPath",
+              "name": "tbody"
+            }
+          ]
+        },
+        "insertAfter": {
+          "13": [
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "selectedIs",
+              "sel": "#plans"
+            }
+          ],
+          "15": [
+            {
+              "do": "click",
+              "sel": "#card-ship",
+              "at": "inset"
+            },
+            {
+              "do": "clickButton",
+              "name": "Delete"
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "gone",
+              "sel": "#card-ship"
+            },
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "selectedIs",
+              "sel": "#plans"
+            },
+            {
+              "do": "clickButton",
+              "name": "Undo"
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportEqualsOriginal"
+            }
+          ],
+          "9": [
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportCommentCount",
+              "file": "landing.html",
+              "comments": 1,
+              "headers": 1
+            },
+            {
+              "do": "clickButton",
+              "name": "Undo"
+            }
+          ]
+        },
+        "amendment": "A4, A7, A11 (steps 1 to 10 run as locked, A10)"
+      },
+      "stage3": {
+        "replace": {
+          "25": [
+            {
+              "do": "load",
+              "sample": "email"
+            },
+            {
+              "do": "click",
+              "sel": "#hello",
+              "at": "center"
+            },
+            {
+              "do": "selectPath",
+              "name": "tbody"
+            }
+          ]
+        },
+        "insertAfter": {
+          "13": [
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "selectedIs",
+              "sel": "#plans"
+            }
+          ],
+          "15": [
+            {
+              "do": "click",
+              "sel": "#card-ship",
+              "at": "inset"
+            },
+            {
+              "do": "clickButton",
+              "name": "Delete"
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "gone",
+              "sel": "#card-ship"
+            },
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "selectedIs",
+              "sel": "#plans"
+            },
+            {
+              "do": "clickButton",
+              "name": "Undo"
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportEqualsOriginal"
+            }
+          ],
+          "9": [
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportCommentCount",
+              "file": "landing.html",
+              "comments": 1,
+              "headers": 1
+            },
+            {
+              "do": "clickButton",
+              "name": "Undo"
+            }
+          ]
+        },
+        "amendment": "A4, A7, A11 (steps 1 to 10 run as locked, A10)"
+      }
+    },
+    "Y04": {
+      "stage1": {
+        "insertAfter": {
+          "11": [
+            {
+              "do": "fillText",
+              "target": "textEditor",
+              "text": "Escape must not apply this"
+            },
+            {
+              "do": "key",
+              "key": "Escape"
+            },
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "textEditorOpen",
+              "open": false
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportEqualsOriginal"
+            },
+            {
+              "do": "clickButton",
+              "name": "Edit text"
+            }
+          ]
+        },
+        "amendment": "A6"
+      },
+      "stage2": {
+        "insertAfter": {
+          "11": [
+            {
+              "do": "fillText",
+              "target": "textEditor",
+              "text": "Escape must not apply this"
+            },
+            {
+              "do": "key",
+              "key": "Escape"
+            },
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "textEditorOpen",
+              "open": false
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportEqualsOriginal"
+            },
+            {
+              "do": "clickButton",
+              "name": "Edit text"
+            }
+          ]
+        },
+        "amendment": "A6"
+      },
+      "stage3": {
+        "insertAfter": {
+          "11": [
+            {
+              "do": "fillText",
+              "target": "textEditor",
+              "text": "Escape must not apply this"
+            },
+            {
+              "do": "key",
+              "key": "Escape"
+            },
+            {
+              "do": "assert",
+              "p": "P5",
+              "k": "textEditorOpen",
+              "open": false
+            },
+            {
+              "do": "assert",
+              "p": "P2",
+              "k": "exportEqualsOriginal"
+            },
+            {
+              "do": "clickButton",
+              "name": "Edit text"
+            }
+          ]
+        },
+        "amendment": "A6"
+      }
+    },
+    "Y10": {
+      "stage2": {
+        "insertAfter": {
+          "10": [
+            {
+              "do": "clickButton",
+              "name": "Notes"
+            }
+          ],
+          "14": [
+            {
+              "do": "clickButton",
+              "name": "Notes"
+            }
+          ]
+        },
+        "amendment": "A12"
+      },
+      "stage3": {
+        "insertAfter": {
+          "10": [
+            {
+              "do": "clickButton",
+              "name": "Notes"
+            }
+          ],
+          "14": [
+            {
+              "do": "clickButton",
+              "name": "Notes"
+            }
+          ]
+        },
+        "amendment": "A12"
+      }
+    },
+    "Y07": {
+      "stage2": {
+        "insertAfter": {
+          "15": [
+            {
+              "do": "click",
+              "sel": "#headline",
+              "at": "center"
+            }
+          ]
+        },
+        "amendment": "A13"
+      },
+      "stage3": {
+        "insertAfter": {
+          "15": [
+            {
+              "do": "click",
+              "sel": "#headline",
+              "at": "center"
+            }
+          ]
+        },
+        "amendment": "A13"
+      }
+    },
+    "Y11": {
+      "stage3": {
+        "insertAfter": {
+          "12": [
+            {
+              "do": "setLink",
+              "checked": true
+            }
+          ]
+        },
+        "amendment": "A19"
+      }
+    }
+  }
+}

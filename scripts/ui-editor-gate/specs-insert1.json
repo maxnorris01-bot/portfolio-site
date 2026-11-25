@@ -1,0 +1,2345 @@
+{
+ "version": 1,
+ "retiredChecks": {},
+ "vocabulary": {
+  "steps": {
+   "placeCases": "For each case {kind, sel, zone, parent, index, tag, keep?}: openMenu Insert, menuItem kind; hoverElement sel at zone (before: the point 8% down the element's box, after: 92%, inside: 50%, horizontally centred); assert insertLine active with zone and geometry within lineTol of the stated edge (before: the line's centre within lineTol of the box's top edge; after: of the bottom edge; inside: the line's box within lineTol of the element's box); click that point; assert the new element is selected (its class starts new-box, new-text or new-button), its DOM position (parent selector, index among the parent's element children, tag) and that its preview box equals its box in the exported file loaded fresh within 1 px; assert the export equals the engine's own result for the same edit (the vendored engine applied to the original with the same one edit); then, unless keep, Undo and assert the export equals the original bytes.",
+   "hoverElement": "move the mouse over the stated zone of the element sel in the preview (window points; no click).",
+   "dblclickElement": "double-click the centre of sel in the preview.",
+   "fillText": "replace the whole text of the focused-by-script field target (textEditor: the overlay text box; commentBox: the comment popover's text area) with `text` using keyboard events (select all, then type); an empty `text` clears it.",
+   "setLink": "set the Link checkbox to `checked`.",
+   "clickButton": "click the visible button whose accessible name is `name` (a Save inside a popover is found within the open popover).",
+   "confirm": "click the confirm button named `name` in the confirmation line.",
+   "pressPage": "focus the preview area (not a field) and press `key`.",
+   "focusField": "focus the ribbon field named `name`.",
+   "selectPath": "click the segment named `name` in the selection path.",
+   "clickPin": "click the pin numbered n.",
+   "clickNotesRow": "in the open Notes list: row n's `action` (jump: the row's label button; Edit; Delete) or the page row's action (Add a note for the whole page; Delete page note).",
+   "snapshotCopy": "click Copy code and store the copied text of every file under `name`.",
+   "setBox": "set the checkbox named `name` to `checked` by clicking it when it differs.",
+   "noteEach": "for each target (selector, in order) select it and give it the next text through the Comment popover (Save); the text REPEAT5000 means 5,000 characters of 'abcdefghi '.",
+   "reloadFromExport": "open the stored snapshot `name` again as the document, `via` paste (the Paste area, markup and CSS fields) or upload (the file chooser with the files), after Discard edits if asked.",
+   "measureAt": "for each width in widths set the host width and compare the computed `prop` of `sel` in the preview with the expected string (hand-written).",
+   "view": "as before: Desktop, Tablet or Phone.",
+   "rotate": "as before: the Rotate button."
+  },
+  "asserts": {
+   "insertBarOrder": "P5. In the quick bar (the Editor controls group) the buttons named `names` come directly after the button `after`, in that order.",
+   "menuItemsOrder": "P5. The open menu of `button` has exactly the items `names`, in order.",
+   "disabledWithReason": "P5. The button `name` is disabled (aria-disabled or disabled) and its tooltip (title or aria-description) contains `contains`.",
+   "insertBarFits": "P1. At the host width the quick bar's controls are all inside the card (0.5 px), no control is clipped and the bar does not scroll sideways.",
+   "placing": "P5. The editor [data-stage] carries [data-placing] (active true) or not.",
+   "insertLine": "P1. [data-insert-line] is present with data-active equal to `active`; for an active line data-zone equals the zone just hovered.",
+   "statusContains": "P5. The status line text contains `text`.",
+   "exportEqualsOriginal": "P2. Every exported file equals the original source byte for byte.",
+   "insertedVisible": "P1. At each width the element `sel` in the preview is at least minSize wide and high and lies inside the page horizontally.",
+   "noOverflowX": "As before (P1), at each width in widths.",
+   "exportsEqual": "As before.",
+   "previewText": "P2. The textContent of `sel` in the preview equals `equals` exactly.",
+   "exportText": "P2. After parsing the downloaded `file` in Chromium the textContent of `sel` equals `equals` exactly.",
+   "exportParse": "P2. The downloaded `file` is parsed in Chromium: the element count differs from the original's by newElements (0 means none), no more script elements than the original, newComments more comment nodes than the original when given, textOf maps selectors to exact textContent, and with wellFormed an SVG parses as image/svg+xml with no parsererror.",
+   "textEditor": "P1. [data-text-editor] is visible, its box lies within tol of the box of `sel` in the preview (every edge), and its value equals `value`.",
+   "textEditorOpen": "P5. [data-text-editor] is visible (open true) or absent.",
+   "gone": "P2. `sel` no longer matches in the preview.",
+   "present": "P2. `sel` matches in the preview.",
+   "selectedIs": "P5. The selected element in the preview is the one matching `sel`.",
+   "exportCommentCount": "P2. In the downloaded (or snapshot) `file` the number of comments starting ' NOTE FOR AI' is `comments` and of header comments (the locked header text) is `headers`.",
+   "buttonDisabled": "as before.",
+   "commentPopover": "P5. The comment popover is open (open true); its text area has the accessible name `field` and, when given, the value `value`; its buttons are exactly `buttons`.",
+   "exportNotes": "P2. In the parsed export the comment directly before each `sel` equals ' NOTE FOR AI: ' + text + ' '; the page note (when given) equals ' NOTE FOR AI (whole page): ' + pageNote + ' ' and sits right after the header; the header count equals headers and it is directly after the DOCTYPE (headerAfter doctype) or the first node (start); the number of NOTE comments equals the notes given plus the page note.",
+   "pin": "P1. [data-pin][data-n=n] is visible, outside the preview iframe's document, and its centre lies within tol of the top-left corner of `sel`'s box (window points, iframe scale and device frame applied).",
+   "iframeClean": "P5. The preview document contains no element with a data-pin attribute and no element that is not in the original document or created by an edit.",
+   "exportLacks": "as before.",
+   "notesList": "P5. The Notes popover is open (it is opened when open is not given); its first row is the page row (text equals pageRow, or the Add row); the other rows in order have the pin number n, the element's label (as the path labels) and the text; each row has Edit and Delete.",
+   "checkboxState": "P5. The checkbox `name` is checked and disabled as stated.",
+   "codeViewEquals": "P2. The Updated code view's text of every file equals the stored snapshot.",
+   "equalsListWithout": "P2. The snapshot equals the export of the same edit list with every note edit left out, computed by the vendored engine in a scratch page.",
+   "notesReadBack": "P2. Each note's comment text read back in Chromium equals the typed text with the stated neutralising rule applied by the spec's own reference function (every run of two or more hyphens gets a space between each pair), nothing else changed.",
+   "review": "as before.",
+   "uniqueNames": "P5. Each name in names is the accessible name of exactly one visible control.",
+   "focusOn": "as before.",
+   "popover": "as before.",
+   "newTouchTargets": "P1. Every visible control named in `within` (and every menu item or button inside an open popover) is at least `min` px high and wide.",
+   "popoverFits": "P1. The open popover named `name` lies inside the window (0.5 px) and no control in it is clipped.",
+   "pinHit": "P1. The pin numbered n has a hit area at least `min` px high and wide.",
+   "menuFits": "as before.",
+   "css": "as before."
+  }
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL"
+ ],
+ "specs": [
+  {
+   "expected": "PASS",
+   "id": "Y01",
+   "name": "Insert menu: after Redo in the quick bar, five items in order, click and keyboard, Escape returns focus, disabled on the SVG sample and on Tablet with the reason, the bar fits at five widths",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "insertBarOrder",
+     "after": "Redo",
+     "names": [
+      "Insert",
+      "Comment"
+     ]
+    },
+    {
+     "do": "openMenu",
+     "name": "Insert"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Insert",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuItemsOrder",
+     "button": "Insert",
+     "names": [
+      "Text box",
+      "Rectangle",
+      "Rounded rectangle",
+      "Ellipse",
+      "Button"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Insert",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "focusControl",
+     "name": "Insert"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Insert",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Insert",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "disabledWithReason",
+     "name": "Insert",
+     "contains": "Tablet"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "disabledWithReason",
+     "name": "Insert",
+     "contains": "SVG"
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 1000
+    },
+    {
+     "do": "host",
+     "width": 1290,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 1290
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 1440
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 1920
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 390
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y02",
+   "name": "Placing: each kind before, after and inside on the landing page (line geometry within 2 px, click drops it, export equals the engine's result, the new element is selected, box and position match, Undo returns the exact bytes); a refused spot on the email shows the engine's reason and inserts nothing; Escape cancels with no edit",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Text box",
+       "sel": "#card-build",
+       "zone": "before",
+       "parent": "#plans",
+       "index": 1,
+       "tag": "p"
+      },
+      {
+       "kind": "Text box",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "p"
+      },
+      {
+       "kind": "Text box",
+       "sel": "#art",
+       "zone": "inside",
+       "parent": "#art",
+       "index": 0,
+       "tag": "p"
+      },
+      {
+       "kind": "Rectangle",
+       "sel": "#card-build",
+       "zone": "before",
+       "parent": "#plans",
+       "index": 1,
+       "tag": "div"
+      },
+      {
+       "kind": "Rectangle",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "div"
+      },
+      {
+       "kind": "Rectangle",
+       "sel": "#art",
+       "zone": "inside",
+       "parent": "#art",
+       "index": 0,
+       "tag": "div"
+      },
+      {
+       "kind": "Rounded rectangle",
+       "sel": "#card-build",
+       "zone": "before",
+       "parent": "#plans",
+       "index": 1,
+       "tag": "div"
+      },
+      {
+       "kind": "Rounded rectangle",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "div"
+      },
+      {
+       "kind": "Rounded rectangle",
+       "sel": "#art",
+       "zone": "inside",
+       "parent": "#art",
+       "index": 0,
+       "tag": "div"
+      },
+      {
+       "kind": "Ellipse",
+       "sel": "#card-build",
+       "zone": "before",
+       "parent": "#plans",
+       "index": 1,
+       "tag": "div"
+      },
+      {
+       "kind": "Ellipse",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "div"
+      },
+      {
+       "kind": "Ellipse",
+       "sel": "#art",
+       "zone": "inside",
+       "parent": "#art",
+       "index": 0,
+       "tag": "div"
+      },
+      {
+       "kind": "Button",
+       "sel": "#card-build",
+       "zone": "before",
+       "parent": "#plans",
+       "index": 1,
+       "tag": "button"
+      },
+      {
+       "kind": "Button",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "button"
+      },
+      {
+       "kind": "Button",
+       "sel": "#art",
+       "zone": "inside",
+       "parent": "#art",
+       "index": 0,
+       "tag": "button"
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "openMenu",
+     "name": "Insert"
+    },
+    {
+     "do": "menuItem",
+     "name": "Rectangle"
+    },
+    {
+     "do": "hoverElement",
+     "sel": "#card-build",
+     "zone": "before"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "placing",
+     "active": false
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "openMenu",
+     "name": "Insert"
+    },
+    {
+     "do": "menuItem",
+     "name": "Rectangle"
+    },
+    {
+     "do": "hoverElement",
+     "sel": "#pick-two",
+     "zone": "before"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertLine",
+     "active": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "statusContains",
+     "text": "<tr>"
+    },
+    {
+     "do": "click",
+     "sel": "#pick-two",
+     "at": "top"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "placing",
+     "active": true
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "placing",
+     "active": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y03",
+   "name": "Inserted elements: visible at 1280 and 390 with no horizontal overflow; fill, font size and width edits work with Link on and off; Undo, Redo and Reset restore the exact bytes",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Rectangle",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "div",
+       "keep": true
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertedVisible",
+     "sel": ".new-box-1",
+     "widths": [
+      1280,
+      390
+     ],
+     "minSize": 8
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      1280,
+      390
+     ]
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "value": "#336699"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "css",
+     "sel": ".new-box-1",
+     "prop": "background-color",
+     "equals": "rgb(51, 102, 153)"
+    },
+    {
+     "do": "setLink",
+     "checked": false
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "value": "20px"
+    },
+    {
+     "do": "type",
+     "field": "Width",
+     "value": "150px"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "css",
+     "sel": ".new-box-1",
+     "prop": "width",
+     "equals": "150px"
+    },
+    {
+     "do": "setLink",
+     "checked": true
+    },
+    {
+     "do": "type",
+     "field": "Width",
+     "value": "180px"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "css",
+     "sel": ".new-box-1",
+     "prop": "width",
+     "equals": "180px"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "edited"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "redone"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "edited",
+     "b": "redone"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset all"
+    },
+    {
+     "do": "confirm",
+     "name": "Discard edits"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y04",
+   "name": "Text editing: double-click, F2 and the Edit text button each open the overlay within 2 px of the element's box with its current text; Enter applies, Escape cancels; hostile text appears literally and parses to no new elements; an element with child elements is refused; a table cell, an inserted Button and SVG text work",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "dblclickElement",
+     "sel": "#cta"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "textEditor",
+     "sel": "#cta",
+     "tol": 2,
+     "value": "See what we build"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "textEditorOpen",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "key",
+     "key": "F2"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "textEditor",
+     "sel": "#cta",
+     "tol": 2,
+     "value": "See what we build"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "clickButton",
+     "name": "Edit text"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "textEditor",
+     "sel": "#cta",
+     "tol": 2,
+     "value": "See what we build"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Open the plans"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "textEditorOpen",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "previewText",
+     "sel": "#cta",
+     "equals": "Open the plans"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "a"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportText",
+     "file": "landing.html",
+     "sel": "#cta",
+     "equals": "Open the plans"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "key",
+     "key": "F2"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "<script>alert(1)</script> </style> &amp; -->"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "previewText",
+     "sel": "#headline",
+     "equals": "<script>alert(1)</script> </style> &amp; -->"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportParse",
+     "file": "landing.html",
+     "newElements": 0,
+     "scripts": 0,
+     "textOf": {
+      "#headline": "<script>alert(1)</script> </style> &amp; -->"
+     }
+    },
+    {
+     "do": "click",
+     "sel": "#plans",
+     "at": "inset"
+    },
+    {
+     "do": "key",
+     "key": "F2"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "textEditorOpen",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "statusContains",
+     "text": "child elements"
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Button",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "button",
+       "keep": true
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "key",
+     "key": "F2"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Home"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "previewText",
+     "sel": ".new-button-1",
+     "equals": "Home"
+    },
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "click",
+     "sel": "#fine",
+     "at": "center"
+    },
+    {
+     "do": "key",
+     "key": "F2"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Fine print"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "previewText",
+     "sel": "#fine",
+     "equals": "Fine print"
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#heading",
+     "at": "center"
+    },
+    {
+     "do": "key",
+     "key": "F2"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "textEditor",
+     "sel": "#heading",
+     "tol": 2,
+     "value": "Visits per weekday"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Q&A <b>"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "previewText",
+     "sel": "#heading",
+     "equals": "Q&A <b>"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportParse",
+     "file": "chart.svg",
+     "newElements": 0,
+     "scripts": 0,
+     "wellFormed": true
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y05",
+   "name": "Delete: the button and the key remove the element and take its note; the selection moves to the parent; Undo restores the exact bytes; disabled where the engine refuses; the key does nothing while a field has focus",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Remove me"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "clickButton",
+     "name": "Delete"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selectedIs",
+     "sel": "#plans"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "gone",
+     "sel": "#card-ship"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportCommentCount",
+     "file": "landing.html",
+     "comments": 0,
+     "headers": 0
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "pressPage",
+     "key": "Delete"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "gone",
+     "sel": "#card-build"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "pressPage",
+     "key": "Backspace"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "gone",
+     "sel": "#card-plan"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "focusField",
+     "name": "Width"
+    },
+    {
+     "do": "key",
+     "key": "Delete"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "present",
+     "sel": "#headline"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "selectPath",
+     "name": "body"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Delete",
+     "disabled": true
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y06",
+   "name": "Comment and pins: popover contents; Save adds one NOTE FOR AI comment before the element and one header after the DOCTYPE or at the start; the numbered pin sits within 3 px of the element's top-left at Desktop and Phone and after rotate and scale-to-fit; a pin opens its note; nothing of a pin is in the iframe DOM or the export",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "commentPopover",
+     "open": true,
+     "field": "Note for the AI",
+     "buttons": [
+      "Save"
+     ]
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Make this shorter"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportNotes",
+     "file": "landing.html",
+     "notes": [
+      {
+       "sel": "#headline",
+       "text": "Make this shorter"
+      }
+     ],
+     "headers": 1,
+     "headerAfter": "doctype"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 1,
+     "sel": "#headline",
+     "tol": 3
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Link to pricing"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 2,
+     "sel": "#cta",
+     "tol": 3
+    },
+    {
+     "do": "clickPin",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "commentPopover",
+     "open": true,
+     "field": "Note for the AI",
+     "value": "Make this shorter",
+     "buttons": [
+      "Save",
+      "Delete note"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "iframeClean"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportLacks",
+     "text": "data-pin"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 1,
+     "sel": "#headline",
+     "tol": 3
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 2,
+     "sel": "#cta",
+     "tol": 3
+    },
+    {
+     "do": "rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 1,
+     "sel": "#headline",
+     "tol": 3
+    },
+    {
+     "do": "rotate"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 1,
+     "sel": "#headline",
+     "tol": 3
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-wed",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Accent this bar"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportNotes",
+     "file": "chart.svg",
+     "notes": [
+      {
+       "sel": "#bar-wed",
+       "text": "Accent this bar"
+      }
+     ],
+     "headers": 1,
+     "headerAfter": "start"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 1,
+     "sel": "#bar-wed",
+     "tol": 3
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y07",
+   "name": "Notes list: the page-level note first, then every note with its pin number, the element's label and the text; jump to the element; Edit; Delete; blank text deletes; after the last note is deleted the export equals the original bytes",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "First"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "click",
+     "sel": "#footer",
+     "at": "inset"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Second"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "clickButton",
+     "name": "Notes"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "notesList",
+     "pageRow": "Add a note for the whole page",
+     "rows": [
+      {
+       "n": 1,
+       "label": "h1 #headline",
+       "text": "First"
+      },
+      {
+       "n": 2,
+       "label": "footer #footer",
+       "text": "Second"
+      }
+     ]
+    },
+    {
+     "do": "clickNotesRow",
+     "action": "Add a note for the whole page"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "About this page"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "clickButton",
+     "name": "Notes"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "notesList",
+     "pageRow": "About this page",
+     "rows": [
+      {
+       "n": 1,
+       "label": "h1 #headline",
+       "text": "First"
+      },
+      {
+       "n": 2,
+       "label": "footer #footer",
+       "text": "Second"
+      }
+     ]
+    },
+    {
+     "do": "clickNotesRow",
+     "n": 2,
+     "action": "jump"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "selectedIs",
+     "sel": "#footer"
+    },
+    {
+     "do": "clickButton",
+     "name": "Notes"
+    },
+    {
+     "do": "clickNotesRow",
+     "n": 1,
+     "action": "Edit"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "First, edited"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportNotes",
+     "file": "landing.html",
+     "notes": [
+      {
+       "sel": "#headline",
+       "text": "First, edited"
+      },
+      {
+       "sel": "#footer",
+       "text": "Second"
+      }
+     ],
+     "pageNote": "About this page",
+     "headers": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Notes"
+    },
+    {
+     "do": "clickNotesRow",
+     "n": 2,
+     "action": "Delete"
+    },
+    {
+     "do": "clickButton",
+     "name": "Notes"
+    },
+    {
+     "do": "clickNotesRow",
+     "n": 1,
+     "action": "Edit"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": ""
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "clickButton",
+     "name": "Notes"
+    },
+    {
+     "do": "clickNotesRow",
+     "action": "Delete page note"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportCommentCount",
+     "file": "landing.html",
+     "comments": 0,
+     "headers": 0
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y08",
+   "name": "Include comments: ON by default, disabled with no notes; OFF removes every note and the header from Download, Copy code and the Updated code view and equals the export of the same edit list without its note edits; ON restores them; copy equals download in both states",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "checkboxState",
+     "name": "Include comments",
+     "checked": true,
+     "disabled": true
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "fillStyle",
+     "field": "Font size",
+     "value": "50px"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Keep this short"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "checkboxState",
+     "name": "Include comments",
+     "checked": true,
+     "disabled": false
+    },
+    {
+     "do": "snapshotExport",
+     "name": "on"
+    },
+    {
+     "do": "snapshotCopy",
+     "name": "onCopy"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "on",
+     "b": "onCopy"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "codeViewEquals",
+     "snapshot": "on"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportCommentCount",
+     "snapshot": "on",
+     "file": "landing.html",
+     "comments": 1,
+     "headers": 1
+    },
+    {
+     "do": "setBox",
+     "name": "Include comments",
+     "checked": false
+    },
+    {
+     "do": "snapshotExport",
+     "name": "off"
+    },
+    {
+     "do": "snapshotCopy",
+     "name": "offCopy"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "off",
+     "b": "offCopy"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "codeViewEquals",
+     "snapshot": "off"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportCommentCount",
+     "snapshot": "off",
+     "file": "landing.html",
+     "comments": 0,
+     "headers": 0
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "equalsListWithout",
+     "snapshot": "off",
+     "steps": "notes"
+    },
+    {
+     "do": "setBox",
+     "name": "Include comments",
+     "checked": true
+    },
+    {
+     "do": "snapshotExport",
+     "name": "on2"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "on",
+     "b": "on2"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y09",
+   "name": "Hostile notes through the UI in an HTML sample and in the SVG chart: the export parses with exactly one new comment per note, no new elements or script nodes, SVG still well-formed XML, the text read back equals the neutralised text",
+   "sample": "landing",
+   "checks": [
+    "P2"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "noteEach",
+     "targets": [
+      "#headline",
+      ".lead",
+      "#cta",
+      "#plans",
+      "#card-plan",
+      "#card-build",
+      "#card-ship",
+      "#footer",
+      "#art",
+      ".hero-inner"
+     ],
+     "texts": [
+      "-->",
+      "--",
+      "--!>",
+      "<!--",
+      "> leading",
+      "trailing-",
+      "<script>alert(1)</script>",
+      "\"><img src=x onerror=1>",
+      "emoji 🎉 你好",
+      "REPEAT5000"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportParse",
+     "file": "landing.html",
+     "newElements": 0,
+     "scripts": 0,
+     "newComments": 11
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "notesReadBack",
+     "file": "landing.html",
+     "rule": "hyphen runs of two or more get a space between each pair"
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "noteEach",
+     "targets": [
+      "#paper",
+      "#heading",
+      "#plot",
+      "#axis",
+      "#bar-mon",
+      "#bar-tue",
+      "#bar-wed",
+      "#bar-thu",
+      "#bar-fri",
+      "#plot > text:nth-of-type(1)"
+     ],
+     "texts": [
+      "-->",
+      "--",
+      "--!>",
+      "<!--",
+      "> leading",
+      "trailing-",
+      "<script>alert(1)</script>",
+      "\"><img src=x onerror=1>",
+      "emoji 🎉 你好",
+      "REPEAT5000"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportParse",
+     "file": "chart.svg",
+     "newElements": 0,
+     "scripts": 0,
+     "newComments": 11,
+     "wellFormed": true
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "notesReadBack",
+     "file": "chart.svg",
+     "rule": "hyphen runs of two or more get a space between each pair"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y10",
+   "name": "Reloaded notes: a downloaded document with notes opened again by Paste and by Upload shows the same notes and pins; editing and deleting one exports correctly",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Shorter, please"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Link to pricing"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "withNotes"
+    },
+    {
+     "do": "reloadFromExport",
+     "name": "withNotes",
+     "via": "paste"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "notesList",
+     "open": true,
+     "rows": [
+      {
+       "n": 1,
+       "label": "h1 #headline",
+       "text": "Shorter, please"
+      },
+      {
+       "n": 2,
+       "label": "a #cta",
+       "text": "Link to pricing"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 1,
+     "sel": "#headline",
+     "tol": 3
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 2,
+     "sel": "#cta",
+     "tol": 3
+    },
+    {
+     "do": "reloadFromExport",
+     "name": "withNotes",
+     "via": "upload"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "notesList",
+     "open": true,
+     "rows": [
+      {
+       "n": 1,
+       "label": "h1 #headline",
+       "text": "Shorter, please"
+      },
+      {
+       "n": 2,
+       "label": "a #cta",
+       "text": "Link to pricing"
+      }
+     ]
+    },
+    {
+     "do": "clickPin",
+     "n": 1
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Shorter and friendlier"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportNotes",
+     "file": "landing.html",
+     "notes": [
+      {
+       "sel": "#headline",
+       "text": "Shorter and friendlier"
+      },
+      {
+       "sel": "#cta",
+       "text": "Link to pricing"
+      }
+     ],
+     "headers": 1
+    },
+    {
+     "do": "clickPin",
+     "n": 2
+    },
+    {
+     "do": "clickButton",
+     "name": "Delete note"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportNotes",
+     "file": "landing.html",
+     "notes": [
+      {
+       "sel": "#headline",
+       "text": "Shorter and friendlier"
+      }
+     ],
+     "headers": 1
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y11",
+   "name": "Structure and pins: after an unlinked edit, Insert before it, Delete before it and Move up past it each leave Review unlinked naming the right element and a later linked edit in the other size keeps the pinned value",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "setLink",
+     "checked": false
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "value": "18px"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Rectangle",
+       "sel": "#card-plan",
+       "zone": "before",
+       "parent": "#plans",
+       "index": 0,
+       "tag": "div",
+       "keep": true
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "count": 1,
+     "names": [
+      "#card-ship"
+     ]
+    },
+    {
+     "do": "click",
+     "sel": ".new-box-1",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Delete"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "count": 1,
+     "names": [
+      "#card-ship"
+     ]
+    },
+    {
+     "do": "clickButton",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "review",
+     "count": 1,
+     "names": [
+      "#card-ship"
+     ]
+    },
+    {
+     "do": "setLink",
+     "checked": true
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "value": "26px"
+    },
+    {
+     "do": "measureAt",
+     "sel": "#card-ship",
+     "prop": "font-size",
+     "widths": {
+      "1280": "26px",
+      "641": "26px",
+      "640": "18px",
+      "390": "18px"
+     }
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y12",
+   "name": "Keyboard and names: every new control is reachable and operable from the keyboard, focus returns correctly, and the accessible names are unique and exactly Insert, Text box, Rectangle, Rounded rectangle, Ellipse, Button, Comment, Notes, Edit text, Delete, Include comments, Note for the AI",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "uniqueNames",
+     "names": [
+      "Insert",
+      "Comment",
+      "Notes",
+      "Edit text",
+      "Delete",
+      "Include comments"
+     ]
+    },
+    {
+     "do": "focusControl",
+     "name": "Comment"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Note for the AI"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Via keyboard"
+    },
+    {
+     "do": "key",
+     "key": "Tab"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Comment"
+    },
+    {
+     "do": "focusControl",
+     "name": "Notes"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "notesList",
+     "open": true,
+     "rows": [
+      {
+       "n": 1,
+       "label": "h1 #headline",
+       "text": "Via keyboard"
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Notes"
+    },
+    {
+     "do": "focusControl",
+     "name": "Edit text"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Element text"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Edit text"
+    },
+    {
+     "do": "focusControl",
+     "name": "Insert"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "placing",
+     "active": true
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "placing",
+     "active": false
+    },
+    {
+     "do": "focusControl",
+     "name": "Delete"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "gone",
+     "sel": "#headline"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y13",
+   "name": "Small screens: at 390 every new control, menu item, pin hit area and popover button is at least 44 px; popovers fit the window without clipping; the strip and the bar do not overflow",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "newTouchTargets",
+     "min": 44,
+     "within": [
+      "Insert",
+      "Comment",
+      "Notes",
+      "Edit text",
+      "Delete",
+      "Include comments",
+      "Save"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "popoverFits",
+     "name": "Note for the AI"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Small screen"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pinHit",
+     "n": 1,
+     "min": 44
+    },
+    {
+     "do": "clickButton",
+     "name": "Notes"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "popoverFits",
+     "name": "Notes"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "newTouchTargets",
+     "min": 44,
+     "within": [
+      "Edit",
+      "Delete"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Insert"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuFits",
+     "button": "Insert",
+     "itemMin": 44
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 390
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Y14",
+   "name": "Earlier behaviour kept: the ribbon layout W01 to W08, the one card, the selection path, the code sections, two-file Download, west and north resize and the 20 original edits (an aggregate that runs unchanged in the same gate run); no-op round trips on all samples are byte-identical",
+   "sample": "landing",
+   "checks": [],
+   "steps": [],
+   "aggregate": [
+    "W01",
+    "W02",
+    "W03",
+    "W04",
+    "W05",
+    "W06",
+    "W08",
+    "W09"
+   ],
+   "noop": true
+  }
+ ]
+}
