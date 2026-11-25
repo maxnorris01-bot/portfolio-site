@@ -79,3 +79,7 @@ After the clean run `A` (above) the pass line was split into stages (amendment A
 which led to amendments A6 and A7), then the page (Insert, placing, text editing, Delete), the screenshots, and two complete runs on the final code. The Y specs fail on the vendored tree with no UI built, as Step 1.2 requires (run on the build of `a3c1db7` with the stage 1 runner, after the runner was written: Y01 to Y05 all FAIL, 0 of 5 PASS; Y01 on its names and order, Y02 and Y03 because there is no
 `Insert` button to open, Y04 because no text box opens, Y05 because there is no `Delete` button). Results, retired checks (none), edited tests and the amendments:
 `docs/sessions/2026-11-23-ui-editor-insert1-stage1.md` and `docs/ui-editor-gate-log.md` #42 to #47.
+
+## Stage 2 (2026-11-24): Comments
+
+Runner steps and asserts, the stub's Comment, pins, Notes list, Include comments and reload parts and eight named faults (all failing where stated; one extra needed amendment A13), the page (Comment in the quick bar, pins in the overlay, the Comment popover, the Notes list, Include comments, the code from the stripped text), the screenshots and the final run: `docs/sessions/2026-11-24-ui-editor-insert1-stage2.md` and `docs/ui-editor-gate-log.md` #48 to #53. Final run on `17fde71`: Y01 to Y10 and Y14 PASS, Y11 to Y13 NOT BUILT; the earlier rounds as before (T10 the known miss).

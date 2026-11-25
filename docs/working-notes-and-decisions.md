@@ -128,3 +128,13 @@ The engine now has four new edit kinds (insert, text, remove, note); stage 1 put
 - **Limits.** Flow placement only, HTML only; text editing refuses an element with child elements and takes no line breaks; Delete keeps the page's own rules for the element and does not check links to a removed id.
 - **Tests that had to change:** the engine commit pin (approved) and the bar's `text=` count; both in the gate log (#47).
 - **Spec gaps found before scoring (A6, A7):** the locked Y04 and Y05 could not catch an Escape that applies typed text or a Delete that clears the selection; they were fixed by numbered amendments, not by editing the locked file.
+
+## 2026-11-24: UI Editor insert round 1, stage 2 (Comments; still behind the flag, not released)
+Comment, pins, the Notes list and Include comments are on the page; Y01 to Y10 and Y14 pass, Y11 to Y13 are stage 3. Record: `docs/sessions/2026-11-24-ui-editor-insert1-stage2.md`; runner changes #48 to #53 in `docs/ui-editor-gate-log.md`; amendments A8 to A16 in the rules.
+
+- **A note is the engine's, not the page's.** The page writes no comment text; it sends `note` edits and reads `listNotes`. Include comments OFF strips the notes and header from the engine's text (whole line when the comment owns it), and that equals the export of the edit list with its note edits left out.
+- **Pins live in the overlay**, centred on the element's corner and drawn at screen size; the gate reads the edit list from a read-only `data-edit-list` attribute on the tool.
+- **Comment is icon-only**: with its word the bar overflowed at 1280 px once the Review badge showed.
+- **Notes is always on** (A15), though round 4's U09 says every other strip control is disabled with nothing selected.
+- **Lesson:** an extra state update in a layout effect makes React flush the pending rebuild effect early, so keys pressed while the preview rebuilds are dropped; keep per-draw work small (stable keys, memoised JSON).
+- **Spec slips of mine caught by running them:** A11 to A14 (the second Undo, the list opened after a reload, a jump that started from the selected element, my own off-by-one in step numbers).
