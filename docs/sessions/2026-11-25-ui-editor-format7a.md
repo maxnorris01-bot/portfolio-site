@@ -35,7 +35,7 @@ Nothing deleted or weakened. New: `tests/uieditorround7a.test.ts`. No file was r
 ## Font list
 Serif: Palatino Linotype, Book Antiqua, Garamond, Baskerville, Cambria, Constantia, Didot, Rockwell. Sans-serif: Segoe UI, Calibri, Candara, Corbel, Century Gothic, Gill Sans, Optima, Futura, Franklin Gothic Medium, Lucida Sans Unicode, Geneva. Monospace: Consolas, Menlo, Monaco, Lucida Console, Andale Mono. Display: Impact, Arial Black, Comic Sans MS, Brush Script MT, Copperplate. Each stack: its name, two or three fallbacks, a generic family (serif, sans-serif, monospace, cursive or fantasy).
 
-## Screenshots (headless; read 6 of the 30 taken)
+## Screenshots (headless; read 6 of the 35 taken)
 Padding and Margin popovers at 1000, 1290, 1440, 1920 and 390 on the landing page and the email (the chart, an SVG, has no Sides), and the font select after choosing Palatino Linotype. Read: landing 1440 Padding, landing 1290 Margin, landing 1000 Margin, landing 390 Padding, email 1920 Margin, email 1440 font chosen. All fit, labels sit above their steppers. **The native font select's open list cannot be captured headless**, so its look is not verified. One visible limit: a long font name is clipped in the closed select (at 1440 "Palatino Linotype" shows as "Palatino |"), because the select is as wide as before; widening it would change the group layout, which this round must not do.
 
 ## Not verified
