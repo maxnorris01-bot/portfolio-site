@@ -29,7 +29,7 @@ in `docs/ui-editor-gate-rules-round6.md`).
 
 | PowerPoint | Ours | Deviation and why |
 |---|---|---|
-| Home > Font: font name box | `Font family` dropdown (stretches) | No free text: the page offers the page's own family first and twelve others, and writes the whole stack. |
+| Home > Font: font name box | `Font family` dropdown (stretches) | No free text: the page offers the page's own family first, twelve others and (round 7a) 29 system fonts in four groups (serif, sans-serif, monospace, display), and writes the whole stack. A font shows only if the viewer's computer has it; no web fonts. |
 | Font size box with a list, Increase and Decrease Font Size | `Font size` box (62 px) with the presets arrow (12 to 72), `Increase Font size` and `Decrease Font size` buttons | The same. Step 1 px, Shift times ten, hold to repeat. |
 | Bold button | `Font weight` dropdown (100 to 900) | CSS has nine weights, not one switch; the dropdown keeps all of them. |
 | Italic, Underline | `Italic`, `Underline` toggles (Part B2) | The same; they show pressed from the element's computed style, also when the page's own rule sets it. |
@@ -43,7 +43,7 @@ in `docs/ui-editor-gate-rules-round6.md`).
 | Shape corner (the yellow handle) | `Corner radius` number box (step 2 px) | Our own: CSS has a radius, PowerPoint has a handle. |
 | Arrange: Bring Forward, Send Backward | `Move up`, `Move down` | They reorder the element among its siblings in the page. |
 | Arrange: nudge with arrow keys | `Nudge` with `Nudge X` and `Nudge Y` number boxes | Our own: typed pixels. |
-| (none) | `Spacing`: `Padding` and `Margin` number boxes with `Sides` | Our own: the CSS box model has no PowerPoint equivalent. |
+| (none) | `Spacing`: `Padding` and `Margin` number boxes with `Sides` | Our own: the CSS box model has no PowerPoint equivalent. The `Sides` popover (round 7a) is as wide as its four steppers (`width: max-content`), at most the window less 16 px, and is moved left when the Spacing group is so near the right edge that it would leave the window. |
 | View > Gridlines, Snap to Grid, grid spacing | `Grid`, `Snap`, `Grid spacing` (4, 8, 16, 32 px) | The same idea; both are off at every page load and are the page's, not the document's. |
 
 ## What was wrong in round 5, and what stayed
@@ -51,3 +51,9 @@ in `docs/ui-editor-gate-rules-round6.md`).
 Round 5 sized each group from a shared column grid (290, 200, 209, 288, 197, 296, 260, with 14 px padding and 72 x 58 large buttons) and left every control at its natural width, so a row ended well short of
 its group's edge. Round 6 keeps the card, the strip with the selection path, the code sections, the single Download and the west and north resize, and replaces the groups. Gate checks written for the
 round 5 groups (V01, V02, V04 and parts of V09, U01, U03, U05, T03, U06, R04, R09) are retired by the locked round 6 rules and replaced by W01 to W04.
+
+
+## Round 7a: the Sides popover fits, and more fonts
+- **Sides popover.** It hung under the Spacing group with `max-width: 100%`, so at 1440 and 1920 px (where that group is 190 to 250 px wide) the Right and Left steppers ran out past its border. It is now `width: max-content` (about 282 px for two columns; one column of 152 px when the ribbon is stacked) with `max-width: calc(100vw - 16px)`, and a layout effect moves it left when it would end less than 8 px from the window's right edge. Escape, focus, names and hooks are as before.
+- **Fonts.** The select keeps the page's own family and the twelve originals first and in order and gains 29 system fonts (`SYSTEM_FONTS` in `ribbonfields.ts`, values locked in `docs/ui-editor-gate-rules-round7a.md` section 3), each written as its name (quoted when it has a space) and fallbacks that end in a generic family. No web fonts; the page's limits say a font shows only if the viewer's computer has it.
+- **Not changed:** the colour menus (round 7b), Gradient, Insert, Comments, Review unlinked, Link, the group layout.
