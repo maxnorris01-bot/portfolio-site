@@ -168,9 +168,11 @@ test('padding and margin as four sides: one value, or mixed; every write is the 
 })
 
 test('the font select: the page\'s own family first, then Georgia, Times New Roman, Arial, Helvetica, Verdana, Trebuchet MS, Tahoma, Courier New, system-ui, serif, sans-serif, monospace; nothing typed', () => {
-  assert.deepEqual(FAMILIES.map((f) => f.label), ['Georgia', 'Times New Roman', 'Arial', 'Helvetica', 'Verdana', 'Trebuchet MS', 'Tahoma', 'Courier New', 'system-ui', 'serif', 'sans-serif', 'monospace'])
+  // Round 7a: the twelve originals stay first and in order; 29 system fonts follow (docs/ui-editor-gate-rules-round7a.md section 3).
+  assert.deepEqual(FAMILIES.slice(0, 12).map((f) => f.label), ['Georgia', 'Times New Roman', 'Arial', 'Helvetica', 'Verdana', 'Trebuchet MS', 'Tahoma', 'Courier New', 'system-ui', 'serif', 'sans-serif', 'monospace'])
+  assert.equal(FAMILIES.length, 12 + 29)
   const o = familyOptions('Georgia, "Times New Roman", serif')
-  assert.equal(o.length, 13)
+  assert.equal(o.length, 1 + FAMILIES.length)
   assert.equal(o[0].label, 'Georgia, "Times New Roman", serif')
   assert.equal(o[0].value, o[0].label, 'choosing the page\'s own family writes what it already is')
   assert.equal(FAMILIES.find((f) => f.label === 'Arial')?.value, 'Arial, sans-serif')

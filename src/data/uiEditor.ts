@@ -333,6 +333,7 @@ export const limits = {
   items: [
     'The preview runs with scripts off, so content that JavaScript builds cannot show or be edited.',
     'External fonts, images from other sites and any CSS you do not supply are missing.',
+    'Fonts show only if your computer has them.',
     'React, Vue and other bundled or minified code are not supported.',
     'Only max-width and min-width media features are understood; dark mode, print and orientation are left as written.',
     'Desktop and Phone upright are the editable sizes.',
@@ -354,7 +355,7 @@ export const limits = {
     'Tested in Chromium only.',
   ],
   /** How many consecutive sentences make each paragraph shown. */
-  groups: [3, 3, 2, 2, 4, 4],
+  groups: [4, 3, 2, 2, 4, 4],
 }
 
 /** The paragraphs a list shows: `items` joined in runs of the given sizes (every item once, in order). */
