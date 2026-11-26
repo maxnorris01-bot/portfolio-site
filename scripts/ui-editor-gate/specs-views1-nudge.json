@@ -1,0 +1,1221 @@
+{
+ "version": 1,
+ "fixtures": {
+  "noop": "reference/views1-nudge-noop.html"
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL"
+ ],
+ "vocabulary": {
+  "note": "as specs-views1.json, plus: step stepper (one arrow click on the spin arrow named by data-for), assert exportAddedLines {file, contains, n}: the export of `file` has n lines that are not in the original and contain `contains`; assert editCount, message, undo, redo, pageText, editList as before."
+ },
+ "truth": {
+  "K01": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) { #cta { transform: translate(12px, 0); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 12, 0)",
+      "768": "matrix(1, 0, 0, 1, 12, 0)",
+      "1024": "matrix(1, 0, 0, 1, 12, 0)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     }
+    }
+   ]
+  },
+  "K02": {
+   "page": "bp768",
+   "referenceCss": "@media (min-width: 769px) { #title { transform: translate(10px, 0); } }",
+   "checks": [
+    {
+     "sel": "#title",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "768": "none",
+      "769": "matrix(1, 0, 0, 1, 10, 0)",
+      "1280": "matrix(1, 0, 0, 1, 10, 0)"
+     }
+    }
+   ]
+  },
+  "K03": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) and (max-width: 1024px) { #cta { transform: translate(0, 10px); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 0, 10)",
+      "768": "matrix(1, 0, 0, 1, 0, 10)",
+      "1024": "matrix(1, 0, 0, 1, 0, 10)",
+      "1025": "none",
+      "1280": "none"
+     }
+    }
+   ]
+  },
+  "K04": {
+   "page": "landing",
+   "referenceCss": "@media (max-width: 640px) { #cta { transform: translate(0, 10px); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "640": "matrix(1, 0, 0, 1, 0, 10)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     }
+    }
+   ]
+  },
+  "K05": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) { #cta { transform: translate(12px, 0); } } @media (max-width: 640px) { #cta { transform: translate(0, 10px); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "640": "matrix(1, 0, 0, 1, 0, 10)",
+      "641": "matrix(1, 0, 0, 1, 12, 0)",
+      "768": "matrix(1, 0, 0, 1, 12, 0)",
+      "1024": "matrix(1, 0, 0, 1, 12, 0)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     }
+    }
+   ]
+  },
+  "K07": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) { #cta { transform: translate(12px, 0); } } @media (min-width: 641px) and (max-width: 1024px) { #cta { transform: translate(0, 10px) translate(12px, 0); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 12, 10)",
+      "768": "matrix(1, 0, 0, 1, 12, 10)",
+      "1024": "matrix(1, 0, 0, 1, 12, 10)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     }
+    }
+   ]
+  },
+  "K08": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) { #cta { transform: translate(15px, 0); } } @media (min-width: 641px) and (max-width: 1024px) { #cta { transform: translate(0, 3px) translate(15px, 0); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 15, 3)",
+      "768": "matrix(1, 0, 0, 1, 15, 3)",
+      "1024": "matrix(1, 0, 0, 1, 15, 3)",
+      "1025": "matrix(1, 0, 0, 1, 15, 0)",
+      "1280": "matrix(1, 0, 0, 1, 15, 0)"
+     }
+    }
+   ]
+  },
+  "K10": {
+   "page": "bp768",
+   "referenceCss": "@media (max-width: 768px) { #title { transform: translate(0, 10px); } }",
+   "checks": [
+    {
+     "sel": "#title",
+     "prop": "transform",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "768": "matrix(1, 0, 0, 1, 0, 10)",
+      "769": "none",
+      "1280": "none"
+     }
+    }
+   ]
+  }
+ },
+ "specs": [
+  {
+   "id": "K01",
+   "name": "A Desktop nudge is the same kind of edit as a Desktop drag: typing 12 in Nudge X is one offset of environment desktop with link false, one rule for every width above the phone breakpoint (the tablet range too), nothing at 640 and 390; the status line says \"Desktop and Tablet sizes\"",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "12"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 12, 0)",
+      "768": "matrix(1, 0, 0, 1, 12, 0)",
+      "1024": "matrix(1, 0, 0, 1, 12, 0)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 12, 0)",
+      "768": "matrix(1, 0, 0, 1, 12, 0)",
+      "1024": "matrix(1, 0, 0, 1, 12, 0)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "desktop",
+       "link": false
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "nudged by 12, 0 px (desktop and tablet sizes)"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    }
+   ]
+  },
+  {
+   "id": "K02",
+   "name": "On a page whose own phone breakpoint is 768 a Desktop nudge covers \"Desktop only\": 1280 and 769 move, 768 and 390 do not",
+   "sample": "bp768",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "bp768"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "10"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "768": "none",
+      "769": "matrix(1, 0, 0, 1, 10, 0)",
+      "1280": "matrix(1, 0, 0, 1, 10, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "768": "none",
+      "769": "matrix(1, 0, 0, 1, 10, 0)",
+      "1280": "matrix(1, 0, 0, 1, 10, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "desktop",
+       "link": false
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "desktop only"
+    }
+   ]
+  },
+  {
+   "id": "K03",
+   "name": "A Tablet nudge (Nudge Y 10) moves the element at 641 to 1024 only; the edit is an offset of environment tablet with no link; the status line says \"Tablet only\"",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "10"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 0, 10)",
+      "768": "matrix(1, 0, 0, 1, 0, 10)",
+      "1024": "matrix(1, 0, 0, 1, 0, 10)",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 0, 10)",
+      "768": "matrix(1, 0, 0, 1, 0, 10)",
+      "1024": "matrix(1, 0, 0, 1, 0, 10)",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "tablet",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "tablet only"
+    }
+   ]
+  },
+  {
+   "id": "K04",
+   "name": "A Phone nudge (Nudge Y 10) moves the element at 640 and 390 only; environment phone, no link; \"Phone only\"",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "10"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "640": "matrix(1, 0, 0, 1, 0, 10)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "640": "matrix(1, 0, 0, 1, 0, 10)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "phone",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "phone only"
+    }
+   ]
+  },
+  {
+   "id": "K05",
+   "name": "A Desktop nudge (12, 0) and then a Phone nudge (0, 10) of the same element both work and neither changes the other view: 1280 to 641 show (12, 0), 640 and 390 show (0, 10)",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "12"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "10"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "640": "matrix(1, 0, 0, 1, 0, 10)",
+      "641": "matrix(1, 0, 0, 1, 12, 0)",
+      "768": "matrix(1, 0, 0, 1, 12, 0)",
+      "1024": "matrix(1, 0, 0, 1, 12, 0)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "640": "matrix(1, 0, 0, 1, 0, 10)",
+      "641": "matrix(1, 0, 0, 1, 12, 0)",
+      "768": "matrix(1, 0, 0, 1, 12, 0)",
+      "1024": "matrix(1, 0, 0, 1, 12, 0)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "desktop",
+       "link": false
+      },
+      {
+       "op": "offset",
+       "environment": "phone",
+       "link": "absent"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "K06",
+   "name": "The other way round: a Phone nudge first, then a Desktop nudge, gives the same positions",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "10"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "12"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "640": "matrix(1, 0, 0, 1, 0, 10)",
+      "641": "matrix(1, 0, 0, 1, 12, 0)",
+      "768": "matrix(1, 0, 0, 1, 12, 0)",
+      "1024": "matrix(1, 0, 0, 1, 12, 0)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "640": "matrix(1, 0, 0, 1, 0, 10)",
+      "641": "matrix(1, 0, 0, 1, 12, 0)",
+      "768": "matrix(1, 0, 0, 1, 12, 0)",
+      "1024": "matrix(1, 0, 0, 1, 12, 0)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "phone",
+       "link": "absent"
+      },
+      {
+       "op": "offset",
+       "environment": "desktop",
+       "link": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "K07",
+   "name": "A Desktop nudge (12, 0) and then a Tablet nudge (0, 10): Desktop widths above the tablet range keep (12, 0), the tablet range shows (12, 10), the phone range nothing",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "12"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "10"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 12, 10)",
+      "768": "matrix(1, 0, 0, 1, 12, 10)",
+      "1024": "matrix(1, 0, 0, 1, 12, 10)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 12, 10)",
+      "768": "matrix(1, 0, 0, 1, 12, 10)",
+      "1024": "matrix(1, 0, 0, 1, 12, 10)",
+      "1025": "matrix(1, 0, 0, 1, 12, 0)",
+      "1280": "matrix(1, 0, 0, 1, 12, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "desktop",
+       "link": false
+      },
+      {
+       "op": "offset",
+       "environment": "tablet",
+       "link": "absent"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "K08",
+   "name": "Repeated nudges of one element in one view are one merged edit: Nudge X typed 5 three times on Desktop is one edit (15, 0); three arrow clicks on Nudge Y in Tablet are one more (0, 3); two transform rules in the stylesheet, no pile",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "5"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "5"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "5"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge Y",
+     "dir": "+",
+     "times": 3
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 15, 3)",
+      "768": "matrix(1, 0, 0, 1, 15, 3)",
+      "1024": "matrix(1, 0, 0, 1, 15, 3)",
+      "1025": "matrix(1, 0, 0, 1, 15, 0)",
+      "1280": "matrix(1, 0, 0, 1, 15, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 15, 3)",
+      "768": "matrix(1, 0, 0, 1, 15, 3)",
+      "1024": "matrix(1, 0, 0, 1, 15, 3)",
+      "1025": "matrix(1, 0, 0, 1, 15, 0)",
+      "1280": "matrix(1, 0, 0, 1, 15, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportAddedLines",
+     "file": "landing.css",
+     "contains": "transform",
+     "n": 2
+    }
+   ]
+  },
+  {
+   "id": "K09",
+   "name": "No silent no-op: a wrapper with display: contents (the hand-written noop page) has no box, so a shift cannot show; a nudge in Desktop, Tablet or Phone gives a plain reason in the status line, adds nothing to the edit list or the undo list, and the export is the original",
+   "sample": "noop",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "noop"
+    },
+    {
+     "do": "click",
+     "sel": "#inner",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Select parent"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "10"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "does not move"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "10"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "does not move"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "does not move"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "id": "K10",
+   "name": "An engine refusal shows its plain reason in the same event and adds nothing: a Tablet nudge on a page with B = 768 says \"make the edit in Phone instead\", the undo list stays empty and the export is the original; a Phone nudge there works and covers 768",
+   "sample": "bp768",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "bp768"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "make the edit in phone instead"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "10"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "768": "matrix(1, 0, 0, 1, 0, 10)",
+      "769": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 0, 10)",
+      "768": "matrix(1, 0, 0, 1, 0, 10)",
+      "769": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "id": "K11",
+   "name": "A typed 0 or a non-number in a nudge box changes nothing and says nothing wrong: no edit, no undo entry, no \"Not applied\" line",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "0"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "abc"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pageText",
+     "scope": "editor",
+     "lacks": [
+      "Not applied"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "id": "K12",
+   "name": "Undo and Redo restore the exact bytes: a Desktop and a Phone nudge, two Undos give the original, two Redos give the same bytes as before",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "12"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "10"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "both"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "again"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "both",
+     "b": "again"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ]
+  }
+ ]
+}

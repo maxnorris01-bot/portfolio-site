@@ -7,6 +7,7 @@
 //   node scripts/ui-editor-gate/run.mjs --stub5 [--fault left-packed] [--only U02]         the round 4 scorer-check stub (reference/round4.html)
 //   node scripts/ui-editor-gate/run.mjs --stub6 [--fault centred] [--only V02]             the round 5 scorer-check stub (reference/round5.html)
 //   node scripts/ui-editor-gate/run.mjs --stub7 [--fault row-short] [--only W02]            the round 6 scorer-check stub (reference/round6.html)
+//   node scripts/ui-editor-gate/run.mjs --stub9 [--fault tablet-as-phone] [--only X07]        the views round scorer-check stub (reference/views1.html; run with --views1)
 //   --u06-distinct N   read U06's minimum of distinct elements as N (round 4's labelled amendment: the final run uses 15)
 // All five spec files run: specs.json (S01 to S20), specs-round1.json (N01 to N11), specs-round2.json (R01 to R16), specs-round3.json (T01 to T16) and specs-round4.json (U01 to U13) and specs-round5.json (V01 to V09) and specs-round6.json (W01 to W09). --only picks ids.
 //   --u13-na   the Limits sentence of U13 was not verified: it must be absent and U13 reads NOT APPLICABLE (docs/ui-editor-gate-rules-round4.md section 4)
@@ -15,7 +16,9 @@
 // Headless Chromium, a fresh context per action, real mouse events, no retries. Results go to UI_GATE_OUT (default scripts/ui-editor-gate/out, git-ignored).
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { diffLines, sameShape, p3Violations, p2Violations, outcomeOf, outcomeOfRound1 } from './checks.mjs'
@@ -50,8 +53,21 @@ const round7aFile = JSON.parse(readFileSync(join(here, 'specs-round7a.json'), 'u
 // FORMATTING ROUND 7b (docs/ui-editor-gate-rules-round7b.md): Z03 (colour grid), Z04 (recent colours), Z05 (the picker), Z06 (small screens and keyboard), Z07 (kept).
 const round7bFile = JSON.parse(readFileSync(join(here, 'specs-round7b.json'), 'utf8'))
 const insert1File = JSON.parse(readFileSync(join(here, 'specs-insert1.json'), 'utf8'))
+// VIEWS ROUND 1 (docs/ui-editor-gate-rules-views1.md): the X specs, the RETIRED list and the two hand-written fixtures.
+// the numbered amendments of the views round (amendments-views1.json): steps skipped, replaced or added after, applied to the X specs when they are read
+const amendViews1 = existsSync(join(here, 'amendments-views1.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views1.json'), 'utf8')) : { specs: {} }
+// NUDGE FIX (docs/ui-editor-gate-rules-views1-nudge.md): the K specs run with --nudge (or --only Knn), after the X specs.
+// NUDGE FIX 2 (docs/ui-editor-gate-rules-views1-nudge2.md): the J specs run with --nudge2 (or --only Jnn).
+// NO-NUDGE (docs/ui-editor-gate-rules-views1-nonudge.md): the Q specs run with --nonudge (or --only Qnn); its retiredChecks and amendments apply to the real page and --stub12 only.
+const nonudgeFile = existsSync(join(here, 'specs-views1-nonudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nonudge.json'), 'utf8')) : { specs: [], retiredChecks: {}, amendments: {} }
+const amendNonudgeFile = existsSync(join(here, 'amendments-views1-nonudge.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views1-nonudge.json'), 'utf8')) : { specs: {} }
+const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
+const nudgeFile = existsSync(join(here, 'specs-views1-nudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge.json'), 'utf8')) : { specs: [] }
+const views1File = existsSync(join(here, 'specs-views1.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1.json'), 'utf8')) : { retiredChecks: {}, specs: [] }
 const amendFile = JSON.parse(readFileSync(join(here, 'amendments-insert1.json'), 'utf8'))
 // --timing: a timestamp and the elapsed time at the start of every spec and every step (insert round 1: to see where a long run first goes wrong).
+// --dump-exports <dir>: the exported files of every spec at its end are written to <dir>/<spec id>/<file> (the baseline run and the final run are compared byte for byte by compare-exports.mjs).
+const DUMP = opt('--dump-exports')
 const TIMING = flag('--timing')
 const T0 = Date.now()
 const STAGE = args.includes('--stage') ? Number(args[args.indexOf('--stage') + 1]) : null
@@ -62,9 +78,12 @@ const OLD_STUB = flag('--stub') || flag('--stub2') || flag('--stub3') || flag('-
 const ROUND5 = !(OLD_STUB || flag('--stub5'))
 // ROUND 6 (log #33): the retired checks of round 6 apply to the real page and the round 6 stub only (the round 5 stub still has the column grid and the large buttons).
 const ROUND6 = !(OLD_STUB || flag('--stub5') || flag('--stub6'))
+// VIEWS ROUND 1: the retired checks of the views round apply to the real page and the views stub (--stub9) only; the earlier stubs still have the Link checkbox, the dots and Review unlinked.
+const VIEWS1 = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8'))
+const NONUDGE = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11'))
 const retiredFor = (id) => {
-  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined, d = ROUND6 ? round6File.retiredChecks?.[id] : undefined
-  const parts = [a, b, c, d].filter(Boolean)
+  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined, d = ROUND6 ? round6File.retiredChecks?.[id] : undefined, e = VIEWS1 && !flag('--no-retire-views1') ? views1File.retiredChecks?.[id] : undefined, f = NONUDGE ? nonudgeFile.retiredChecks?.[id] : undefined
+  const parts = [a, b, c, d, e, f].filter(Boolean)
   if (!parts.length) return undefined
   return { steps: parts.flatMap((p) => p.steps ?? []), asserts: parts.flatMap((p) => p.asserts ?? []), wholeSpec: parts.some((p) => p.wholeSpec), replacedBy: parts.map((p) => p.replacedBy).filter(Boolean).join('; '), reason: parts.map((p) => p.reason).filter(Boolean).join(' ') }
 }
@@ -75,7 +94,12 @@ for (const s of SAMPLE_FILES) {
   sources[s.id] = { files: {}, primary: s.file, kind: s.kind, order: [s.file, ...s.companions] }
   for (const f of sources[s.id].order) sources[s.id].files[f] = readFileSync(join(sampleDir, f), 'utf8')
 }
-const READY = { landing: '#headline', email: '#hello', chart: '#bar-tue' }
+// VIEWS ROUND 1: the two hand-written fixtures (reference/views1-*.html) are documents of their own, opened through Paste.
+for (const [id, file] of Object.entries({ ...(views1File.fixtures ?? {}), ...(nudgeFile.fixtures ?? {}) })) {
+  const name = file.split('/').pop()
+  sources[id] = { files: { [name]: readFileSync(join(here, file), 'utf8') }, primary: name, kind: 'html', order: [name] }
+}
+const READY = { landing: '#headline', email: '#hello', chart: '#bar-tue', tab900: '#title', bp768: '#title', noop: '#inner' }
 const outDir = process.env.UI_GATE_OUT ?? join(here, 'out')
 mkdirSync(outDir, { recursive: true })
 const only = opt('--only')?.split(',')
@@ -101,9 +125,9 @@ const refServer = createServer((q, r) => {
 const refPort = await listen(refServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8')) {
+if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub12') ? 'views1-nonudge.html' : flag('--stub11') ? 'views1-nudge2.html' : flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -171,6 +195,8 @@ const PAGE_HELPERS = `(() => {
     dumpAt(w) { return this.withWidth(w, (doc) => dump(doc)) },
     // Round 2: a computed property, the content width of the parent (CSS px) and the right edge of the parent's content box, in the preview.
     cssOf(w, sel, prop) { return this.withWidth(w, (doc) => { const e = doc.querySelector(sel); return e ? doc.defaultView.getComputedStyle(e)[prop] : null }) },
+    // VIEWS ROUND 1: the computed value (getPropertyValue, so any property name) of an element of the preview at a viewport width.
+    computedAt(w, sel, prop) { return this.withWidth(w, (doc) => { const e = doc.querySelector(sel); return e ? doc.defaultView.getComputedStyle(e).getPropertyValue(prop) : null }) },
     parentW(w, sel) { return this.withWidth(w, (doc) => { const e = doc.querySelector(sel); const p = e && e.parentElement; if (!p) return null; const cs = doc.defaultView.getComputedStyle(p); return p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) }) },
     edgeOf(sel) { const doc = frame().contentDocument; const e = doc.querySelector(sel); const p = e.parentElement; const cs = doc.defaultView.getComputedStyle(p); const pr = p.getBoundingClientRect(); return { right: e.getBoundingClientRect().right, edge: pr.left + p.clientLeft + parseFloat(cs.paddingLeft) + p.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) } },
     keyFor(sel) { const e = frame().contentDocument.querySelector(sel); return e ? keyOf(e) : null },
@@ -239,9 +265,10 @@ async function runSpec(spec) {
   let src = sources[spec.sample] // ROUND 5 (log #31): follows the sample a `load` step opens (V05 and V06 open two)
   const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
   const page = await ctx.newPage()
+  if (flag('--fast-fail')) page.setDefaultTimeout(4000) // a development flag: a control that is gone fails in 4 s, not 30 s (used with --no-retire-views1, rules section 7)
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
-  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: null, P4: null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
+  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: /^[JQ]\d/.test(spec.id) ? [] : null, P4: /^[JQ]\d/.test(spec.id) ? [] : null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
   const snaps = {}
   let statusAtCopy = null
   let before = {}
@@ -772,6 +799,223 @@ async function runSpec(spec) {
     const bucket = a.p === 'P2' ? 'P2a' : a.p // insert round 1: a P2 assert of a Y spec is one of the export checks (docs/ui-editor-gate-log.md)
     const R = (ok, detail) => rec(bucket, a.k + (a.sel ? ' ' + a.sel : '') + (a.q ? ' ' + a.q : '') + (a.at ? ' @' + a.at : '') + (a.field ? ' ' + a.field : '') + (a.label ? ' ' + a.label : '') + (a.name ? ' ' + a.name : ''), ok, detail)
     switch (a.k) {
+      // ---- VIEWS ROUND 1 (docs/ui-editor-gate-rules-views1.md section 5, vocabulary) ----
+      case 'computed': {
+        const sameValue = (have, want, tol) => (have !== null && /^-?[\d.]+px$/.test(want) && /^-?[\d.]+px$/.test(have) ? Math.abs(parseFloat(have) - parseFloat(want)) <= (tol ?? 0.05) : have === want)
+        const widths = [...new Set([...Object.keys(a.at ?? {}), ...Object.keys(a.not ?? {})])]
+        const have = {}
+        if (a.via === 'export') {
+          const all = await grabAll()
+          for (const [f, t] of Object.entries(all)) exported.set(f, t)
+          for (const w of widths) {
+            const fresh = await ctx.newPage()
+            await fresh.setViewportSize({ width: Number(w), height: specsFile.previewHeight })
+            await fresh.goto(`http://127.0.0.1:${exportPort}/${src.primary}`)
+            have[w] = await fresh.evaluate(([s, p]) => { const e = document.querySelector(s); return e ? getComputedStyle(e).getPropertyValue(p) : null }, [a.sel, a.prop])
+            await fresh.close()
+          }
+        } else for (const w of widths) have[w] = await page.evaluate(([w, s, p]) => window.__gate.computedAt(w, s, p), [Number(w), a.sel, a.prop])
+        const bad = []
+        for (const [w, want] of Object.entries(a.at ?? {})) if (!sameValue(have[w], want, a.tol)) bad.push(`@${w}: ${have[w]}, want ${want}`)
+        for (const [w, no] of Object.entries(a.not ?? {})) if (have[w] === null || sameValue(have[w], no, a.tol)) bad.push(`@${w}: ${have[w]}, want anything but ${no}`)
+        return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : `${a.prop} of ${a.sel} (${a.via}): ${widths.map((w) => `${w} ${have[w]}`).join(', ')}`)
+      }
+      // ---- NUDGE FIX 2 (docs/ui-editor-gate-rules-views1-nudge2.md section 3) ----
+      // ---- NO-NUDGE (docs/ui-editor-gate-rules-views1-nonudge.md section 5) ----
+      case 'noNudge': {
+        const bad = await page.evaluate(() => {
+          const root = document.querySelector('[data-editor]'); const out = []
+          const hit = (s) => /nudge/i.test(s ?? '')
+          for (const e of [root, ...root.querySelectorAll('*')]) {
+            const where = e.localName + (e.id ? '#' + e.id : '')
+            if (hit(e.id)) out.push(`${where} id`)
+            for (const at of e.attributes) if (hit(at.name) || hit(at.value)) out.push(`${where} ${at.name}`)
+            for (const n of e.childNodes) if (n.nodeType === 3 && hit(n.textContent)) out.push(`${where} text "${n.textContent.trim().slice(0, 40)}"`)
+            const d = e.getAttribute('aria-describedby'); if (d && d.split(/\s+/).some((id) => hit(document.getElementById(id)?.textContent))) out.push(`${where} aria-describedby`)
+          }
+          return out
+        })
+        for (const role of ['textbox', 'spinbutton', 'button']) { const n = await page.getByRole(role, { name: /nudge/i, includeHidden: true }).count(); if (n) bad.push(`${n} ${role} named Nudge`) }
+        return R(bad.length === 0, bad.length ? bad.slice(0, 6).join('; ') : 'no Nudge in the editor')
+      }
+      case 'arrangeGroup': {
+        const g = await page.evaluate(() => { const e = document.querySelector('[data-ribbon-group="position"]'); if (!e) return null; return { buttons: [...e.querySelectorAll('button')].map((b) => ({ name: b.getAttribute('aria-label') || b.textContent.trim(), disabled: b.disabled })), inputs: e.querySelectorAll('input, select, textarea').length, name: e.getAttribute('aria-label') } })
+        if (!g) return R(false, 'no Arrange group')
+        const bad = []
+        if (JSON.stringify(g.buttons.map((b) => b.name)) !== JSON.stringify(a.names)) bad.push(`buttons ${JSON.stringify(g.buttons.map((b) => b.name))}, want ${JSON.stringify(a.names)}`)
+        if (a.disabled && JSON.stringify(g.buttons.map((b) => b.disabled)) !== JSON.stringify(a.disabled)) bad.push(`disabled ${JSON.stringify(g.buttons.map((b) => b.disabled))}, want ${JSON.stringify(a.disabled)}`)
+        if (a.inputs !== undefined && g.inputs !== a.inputs) bad.push(`${g.inputs} inputs, want ${a.inputs}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${g.name}: ${g.buttons.map((b) => b.name + (b.disabled ? ' (off)' : '')).join(', ')}`)
+      }
+      case 'exportHash': {
+        const parts = []
+        for (const f of src.order) { const r = await grab(f); parts.push([r.name, r.text]) }
+        parts.sort((x, y) => (x[0] < y[0] ? -1 : 1))
+        const h = createHash('sha1').update(parts.map(([n, t]) => n + '\n' + t).join('\n---\n')).digest('hex')
+        return R(h === a.sha1, `${a.label}: ${h}${h === a.sha1 ? '' : ', want ' + a.sha1}`)
+      }
+      case 'ribbonBaseline': {
+        const now = await page.evaluate(() => {
+          const gs = [...document.querySelectorAll('[data-ribbon-group]')].map((g) => { const r = g.getBoundingClientRect(); return { id: g.getAttribute('data-ribbon-group'), x: r.left, width: r.width, top: r.top + scrollY, height: r.height } })
+          const rb = document.querySelector('[data-ribbon]').getBoundingClientRect()
+          return { bands: new Set(gs.map((g) => Math.round(g.top))).size, height: rb.height, groups: gs }
+        })
+        // scorer-check aids (the stub's layout is not the real page's): --record-ribbon <file> writes what is measured; --ribbon-baseline <file> compares with that instead of the locked baseline
+        if (opt('--record-ribbon')) { const f = opt('--record-ribbon'); const all = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {}; all[a.width] = { bands: now.bands, ribbon: { height: now.height }, groups: now.groups }; writeFileSync(f, JSON.stringify(all)); return R(true, `recorded ${a.width}`) }
+        const base = opt('--ribbon-baseline') ? JSON.parse(readFileSync(opt('--ribbon-baseline'), 'utf8'))[a.width] : a.baseline, bad = [], info = []
+        if (now.bands !== base.bands) bad.push(`${now.bands} bands, was ${base.bands}`)
+        const dropA = a.stacked ? (base.groups.find((g) => g.id === 'position')?.height ?? 0) - (now.groups.find((g) => g.id === 'position')?.height ?? 0) : 0
+        if (a.stacked) { if (dropA < -0.5) bad.push(`Arrange is ${(-dropA).toFixed(1)} px taller`); else info.push(`Arrange is ${dropA.toFixed(1)} px shorter`) }
+        if (Math.abs(now.height - (base.ribbon.height - dropA)) > 0.5) bad.push(`ribbon height ${now.height.toFixed(1)}, was ${base.ribbon.height}${a.stacked ? ' less the Arrange change ' + dropA.toFixed(1) : ''}`)
+        const arrTop = base.groups.find((g) => g.id === 'position')?.top ?? 0
+        for (const g of base.groups) {
+          const n = now.groups.find((x) => x.id === g.id)
+          if (!n) { bad.push(`group ${g.id} is gone`); continue }
+          const dx = n.x - g.x, dw = n.width - g.width, dt = n.top - g.top
+          if (Math.abs(dx) > 0.01 || Math.abs(dw) > 0.01) info.push(`${g.id}: x ${dx.toFixed(2)}, width ${dw.toFixed(2)}`)
+          if (Math.abs(dx) > 0.5) bad.push(`${g.id} x moved by ${dx.toFixed(2)}`)
+          const wantDt = a.stacked && g.top > arrTop + 0.5 ? -dropA : 0
+          if (Math.abs(dt - wantDt) > 0.5) bad.push(`${g.id} top moved by ${dt.toFixed(2)}${wantDt ? ', want ' + wantDt.toFixed(2) : ''}`)
+          if (g.id === 'position' ? dw > 0.5 : Math.abs(dw) > 0.5) bad.push(`${g.id} width changed by ${dw.toFixed(2)}`)
+        }
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${a.width} px: same layout${info.length ? ' (changes under 0.5 px, reported: ' + info.join('; ') + ')' : ''}`)
+      }
+      case 'sourceSearch': {
+        const files = []
+        const walk = (d) => { for (const e of readdirSync(join(root, d))) { const p = d + '/' + e; if (statSync(join(root, p)).isDirectory()) { if (e !== 'vendor') walk(p) } else if (/\.(ts|tsx|css)$/.test(e)) files.push(p) } }
+        walk('src')
+        const bad = []
+        for (const f of files) { const text = readFileSync(join(root, f), 'utf8'); for (const re of a.forbidden) { const m = new RegExp(re).exec(text); if (m) bad.push(`${f}: ${re} -> "${m[0]}"`) } }
+        for (const r of a.required ?? []) if (!new RegExp(r.re).test(readFileSync(join(root, r.file), 'utf8'))) bad.push(`${r.file}: ${r.re} is gone`)
+        return R(bad.length === 0, bad.length ? bad.slice(0, 6).join('; ') : `${files.length} files searched, nothing left, the arrow keys' code is there`)
+      }
+      case 'frames': {
+        const fr = await page.evaluate(() => window.__frames)
+        if (!fr) return R(false, 'no frame recording (no frames start step)')
+        const f = fr.frames
+        const flash = f.filter((x) => x.vis === 0 || x.h.some((h) => h === 0)).length
+        const bad = []
+        if (a.maxFlash !== undefined && flash > a.maxFlash) bad.push(`${flash} flash frames of ${f.length}, at most ${a.maxFlash}`)
+        if (a.visible !== undefined && f.some((x) => x.vis !== a.visible)) bad.push(`${f.filter((x) => x.vis !== a.visible).length} frames without exactly ${a.visible} visible preview (visible counts ${[...new Set(f.map((x) => x.vis))].join('/')})`)
+        if (a.overlayAlways && f.some((x) => !x.sel)) bad.push(`${f.filter((x) => !x.sel).length} frames without the selection overlay`)
+        if (a.scrollSame) { const sc = new Set([fr.y0 + ':' + fr.st0, ...f.map((x) => x.sy + ':' + x.st)]); if (sc.size > 1) bad.push(`scroll moved: ${[...sc].join(' ')}`) }
+        if (a.stageHeightSame && new Set(f.map((x) => x.stage)).size > 1) bad.push(`stage height changed: ${[...new Set(f.map((x) => x.stage))].join(' ')}`)
+        if (a.restIframes !== undefined && fr.rest !== a.restIframes) bad.push(`${fr.rest} preview iframes at rest, want ${a.restIframes}`)
+        if (process.env.UI_GATE_VERBOSE) console.log('      frames:', spec.id, bad.length ? bad.join('; ') : 'ok', `${f.length} frames, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}, flash ${flash}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${f.length} frames, ${flash} flash frames, ${fr.rest} iframe at rest, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}`)
+      }
+      case 'box': {
+        const v = await fieldOf(a.field).inputValue()
+        const n = Number(v)
+        return R(v.trim() !== '' && Number.isFinite(n) && Math.abs(n - Number(a.value)) <= (a.tol ?? 0), `${a.field} shows "${v}", want ${a.value}`)
+      }
+      case 'exportAddedLines': { // NUDGE FIX: how many lines of the export of `file` are new and contain `contains`
+        const got = await grabAll()
+        const have = new Set(src.files[a.file].split('\n'))
+        const n = got[a.file].split('\n').filter((l) => !have.has(l) && l.includes(a.contains)).length
+        return R(n === a.n, `${n} new lines with "${a.contains}" in ${a.file}, want ${a.n}`)
+      }
+      case 'noLinkUi': {
+        const bad = await page.evaluate(() => {
+          const root = document.querySelector('[data-editor]'), out = []
+          const word = /\b(link|unlinked|review)\b/i
+          const skip = (e) => e.closest('[data-code-view], [data-notes-list], [data-comment-popover], iframe')
+          for (const e of root.querySelectorAll('*')) {
+            if (skip(e)) continue
+            const named = e.getAttribute('aria-label') ?? ''
+            for (const v of [named, e.getAttribute('title') ?? '', e.getAttribute('aria-description') ?? '']) if (word.test(v)) out.push(`${e.localName} "${v.slice(0, 40)}"`)
+            const own = [...e.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ').trim()
+            if (own && word.test(own)) out.push(`${e.localName} text "${own.slice(0, 40)}"`)
+          }
+          for (const c of root.querySelectorAll('input[type=checkbox]')) { const name = c.getAttribute('aria-label') || (c.labels && c.labels[0] ? c.labels[0].textContent.trim() : ''); if (name !== 'Include comments') out.push(`checkbox "${name}"`) }
+          if (root.querySelector('[data-dot], .ue-dot')) out.push('a dot')
+          if (document.getElementById('ue-link')) out.push('#ue-link')
+          for (const b of root.querySelectorAll('button')) { const n = b.getAttribute('aria-label') ?? b.textContent.trim(); if (/^review/i.test(n)) out.push(`button "${n}"`) }
+          return out
+        })
+        return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : 'no Link checkbox, no dot, no Review button or wording in the editor')
+      }
+      case 'barNames': {
+        const names = await page.getByRole('group', { name: 'Editor controls' }).getByRole('button').evaluateAll((els) => els.filter((e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden').map((e) => e.getAttribute('aria-label') ?? e.textContent.trim()))
+        return R(JSON.stringify(names) === JSON.stringify(a.names), `bar buttons: ${names.join(', ')}`)
+      }
+      case 'editList': {
+        const list = JSON.parse((await page.locator('[data-editor]').first().getAttribute('data-edit-list')) ?? '[]')
+        const bad = []
+        if (list.length !== a.expect.length) bad.push(`${list.length} edits (${list.map((e) => e.op).join(', ')}), want ${a.expect.length}`)
+        a.expect.forEach((w, i) => {
+          const e = list[i]
+          if (!e) return
+          if (e.op !== w.op) bad.push(`edit ${i + 1} is ${e.op}, want ${w.op}`)
+          if (w.environment !== undefined && (w.environment === 'absent' ? 'environment' in e : e.environment !== w.environment)) bad.push(`edit ${i + 1} (${e.op}) environment ${'environment' in e ? e.environment : 'absent'}, want ${w.environment}`)
+          if (w.link !== undefined) {
+            const has = 'link' in e
+            const ok = w.link === 'absent' ? !has : w.link === 'notFalse' ? e.link !== false : e.link === w.link
+            if (!ok) bad.push(`edit ${i + 1} (${e.op}) link ${has ? e.link : 'absent'}, want ${w.link}`)
+          }
+        })
+        return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : `${list.length} edits: ${list.map((e) => `${e.op}${e.environment ? ' ' + e.environment : ''}${e.link === false ? ' unlinked' : ''}`).join(', ')}`)
+      }
+      case 'equalsList': {
+        const edits = JSON.parse((await page.locator('[data-editor]').first().getAttribute('data-edit-list')) ?? '[]')
+        const ref = await engineReplay(src.files, edits)
+        const got = await grabAll()
+        const bad = src.order.filter((f) => ref.files[f] !== got[f])
+        const firstDiff = (x, y) => { const A = x.split('\n'), B = y.split('\n'); const i = A.findIndex((l, k) => l !== B[k]); return i < 0 ? '(only the length differs)' : `line ${i + 1}: page ${JSON.stringify((A[i] ?? '').slice(0, 90))}, engine ${JSON.stringify((B[i] ?? '').slice(0, 90))}` }
+        return R(ref.ok && bad.length === 0, ref.ok ? (bad.length ? `${bad.join(', ')} differ from the engine's export of the page's edit list (${firstDiff(got[bad[0]], ref.files[bad[0]])}); list ${edits.map((e) => e.op + (e.environment ? ' ' + e.environment : '')).join(', ')}` : `equals the engine's own export of the page's ${edits.length} edits`) : 'the engine refused the replay')
+      }
+      case 'movedAt': {
+        const bad = []
+        const k = scaleAtDrag || 1
+        for (const w of a.moved) {
+          const v = await page.evaluate(([w, s]) => window.__gate.computedAt(w, s, 'transform'), [w, a.sel])
+          const m = /^matrix\(([^)]+)\)$/.exec(v ?? '')
+          const n = m ? m[1].split(',').map(Number) : null
+          if (!n || Math.abs(n[4] - a.dx / k) > a.tol || Math.abs(n[5] - a.dy / k) > a.tol) bad.push(`@${w}: ${v}, want a move of ${(a.dx / k).toFixed(1)}, ${(a.dy / k).toFixed(1)}`)
+        }
+        for (const w of a.same) {
+          const v = await page.evaluate(([w, s]) => window.__gate.computedAt(w, s, 'transform'), [w, a.sel])
+          if (v !== 'none') bad.push(`@${w}: ${v}, want none`)
+        }
+        return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : `moved at ${a.moved.join(', ')}; not at ${a.same.join(', ')}`)
+      }
+      case 'tabSequence': {
+        const nameJs = `(e) => e.getAttribute('aria-label') || (e.labels && e.labels[0] ? e.labels[0].textContent.trim() : '') || e.textContent.trim()`
+        const inArea = a.area === 'bar' ? `!!e.closest('[role=group][aria-label="Editor controls"]')` : `!!e.closest('[data-ribbon]')`
+        if (a.area === 'bar') { await page.evaluate(() => document.activeElement?.blur()); await page.getByRole('group', { name: 'Editor controls' }).getByRole('button', { name: 'Samples', exact: true }).focus() }
+        else await page.evaluate(() => window.__gate.focusBeforeRibbon())
+        const seq = []
+        const first = a.area === 'bar' ? await page.evaluate(`(() => { const nameOf = ${nameJs}; const e = document.activeElement; return e ? nameOf(e) : null })()`) : null
+        if (first) seq.push(first)
+        for (let i = 0; i < a.names.length + 5; i++) {
+          await page.keyboard.press('Tab')
+          const n = await page.evaluate(`(() => { const nameOf = ${nameJs}; const e = document.activeElement; if (!e || !(${inArea})) return null; return nameOf(e) })()`)
+          if (n === null) break
+          seq.push(n)
+        }
+        await page.evaluate(() => document.activeElement?.blur())
+        const ok = JSON.stringify(seq) === JSON.stringify(a.names)
+        let why = ''
+        if (!ok) { let i = 0; while (i < a.names.length && seq[i] === a.names[i]) i++; why = `Tab order differs at step ${i + 1}: visited "${seq[i] ?? '(left the area)'}", want "${a.names[i] ?? '(end)'}" (${seq.length} visited, ${a.names.length} expected)` }
+        return R(ok, ok ? `Tab visits ${seq.length} controls of the ${a.area}, in the stated order` : why)
+      }
+      case 'pageText': {
+        const t = await page.evaluate((scope) => {
+          const root = scope === 'editor' ? document.querySelector('[data-editor]') : document.body
+          const attrs = [...root.querySelectorAll('[title], [aria-label]')].map((e) => `${e.getAttribute('title') ?? ''} ${e.getAttribute('aria-label') ?? ''}`).join(' ')
+          const copy = root.cloneNode(true) // the words a visitor can read: no script or style text
+          copy.querySelectorAll('script, style, noscript').forEach((n) => n.remove())
+          return `${copy.textContent} ${attrs}`.replace(/\s+/g, ' ')
+        }, a.scope ?? 'page')
+        const missing = (a.has ?? []).filter((s) => !t.includes(s)), present = (a.lacks ?? []).filter((s) => t.includes(s))
+        return R(missing.length === 0 && present.length === 0, [missing.length ? `missing: ${missing.map((s) => JSON.stringify(s.slice(0, 50))).join(', ')}` : '', present.length ? `still there: ${present.map((s) => JSON.stringify(s)).join(', ')}` : ''].filter(Boolean).join('; ') || `${(a.has ?? []).length} sentences present, ${(a.lacks ?? []).length} absent`)
+      }
+      case 'ribbonNoteHidden': {
+        const loc = page.locator('[data-ribbon-note]').first()
+        const shown = await loc.isVisible().catch(() => false)
+        const t = (await loc.innerText().catch(() => '')).trim()
+        return R(!shown || t === '', shown ? `the note shows "${t}"` : 'no note')
+      }
       // ---- formatting round 7b ----
       case 'colourGrid': {
         const m = await page.evaluate((button) => {
@@ -1735,7 +1979,7 @@ async function runSpec(spec) {
         return R(small.length === 0, small.length ? `${small.length} too small: ${small.slice(0, 4).join(', ')}` : 'every ribbon control is at least 44 px')
       }
       case 'noOverflowX': {
-        if (a.widths && spec.id.startsWith('Y')) {
+        if (a.widths && /^[KXY]/.test(spec.id)) {
           const bad = []
           for (const w of a.widths) { const m = await page.evaluate((w) => window.__gate.withWidth(w, (doc) => ({ sw: doc.documentElement.scrollWidth, cw: doc.documentElement.clientWidth })), w); if (m.sw > m.cw + 1) bad.push(`@${w}: scroll ${m.sw} over ${m.cw}`) }
           return R(bad.length === 0, bad.length ? bad.join('; ') : `no sideways overflow at ${a.widths.join(', ')}`)
@@ -2800,19 +3044,32 @@ async function runSpec(spec) {
     res.retiredChecks = []
     for (const [stepIndex, step] of spec.steps.entries()) {
       if (TIMING) console.log(`TIME ${new Date().toISOString()} +${((Date.now() - T0) / 1000).toFixed(1)}s spec ${spec.id} step ${stepIndex} ${step.do}${step.k ? ':' + step.k : ''}`)
-      if (retired3?.steps?.includes(stepIndex) || (retired3?.asserts && step.do === 'assert' && retired3.asserts.includes(step.k))) {
+      if (retired3?.steps?.includes(step._i ?? stepIndex) || (retired3?.asserts && step.do === 'assert' && retired3.asserts.includes(step.k))) {
         if (!res.retiredChecks.includes(retired3.replacedBy)) res.retiredChecks.push(retired3.replacedBy)
         res.retiredCount = (res.retiredCount ?? 0) + 1
         continue
       }
       if (!(step.do === 'assert' || step.do === 'tick' || step.do === 'openCode' || (step.do === 'button' && /change$/.test(step.name)))) exportMemo.clear()
-      if (['load', 'visit', 'openCard', 'clickCard', 'click', 'clickBlank', 'drag', 'release', 'type', 'stepper', 'choose', 'fill', 'unit', 'uncheck', 'ownAction', 'menuItem', 'holdButton'].includes(step.do) || (step.do === 'button' && !/change$/.test(step.name))) lastEditMessage = null
+      if (['keys'].includes(step.do)) lastEditMessage = null
+      if (['load', 'loadFixture', 'visit', 'openCard', 'clickCard', 'click', 'clickBlank', 'drag', 'release', 'type', 'stepper', 'choose', 'fill', 'unit', 'uncheck', 'ownAction', 'menuItem', 'holdButton'].includes(step.do) || (step.do === 'button' && !/change$/.test(step.name))) lastEditMessage = null
       if (step.do === 'load') {
         noteTexts.length = 0
         src = sources[step.sample]
         await page.goto(baseUrl)
         await page.evaluate(PAGE_HELPERS)
         await openSample(step.sample)
+        await captureBefore()
+      } else if (step.do === 'loadFixture') {
+        // VIEWS ROUND 1: a hand-written fixture is the document, opened through Paste (nothing is open first).
+        noteTexts.length = 0
+        src = sources[step.fixture]
+        await page.goto(baseUrl)
+        await page.evaluate(PAGE_HELPERS)
+        await page.locator('[data-editor]').first().waitFor()
+        await pasteOrUpload('paste', { markup: src.files[src.primary] })
+        alias[src.primary] = 'pasted.html'
+        await page.waitForFunction((s) => { const f = document.querySelector('iframe[title="Preview"]'); return !!f?.contentDocument?.querySelector(s) }, READY[step.fixture])
+        await settle(page)
         await captureBefore()
       } else if (step.do === 'visit') {
         // Round 1: a fresh load with nothing opened.
@@ -2946,6 +3203,43 @@ async function runSpec(spec) {
         } else await b.click()
       } else if (step.do === 'fill') {
         await fieldOf(step.label).fill(step.text)
+      } else if (step.do === 'keys') {
+        for (let i = 0; i < step.times; i++) { await page.keyboard.press(step.key); if (step.settle) await settle(page) }
+        if (!step.settle) await settle(page)
+        continue
+      } else if (step.do === 'focusOverlay') {
+        await page.evaluate(() => (document.querySelector('.ue-overlay') ?? document.querySelector('#cover'))?.focus({ preventScroll: true }))
+        continue
+      } else if (step.do === 'frames') {
+        if (step.action === 'start') {
+          await page.evaluate(() => {
+            const rec = { frames: [], on: true, rest: -1, y0: Math.round(scrollY), st0: Math.round(document.querySelector('.ue-scroll')?.scrollTop ?? -1) } // the scroll position when the recording starts counts as a frame of its own for scrollSame
+            window.__frames = rec
+            const tick = () => {
+              if (!rec.on) return
+              const fs = [...document.querySelectorAll('iframe[title="Preview"]')]
+              const vis = fs.filter((f) => { const r = f.getBoundingClientRect(); const c = getComputedStyle(f); return c.display !== 'none' && c.visibility !== 'hidden' && r.height > 0 && r.left > -1000 })
+              const st = document.querySelector('.ue-frame')
+              const sc = document.querySelector('.ue-scroll')
+              rec.frames.push({ n: fs.length, vis: vis.length, h: vis.map((f) => Math.round(f.getBoundingClientRect().height)), stage: st ? Math.round(st.getBoundingClientRect().height) : -1, sy: Math.round(scrollY), st: sc ? Math.round(sc.scrollTop) : -1, sel: !!document.querySelector('[data-selection]') })
+              requestAnimationFrame(tick)
+            }
+            requestAnimationFrame(tick)
+          })
+        } else {
+          await settle(page)
+          await page.evaluate(() => { window.__frames.on = false; window.__frames.rest = document.querySelectorAll('iframe[title="Preview"]').length })
+        }
+        continue
+      } else if (step.do === 'burst') {
+        // the presses are sent from inside the page, one per timer tick, whatever is on screen (a page scrolled down has the ribbon out of view): the next press can land while the last rebuild runs
+        await page.evaluate(async ([field, dir, n]) => { for (let i = 0; i < n; i++) { const el = document.querySelector(`[data-ribbon] [data-spin="${dir === '+' ? 'up' : 'down'}"][data-for="${field}"]`); if (!el) break /* the arrow is drawn again after every edit: the next press goes to the one that is there now */; el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 })); el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1 })); el.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0, detail: 1 })); await new Promise((r) => setTimeout(r, 0)) } }, [step.field, step.dir, step.times])
+        await settle(page)
+        continue
+      } else if (step.do === 'scrollTo') {
+        // the host window is scrolled so the element is in the middle of the window (as far as the page can scroll)
+        await page.evaluate(([s]) => { const f = window.__gate.frame(); const k = window.__gate.scaleOf(); const b = f.contentDocument.querySelector(s).getBoundingClientRect(); const top = f.getBoundingClientRect().top + b.top * k + scrollY; window.scrollTo(0, Math.max(0, top - innerHeight / 2)) }, [step.sel])
+        continue
       } else if (step.do === 'stepper') {
         let b = page.locator('[data-ribbon]').getByRole('button', { name: `${step.dir === '+' ? 'Increase' : 'Decrease'} ${step.field}`, exact: true })
         // ROUND 6 (log #33): a number box has spin arrows (not buttons, so not tab stops) named by data-for; the grow and shrink buttons of the font size keep their button names.
@@ -2997,7 +3291,8 @@ async function runSpec(spec) {
 
     // ---- after the steps: P3 needs the preview now, P2 needs the export (round 1 specs list the checks that apply) ----
     const wants = (k) => !spec.checks || spec.checks.includes(k)
-    const isY = /^[YZ]\d/.test(spec.id)
+    const isY = /^[JKQXYZ]\d/.test(spec.id)
+    if (/^[JQ]\d/.test(spec.id)) for (const k of ['P3', 'P4']) { const arr = res[k]; res[k] = { ok: arr.length > 0 && arr.every((c) => c.ok), detail: arr.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) } }
     if (isY && wants('P2')) res.P2 = { ok: res.P2a.length > 0 && res.P2a.every((c) => c.ok), detail: res.P2a.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) }
     if (!isY && (wants('P2') || wants('P3') || wants('P4'))) {
     const afterDump = await dumps()
@@ -3043,15 +3338,30 @@ async function runSpec(spec) {
   } catch (e) {
     res.notes.push('runner error: ' + (e?.stack ?? e))
   }
+  if (DUMP) {
+    // the exported files of the spec's last state, when the page has a Download button to give them (a spec that ends with nothing open has none); a failure here never changes the spec's outcome
+    try {
+      let files = res.exports
+      if (!files) {
+        const dl = page.getByRole('button', { name: 'Download', exact: true })
+        if ((await dl.count()) && (await dl.first().isEnabled().catch(() => false))) files = await grabAll()
+      }
+      if (files) {
+        const d = join(DUMP, spec.id)
+        mkdirSync(d, { recursive: true })
+        for (const [f, text] of Object.entries(files)) writeFileSync(join(d, f), text)
+      }
+    } catch (e) { res.dumpNote = String(e).split('\n')[0] }
+  }
   await ctx.close()
   // READING (docs/ui-editor-gate-log.md #24): T11 lists P5 but has no P5 assert (my slip in the locked file). A listed check that no assert of the spec belongs to has nothing that
   // can fail: it is reported as vacuous, not scored. Only round 3 specs; the earlier files keep the strict reading.
   res.vacuous = []
   // R07 too: its only P5 assert (step 12) is one of the retired checks, so what is left lists P5 without an assert.
-  if (spec.checks && (/^[TUVW]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
+  if (spec.checks && (/^[TUVWJQ]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
     const ret = retiredFor(spec.id)
     const live = spec.steps.filter((x, i) => !(ret?.steps?.includes(i) || (ret?.asserts && x.do === 'assert' && ret.asserts.includes(x.k))))
-    res.vacuous = ['P1', 'P5', 'P6'].filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
+    res.vacuous = (/^[JQ]\d/.test(spec.id) ? ['P1', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P5', 'P6']).filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
     res.checks = spec.checks.filter((k) => !res.vacuous.includes(k))
   }
   res.outcome = spec.checks ? outcomeOfRound1(res) : outcomeOf(res)
@@ -3082,10 +3392,64 @@ async function builtProbe(id) {
   } catch { return false } finally { await ctx.close() }
 }
 
+// ---- VIEWS ROUND 1, X32: the flag OFF. flags.mjs (16 checks) builds the site without VITE_SHOW_UI_EDITOR; that build is compared with the one of the baseline (--off-baseline <dir>, the dist-off of main) ----
+// (mine, rules amendment A4) identical = the same files, and every file byte for byte after the content hash in every asset name (and in every reference to one) is normalised, except the chunks of the
+// family UiEditor-* (the page) and uiEditor-* (its words), which only the editor loads (flags.mjs checks that the page's chunk is never requested with the flag off) and which are expected to differ;
+// both families must exist in both builds. A chunk's hash follows its content, so every chunk that names another one changes its hash when that one changes.
+function walkFiles(dir, base = dir) {
+  const out = []
+  for (const f of readdirSync(dir)) { const p = join(dir, f); if (statSync(p).isDirectory()) out.push(...walkFiles(p, base)); else out.push(p.slice(base.length + 1)) }
+  return out.sort()
+}
+const HASHED = /([A-Za-z0-9_$.]+?)-[A-Za-z0-9_-]{8}\.(js|css)\b/g
+const IS_CHUNK = /(^|\/)(UiEditor|uiEditor)-[A-Za-z0-9_-]{8}\.(js|css)$/
+const unhash = (s) => s.replace(HASHED, '$1-HASH.$2')
+const unbuild = (s) => s.replace(/\b[0-9a-f]{7}\b(?=[`'", ]*\((?:local|preview|production)\))/g, 'BUILD') // the site prints the short commit it was built from, before " (local)"
+async function flagOffCheck(spec) {
+  const r = { id: spec.id, name: spec.name, outcome: 'FAIL', checks: [], P1: [], P5: [], P6: [], setup: [], notes: [] }
+  const dir = join(outDir, 'flags-views1')
+  mkdirSync(dir, { recursive: true })
+  const f = spawnSync('node', [join(here, 'flags.mjs'), '--out', dir], { cwd: root, env: process.env, encoding: 'utf8', timeout: 300000 })
+  const m = /(\d+) of (\d+) checks passed/.exec(f.stdout ?? '')
+  const flagsOk = f.status === 0 && !!m && m[1] === m[2] && m[2] === '16'
+  const base = opt('--off-baseline')
+  const problems = []
+  if (!flagsOk) problems.push(`flags.mjs: ${m ? `${m[1]} of ${m[2]}` : 'no result'}, exit ${f.status}`)
+  if (!base || !existsSync(base)) problems.push('no --off-baseline folder to compare the flag-off build with')
+  else {
+    const now = join(dir, 'dist-off')
+    const A = walkFiles(base), B = walkFiles(now)
+    const textual = (p) => /\.(js|css|html|json|svg|txt|map)$/.test(p)
+    // the content of every file but the two editor families, keyed by its name with the hash taken out; files that share a base name (two healpix chunks) are paired by content
+    const group = (dir0, files) => {
+      const m = new Map()
+      for (const p of files) {
+        if (IS_CHUNK.test(p)) continue
+        const content = textual(p) ? unbuild(unhash(readFileSync(join(dir0, p), 'utf8'))) : readFileSync(join(dir0, p)).toString('base64')
+        const k = unhash(p)
+        if (!m.has(k)) m.set(k, [])
+        m.get(k).push(content)
+      }
+      for (const v of m.values()) v.sort()
+      return m
+    }
+    const ga = group(base, A), gb = group(now, B)
+    for (const k of ga.keys()) if (!gb.has(k)) problems.push(`only in the baseline build: ${k}`)
+    for (const k of gb.keys()) if (!ga.has(k)) problems.push(`only in the new build: ${k}`)
+    for (const [k, v] of ga) { const w = gb.get(k); if (w && (v.length !== w.length || v.some((x, i) => x !== w[i]))) problems.push(`differs: ${k}`) }
+    const fams = (list) => list.filter((p) => IS_CHUNK.test(p)).map(unhash).sort().join(',')
+    if (fams(A) !== fams(B) || !/UiEditor-HASH\.js/.test(fams(A)) || !/uiEditor-HASH\.js/.test(fams(A))) problems.push(`the editor chunk families differ or are missing (${fams(A)} / ${fams(B)})`)
+  }
+  r.P6.push({ name: 'flag off', ok: problems.length === 0, detail: problems.length ? problems.slice(0, 6).join('; ') : `flags.mjs 16 of 16; the flag-off build equals the baseline's (${nbCount(dir)} files, the two editor chunk families apart)` })
+  r.outcome = problems.length === 0 ? 'PASS' : 'FAIL'
+  return r
+}
+const nbCount = (dir) => { try { return walkFiles(join(dir, 'dist-off')).length } catch { return 0 } }
+
 // ---- no-op round trips: every sample, no edits, every file byte-identical ----
 async function noop() {
   const rows = []
-  for (const id of Object.keys(sources)) {
+  for (const id of SAMPLE_FILES.map((s) => s.id)) { // VIEWS ROUND 1: the fixtures are not samples
     const ctx = await browser.newContext({ viewport: specsFile.hostViewport, acceptDownloads: true })
     const page = await ctx.newPage()
     await page.goto(baseUrl)
@@ -3144,6 +3508,33 @@ function round7Specs() {
   // Round 7b brings its own Z07 (it also needs Z01 and Z02): the one of round 7a is not run then.
   return STAGE || flag('--round7a') || (only && only.some((id) => /^Z\d/.test(id))) ? [...round7aFile.specs.filter((x) => !x.aggregate7), ...round7bFile.specs] : []
 }
+// VIEWS ROUND 1: the X specs run with --views1 (or --only Xnn), after the earlier specs (X31 reads their results).
+function views1Specs() {
+  if (!(flag('--views1') || (only && only.some((id) => /^X\d/.test(id))))) return []
+  return views1File.specs.map((spec) => {
+    const a = amendViews1.specs?.[spec.id]
+    if (!a) return spec
+    const steps = []
+    spec.steps.forEach((st, i) => {
+      if (a.skip?.includes(i)) return
+      if (a.replace?.[String(i)]) steps.push(...a.replace[String(i)])
+      else steps.push(st)
+      if (a.insertAfter?.[String(i)]) steps.push(...a.insertAfter[String(i)])
+    })
+    return { ...spec, steps, amendment: a.amendment }
+  })
+}
+// NO-NUDGE: the numbered amendments (steps replaced) of the Q file, for the real page and --stub12; every step keeps the number it had, so the retired steps still name the right ones.
+function amendNonudge(spec) {
+  const a = NONUDGE ? (amendNonudgeFile.specs?.[spec.id] ?? nonudgeFile.amendments?.[spec.id]) : undefined
+  if (!a) return spec
+  const steps = []
+  spec.steps.forEach((st, i) => {
+    if (a.replace?.[String(i)]) steps.push(...a.replace[String(i)].map((s) => ({ ...s, _i: i })))
+    else steps.push({ ...st, _i: i })
+  })
+  return { ...spec, steps, amendment: a.amendment }
+}
 function insertSpecs() {
   if (STAGE) {
     const st = amendFile.stages[String(STAGE)]
@@ -3160,7 +3551,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs()].filter((s) => !only || only.includes(s.id))
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : []), ...(flag('--nudge2') || (only && only.some((id) => /^J\d/.test(id))) ? nudge2File.specs : []), ...(flag('--nonudge') || (only && only.some((id) => /^Q\d/.test(id))) ? nonudgeFile.specs : [])].filter((s) => !only || only.includes(s.id)).map(amendNonudge)
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -3178,6 +3569,12 @@ if (flag('--noop')) {
       continue
     }
     if (spec.aggregate7) { continue } // Z07 is read after the loop, from the pass line of the earlier specs
+    if (spec.external === 'flagOff') {
+      const r = await flagOffCheck(spec)
+      results.push(r)
+      console.log(`${r.id}  ${r.outcome.padEnd(7)} ${r.P6[0].detail}  ${r.name.slice(0, 80)}`)
+      continue
+    }
     if (spec.aggregate) {
       const need = spec.aggregate.map((id) => results.find((x) => x.id === id))
       let ok = need.every((x) => x && x.outcome === 'PASS')
@@ -3203,7 +3600,7 @@ if (flag('--noop')) {
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
     if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWYZ]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZKJQ]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
   const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length, retired: tally(round4, 'RETIRED') }, round5: { pass: tally(round5, 'PASS'), fail: tally(round5, 'FAIL'), retired: tally(round5, 'RETIRED'), total: round5.length }, round6: { pass: tally(round6, 'PASS'), fail: tally(round6, 'FAIL'), notBuilt: tally(round6, 'NOT BUILT'), total: round6.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
@@ -3213,30 +3610,38 @@ if (flag('--noop')) {
   if (round5.length) console.log(`Round 5:   PASS ${summary.round5.pass}  FAIL ${summary.round5.fail}${summary.round5.retired ? `  RETIRED ${summary.round5.retired}` : ''}  of ${summary.round5.total}`)
   if (round6.length) console.log(`Round 6:   PASS ${summary.round6.pass}  FAIL ${summary.round6.fail}${summary.round6.notBuilt ? `  NOT BUILT ${summary.round6.notBuilt}` : ''}  of ${summary.round6.total}`)
   if (insert1.length) console.log(`Insert 1 (stage ${STAGE ?? 'as locked'}): PASS ${tally(insert1, 'PASS')}  FAIL ${tally(insert1, 'FAIL')}${tally(insert1, 'NOT BUILT') ? `  NOT BUILT ${tally(insert1, 'NOT BUILT')}` : ''}  of ${insert1.length}`)
+  if (views1.length) console.log(`Views 1:   PASS ${tally(views1, 'PASS')}  FAIL ${tally(views1, 'FAIL')}  of ${views1.length}`)
+  const nonudge = results.filter((r) => r.id.startsWith('Q'))
+  if (nonudge.length) console.log(`No-nudge:  PASS ${tally(nonudge, 'PASS')}  FAIL ${tally(nonudge, 'FAIL')}  of ${nonudge.length}`)
+  const nudge2 = results.filter((r) => r.id.startsWith('J'))
+  if (nudge2.length) console.log(`Nudge fix 2: PASS ${tally(nudge2, 'PASS')}  FAIL ${tally(nudge2, 'FAIL')}  of ${nudge2.length}`)
+  if (nudge.length) console.log(`Nudge fix: PASS ${tally(nudge, 'PASS')}  FAIL ${tally(nudge, 'FAIL')}  of ${nudge.length}`)
   if (round4.length) console.log(`Round 4:   PASS ${summary.round4.pass}  FAIL ${summary.round4.fail}${summary.round4.notApplicable ? `  NOT APPLICABLE ${summary.round4.notApplicable}` : ''}  of ${summary.round4.total}`)
   writeFileSync(join(outDir, `results${fault ? '-' + fault : ''}${only ? '-' + only.join('') : ''}.json`), JSON.stringify({ summary, results: results.map(({ exports, ...r }) => r) }, null, 1))
   // Pass line: originals 18 PASS + 2 REFUSED + 0 FAIL when all 20 ran; round 1 N03 to N11 all PASS (N01 and N02 retired); round 2 R01 to R16 all PASS (retired checks skipped);
   // round 3 T01 to T16 all PASS in the earlier stubs; on the real page and the round 4 stub T01 is retired and T10 is a failed locked spec (docs/ui-editor-gate-rules-round4.md section 1);
   // round 4 U01 to U13 all PASS (U13 NOT APPLICABLE only with --u13-na).
   const o = summary.originals, n = summary.round1
-  const origOk = orig.length !== 20 || (o.pass + o.refused >= 20 && o.pass >= 18 && o.fail === 0)
+  // VIEWS ROUND 1 (rules section 6): the original 20 are 16 PASS, 1 REFUSED and 3 RETIRED (S08, S10, S16), 0 FAIL; retired specs are not counted as passed.
+  const origOk = orig.length !== 20 || (VIEWS1 ? orig.every((r) => ['PASS', 'REFUSED', 'RETIRED'].includes(r.outcome)) && tally(orig, 'PASS') >= 16 : o.pass + o.refused >= 20 && o.pass >= 18 && o.fail === 0)
   const r1Ok = round1.length !== 9 || (n.pass === 9 && n.fail === 0)
   const r2Ok = round2.length !== 16 || (summary.round2.pass === 16 && summary.round2.fail === 0)
   const r3Ok = round3.length !== 16 || (OLD_STUB ? summary.round3.pass === 16 && summary.round3.fail === 0 : round3.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED' || r.id === 'T10') && round3.find((r) => r.id === 'T10')?.outcome !== undefined)
   const r4Ok = round4.length !== 13 || round4.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED' || (r.id === 'U13' && flag('--u13-na') && r.outcome === 'NOT APPLICABLE'))
   const r5Ok = round5.length !== 9 || round5.every((r) => r.outcome === 'PASS' || (ROUND6 && r.outcome === 'RETIRED'))
   const r6Ok = round6.length !== 12 || round6.every((r) => r.outcome === 'PASS' || r.outcome === 'NOT BUILT')
-  const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT'))
+  const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT') || (VIEWS1 && r.outcome === 'RETIRED'))
+  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED') && results.filter((r) => /^[JQ]/.test(r.id)).every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED')
   // FORMATTING ROUND 7a: Z07 is PASS when the earlier specs of this run meet the pass line (the original 20, round 1, rounds 2 to 6, Y01 to Y14 all PASS); with --only it is not run.
   const z07Spec = round7bFile.specs.find((x) => x.aggregate7)
-  const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS') && ['Z01', 'Z02'].every((id) => round7a.find((r) => r.id === id)?.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12
+  const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS' || (VIEWS1 && r.outcome === 'RETIRED')) && ['Z01', 'Z02'].every((id) => round7a.find((r) => r.id === id)?.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12
   if (z07Spec && round7Specs().some((x) => x.id === 'Z07') && (!only || only.includes('Z07'))) {
     round7a.push({ id: 'Z07', name: z07Spec.name, outcome: earlierOk ? 'PASS' : 'FAIL', checks: [] })
     console.log(`Z07  ${earlierOk ? 'PASS' : 'FAIL'}    ${z07Spec.name.slice(0, 100)}`)
   }
   if (round7a.length) console.log(`Round 7a:  PASS ${tally(round7a, 'PASS')}  FAIL ${tally(round7a, 'FAIL')}  of ${round7a.length}`)
   const zOk = round7a.every((r) => r.outcome === 'PASS')
-  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && yOk && zOk ? 0 : 1
+  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && yOk && zOk && xOk ? 0 : 1
 }
 await browser.close()
 exportServer.close()

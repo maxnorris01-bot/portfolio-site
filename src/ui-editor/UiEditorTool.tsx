@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { MAX_BYTES, codeView as codeViewText, deviceNote, labels, messages, panel } from '../data/uiEditor'
 import CodeView, { type CodeViewHandle } from './CodeView'
 import { changeOrder, counterText, diffHunks, offsetOfFile, stepChange, type Hunk } from './diff'
@@ -21,7 +21,7 @@ import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
-import { listNotes, listUnlinked, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
+import { listNotes, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
 import './UiEditorTool.css'
 
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
@@ -39,7 +39,6 @@ export default function UiEditorTool() {
   const [list, setListState] = useState<EditList>(emptyList())
   const [view, setView] = useState<ViewName>('Desktop')
   const [orientation, setOrientation] = useState<Orientation>('portrait')
-  const [link, setLink] = useState(true)
   const [selPath, setSelPath] = useState<string | null>(null)
   const [message, setMessage] = useState<Msg | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
@@ -49,7 +48,6 @@ export default function UiEditorTool() {
   const [nonce, setNonce] = useState(0)
   const [replay, setReplay] = useState(0)
   const [confirm, setConfirm] = useState<Confirm | null>(null)
-  const [reviewOpen, setReviewOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [holdHeight, setHoldHeight] = useState(0)
   const [galleryOpen, setGalleryOpen] = useState(false)
@@ -97,39 +95,73 @@ export default function UiEditorTool() {
     setBusy(true)
   }
   const svgDoc = doc?.kind === 'svg'
-  const environment: Environment = view === 'Phone' ? 'phone' : 'desktop'
+  // The view is the environment an edit is made in: Desktop edits reach Phone and Tablet, Phone and Tablet edits are custom to that view.
+  const environment: Environment = view === 'Phone' ? 'phone' : view === 'Tablet' ? 'tablet' : 'desktop'
   const editable = isEditable(view, orientation)
 
   // ---- the preview: built from the ORIGINAL document, with the edit list replayed on it ----
+  // A new document, a view or an orientation closes the old preview first. A replay of the same document (a merged move, Undo, Redo, Reset all) builds the new preview BEHIND
+  // the old one, which stays on screen until the new one is ready; the swap (below) is one step, so the stage never goes empty.
+  const replayBehind = useRef(false)
+  const swap = useRef<{ buffer: HTMLElement; old: Session } | null>(null)
   useEffect(() => {
     if (!doc) return
     const mine = ++generation.current
     const host = frameHost.current
     if (!host) return
-    setHoldHeight(sessionRef.current?.preview.iframe.offsetHeight ?? 0)
-    closeSession(sessionRef.current)
-    sessionRef.current = null
-    setSession(null)
+    const old = sessionRef.current
+    const behind = replayBehind.current && !!old
+    replayBehind.current = false
+    let buffer: HTMLElement | null = null
+    if (behind) {
+      buffer = document.createElement('div')
+      buffer.setAttribute('data-preview-buffer', '')
+      Object.assign(buffer.style, { position: 'absolute', left: '0', top: '0', visibility: 'hidden' })
+      host.appendChild(buffer)
+    } else {
+      setHoldHeight(old?.preview.iframe.offsetHeight ?? 0)
+      closeSession(old)
+      sessionRef.current = null
+      setSession(null)
+    }
     busyRef.current = true
     setBusy(true)
-    void openSession(doc, listRef.current.edits, host, viewport(viewRef.current, orientRef.current)).then((r) => {
+    void openSession(doc, listRef.current.edits, buffer ?? host, viewport(viewRef.current, orientRef.current)).then((r) => {
       if (mine !== generation.current) {
         if (r.ok) closeSession(r.session)
+        buffer?.remove()
         return
       }
       busyRef.current = false
       setBusy(false)
       if (!r.ok) {
+        buffer?.remove()
+        if (behind) {
+          closeSession(old)
+          sessionRef.current = null
+          setSession(null)
+        }
         show({ kind: 'refusal', text: messages.cannotOpen(r.message) })
         setDoc(null)
         return
       }
+      if (buffer && old) swap.current = { buffer, old }
       sessionRef.current = r.session
       setSession(r.session)
       setHoldHeight(0)
       setRev((n) => n + 1)
     })
   }, [doc, replay])
+  // The swap: before the browser draws, the new preview takes the old one's place and the old one is closed (once). The Stage has measured the new preview by now.
+  useLayoutEffect(() => {
+    const s = swap.current
+    if (!s) return
+    swap.current = null
+    s.buffer.style.cssText = ''
+    const wrapper = s.old.preview.iframe.parentElement
+    closeSession(s.old)
+    if (wrapper?.hasAttribute('data-preview-buffer')) wrapper.remove()
+  }, [session])
 
   // Leaving the page takes the preview away.
   useEffect(
@@ -144,8 +176,6 @@ export default function UiEditorTool() {
   const widthUnit: WidthUnit = unitState.path === selPath ? unitState.unit : 'px'
   const selected = session && selPath ? indexOfPath(session.preview.model, selPath) : -1
   const selIndex = selected >= 0 ? selected : null
-  const pins = session ? listUnlinked(session.state) : []
-  const mine = pins.filter((p) => p.selector === selPath)
 
   // ---- opening something ----
   const load = (next: Doc, warn: string[]) => {
@@ -157,7 +187,6 @@ export default function UiEditorTool() {
     setNotesOpen(false)
     setWarnings(warn)
     setGalleryOpen(false)
-    setReviewOpen(false)
     setPasteOpen(false)
     show({ kind: 'info', text: messages.opened(next.name) })
     startBusy()
@@ -207,16 +236,28 @@ export default function UiEditorTool() {
   }
 
   // ---- edits ----
-  const scope = () => ({ environment, link: svgDoc ? true : link })
+  const scope = () => (svgDoc ? {} : { environment })
 
   /** One more edit on the live preview. A refusal shows the engine's reason and changes nothing. */
-  const run = (edit: Edit, what: string, nextSel?: string | null | ((s: Session, applied: Extract<Applied, { ok: true }>) => string | null), extra?: string): boolean => {
+  const run = (edit: Edit, what: string, nextSel?: string | null | ((s: Session, applied: Extract<Applied, { ok: true }>) => string | null), extra?: string, watch?: Element | null): boolean => {
     const s = sessionRef.current
     if (!s || busyRef.current || !editable) return false
+    const before = watch?.getBoundingClientRect()
     const applied = applyOne(s, edit)
     if (!applied.ok) {
       show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: applied.message }) })
       return false
+    }
+    // `watch`: an element that must have moved (a nudge). An edit the engine took but that shows nothing (a table cell ignores a shift) is not kept: the preview is built again from the list and one plain line says why.
+    if (watch && before) {
+      const after = watch.getBoundingClientRect()
+      if (Math.abs(after.left - before.left) + Math.abs(after.top - before.top) < 0.4) {
+        show({ kind: 'refusal', text: messages.nudgeNoEffect })
+        startBusy()
+        replayBehind.current = true
+        setReplay((n) => n + 1)
+        return false
+      }
     }
     const last = listRef.current.edits[listRef.current.edits.length - 1]
     const merges = mergeOffsets(last, edit) !== undefined
@@ -226,6 +267,7 @@ export default function UiEditorTool() {
     // Two moves in a row are one edit: the preview is rebuilt so it shows exactly what the list says.
     if (merges) {
       startBusy()
+      replayBehind.current = true
       setReplay((n) => n + 1)
     } else setRev((n) => n + 1)
     return true
@@ -241,8 +283,8 @@ export default function UiEditorTool() {
   const onBadValue = (label: string) => show({ kind: 'refusal', text: messages.badValue(label.toLowerCase()) })
 
   // ---- insert, text and Delete (insert round 1): content edits, the same at every width, with no Link and no pins ----
-  const commentOff = !session ? '' : !editable ? labels.commentTipViewOnly : selIndex === null ? labels.commentTipNone : ''
-  const insertOff = svgDoc ? labels.insertTipSvg : view === 'Tablet' ? labels.insertTipTablet : !editable ? labels.insertTipViewOnly : ''
+  const commentOff = !session ? '' : !editable ? (view === 'Tablet' ? labels.commentTipTablet : labels.commentTipViewOnly) : selIndex === null ? labels.commentTipNone : ''
+  const insertOff = svgDoc ? labels.insertTipSvg : !editable ? (view === 'Tablet' ? labels.insertTipTablet : labels.insertTipViewOnly) : ''
   const startPlacing = (kind: InsertKind) => {
     if (insertOff || !session) return
     setEditingText(null)
@@ -339,8 +381,14 @@ export default function UiEditorTool() {
   const onMove = (dx: number, dy: number) => {
     const t = target()
     if (t === null) return
-    // Moving is unlinked in this version (an SVG has no environments, so there it applies everywhere).
-    run({ op: 'offset', target: t, dx, dy, environment, link: !!svgDoc }, `moved by ${dx}, ${dy} px${svgDoc ? '' : ` (${view} only)`}`)
+    run(...moveEdit(t, dx, dy, 'moved'))
+  }
+  // A move (a drag or an arrow key) is custom to where it is made: in Phone or Tablet one rule for that view's own range, in Desktop one rule for every width above the Phone breakpoint
+  // (the Tablet range too, when the page has one). An SVG has no environments, so there it applies everywhere.
+  const moveScope = () => (svgDoc ? { link: true } : environment === 'desktop' ? { environment, link: false } : { environment })
+  const moveEdit = (t: number, dx: number, dy: number, verb: string): [Edit, string] => {
+    const covers = view !== 'Desktop' ? `${view} only` : session && tabletMin(session.breakpoint) <= 768 ? 'Desktop and Tablet sizes' : 'Desktop only'
+    return [{ op: 'offset', target: t, dx, dy, ...moveScope() }, `${verb} by ${dx}, ${dy} px${svgDoc ? '' : ` (${covers})`}`]
   }
   // Keys that arrive while the preview is being rebuilt (a run of arrow presses is one merged edit) are added up and applied when it is ready.
   const pendingNudge = useRef({ dx: 0, dy: 0 })
@@ -351,7 +399,9 @@ export default function UiEditorTool() {
     }
     const t = target()
     if (t === null) return
-    run({ op: 'offset', target: t, dx, dy, ...scope() }, `nudged by ${dx}, ${dy} px`)
+    const [edit, what] = moveEdit(t, dx, dy, 'nudged')
+    // The element is read from the live session, not from this render's: a press can land between a rebuild finishing and the screen drawing it again.
+    run(edit, what, undefined, undefined, sessionRef.current?.preview.elements[t])
   }
   const onResize = async ({ handle, box, fullWidth }: ResizeRequest) => {
     const t = target()
@@ -416,6 +466,7 @@ export default function UiEditorTool() {
     setNotesOpen(false)
     setList(next)
     startBusy()
+    replayBehind.current = true
     setReplay((n) => n + 1)
     show({ kind: 'info', text: what })
   }
@@ -565,14 +616,6 @@ export default function UiEditorTool() {
     show({ kind: 'ok', text: messages.downloaded(nameList(saved)) })
   }
 
-  // ---- the Review unlinked list ----
-  const jump = (selector: string, env: Environment) => {
-    const v: ViewName = env === 'phone' ? 'Phone' : 'Desktop'
-    if (viewRef.current !== v) onView(v)
-    setSelPath(selector)
-    setReviewOpen(false)
-  }
-
   const latestNudge = useRef(onNudge)
   useEffect(() => {
     latestNudge.current = onNudge
@@ -625,7 +668,6 @@ export default function UiEditorTool() {
                   spec={() => INSERT_ITEMS.map((i) => ({ label: i.label, role: 'menuitem' as const, run: () => startPlacing(i.kind) }))}
                 />
                 <IconButton icon="comment" label={labels.comment} tip={commentOff || labels.commentTip} opens="comment" disabled={!!commentOff || busy} onClick={() => selIndex !== null && openComment({ target: selIndex, opener: 'bar' })} />
-                <IconButton icon="review" label={labels.review(pins.length)} words={labels.reviewWords} tip={labels.reviewTip} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group" role="group" aria-label={labels.view}>
@@ -658,16 +700,12 @@ export default function UiEditorTool() {
               view={view}
               editable={editable}
               lockedNote={view === 'Tablet' ? panel.tablet : panel.viewOnly}
-              link={link}
-              onLink={setLink}
               unit={widthUnit}
               onUnit={(u) => setUnitState({ path: selPath, unit: u })}
-              pins={mine}
               onSet={onSet}
               onBadValue={onBadValue}
               onMessage={(text) => show({ kind: 'refusal', text })}
               onMove={onReorder}
-              onNudge={onNudge}
               onSelectIndex={selectIndexOnly}
               onEditText={() => startTextEdit(undefined, true)}
               onDelete={deleteElement}
@@ -733,23 +771,6 @@ export default function UiEditorTool() {
           {warnings.map((w) => (
             <li key={w}>{w}</li>
           ))}
-        </ul>
-      )}
-
-      {reviewOpen && session && (
-        <ul className="ue-review" aria-label={labels.reviewList}>
-          {pins.map((p) => {
-            const i = indexOfPath(session.preview.model, p.selector)
-            const name = i >= 0 ? labelOf(session, i) : p.selector
-            const env = p.environment === 'phone' ? 'Phone' : 'Desktop'
-            return (
-              <li key={`${p.selector}|${p.property}|${p.environment}`}>
-                <button type="button" className="ue-review-item" onClick={() => jump(p.selector, p.environment)}>
-                  {`${name} · ${p.property} · ${env} only: ${p.value}`}
-                </button>
-              </li>
-            )
-          })}
         </ul>
       )}
 

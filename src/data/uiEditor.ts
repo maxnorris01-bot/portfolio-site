@@ -52,7 +52,7 @@ export const uiEditorPage = {
   githubLabel: 'View on GitHub ↗',
 }
 
-/** Widths of the three views in portrait, in CSS px. Desktop is the engine's desktop size; Tablet is view-only. */
+/** Widths of the three views in portrait, in CSS px. Desktop is the engine's desktop size. */
 export const VIEW_WIDTHS = { Desktop: 1280, Tablet: 768, Phone: 390 } as const
 /** Heights of the Tablet and Phone screens in portrait, in CSS px (turned sideways, width and height swap). Desktop has no fixed height. */
 export const DEVICE_HEIGHTS = { Tablet: 1024, Phone: 844 } as const
@@ -86,13 +86,14 @@ export const labels = {
   insert: 'Insert',
   insertTip: 'Open the list of things you can insert.',
   insertTipSvg: 'Insert is for HTML pages: an SVG cannot take new elements.',
-  insertTipTablet: 'Tablet is view-only: switch to Desktop or Phone to insert.',
+  insertTipTablet: 'Tablet turned sideways is view-only: turn it upright, or switch to Desktop or Phone, to insert.',
   insertTipViewOnly: 'This size is view-only: turn the phone upright, or switch to Desktop, to insert.',
   /** Insert round 1, stage 2: Comment in the quick bar, Notes in the strip, Include comments by Download, and the popovers' words. */
   comment: 'Comment',
   commentTip: 'Open a note for the AI about this element.',
   commentTipNone: 'Select an element first: the note is about it.',
   commentTipViewOnly: 'This size is view-only: turn the phone upright, or switch to Desktop, to add a note.',
+  commentTipTablet: 'Tablet turned sideways is view-only: turn it upright, or switch to Desktop or Phone, to add a note.',
   notes: 'Notes',
   notesTip: 'List the notes for the AI.',
   includeComments: 'Include comments',
@@ -115,13 +116,8 @@ export const labels = {
   undoTip: 'Undo the last edit',
   redoTip: 'Redo the edit you undid',
   resetTip: 'Reset every edit and go back to the original',
-  reviewTip: 'Review the edits that apply to one size only',
   rotateTip: 'Turn the device sideways or upright',
   viewTip: (name: string) => `Show the ${name} size`,
-  review: (n: number) => `Review unlinked (${n})`,
-  /** The words shown on that button: its accessible name carries the count, and the count is also drawn as a badge. */
-  reviewWords: 'Review unlinked',
-  reviewList: 'Unlinked edits',
   file: 'File',
   copy: 'Copy code',
   /** The tooltips (and so the accessible descriptions) of Copy code and Download name the file they act on; the accessible names stay `Copy code` and `Download`. */
@@ -133,7 +129,7 @@ export const labels = {
   code: 'Updated code',
   result: 'Edit result',
   preview: 'Preview',
-  previewHint: 'Click an element to select it. Drag it to move it, or drag a handle to resize it. Double-click an element, or press F2, to change its text; the Delete key removes it. With an element selected, the arrow keys nudge it by 1 px (10 px with Shift). Handles are for the pointer; the ribbon controls and the arrow keys do the same from the keyboard.',
+  previewHint: 'Click an element to select it. Drag it to move it, or drag a handle to resize it. Double-click an element, or press F2, to change its text; the Delete key removes it. With an element selected, the arrow keys move it by 1 px (10 px with Shift). Handles are for the pointer; the ribbon controls and the arrow keys do the same from the keyboard.',
   discard: 'Discard edits',
   keep: 'Keep editing',
   openPaste: 'Open pasted code',
@@ -152,12 +148,8 @@ export const panel = {
   title: 'Selected element',
   ribbon: 'Formatting ribbon',
   none: 'Click an element to edit it',
-  linkTo: (other: string) => `Link to ${other}`,
-  linkHint: 'Scale the other size by the same ratio when a size changes. Off: the change applies to this size only and is listed under Review unlinked.',
-  svgLink: 'Use the one size an SVG has: every edit applies everywhere.',
-  tablet: 'Tablet is a view-only width, so its settings and handles are switched off. Switch to Desktop or Phone to edit.',
+  tablet: 'Tablet turned sideways is view-only, so its settings and handles are switched off. Turn it upright, or switch to Desktop or Phone, to edit.',
   viewOnly: 'This size is view-only, so its settings and handles are switched off: turn the phone upright, or switch to Desktop, to edit.',
-  dot: (env: string) => `Unlinked: applies to ${env} only`,
   /** The strip above the ribbon, and the seven groups of one ribbon (the group's name sits under its controls). */
   strip: 'Selected element',
   pathLabel: 'Selected element path',
@@ -181,9 +173,6 @@ export const panel = {
   borderRadius: 'Border radius',
   moveUp: 'Move up',
   moveDown: 'Move down',
-  nudgeX: 'Nudge X',
-  nudgeY: 'Nudge Y',
-  nudgeHint: 'Pixels to move by; press Enter.',
   decrease: (label: string) => `Decrease ${label}`,
   increase: (label: string) => `Increase ${label}`,
   /** The Sides button of Padding and Margin: it opens a small popover with the four sides. */
@@ -195,10 +184,10 @@ export const panel = {
   mixed: 'mixed',
   sideNames: ['top', 'right', 'bottom', 'left'],
   /** The visible label above each control, in plain words (round 4): the control's accessible name is the key and stays as it was. */
-  ctl: { 'Font family': 'Font family', 'Font size': 'Font size', 'Font weight': 'Weight', 'Text colour': 'Text colour', Width: 'Width', Height: 'Height', Padding: 'Padding', Margin: 'Margin', Background: 'Fill colour', 'Border colour': 'Line colour', 'Border width': 'Line thickness', 'Border radius': 'Corner rounding', 'Nudge X': 'Nudge X', 'Nudge Y': 'Nudge Y' } as Record<string, string>,
+  ctl: { 'Font family': 'Font family', 'Font size': 'Font size', 'Font weight': 'Weight', 'Text colour': 'Text colour', Width: 'Width', Height: 'Height', Padding: 'Padding', Margin: 'Margin', Background: 'Fill colour', 'Border colour': 'Line colour', 'Border width': 'Line thickness', 'Border radius': 'Corner rounding' } as Record<string, string>,
   unitLabel: 'Unit',
   /** Round 6 (PowerPoint-style ribbon): the words beside the number boxes (the control's accessible name is unchanged), the menus and their tooltips. */
-  rowLabels: { Height: 'Height', Width: 'Width', 'Border radius': 'Corner radius', Padding: 'Padding', Margin: 'Margin', nudge: 'Nudge' } as Record<string, string>,
+  rowLabels: { Height: 'Height', Width: 'Width', 'Border radius': 'Corner radius', Padding: 'Padding', Margin: 'Margin' } as Record<string, string>,
   fontColour: 'Font colour',
   fontColourTip: 'Open the colours for the text.',
   fontSizePresets: 'Font size presets',
@@ -241,7 +230,7 @@ export const panel = {
   /** Tooltips: short, verb first. */
   alignTips: { 'Align left': 'Align the text to the left.', 'Align centre': 'Align the text to the centre.', 'Align right': 'Align the text to the right.', Justify: 'Justify the text to both edges.', 'Anchor start': 'Align the text so it starts at its anchor point.', 'Anchor middle': 'Align the text around its anchor point.', 'Anchor end': 'Align the text so it ends at its anchor point.' } as Record<string, string>,
   alignTip: (name: string): string => panel.alignTips[name] ?? `Align the text: ${name.toLowerCase()}.`,
-  typeTip: (name: string): string => (/^Nudge/.test(name) ? 'Type how many pixels to move by, then press Enter.' : `Type the ${name.toLowerCase()}, then press Enter.`),
+  typeTip: (name: string): string => `Type the ${name.toLowerCase()}, then press Enter.`,
   fontTip: (stack: string): string => (stack ? `Choose the font for this text. Now: ${stack}.` : 'Choose the font for this text.'),
   weightTip: 'Choose how heavy the text is.',
   colourTip: 'Type a colour such as #1d3557 or a colour name, then press Enter.',
@@ -294,6 +283,7 @@ export const messages = {
   missingCss: (href: string) => `This page links to the stylesheet "${href}", which was not supplied, so those styles are missing from the preview. Add it with Upload or Paste.`,
   unusedCss: (name: string) => `The stylesheet "${name}" is not linked from the page, so it has no effect on the preview.`,
   badValue: (label: string) => `Not applied: that is not a value ${label} can take.`,
+  nudgeNoEffect: 'Not applied: that element does not move when it is shifted at this size (a table cell, for example, ignores a shift), so nothing was changed.',
   /** Insert round 1: placing, and what an insert, a text edit and a Delete say. */
   placing: (what: string) => `Click where the ${what} should go, or press Escape to cancel.`,
   placingCancelled: 'Cancelled: nothing was inserted.',
@@ -319,15 +309,15 @@ export const how = {
     { name: 'Open', detail: 'Paste, upload or pick a sample. The editor reads your text once to learn where every element and style rule starts and ends, so later it can change only those characters.' },
     { name: 'Preview', detail: 'Your page shows in a sandboxed frame with scripts off, at its real size: Desktop 1280 px, or Tablet 768 px or Phone 390 px in a plain device outline you can turn sideways. Your page is never scaled: in a small window the whole frame is shrunk to fit, and every pointer movement is converted back to your page’s own pixels, so a 40 px drag moves an element 40 px.' },
     { name: 'Edit', detail: 'Click one element. Change it from the ribbon above the preview, or drag its handles or the element. The engine decides where the change goes: the element’s own style, a rule that matches only that element, or a new rule at the end of your stylesheet. A class shared by several elements is never edited in place.' },
-    { name: 'Adapt', detail: 'With Link on, a size change on Desktop also scales the page’s own Phone values by the same ratio, and the other way round; colours, fonts and order apply everywhere. With Link off, a change applies to the size you are in and is listed under Review unlinked. Dragging an element to move it is always unlinked in this version; smarter phone adaptation of moves is planned for a later version.' },
+    { name: 'Adapt', detail: 'Phone and Tablet start as your Desktop setup scaled in proportion to their screens, and follow it. A change made in Desktop reaches all three: sizes in proportion, colours, fonts, order and text as they are, except what you customised in Phone or Tablet. A change made in Phone or Tablet applies to that view only, and a later Desktop change does not override it. Dragging an element to move it follows the same rule: in Phone or Tablet it moves it there only, in Desktop it covers every width above the Phone breakpoint, so the Tablet range too.' },
     { name: 'Export', detail: 'Copy or download the updated code. Every character you did not change stays as you wrote it, and only the lines for your edits are added. Undo all your edits and the code is byte for byte the original. The updated code view marks every line that changed against your original, and you can step from change to change.' },
   ],
   measuredTitle: 'What is measured, and what is not',
   measured: [
     'Measured by the engine’s own test gate, not by this page: on 10 test pages, 40 of 40 scripted edits gave the right value in a real browser, changed nothing else and made the smallest possible change to the text.',
     'On five real files from other authors (two email templates, a Bootstrap one-page site and two SVGs), 18 of 20 edits passed and the other two were refused with a true reason.',
-    'Desktop and Phone linking was scored separately, on 20 scripted edits over nine test pages. Its first scored run missed on two of the 20 and its second on one.',
-    'It was then re-scored under two later rule changes. Treat it as less proven than single edits.',
+    'The three views were scored separately, on 45 scripted edits over 17 test pages: 44 gave the right value in a real browser and one was refused with a true reason (a page whose own Phone breakpoint is 768 px has no Tablet range).',
+    'That was one scored run. Treat it as less proven than single edits.',
     'This page has its own scripted mouse test: 20 actions on the three samples in Chromium, scored by script (docs/ui-editor-gate-rules.md in the site’s repository).',
     'Not measured: real people using it, Safari or Firefox, touch dragging, JavaScript-driven pages, or any page outside those test pages. The test pages and this page’s test were written by the same person and tool that built the engine and the page.',
   ],
@@ -343,11 +333,11 @@ export const limits = {
     'Fonts show only if your computer has them.',
     'React, Vue and other bundled or minified code are not supported.',
     'Only max-width and min-width media features are understood; dark mode, print and orientation are left as written.',
-    'Desktop and Phone upright are the editable sizes.',
-    'Tablet is view-only, and so is a phone turned sideways; in between, the page’s own rules decide.',
+    'Desktop, Tablet and Phone upright are editable; turned sideways they are view-only.',
+    'A Tablet change on a page whose Phone breakpoint is 768 px is refused: make it in Phone.',
     'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units are left as the page wrote them, and the editor does not always say so.',
     'A flex item that grows (flex-grow above 0, such as flex: 1) cannot be sized exactly, so resizing it is refused.',
-    'Dragging an element to move it applies to one size only, listed under Review unlinked.',
+    'Dragging an element to move it applies to the view you drag in; Desktop covers every width above Phone.',
     // Verified with the engine before it was written (docs/ui-editor-baseline-round4.md): an east drag on a left-anchored element lands its right edge on the line, and on the
     // element fixed to the right of its row the right edge does not move at all.
     'With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge.',

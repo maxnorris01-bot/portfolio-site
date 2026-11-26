@@ -96,7 +96,7 @@ test('the picker applies one edit, on `change`, never on `input`; its input live
 
 test('every colour menu gains the grid, the recents and Pick any colour…, in this order after Standard colours; the other menus and Gradient From and To do not', () => {
   const ribbon = read('src/ui-editor/Ribbon.tsx')
-  const parts = ribbon.slice(ribbon.indexOf('const colourParts ='), ribbon.indexOf('const unlinkedDot'))
+  const parts = ribbon.slice(ribbon.indexOf('const colourParts ='), ribbon.indexOf('const fontColour'))
   const at = (s: string) => parts.indexOf(s)
   assert.ok(at('P.pageColours') < at('P.standardColours') && at('P.standardColours') < at('P.colourGrid') && at('P.colourGrid') < at('P.recentColours') && at('P.recentColours') < at('P.pickColour') && at('P.pickColour') < at('none.label') && at('none.label') < at('P.moreColours'))
   assert.match(parts, /recents\.length \?/, 'Recent colours only when there is one')

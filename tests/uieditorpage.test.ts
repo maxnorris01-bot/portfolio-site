@@ -18,10 +18,8 @@ const walk = (dir: string, out: string[] = []): string[] => {
 
 test('the controls the gate drives are named as docs/ui-editor-gate-rules.md says', () => {
   assert.deepEqual([labels.sample, labels.paste, labels.upload, labels.view, labels.desktop, labels.tablet, labels.phone, labels.undo, labels.redo, labels.resetAll, labels.file, labels.copy, labels.download, labels.code, labels.result, labels.discard, labels.keep], ['Sample', 'Paste', 'Upload', 'View', 'Desktop', 'Tablet', 'Phone', 'Undo', 'Redo', 'Reset all', 'File', 'Copy code', 'Download', 'Updated code', 'Edit result', 'Discard edits', 'Keep editing'])
-  assert.equal(labels.review(3), 'Review unlinked (3)')
   assert.deepEqual(labels.samples, { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart' })
-  assert.deepEqual([panel.fontSize, panel.width, panel.height, panel.moveUp, panel.moveDown, panel.nudgeX, panel.nudgeY], ['Font size', 'Width', 'Height', 'Move up', 'Move down', 'Nudge X', 'Nudge Y'])
-  assert.equal(panel.linkTo('Phone'), 'Link to Phone')
+  assert.deepEqual([panel.fontSize, panel.width, panel.height, panel.moveUp, panel.moveDown], ['Font size', 'Width', 'Height', 'Move up', 'Move down'])
   assert.deepEqual(VIEW_WIDTHS, { Desktop: 1280, Tablet: 768, Phone: 390 })
   assert.deepEqual(SAMPLE_FILES.map((s) => s.id), Object.keys(labels.samples))
   assert.match(panel.tablet, /view-only/)
@@ -29,15 +27,15 @@ test('the controls the gate drives are named as docs/ui-editor-gate-rules.md say
 
 test('the limits text mentions each limit of the brief', () => {
   const all = limits.items.join('\n').toLowerCase()
-  for (const part of ['scripts off', 'javascript', 'external fonts', 'css you do not supply', 'react', 'max-width', 'min-width', 'desktop and phone', 'tablet is view-only', 'min-height', 'aspect-ratio', 'percentages', 'viewport units', 'flex item that grows', 'refused', 'one size only', 'chromium']) assert.ok(all.includes(part), part)
+  for (const part of ['scripts off', 'javascript', 'external fonts', 'css you do not supply', 'react', 'max-width', 'min-width', 'desktop, tablet and phone upright are editable', 'turned sideways', 'phone breakpoint is 768', 'min-height', 'aspect-ratio', 'percentages', 'viewport units', 'flex item that grows', 'refused', 'covers every width above phone', 'chromium']) assert.ok(all.includes(part), part)
   assert.ok(limits.items.length >= 10)
 })
 
-test('How it works: five steps, says drag-moves are unlinked and phone adaptation of moves is planned, and says what is measured and what is not; the keyboard alternative to handles is stated', () => {
+test('How it works: five steps, says Phone and Tablet follow Desktop and that a change made in Phone or Tablet applies to that view only, and says what is measured and what is not; the keyboard alternative to handles is stated', () => {
   assert.deepEqual(how.steps.map((s) => s.name), ['Open', 'Preview', 'Edit', 'Adapt', 'Export'])
   const adapt = how.steps[3].detail
-  assert.match(adapt, /always unlinked/)
-  assert.match(adapt, /later version/)
+  assert.match(adapt, /start as your Desktop setup scaled in proportion/)
+  assert.match(adapt, /applies to that view only/)
   assert.match(how.steps[1].detail, /never scaled/)
   assert.ok(how.measured.some((m) => /Not measured/.test(m)))
   assert.match(labels.previewHint, /Handles are for the pointer/)

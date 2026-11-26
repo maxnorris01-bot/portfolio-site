@@ -47,3 +47,11 @@ test('two moves of the same element in a row are one edit; different elements, s
   assert.equal(mergeOffsets(undefined, move(1, 1, 1)), undefined)
   assert.equal(mergeOffsets(set(1), move(1, 1, 1)), undefined)
 })
+
+test('a run of arrow-key moves of one element is one offset, and steps that cancel leave none', () => {
+  let s = emptyList()
+  for (const dx of [5, 5, -3, 10, -17]) s = apply(s, move(1, dx, 0))
+  assert.equal(s.edits.length, 0, 'the steps cancelled to nothing: no edit is left')
+  s = apply(apply(s, move(1, 8, 0)), move(1, 22, 0))
+  assert.deepEqual(s.edits, [move(1, 30, 0)])
+})

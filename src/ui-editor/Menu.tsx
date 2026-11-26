@@ -64,15 +64,14 @@ interface ButtonProps {
   text?: string
   chevron?: boolean
   spec: () => MenuPart[]
-  /** The `data-field` of the setting this menu belongs to (the gate reads the unlinked dot inside it). */
+  /** The `data-field` of the setting this menu belongs to. */
   field?: string
-  dot?: ReactNode
   /** Round 7b: the colour picker of this menu. Its input lives next to the button (outside the menu, which closes when an item is chosen) so it stays mounted until `change`. */
   picker?: { current: string | null; onPick: (hex: string) => void }
 }
 
 /** The button of a menu and the menu itself. */
-export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, glyph, bar, text, chevron = true, spec, field, dot, picker }: ButtonProps) {
+export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, glyph, bar, text, chevron = true, spec, field, picker }: ButtonProps) {
   const [open, setOpen] = useState(false)
   /** The labels of the submenus open now, with the element that opened each (for placing and for the focus on closing). */
   const [path, setPath] = useState<{ label: string; trigger: HTMLElement }[]>([])
@@ -224,7 +223,6 @@ export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, g
         {bar !== undefined && <i className="ue-colourbar" data-colour-bar style={{ '--bar': bar ?? 'transparent' } as CSSProperties} data-none={bar === null ? '' : undefined} />}
         {text && <span className="ue-menutext">{text}</span>}
         {chevron && <Icon name="chevron" />}
-        {dot}
       </button>
       {picker && createPortal(<input ref={pickInput} type="color" className="ue-picker" data-picker={name} tabIndex={-1} aria-hidden="true" defaultValue="#000000" />, document.body)}
       {open &&

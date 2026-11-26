@@ -1,0 +1,427 @@
+{
+ "url": "http://127.0.0.1:4321/ui-editor",
+ "arrange": {
+  "Desktop first #card-plan": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": true
+    },
+    {
+     "name": "Move down",
+     "disabled": false
+    }
+   ],
+   "inputs": 2
+  },
+  "Desktop middle #card-build": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": false
+    },
+    {
+     "name": "Move down",
+     "disabled": false
+    }
+   ],
+   "inputs": 2
+  },
+  "Desktop last #card-ship": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": false
+    },
+    {
+     "name": "Move down",
+     "disabled": true
+    }
+   ],
+   "inputs": 2
+  },
+  "Tablet first #card-plan": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": true
+    },
+    {
+     "name": "Move down",
+     "disabled": false
+    }
+   ],
+   "inputs": 2
+  },
+  "Tablet middle #card-build": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": false
+    },
+    {
+     "name": "Move down",
+     "disabled": false
+    }
+   ],
+   "inputs": 2
+  },
+  "Tablet last #card-ship": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": false
+    },
+    {
+     "name": "Move down",
+     "disabled": true
+    }
+   ],
+   "inputs": 2
+  },
+  "Phone first #card-plan": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": true
+    },
+    {
+     "name": "Move down",
+     "disabled": false
+    }
+   ],
+   "inputs": 2
+  },
+  "Phone middle #card-build": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": false
+    },
+    {
+     "name": "Move down",
+     "disabled": false
+    }
+   ],
+   "inputs": 2
+  },
+  "Phone last #card-ship": {
+   "name": "Arrange",
+   "buttons": [
+    {
+     "name": "Move up",
+     "disabled": false
+    },
+    {
+     "name": "Move down",
+     "disabled": true
+    }
+   ],
+   "inputs": 2
+  }
+ },
+ "moves": {
+  "desktop card-build up": {
+   "status": "Applied: moved up in the order.",
+   "sha1": "fc8ff1f3da21ce06a446fa0ab00ab40c3505d798"
+  },
+  "desktop card-plan down": {
+   "status": "Applied: moved down in the order.",
+   "sha1": "fc8ff1f3da21ce06a446fa0ab00ab40c3505d798"
+  },
+  "desktop card-ship up": {
+   "status": "Applied: moved up in the order.",
+   "sha1": "17f6360a136a0a4845b09a444ea0c8e3b3227bff"
+  },
+  "tablet art up": {
+   "status": "Applied: moved up in the order.",
+   "sha1": "a44afe0be0c9f557d31f3a3abefc6cc1539dcbbd"
+  },
+  "phone art up": {
+   "status": "Applied: moved up in the order.",
+   "sha1": "e97583f20e4429a7b2b0aed1f7c4fa9a9b441a5c"
+  },
+  "phone card-build up": {
+   "status": "Applied: moved up in the order.",
+   "sha1": "9ea34913e7130efc110155b42cb2ce96f2970a81"
+  }
+ },
+ "ribbon": {
+  "1000": {
+   "bands": 7,
+   "ribbon": {
+    "x": 23,
+    "width": 954,
+    "height": 970
+   },
+   "groups": [
+    {
+     "id": "font",
+     "name": "Font",
+     "x": 23,
+     "width": 954,
+     "top": 424.52,
+     "height": 131
+    },
+    {
+     "id": "paragraph",
+     "name": "Paragraph",
+     "x": 23,
+     "width": 954,
+     "top": 555.52,
+     "height": 131
+    },
+    {
+     "id": "size",
+     "name": "Size",
+     "x": 23,
+     "width": 954,
+     "top": 686.52,
+     "height": 131
+    },
+    {
+     "id": "shape",
+     "name": "Shape Styles",
+     "x": 23,
+     "width": 954,
+     "top": 817.52,
+     "height": 131
+    },
+    {
+     "id": "spacing",
+     "name": "Spacing",
+     "x": 23,
+     "width": 954,
+     "top": 948.52,
+     "height": 131
+    },
+    {
+     "id": "position",
+     "name": "Arrange",
+     "x": 23,
+     "width": 954,
+     "top": 1079.52,
+     "height": 131
+    },
+    {
+     "id": "grid",
+     "name": "Grid",
+     "x": 23,
+     "width": 954,
+     "top": 1210.52,
+     "height": 130
+    }
+   ],
+   "nudgeInputs": 2
+  },
+  "1280": {
+   "bands": 2,
+   "ribbon": {
+    "x": 29,
+    "width": 1222,
+    "height": 218
+   },
+   "groups": [
+    {
+     "id": "font",
+     "name": "Font",
+     "x": 29.16,
+     "width": 333.98,
+     "top": 334.31,
+     "height": 95
+    },
+    {
+     "id": "paragraph",
+     "name": "Paragraph",
+     "x": 363.14,
+     "width": 212.28,
+     "top": 334.31,
+     "height": 95
+    },
+    {
+     "id": "size",
+     "name": "Size",
+     "x": 575.42,
+     "width": 270.17,
+     "top": 334.31,
+     "height": 95
+    },
+    {
+     "id": "shape",
+     "name": "Shape Styles",
+     "x": 845.59,
+     "width": 405.25,
+     "top": 334.31,
+     "height": 95
+    },
+    {
+     "id": "spacing",
+     "name": "Spacing",
+     "x": 29.16,
+     "width": 333.98,
+     "top": 429.31,
+     "height": 96
+    },
+    {
+     "id": "position",
+     "name": "Arrange",
+     "x": 363.14,
+     "width": 482.45,
+     "top": 429.31,
+     "height": 96
+    },
+    {
+     "id": "grid",
+     "name": "Grid",
+     "x": 845.59,
+     "width": 405.25,
+     "top": 429.31,
+     "height": 96
+    }
+   ],
+   "nudgeInputs": 2
+  },
+  "1440": {
+   "bands": 1,
+   "ribbon": {
+    "x": 33,
+    "width": 1375,
+    "height": 122
+   },
+   "groups": [
+    {
+     "id": "font",
+     "name": "Font",
+     "x": 32.67,
+     "width": 229.44,
+     "top": 337.52,
+     "height": 95
+    },
+    {
+     "id": "paragraph",
+     "name": "Paragraph",
+     "x": 262.11,
+     "width": 145.83,
+     "top": 337.52,
+     "height": 95
+    },
+    {
+     "id": "size",
+     "name": "Size",
+     "x": 407.94,
+     "width": 185.61,
+     "top": 337.52,
+     "height": 95
+    },
+    {
+     "id": "shape",
+     "name": "Shape Styles",
+     "x": 593.55,
+     "width": 278.39,
+     "top": 337.52,
+     "height": 95
+    },
+    {
+     "id": "spacing",
+     "name": "Spacing",
+     "x": 871.94,
+     "width": 190.7,
+     "top": 337.52,
+     "height": 95
+    },
+    {
+     "id": "position",
+     "name": "Arrange",
+     "x": 1062.64,
+     "width": 209.05,
+     "top": 337.52,
+     "height": 95
+    },
+    {
+     "id": "grid",
+     "name": "Grid",
+     "x": 1271.69,
+     "width": 135.63,
+     "top": 337.52,
+     "height": 95
+    }
+   ],
+   "nudgeInputs": 2
+  },
+  "1920": {
+   "bands": 1,
+   "ribbon": {
+    "x": 43,
+    "width": 1834,
+    "height": 122
+   },
+   "groups": [
+    {
+     "id": "font",
+     "name": "Font",
+     "x": 43.23,
+     "width": 306.03,
+     "top": 349.92,
+     "height": 95
+    },
+    {
+     "id": "paragraph",
+     "name": "Paragraph",
+     "x": 349.27,
+     "width": 194.52,
+     "top": 349.92,
+     "height": 95
+    },
+    {
+     "id": "size",
+     "name": "Size",
+     "x": 543.78,
+     "width": 247.55,
+     "top": 349.92,
+     "height": 95
+    },
+    {
+     "id": "shape",
+     "name": "Shape Styles",
+     "x": 791.33,
+     "width": 371.33,
+     "top": 349.92,
+     "height": 95
+    },
+    {
+     "id": "spacing",
+     "name": "Spacing",
+     "x": 1162.66,
+     "width": 254.36,
+     "top": 349.92,
+     "height": 95
+    },
+    {
+     "id": "position",
+     "name": "Arrange",
+     "x": 1417.02,
+     "width": 278.84,
+     "top": 349.92,
+     "height": 95
+    },
+    {
+     "id": "grid",
+     "name": "Grid",
+     "x": 1695.86,
+     "width": 180.89,
+     "top": 349.92,
+     "height": 95
+    }
+   ],
+   "nudgeInputs": 2
+  }
+ }
+}

@@ -1,0 +1,1205 @@
+{
+ "version": 1,
+ "fixtures": {},
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL"
+ ],
+ "vocabulary": {
+  "note": "as specs-views1-nudge.json, plus: step frames {action:'start'|'stop'} (an in-page requestAnimationFrame recorder, one record per frame: preview iframes in the document, visible ones and their heights, the stage's height, the host's scroll, whether the selection overlay exists), step burst {field,dir,times} (arrow clicks with no wait between them), step scrollTo {sel} (scrolls the host so the element is in view), assert frames {maxFlash, visible, overlayAlways, scrollSame, stageHeightSame, restIframes} read the recording since the last start, assert box {field, value, tol?} the text in the Nudge box, read as typed. See docs/ui-editor-gate-rules-views1-nudge2.md section 2."
+ },
+ "truth": {
+  "J07": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) { #cta { transform: translate(30px, 0); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 30, 0)",
+      "768": "matrix(1, 0, 0, 1, 30, 0)",
+      "1024": "matrix(1, 0, 0, 1, 30, 0)",
+      "1025": "matrix(1, 0, 0, 1, 30, 0)",
+      "1280": "matrix(1, 0, 0, 1, 30, 0)"
+     }
+    }
+   ]
+  },
+  "J01": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) { #cta { transform: translate(5px, 0); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "matrix(1, 0, 0, 1, 5, 0)",
+      "1280": "matrix(1, 0, 0, 1, 5, 0)"
+     }
+    }
+   ]
+  },
+  "J02": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) and (max-width: 1024px) { #cta { transform: translate(5px, 0); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "none",
+      "1280": "none"
+     }
+    }
+   ]
+  },
+  "J03": {
+   "page": "landing",
+   "referenceCss": "@media (max-width: 640px) { #cta { transform: translate(5px, 0); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 5, 0)",
+      "640": "matrix(1, 0, 0, 1, 5, 0)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     }
+    }
+   ]
+  },
+  "J13": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) { #cta { transform: translate(5px, 0); } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "matrix(1, 0, 0, 1, 5, 0)",
+      "1280": "matrix(1, 0, 0, 1, 5, 0)"
+     }
+    }
+   ]
+  }
+ },
+ "specs": [
+  {
+   "id": "J01",
+   "name": "No flash on Desktop: five arrow clicks on Nudge X nudge #cta one merged edit and no frame of the five rebuilds has no visible preview, a zero-height preview, a lost selection overlay, a moved scroll position or a changed stage height; one preview iframe at rest",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P3",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 5
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "overlayAlways": true,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "matrix(1, 0, 0, 1, 5, 0)",
+      "1280": "matrix(1, 0, 0, 1, 5, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "matrix(1, 0, 0, 1, 5, 0)",
+      "1280": "matrix(1, 0, 0, 1, 5, 0)"
+     },
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "id": "J02",
+   "name": "No flash on Tablet: the same five clicks in the Tablet view",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P3",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 5
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "overlayAlways": true,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "id": "J03",
+   "name": "No flash on Phone: the same five clicks in the Phone view",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P3",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 5
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "overlayAlways": true,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 5, 0)",
+      "640": "matrix(1, 0, 0, 1, 5, 0)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 5, 0)",
+      "640": "matrix(1, 0, 0, 1, 5, 0)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "id": "J04",
+   "name": "A drag and then a drag, and a nudge after them, of the same element: no flash frame, one preview at rest, one merged edit",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P3",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": null,
+     "dx": 30,
+     "dy": 0
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": null,
+     "dx": 30,
+     "dy": 0
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge Y",
+     "dir": "+",
+     "times": 3
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "overlayAlways": true,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "id": "J05",
+   "name": "Undo, Redo and Reset all keep the old preview on screen until the new one is ready: after two merged nudges (one edit) Undo, Redo and Reset all (confirmed) show no flash frame, no lost overlay and one preview at rest each time",
+   "sample": "landing",
+   "checks": [
+    "P3",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 2
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset all"
+    },
+    {
+     "do": "confirm",
+     "name": "Discard edits"
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "overlayAlways": false,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "id": "J06",
+   "name": "The Nudge boxes show where the element is: after five arrow clicks X shows 5 and Y 0, after five more X shows 10; in Tablet and Phone the same element's boxes start at 0",
+   "sample": "landing",
+   "checks": [
+    "P4"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 5
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "5"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge Y",
+     "value": "0"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 5
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "10"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "0"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "0"
+    }
+   ]
+  },
+  {
+   "id": "J07",
+   "name": "A typed number is the new shift: typing 30 in Nudge X shows 30 and the list has one offset of 30, the export one translate of 30 above the phone breakpoint; typing 30 again changes nothing; typing -8 after 30 gives one offset of -8",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P4",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "dx": 30,
+       "dy": 0,
+       "environment": "desktop",
+       "link": false
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportAddedLines",
+     "file": "landing.css",
+     "contains": "transform",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 30, 0)",
+      "768": "matrix(1, 0, 0, 1, 30, 0)",
+      "1024": "matrix(1, 0, 0, 1, 30, 0)",
+      "1025": "matrix(1, 0, 0, 1, 30, 0)",
+      "1280": "matrix(1, 0, 0, 1, 30, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 30, 0)",
+      "768": "matrix(1, 0, 0, 1, 30, 0)",
+      "1024": "matrix(1, 0, 0, 1, 30, 0)",
+      "1025": "matrix(1, 0, 0, 1, 30, 0)",
+      "1280": "matrix(1, 0, 0, 1, 30, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "30"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "-8"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "-8"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "dx": -8,
+       "dy": 0,
+       "environment": "desktop",
+       "link": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "J08",
+   "name": "Typed 0 puts a moved element back: after a nudge of 12, typing 0 leaves no offset in the list, the box shows 0 and the export equals the original",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P4",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "12"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "0"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "0"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "id": "J09",
+   "name": "A typed non-number changes nothing: after a nudge of 7, typing abc in Nudge X and in Nudge Y leaves the list as it was and the boxes show 7 and 0 again",
+   "sample": "landing",
+   "checks": [
+    "P4",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "7"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "abc"
+    },
+    {
+     "do": "type",
+     "field": "Nudge Y",
+     "text": "x"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "7"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge Y",
+     "value": "0"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pageText",
+     "scope": "editor",
+     "lacks": [
+      "Not applied"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "J10",
+   "name": "After a drag the boxes show the drag's distance (within 1 px of the 40 and 24 dragged), and a nudge after it continues from there",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P4"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": null,
+     "dx": 40,
+     "dy": 24
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "40",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge Y",
+     "value": "24",
+     "tol": 1
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 2
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "42",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "J11",
+   "name": "Each view keeps its own shift and each element its own: Desktop 12, Tablet 3 and Phone 7 on #cta read back 12, 3 and 7 after the selection went to #headline (whose boxes show 0) and came back; a Desktop shift is not in the Phone box",
+   "sample": "landing",
+   "checks": [
+    "P4"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "12"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "3"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "7"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "0"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "7"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "3"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "12"
+    }
+   ]
+  },
+  {
+   "id": "J12",
+   "name": "Undo and Redo restore the box: 12 typed then 5 more arrow clicks show 17; Undo shows 0 (the merged edit is one entry); Redo shows 17",
+   "sample": "landing",
+   "checks": [
+    "P4",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Nudge X",
+     "text": "12"
+    },
+    {
+     "do": "stepper",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 5
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "17"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "0"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "17"
+    }
+   ]
+  },
+  {
+   "id": "J13",
+   "name": "Input during a rebuild is kept: five arrow clicks fired one after the other with no wait (the first rebuild is still running for the next ones) end with the box at 5, one edit and one translate of 5 in the export",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P4",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "burst",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "5"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "matrix(1, 0, 0, 1, 5, 0)",
+      "1280": "matrix(1, 0, 0, 1, 5, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 5, 0)",
+      "768": "matrix(1, 0, 0, 1, 5, 0)",
+      "1024": "matrix(1, 0, 0, 1, 5, 0)",
+      "1025": "matrix(1, 0, 0, 1, 5, 0)",
+      "1280": "matrix(1, 0, 0, 1, 5, 0)"
+     },
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "id": "J14",
+   "name": "No leaked iframe, no moved scroll, no lost overlay: the page scrolled to the cards, #card-ship selected, fifty arrow clicks in a burst leave one preview iframe, the scroll position unchanged and the selection overlay on every frame",
+   "sample": "landing",
+   "checks": [
+    "P3",
+    "P4"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "scrollTo",
+     "sel": "#card-ship"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "burst",
+     "field": "Nudge X",
+     "dir": "+",
+     "times": 50
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "overlayAlways": true,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "assert",
+     "p": "P4",
+     "k": "box",
+     "field": "Nudge X",
+     "value": "50"
+    }
+   ]
+  }
+ ]
+}

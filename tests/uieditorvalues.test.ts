@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { MAX_BYTES } from '../src/data/uiEditor.ts'
 import { HANDLES, arrowNudge, cssSizeFor, handleAxes, movedFar, resizedBox } from '../src/ui-editor/geometry.ts'
 import { downloadName, fromFiles, fromPaste, hasScript, kindOfText, stylesheetLinks } from '../src/ui-editor/intake.ts'
-import { htmlFields, rowOfPin, svgFields, type Computed } from '../src/ui-editor/panelfields.ts'
+import { htmlFields, svgFields, type Computed } from '../src/ui-editor/panelfields.ts'
 import { noteSentence, parseColour, parseLength, parseSides, parseWeight, pickerValue, refusalSentence, showColour, showLength, showSides } from '../src/ui-editor/values.ts'
 
 test('lengths: a bare number is px, units stay, auto only where allowed, junk and negatives are refused', () => {
@@ -123,7 +123,4 @@ test('the panel has all four groups\' fields for HTML, and an SVG maps backgroun
   const text = svgFields({ localName: 'text' }, false, cs)
   assert.equal(text.find((f) => f.label === 'Text colour')?.prop, 'fill')
   assert.equal(text.some((f) => f.label === 'Background' || f.label === 'Width'), false)
-  assert.equal(rowOfPin('padding-top', html.map((f) => f.prop)), 'padding')
-  assert.equal(rowOfPin('transform', []), 'position')
-  assert.equal(rowOfPin('font-size', html.map((f) => f.prop)), 'font-size')
 })

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { deviceNote, panel, VIEW_WIDTHS } from '../src/data/uiEditor.ts'
 import { isUiEditorOn } from '../src/data/uiEditorFlag.ts'
-import { bezel, canRotate, frameSize, isEditable, viewOnlyReason, viewport, type Orientation, type ViewName } from '../src/ui-editor/devices.ts'
+import { bezel, canRotate, frameSize, viewOnlyReason, viewport } from '../src/ui-editor/devices.ts'
 
 const root = new URL('..', import.meta.url).pathname
 const read = (p: string) => readFileSync(join(root, p), 'utf8')
@@ -19,23 +19,11 @@ test('the device sizes: Phone 390 x 844 and Tablet 768 x 1024 upright, swapped w
   assert.deepEqual({ ...VIEW_WIDTHS }, { Desktop: 1280, Tablet: 768, Phone: 390 })
 })
 
-test('only Desktop and Phone upright are editable; landscape phone and both tablet orientations are view-only', () => {
-  const table: [ViewName, Orientation, boolean][] = [
-    ['Desktop', 'portrait', true],
-    ['Phone', 'portrait', true],
-    ['Phone', 'landscape', false],
-    ['Tablet', 'portrait', false],
-    ['Tablet', 'landscape', false],
-  ]
-  for (const [v, o, want] of table) assert.equal(isEditable(v, o), want, `${v} ${o}`)
-})
-
 test('only Phone and Tablet can be rotated; each view-only size has a reason, and Tablet keeps its own sentence', () => {
   assert.deepEqual((['Desktop', 'Tablet', 'Phone'] as const).map(canRotate), [false, true, true])
   assert.equal(viewOnlyReason('Desktop', 'portrait'), null)
   assert.equal(viewOnlyReason('Phone', 'portrait'), null)
   assert.equal(viewOnlyReason('Phone', 'landscape'), 'landscape')
-  assert.equal(viewOnlyReason('Tablet', 'portrait'), 'tablet')
   assert.match(panel.tablet, /view-only/)
   assert.match(panel.viewOnly, /view-only/)
   assert.equal(panel.viewOnly.split('. ').length, 1, 'one plain sentence')

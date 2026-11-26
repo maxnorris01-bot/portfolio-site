@@ -91,7 +91,9 @@ check('choosing a sample with unsaved edits asks first', await page.getByRole('b
 await page.getByRole('button', { name: 'Keep editing' }).click()
 check('Keep editing keeps the page and the edit', (await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled()) && Math.abs((await left()) - l0 - 1) < 0.6)
 await page.getByRole('group', { name: 'View' }).getByRole('button', { name: 'Tablet', exact: true }).click(); await settle(page)
-check('Tablet: handles and fields are off, with one plain sentence', (await page.locator('[data-handle]').count()) === 0 && (await page.getByLabel('Font size', { exact: true }).isDisabled()) && /view-only/.test(await page.locator('[data-ribbon-note]').innerText()))
+// VIEWS ROUND 1 (docs/ui-editor-gate-rules-views1.md section 7.1): with --views1 this check is RETIRED, not passed (Tablet portrait is editable; X14 and X16 replace it), and not counted.
+if (process.argv.includes('--views1')) console.log('RETIRED  Tablet: handles and fields are off, with one plain sentence  (replaced by X14 and X16)')
+else check('Tablet: handles and fields are off, with one plain sentence', (await page.locator('[data-handle]').count()) === 0 && (await page.getByLabel('Font size', { exact: true }).isDisabled()) && /view-only/.test(await page.locator('[data-ribbon-note]').innerText()))
 await page.close()
 
 // A phone: every control is at least 44 CSS px tall

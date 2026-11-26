@@ -11,7 +11,7 @@ export type Control = 'text' | 'colour' | 'select'
 export type Computed = Pick<CSSStyleDeclaration, 'fontFamily' | 'fontSize' | 'fontWeight' | 'color' | 'textAlign' | 'width' | 'height' | 'padding' | 'margin' | 'backgroundColor' | 'borderTopColor' | 'borderTopWidth' | 'borderTopStyle' | 'borderRadius' | 'fill' | 'stroke' | 'strokeWidth' | 'textAnchor'> & { rx?: string; boxShadow?: string; fontStyle?: string; textDecorationLine?: string; lineHeight?: string; backgroundImage?: string }
 
 export interface Field {
-  /** The ribbon control's `data-field` and what the Review list calls the property. */
+  /** The ribbon control's `data-field`. */
   prop: string
   label: string
   group: Group
@@ -72,12 +72,4 @@ export function svgFields(el: { localName: string }, sizeable: boolean, cs: Comp
   out.push({ prop: 'stroke-width', label: panel.borderWidth, group: 'colours', control: 'text', read: (c) => showLength(c.strokeWidth), write: (t) => { const v = parseLength(t); return v ? { 'stroke-width': unitless(v) } : null } })
   if (tag === 'rect') out.push({ prop: 'rx', label: panel.borderRadius, group: 'colours', control: 'text', read: (c) => showLength(c.rx ?? '0px'), write: (t) => { const v = parseLength(t); return v ? { rx: unitless(v) } : null } })
   return out
-}
-
-/** The ribbon field a pinned property belongs to: padding-top is the Padding row, transform and order are the Position row. */
-export function rowOfPin(property: string, props: string[]): string | null {
-  if (property === 'transform' || property === 'order') return 'position'
-  const exact = props.find((p) => p === property)
-  if (exact) return exact
-  return props.find((p) => property.startsWith(`${p}-`) || (p === 'background-color' && property === 'background') || (p === 'border-color' && property.startsWith('border') && property.endsWith('color'))) ?? null
 }

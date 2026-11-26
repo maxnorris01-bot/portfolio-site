@@ -73,11 +73,11 @@ test('the bar puts Samples at the left edge and the icon groups together at the 
   const css = read('src/ui-editor/UiEditorTool.css')
   assert.match(css, /\.ue-bar-tools \{[^}]*margin-left: auto/)
   assert.match(css, /\.ue-bar-tools \{[^}]*justify-content: flex-end/)
-  // Samples is before the tools, and the tools hold View, history, Review and File.
+  // Samples is before the tools, and the tools hold View, history and File.
   const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
   assert.ok(bar.indexOf('labels.samplesButton') < bar.indexOf('ue-bar-tools'))
   // Round 5 removed the File selector and the bar's Copy code (one Download; a Copy button in each code section): they are no longer listed here.
-  for (const part of ['labels.view', 'labels.undo', 'labels.redo', 'labels.resetAll', 'labels.review(', 'labels.download']) assert.ok(bar.indexOf('ue-bar-tools') < bar.indexOf(part), part)
+  for (const part of ['labels.view', 'labels.undo', 'labels.redo', 'labels.resetAll', 'labels.download']) assert.ok(bar.indexOf('ue-bar-tools') < bar.indexOf(part), part)
 })
 
 // ---- the ribbon's pure helpers ----
@@ -86,8 +86,8 @@ import { fullWidthFits, percentOf, pxOfPercent, showWidth, snapsToParent, SNAP_P
 import { SIDES, allSidesBy, expandSides, isMixed, showUniform, sidesText, withSide } from '../src/ui-editor/sides.ts'
 import { FAMILIES, STEP_OF, alignButtons, familyOptions, kindOf, pressedAlign } from '../src/ui-editor/ribbonfields.ts'
 
-test('each stepper has the step the brief gives: font size 1, width, height, padding and margin 4, border width 1, radius 2, nudges 1; Shift is ten times', () => {
-  assert.deepEqual({ ...STEP }, { fontSize: 1, width: 4, height: 4, padding: 4, margin: 4, borderWidth: 1, borderRadius: 2, nudge: 1 })
+test('each stepper has the step the brief gives: font size 1, width, height, padding and margin 4, border width 1, radius 2; Shift is ten times', () => {
+  assert.deepEqual({ ...STEP }, { fontSize: 1, width: 4, height: 4, padding: 4, margin: 4, borderWidth: 1, borderRadius: 2 })
   assert.equal(SHIFT_TIMES, 10)
   assert.equal(stepAmount('fontSize', false), 1)
   assert.equal(stepAmount('fontSize', true), 10)
@@ -105,7 +105,7 @@ test('holding a stepper repeats after about 400 ms and then every 80 ms', () => 
   assert.equal(HOLD_EVERY, 80)
 })
 
-test('a click is one step; three clicks are three steps; the number never goes under its minimum, and a margin or nudge may go negative', () => {
+test('a click is one step; three clicks are three steps; the number never goes under its minimum, and a margin may go negative', () => {
   let v = 44
   for (let i = 0; i < 3; i++) v = stepped(v, 1, stepAmount('fontSize', false), MIN.fontSize)
   assert.equal(v, 47)
@@ -114,7 +114,6 @@ test('a click is one step; three clicks are three steps; the number never goes u
   assert.equal(stepped(1, -1, 1, MIN.fontSize), 1, 'a font size stays at 1 px at least')
   assert.equal(stepped(2, -1, 4, MIN.padding), 0, 'padding stops at 0')
   assert.equal(stepped(0, -1, 4, MIN.margin), -4)
-  assert.equal(stepped(0, -1, 1, MIN.nudge), -1)
   assert.equal(stepped(10.005, 1, 4, 0), 14.01, 'rounded to two decimals')
 })
 
@@ -307,7 +306,7 @@ test('the three bottom sections: one h2 class, at most six items each, each abou
   }
   assert.equal(paragraphs(limits.items, limits.groups).join(' '), limits.items.join(' '), 'every sentence is shown once, in order')
   const measured = how.measured.join(' ')
-  for (const fact of ['10 test pages', '40 of 40', 'five real files', '18 of 20', 'two email templates', 'Bootstrap', 'two SVGs', 'nine test pages', 'missed on two of the 20', 'its second on one', 'two later rule changes', 'less proven', '20 actions', 'Not measured']) assert.ok(measured.includes(fact), fact)
+  for (const fact of ['10 test pages', '40 of 40', 'five real files', '18 of 20', 'two email templates', 'Bootstrap', 'two SVGs', '45 scripted edits', '17 test pages', 'one scored run', 'less proven', '20 actions', 'Not measured']) assert.ok(measured.includes(fact), fact)
   const page = read('src/pages/UiEditor.tsx')
   assert.match(page, /<h2 id="ue-measured-title" className="section-title">/)
   assert.equal((page.match(/<h2 id="ue-\w+-title" className="section-title">/g) ?? []).length, 4, 'How it works, What is measured, Limits, Data and credits share one class')

@@ -18,8 +18,8 @@ export function viewport(view: ViewName, orientation: Orientation): Viewport {
   return orientation === 'portrait' ? { width: w, height: h } : { width: h, height: w }
 }
 
-/** Only Desktop (1280) and Phone in portrait (390) are editable: the page's own layouts are for those two sizes. The rest are view-only. */
-export const isEditable = (view: ViewName, orientation: Orientation): boolean => view === 'Desktop' || (view === 'Phone' && orientation === 'portrait')
+/** Desktop (1280), Tablet in portrait (768) and Phone in portrait (390) are editable; a device turned sideways is view-only. */
+export const isEditable = (view: ViewName, orientation: Orientation): boolean => view === 'Desktop' || orientation === 'portrait'
 
 /** Desktop has no frame to turn. */
 export const canRotate = (view: ViewName): boolean => view !== 'Desktop'
@@ -46,7 +46,7 @@ export function frameSize(view: ViewName, orientation: Orientation, contentHeigh
   return { width: v.width + b.left + b.right, height: (v.height ?? contentHeight) + b.top + b.bottom }
 }
 
-/** The one plain sentence shown when the view cannot be edited: Tablet has its own wording (the one the page has always had). */
+/** The one plain sentence shown when the view cannot be edited (a device turned sideways): Tablet has its own wording. */
 export function viewOnlyReason(view: ViewName, orientation: Orientation): 'tablet' | 'landscape' | null {
   if (isEditable(view, orientation)) return null
   return view === 'Tablet' ? 'tablet' : 'landscape'
