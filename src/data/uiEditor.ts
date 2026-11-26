@@ -52,7 +52,7 @@ export const uiEditorPage = {
   githubLabel: 'View on GitHub ↗',
 }
 
-/** Widths of the three views in portrait, in CSS px. Desktop is the engine's desktop size; Tablet is view-only. */
+/** Widths of the three views in portrait, in CSS px. Desktop is the engine's desktop size. */
 export const VIEW_WIDTHS = { Desktop: 1280, Tablet: 768, Phone: 390 } as const
 /** Heights of the Tablet and Phone screens in portrait, in CSS px (turned sideways, width and height swap). Desktop has no fixed height. */
 export const DEVICE_HEIGHTS = { Tablet: 1024, Phone: 844 } as const
@@ -86,13 +86,14 @@ export const labels = {
   insert: 'Insert',
   insertTip: 'Open the list of things you can insert.',
   insertTipSvg: 'Insert is for HTML pages: an SVG cannot take new elements.',
-  insertTipTablet: 'Tablet is view-only: switch to Desktop or Phone to insert.',
+  insertTipTablet: 'Tablet turned sideways is view-only: turn it upright, or switch to Desktop or Phone, to insert.',
   insertTipViewOnly: 'This size is view-only: turn the phone upright, or switch to Desktop, to insert.',
   /** Insert round 1, stage 2: Comment in the quick bar, Notes in the strip, Include comments by Download, and the popovers' words. */
   comment: 'Comment',
   commentTip: 'Open a note for the AI about this element.',
   commentTipNone: 'Select an element first: the note is about it.',
   commentTipViewOnly: 'This size is view-only: turn the phone upright, or switch to Desktop, to add a note.',
+  commentTipTablet: 'Tablet turned sideways is view-only: turn it upright, or switch to Desktop or Phone, to add a note.',
   notes: 'Notes',
   notesTip: 'List the notes for the AI.',
   includeComments: 'Include comments',
@@ -155,7 +156,7 @@ export const panel = {
   linkTo: (other: string) => `Link to ${other}`,
   linkHint: 'Scale the other size by the same ratio when a size changes. Off: the change applies to this size only and is listed under Review unlinked.',
   svgLink: 'Use the one size an SVG has: every edit applies everywhere.',
-  tablet: 'Tablet is a view-only width, so its settings and handles are switched off. Switch to Desktop or Phone to edit.',
+  tablet: 'Tablet turned sideways is view-only, so its settings and handles are switched off. Turn it upright, or switch to Desktop or Phone, to edit.',
   viewOnly: 'This size is view-only, so its settings and handles are switched off: turn the phone upright, or switch to Desktop, to edit.',
   dot: (env: string) => `Unlinked: applies to ${env} only`,
   /** The strip above the ribbon, and the seven groups of one ribbon (the group's name sits under its controls). */

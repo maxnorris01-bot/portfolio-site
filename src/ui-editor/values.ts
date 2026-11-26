@@ -87,10 +87,11 @@ const maxW = /\(max-width:\s*(\d+(?:\.\d+)?)px\)/i
 const minW = /\(min-width:\s*(\d+(?:\.\d+)?)px\)/i
 
 /** Which environment an engine condition names, in words: "@media (max-width: 640px)" is "phone sizes (up to 640px wide)". */
-export function describeCondition(condition: string): { env: 'phone' | 'desktop' | 'page'; phrase: string } {
+export function describeCondition(condition: string): { env: 'phone' | 'tablet' | 'desktop' | 'page'; phrase: string } {
   const max = maxW.exec(condition), min = minW.exec(condition)
   if (max && !min) return { env: 'phone', phrase: `phone sizes (up to ${max[1]}px wide)` }
   if (min && !max) return { env: 'desktop', phrase: `desktop sizes (from ${min[1]}px wide)` }
+  if (min && max) return { env: 'tablet', phrase: `tablet sizes (${min[1]}px to ${max[1]}px wide)` }
   return { env: 'page', phrase: condition === '(base)' ? 'the base rules' : condition === '(all widths)' ? 'every width' : condition }
 }
 

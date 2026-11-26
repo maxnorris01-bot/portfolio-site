@@ -21,7 +21,7 @@ import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
-import { listNotes, listUnlinked, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
+import { listNotes, listUnlinked, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
 import './UiEditorTool.css'
 
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
@@ -97,7 +97,8 @@ export default function UiEditorTool() {
     setBusy(true)
   }
   const svgDoc = doc?.kind === 'svg'
-  const environment: Environment = view === 'Phone' ? 'phone' : 'desktop'
+  // The view is the environment an edit is made in: Desktop edits reach Phone and Tablet, Phone and Tablet edits are custom to that view.
+  const environment: Environment = view === 'Phone' ? 'phone' : view === 'Tablet' ? 'tablet' : 'desktop'
   const editable = isEditable(view, orientation)
 
   // ---- the preview: built from the ORIGINAL document, with the edit list replayed on it ----
@@ -241,8 +242,8 @@ export default function UiEditorTool() {
   const onBadValue = (label: string) => show({ kind: 'refusal', text: messages.badValue(label.toLowerCase()) })
 
   // ---- insert, text and Delete (insert round 1): content edits, the same at every width, with no Link and no pins ----
-  const commentOff = !session ? '' : !editable ? labels.commentTipViewOnly : selIndex === null ? labels.commentTipNone : ''
-  const insertOff = svgDoc ? labels.insertTipSvg : view === 'Tablet' ? labels.insertTipTablet : !editable ? labels.insertTipViewOnly : ''
+  const commentOff = !session ? '' : !editable ? (view === 'Tablet' ? labels.commentTipTablet : labels.commentTipViewOnly) : selIndex === null ? labels.commentTipNone : ''
+  const insertOff = svgDoc ? labels.insertTipSvg : !editable ? (view === 'Tablet' ? labels.insertTipTablet : labels.insertTipViewOnly) : ''
   const startPlacing = (kind: InsertKind) => {
     if (insertOff || !session) return
     setEditingText(null)
@@ -339,8 +340,10 @@ export default function UiEditorTool() {
   const onMove = (dx: number, dy: number) => {
     const t = target()
     if (t === null) return
-    // Moving is unlinked in this version (an SVG has no environments, so there it applies everywhere).
-    run({ op: 'offset', target: t, dx, dy, environment, link: !!svgDoc }, `moved by ${dx}, ${dy} px${svgDoc ? '' : ` (${view} only)`}`)
+    // Moving is custom to where it is made: in Phone or Tablet one rule for that view's own range, in Desktop one rule for every width above the Phone breakpoint (the Tablet range
+    // too, when the page has one). An SVG has no environments, so there it applies everywhere.
+    const covers = view !== 'Desktop' ? `${view} only` : session && tabletMin(session.breakpoint) <= 768 ? 'Desktop and Tablet sizes' : 'Desktop only'
+    run({ op: 'offset', target: t, dx, dy, ...(svgDoc ? { link: true } : environment === 'desktop' ? { environment, link: false } : { environment }) }, `moved by ${dx}, ${dy} px${svgDoc ? '' : ` (${covers})`}`)
   }
   // Keys that arrive while the preview is being rebuilt (a run of arrow presses is one merged edit) are added up and applied when it is ready.
   const pendingNudge = useRef({ dx: 0, dy: 0 })
