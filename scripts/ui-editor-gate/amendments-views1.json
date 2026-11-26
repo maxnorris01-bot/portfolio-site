@@ -6,9 +6,31 @@
    "amendment": "A1",
    "insertAfter": {
     "1": [
-     { "do": "assert", "p": "P5", "k": "barNames", "names": ["Samples", "Undo", "Redo", "Insert", "Comment", "Desktop", "Tablet", "Phone", "Download", "Reset all"] }
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "barNames",
+      "names": [
+       "Samples",
+       "Undo",
+       "Redo",
+       "Insert",
+       "Comment",
+       "Desktop",
+       "Tablet",
+       "Phone",
+       "Download",
+       "Reset all"
+      ]
+     }
     ]
    }
+  }
+ },
+ "byteComparisonInformationOnly": {
+  "note": "Specs whose export legitimately differs from the baseline's because an edit they make in the Phone view is custom to Phone now (rules amendment A5). compare-exports.mjs reads them like the specs with retired steps: compared and printed, not counted.",
+  "specs": {
+   "N08": "a resize made in the Phone view: the baseline wrote it linked (`#art { width: 328px; max-width: 100%; }`), the new page writes it custom (`@media (max-width: 640px) { #art { width: 328px; } }`)"
   }
  }
 }
