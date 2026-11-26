@@ -307,7 +307,7 @@ test('the three bottom sections: one h2 class, at most six items each, each abou
   }
   assert.equal(paragraphs(limits.items, limits.groups).join(' '), limits.items.join(' '), 'every sentence is shown once, in order')
   const measured = how.measured.join(' ')
-  for (const fact of ['10 test pages', '40 of 40', 'five real files', '18 of 20', 'two email templates', 'Bootstrap', 'two SVGs', 'nine test pages', 'missed on two of the 20', 'its second on one', 'two later rule changes', 'less proven', '20 actions', 'Not measured']) assert.ok(measured.includes(fact), fact)
+  for (const fact of ['10 test pages', '40 of 40', 'five real files', '18 of 20', 'two email templates', 'Bootstrap', 'two SVGs', '45 scripted edits', '17 test pages', 'one scored run', 'less proven', '20 actions', 'Not measured']) assert.ok(measured.includes(fact), fact)
   const page = read('src/pages/UiEditor.tsx')
   assert.match(page, /<h2 id="ue-measured-title" className="section-title">/)
   assert.equal((page.match(/<h2 id="ue-\w+-title" className="section-title">/g) ?? []).length, 4, 'How it works, What is measured, Limits, Data and credits share one class')

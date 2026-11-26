@@ -79,5 +79,5 @@ test('the stage converts every pointer path to CSS px: the press, the hover, the
 test('the copy says what the scaling does, and the existing words the earlier tests look for are still there', () => {
   const data = read('src/data/uiEditor.ts')
   assert.match(data, /never scaled: in a small window the whole frame is shrunk to fit/)
-  assert.match(data, /Tablet is view-only, and so is a phone turned sideways/)
+  assert.match(data, /Desktop, Tablet and Phone upright are editable; turned sideways they are view-only/)
 })

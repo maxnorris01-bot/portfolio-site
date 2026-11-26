@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { labels, panel } from '../src/data/uiEditor.ts'
+import { how, labels, limits, panel, paragraphs } from '../src/data/uiEditor.ts'
 import { canRotate, isEditable, viewOnlyReason, type Orientation, type ViewName } from '../src/ui-editor/devices.ts'
 import { describeCondition } from '../src/ui-editor/values.ts'
 
@@ -70,4 +70,26 @@ test('a Desktop edit carries no Link state: the scope is the environment alone (
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   assert.match(tool, /const scope = \(\) => \(svgDoc \? \{\} : \{ environment \}\)/)
   assert.doesNotMatch(read('src/ui-editor/Ribbon.tsx'), /<Group id="position"[^>]*field=/)
+})
+
+test('How it works says what the three views do, and the limits say what is editable; nothing about Link or Review unlinked is left', () => {
+  const adapt = how.steps.find((s) => s.name === 'Adapt')?.detail ?? ''
+  assert.match(adapt, /Phone and Tablet start as your Desktop setup scaled in proportion/)
+  assert.match(adapt, /sizes in proportion, colours, fonts, order and text as they are, except what you customised in Phone or Tablet/)
+  assert.match(adapt, /A change made in Phone or Tablet applies to that view only, and a later Desktop change does not override it/)
+  assert.doesNotMatch(adapt, /Link|Review|unlinked|other way round/i)
+  assert.doesNotMatch(adapt, /reset/i, 'no word about a feature that does not exist yet')
+  const everything = [adapt, ...how.measured, ...limits.items, ...Object.values(labels).filter((v): v is string => typeof v === 'string'), ...Object.values(panel).filter((v): v is string => typeof v === 'string')].join('\n')
+  assert.doesNotMatch(everything, /Review unlinked|Link to |Link on|Link off|Tablet is view-only|one size only|always unlinked/)
+  assert.ok(limits.items.includes('Desktop, Tablet and Phone upright are editable; turned sideways they are view-only.'))
+  assert.ok(limits.items.includes('A Tablet change on a page whose Phone breakpoint is 768 px is refused: make it in Phone.'))
+  assert.ok(limits.items.includes('Dragging an element to move it applies to the view you drag in; Desktop covers every width above Phone.'))
+  for (const p of paragraphs(limits.items, limits.groups)) assert.ok(p.split(/\s+/).length <= 50, `${p.split(/\s+/).length} words: ${p.slice(0, 40)}`)
+})
+
+test('the measured claims about the three views are the engine gate\'s own numbers (45 scripted edits over 17 test pages, one run)', () => {
+  const m = how.measured.join(' ')
+  assert.match(m, /45 scripted edits over 17 test pages: 44 gave the right value in a real browser and one was refused with a true reason/)
+  assert.match(m, /That was one scored run\. Treat it as less proven than single edits\./)
+  assert.doesNotMatch(m, /linking/)
 })
