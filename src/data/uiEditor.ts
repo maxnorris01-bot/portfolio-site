@@ -209,6 +209,13 @@ export const panel = {
   shapeOutlineTip: 'Open the outline colour, weight and dashes.',
   pageColours: 'Page colours',
   standardColours: 'Standard colours',
+  /** Round 7b: the grid, the recent colours and the picker of every colour menu. */
+  colourGrid: 'Colour grid',
+  recentColours: 'Recent colours',
+  pickColour: 'Pick any colour…',
+  gridName: (hex: string) => `Grid ${hex}`,
+  recentName: (hex: string) => `Recent ${hex}`,
+  pickColourTip: 'Open the browser\'s colour picker; the colour is applied when you confirm it.',
   italic: 'Italic',
   italicTip: 'Make the text italic or upright again.',
   underline: 'Underline',
