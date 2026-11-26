@@ -395,6 +395,21 @@
   box-shadow: 0 0 0 1px #3a3d45 inset;
 }
 
+/* Desktop has no frame element, but it is drawn with one: the Tablet's 12 px bezel in the same dark colour with the same 1 px line at its outer edge, made of box-shadows (they
+   add no size, so bezel(), frameSize, fitScale and the overlay's coordinates are exactly as they were) and scaled with the device like the Tablet's bezel. The element's 6 px corners
+   plus the 12 px ring give about 18 px outside; the iframe's own corners match the 6 px inside. No overflow: hidden anywhere, so the selection outline, the handles and the
+   insertion line can still pass the page's edge. */
+.ue-device.is-desktop:not([data-device-frame]) {
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 11px #1b1d22,
+    0 0 0 12px #3a3d45;
+}
+
+.ue-device.is-desktop:not([data-device-frame]) .ue-frame iframe {
+  border-radius: 6px;
+}
+
 .ue-device.is-phone[data-device-frame] {
   border-radius: 38px;
 }
