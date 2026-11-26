@@ -53,3 +53,21 @@ test('a tablet condition is read in words (notes about values left alone)', () =
   assert.equal(describeCondition('@media (max-width: 640px)').env, 'phone')
   assert.equal(describeCondition('@media (min-width: 641px)').env, 'desktop')
 })
+
+test('Link, the unlinked dots and Review unlinked are gone: no checkbox, no dot, no button, no label, no style', () => {
+  const ribbon = read('src/ui-editor/Ribbon.tsx'), tool = read('src/ui-editor/UiEditorTool.tsx'), icons = read('src/ui-editor/icons.tsx'), menu = read('src/ui-editor/Menu.tsx')
+  assert.doesNotMatch(ribbon, /ue-link|ue-dot|data-dot|rowOfPin|dotRows|pinEnv|unlinkedDot|UnlinkedItem|onLink|P\.linkTo|P\.linkHint/)
+  assert.doesNotMatch(tool, /listUnlinked|reviewOpen|setReviewOpen|setLink|icon="review"|ue-review|jump\(/)
+  assert.doesNotMatch(icons, /review|badge|expanded/)
+  assert.doesNotMatch(menu, /dot/)
+  assert.equal(Object.keys(labels).filter((k) => /^(review|link)/i.test(k)).length, 0)
+  assert.equal(Object.keys(panel).filter((k) => /^(link|svgLink|dot)/i.test(k)).length, 0)
+  const css = read('src/ui-editor/UiEditorTool.css')
+  assert.doesNotMatch(css, /\.ue-dot|\.ue-review|\.ue-linkrow|\.ue-badge/)
+})
+
+test('a Desktop edit carries no Link state: the scope is the environment alone (none for an SVG), and the Arrange group has no data-field of its own', () => {
+  const tool = read('src/ui-editor/UiEditorTool.tsx')
+  assert.match(tool, /const scope = \(\) => \(svgDoc \? \{\} : \{ environment \}\)/)
+  assert.doesNotMatch(read('src/ui-editor/Ribbon.tsx'), /<Group id="position"[^>]*field=/)
+})

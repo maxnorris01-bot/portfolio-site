@@ -21,7 +21,7 @@ import Stage, { type ResizeRequest } from './Stage'
 import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
-import { listNotes, listUnlinked, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
+import { listNotes, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
 import './UiEditorTool.css'
 
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
@@ -39,7 +39,6 @@ export default function UiEditorTool() {
   const [list, setListState] = useState<EditList>(emptyList())
   const [view, setView] = useState<ViewName>('Desktop')
   const [orientation, setOrientation] = useState<Orientation>('portrait')
-  const [link, setLink] = useState(true)
   const [selPath, setSelPath] = useState<string | null>(null)
   const [message, setMessage] = useState<Msg | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
@@ -49,7 +48,6 @@ export default function UiEditorTool() {
   const [nonce, setNonce] = useState(0)
   const [replay, setReplay] = useState(0)
   const [confirm, setConfirm] = useState<Confirm | null>(null)
-  const [reviewOpen, setReviewOpen] = useState(false)
   const [pasteOpen, setPasteOpen] = useState(false)
   const [holdHeight, setHoldHeight] = useState(0)
   const [galleryOpen, setGalleryOpen] = useState(false)
@@ -145,8 +143,6 @@ export default function UiEditorTool() {
   const widthUnit: WidthUnit = unitState.path === selPath ? unitState.unit : 'px'
   const selected = session && selPath ? indexOfPath(session.preview.model, selPath) : -1
   const selIndex = selected >= 0 ? selected : null
-  const pins = session ? listUnlinked(session.state) : []
-  const mine = pins.filter((p) => p.selector === selPath)
 
   // ---- opening something ----
   const load = (next: Doc, warn: string[]) => {
@@ -158,7 +154,6 @@ export default function UiEditorTool() {
     setNotesOpen(false)
     setWarnings(warn)
     setGalleryOpen(false)
-    setReviewOpen(false)
     setPasteOpen(false)
     show({ kind: 'info', text: messages.opened(next.name) })
     startBusy()
@@ -208,7 +203,7 @@ export default function UiEditorTool() {
   }
 
   // ---- edits ----
-  const scope = () => ({ environment, link: svgDoc ? true : link })
+  const scope = () => (svgDoc ? {} : { environment })
 
   /** One more edit on the live preview. A refusal shows the engine's reason and changes nothing. */
   const run = (edit: Edit, what: string, nextSel?: string | null | ((s: Session, applied: Extract<Applied, { ok: true }>) => string | null), extra?: string): boolean => {
@@ -568,14 +563,6 @@ export default function UiEditorTool() {
     show({ kind: 'ok', text: messages.downloaded(nameList(saved)) })
   }
 
-  // ---- the Review unlinked list ----
-  const jump = (selector: string, env: Environment) => {
-    const v: ViewName = env === 'phone' ? 'Phone' : 'Desktop'
-    if (viewRef.current !== v) onView(v)
-    setSelPath(selector)
-    setReviewOpen(false)
-  }
-
   const latestNudge = useRef(onNudge)
   useEffect(() => {
     latestNudge.current = onNudge
@@ -628,7 +615,6 @@ export default function UiEditorTool() {
                   spec={() => INSERT_ITEMS.map((i) => ({ label: i.label, role: 'menuitem' as const, run: () => startPlacing(i.kind) }))}
                 />
                 <IconButton icon="comment" label={labels.comment} tip={commentOff || labels.commentTip} opens="comment" disabled={!!commentOff || busy} onClick={() => selIndex !== null && openComment({ target: selIndex, opener: 'bar' })} />
-                <IconButton icon="review" label={labels.review(pins.length)} words={labels.reviewWords} tip={labels.reviewTip} expanded={reviewOpen} badge={pins.length} disabled={pins.length === 0} onClick={() => setReviewOpen((o) => !o)} />
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group" role="group" aria-label={labels.view}>
@@ -661,11 +647,8 @@ export default function UiEditorTool() {
               view={view}
               editable={editable}
               lockedNote={view === 'Tablet' ? panel.tablet : panel.viewOnly}
-              link={link}
-              onLink={setLink}
               unit={widthUnit}
               onUnit={(u) => setUnitState({ path: selPath, unit: u })}
-              pins={mine}
               onSet={onSet}
               onBadValue={onBadValue}
               onMessage={(text) => show({ kind: 'refusal', text })}
@@ -736,23 +719,6 @@ export default function UiEditorTool() {
           {warnings.map((w) => (
             <li key={w}>{w}</li>
           ))}
-        </ul>
-      )}
-
-      {reviewOpen && session && (
-        <ul className="ue-review" aria-label={labels.reviewList}>
-          {pins.map((p) => {
-            const i = indexOfPath(session.preview.model, p.selector)
-            const name = i >= 0 ? labelOf(session, i) : p.selector
-            const env = p.environment === 'phone' ? 'Phone' : 'Desktop'
-            return (
-              <li key={`${p.selector}|${p.property}|${p.environment}`}>
-                <button type="button" className="ue-review-item" onClick={() => jump(p.selector, p.environment)}>
-                  {`${name} · ${p.property} · ${env} only: ${p.value}`}
-                </button>
-              </li>
-            )
-          })}
         </ul>
       )}
 

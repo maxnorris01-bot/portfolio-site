@@ -18,10 +18,8 @@ const walk = (dir: string, out: string[] = []): string[] => {
 
 test('the controls the gate drives are named as docs/ui-editor-gate-rules.md says', () => {
   assert.deepEqual([labels.sample, labels.paste, labels.upload, labels.view, labels.desktop, labels.tablet, labels.phone, labels.undo, labels.redo, labels.resetAll, labels.file, labels.copy, labels.download, labels.code, labels.result, labels.discard, labels.keep], ['Sample', 'Paste', 'Upload', 'View', 'Desktop', 'Tablet', 'Phone', 'Undo', 'Redo', 'Reset all', 'File', 'Copy code', 'Download', 'Updated code', 'Edit result', 'Discard edits', 'Keep editing'])
-  assert.equal(labels.review(3), 'Review unlinked (3)')
   assert.deepEqual(labels.samples, { landing: 'Landing page', email: 'HTML email', chart: 'SVG chart' })
   assert.deepEqual([panel.fontSize, panel.width, panel.height, panel.moveUp, panel.moveDown, panel.nudgeX, panel.nudgeY], ['Font size', 'Width', 'Height', 'Move up', 'Move down', 'Nudge X', 'Nudge Y'])
-  assert.equal(panel.linkTo('Phone'), 'Link to Phone')
   assert.deepEqual(VIEW_WIDTHS, { Desktop: 1280, Tablet: 768, Phone: 390 })
   assert.deepEqual(SAMPLE_FILES.map((s) => s.id), Object.keys(labels.samples))
   assert.match(panel.tablet, /view-only/)

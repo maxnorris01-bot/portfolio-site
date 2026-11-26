@@ -75,8 +75,6 @@ test('every ribbon tooltip is a short verb-first sentence that is not just the c
     ['snap', panel.snapTip],
     ['spacing', panel.gridSpacingTip],
     ['sides', panel.sidesTip('Padding')],
-    ['link', panel.linkHint],
-    ['svg link', panel.svgLink],
     ['step', panel.stepTip(panel.decrease('Font size'), 1, 'px')],
     ['type', panel.typeTip('Font size')],
     ['nudge', panel.typeTip('Nudge X')],
@@ -89,7 +87,6 @@ test('every ribbon tooltip is a short verb-first sentence that is not just the c
   }
   assert.equal(panel.moveUpTip, 'Move this element earlier in the page order.')
   assert.ok(panel.fontTip('Georgia, "Times New Roman", serif').includes('Times New Roman'), 'the whole stack is in the font control\'s tooltip')
-  assert.match(panel.linkHint, /Review unlinked/, 'the Link tooltip names Review unlinked (a locked spec reads it)')
 })
 
 test('the Limits list has the verified snapping sentence once, and still shows at most six paragraphs of at most 50 words', () => {
@@ -110,9 +107,9 @@ test('one ribbon, no tab bar: a strip, one panel, seven groups in the order Font
   assert.ok(src.indexOf('data-ribbon-strip') < src.indexOf('data-ribbon-panel'), 'the strip is above the groups')
   // Round 5: no break element; the groups are grid items placed by the stylesheet (tests/uieditorround5.test.ts).
   assert.doesNotMatch(src, /ue-brk/)
-  // The strip holds the element label, the view name, the Link checkbox and the one plain note.
+  // The strip holds the element label, the view name and the one plain note.
   const strip = src.slice(src.indexOf('data-ribbon-strip'), src.indexOf('data-ribbon-panel'))
-  for (const part of ['P.strip', 'data-selected-label', 'data-env', 'id="ue-link"', 'data-ribbon-note']) assert.ok(strip.includes(part), part)
+  for (const part of ['P.strip', 'data-selected-label', 'data-env', 'data-ribbon-note']) assert.ok(strip.includes(part), part)
 })
 
 test('Grid, Snap and Grid spacing are the view aids: enabled whenever a document is open (Snap off for SVG); the other controls need a selection', () => {
@@ -155,13 +152,12 @@ test('the ribbon keeps its container, its small controls and its 44 px narrow ru
   assert.match(css, /\.ue-tool \.ue-ribbon \.ue-rbtn,[^{]*\{[^}]*height: 28px/s)
   const narrow = css.slice(css.indexOf('@container ue-ribbon (max-width: 999px)'))
   assert.match(narrow, /\.ue-tool \.ue-ribbon \.ue-rbtn,[\s\S]*?min-width: 44px;[\s\S]*?height: 44px/)
-  assert.doesNotMatch(css.slice(css.indexOf('/* ---- the card and the ribbon (round 6)'), css.indexOf('.ue-dot {')), /#[0-9a-fA-F]{3,6}\b/, 'tokens only')
+  assert.doesNotMatch(css.slice(css.indexOf('/* ---- the card and the ribbon (round 6)'), css.indexOf('/* The status line (round 4)')), /#[0-9a-fA-F]{3,6}\b/, 'tokens only')
 })
 
-test('the quick bar shows the words of Review unlinked and Reset all; Undo and Redo stay icon-only', () => {
+test('the quick bar shows the words of Reset all; Undo and Redo stay icon-only', () => {
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
-  assert.match(bar, /icon="review" label=\{labels\.review\(pins\.length\)\} words=\{labels\.reviewWords\}/)
   assert.match(bar, /icon="reset" label=\{labels\.resetAll\} showLabel/)
   const undo = bar.slice(bar.indexOf('icon="undo"'), bar.indexOf('icon="redo"') + 120)
   assert.doesNotMatch(undo, /showLabel|words=|text=/)

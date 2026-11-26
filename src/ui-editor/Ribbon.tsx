@@ -4,7 +4,7 @@ import { Icon, type IconName } from './icons'
 import { MenuButton, type MenuPart } from './Menu'
 import { getRecents, recordRecent, subscribeRecents } from './recents'
 import { DASHES, DIRECTIONS, DOUBLE_MIN, EFFECTS, FONT_SIZES, LINE_SPACINGS, OUTLINE_WEIGHTS, STANDARD_COLOURS, gradientCss, colourGrid, hexTyped, opaqueHex, pageColours, readGradient, type Gradient } from './menus'
-import { htmlFields, rowOfPin, svgFields, type Computed, type Field } from './panelfields'
+import { htmlFields, svgFields, type Computed, type Field } from './panelfields'
 import { STEP_OF, alignButtons, familyChoices, kindOf, pressedAlign } from './ribbonfields'
 import { PATH_MAX, chainOf, visiblePath } from './path'
 import { canResize, isSvgElement, labelOf, moveTarget, parentContentWidth, type Session } from './session'
@@ -12,7 +12,6 @@ import type { ViewName } from './devices'
 import { SIDES, allSidesBy, expandSides, showUniform, sidesText, withSide, type Side } from './sides'
 import { HOLD_DELAY, HOLD_EVERY, MIN, STEP, stepAmount, stepped } from './steps'
 import { percentOf, showWidth, typedWidth, type WidthUnit } from './units'
-import type { UnlinkedItem } from './vendor/engine.js'
 
 export type { ViewName }
 
@@ -27,13 +26,9 @@ interface Props {
   /** False for the view-only sizes: every control is off, and `lockedNote` says why. */
   editable: boolean
   lockedNote: string
-  link: boolean
-  onLink: (on: boolean) => void
   /** The width field's unit for the selected element. */
   unit: WidthUnit
   onUnit: (u: WidthUnit) => void
-  /** The unlinked values pinned on the selected element. */
-  pins: UnlinkedItem[]
   onSet: (properties: Record<string, string>, label: string) => void
   onBadValue: (label: string) => void
   /** One plain line for a value that was refused (an invalid hex, a double line under 3 px): nothing was changed. */
@@ -75,10 +70,6 @@ const oneDecimal = (text: string, prop: string): string => {
 const minW = (px: number): CSSProperties => ({ '--min': `${px}px` }) as CSSProperties
 
 const EMPTY = { fontFamily: '', fontSize: '', fontWeight: '400', color: '', textAlign: 'left', width: '', height: '', padding: '', margin: '', backgroundColor: '', borderTopColor: '', borderTopWidth: '', borderTopStyle: 'none', borderRadius: '', fill: '', stroke: '', strokeWidth: '', textAnchor: 'start' } as Computed
-
-function Dot({ env }: { env: string }) {
-  return <span data-dot className="ue-dot" role="img" aria-label={P.dot(env)} title={P.dot(env)} />
-}
 
 /** The visible label of a control, above it (or under an icon button): 11 to 12 px, sentence case, in plain words. aria-hidden: the control's own name is its accessible name. */
 const CtlLabel = ({ text }: { text: string }) => (
@@ -181,7 +172,7 @@ function NumberInput({ name, shown, disabled, describedBy, tip, onCommit, onArro
 }
 
 /** A number box (round 6): the number with spin arrows at its right (or, fixed, with what the caller puts there). It shares the row, or keeps its width. */
-function NumBox({ name, shown, stamp, disabled, fixed, step, unit, onStep, onCommit, describedBy, field, dot, children }: { name: string; shown: string; stamp: string; disabled: boolean; fixed?: boolean; step: number; unit: string; onStep: (dir: 1 | -1, shift: boolean) => void; onCommit: (text: string) => void; describedBy?: string; field?: string; dot?: ReactNode; children?: ReactNode }) {
+function NumBox({ name, shown, stamp, disabled, fixed, step, unit, onStep, onCommit, describedBy, field, children }: { name: string; shown: string; stamp: string; disabled: boolean; fixed?: boolean; step: number; unit: string; onStep: (dir: 1 | -1, shift: boolean) => void; onCommit: (text: string) => void; describedBy?: string; field?: string; dot?: ReactNode; children?: ReactNode }) {
   return (
     <span className="ue-numbox" data-numbox data-stretch={fixed ? undefined : ''} data-fixed={fixed ? '' : undefined} data-field={field}>
       <NumberInput key={stamp} name={name} shown={shown} disabled={disabled} describedBy={describedBy} onCommit={onCommit} onArrow={onStep} />
@@ -192,7 +183,6 @@ function NumBox({ name, shown, stamp, disabled, fixed, step, unit, onStep, onCom
         </>
       )}
       {children}
-      {dot}
     </span>
   )
 }
@@ -215,9 +205,9 @@ function Stepper({ name, shown, stamp, disabled, step, unit, onStep, onCommit, d
 const ALIGN_ICON: Record<string, IconName> = { left: 'alignLeft', start: 'alignLeft', center: 'alignCentre', middle: 'alignCentre', right: 'alignRight', end: 'alignRight', justify: 'alignJustify' }
 
 /** A group of the ribbon (round 6): two rows of controls, its name under them (12 px, muted). Every row fills the group's width. */
-function Group({ id, name, field, children }: { id: string; name: string; field?: string; children: ReactNode }) {
+function Group({ id, name, children }: { id: string; name: string; children: ReactNode }) {
   return (
-    <div className="ue-rgroup" role="group" aria-label={name} data-ribbon-group={id} data-field={field}>
+    <div className="ue-rgroup" role="group" aria-label={name} data-ribbon-group={id}>
       <div className="ue-rows" data-rows>
         {children}
       </div>
@@ -257,7 +247,7 @@ function RibbonButton({ icon, label, tip, pressed, disabled, min, onClick }: { i
   )
 }
 
-export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, link, onLink, unit, onUnit, pins, onSet, onBadValue, onMessage, onMove, onNudge, onSelectIndex, onEditText, onDelete, canDelete, notesCount, notesOpen, onNotes, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
+export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, unit, onUnit, onSet, onBadValue, onMessage, onMove, onNudge, onSelectIndex, onEditText, onDelete, canDelete, notesCount, notesOpen, onNotes, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
   const el = session && selected !== null ? (session.preview.elements[selected] ?? null) : null
   const svg = !!el && isSvgElement(el)
   // The path of the strip: the chain from the child of <body> down to the selected element; the deepest PATH_MAX of it, with a leading ellipsis when it is longer.
@@ -269,14 +259,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
   const cs = el ? (el.ownerDocument.defaultView!.getComputedStyle(el) as unknown as Computed) : null
   const fields: Field[] = el && cs ? (svg ? svgFields(el, canResize(el), cs) : htmlFields(cs)) : htmlFields(EMPTY)
   const live = !!el && editable
-  const env = view === 'Phone' ? 'Phone' : 'Desktop'
-  const other = view === 'Phone' ? 'Desktop' : 'Phone'
-  const props = fields.map((f) => f.prop)
-  const dotRows = new Set(pins.map((p) => rowOfPin(p.property, props)).filter((r): r is string => r !== null))
-  const pinEnv = (row: string) => {
-    const p = pins.find((q) => rowOfPin(q.property, props) === row)
-    return p ? (p.environment === 'phone' ? 'Phone' : 'Desktop') : env
-  }
   const up = session && el && selected !== null ? moveTarget(session.preview.model, selected, 'up') : null
   const down = session && el && selected !== null ? moveTarget(session.preview.model, selected, 'down') : null
   const stamp = `${nonce}-${rev}-${selected}-${view}-${unit}`
@@ -407,7 +389,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     hexBox(f),
     ...extra,
   ]
-  const unlinkedDot = (f: Field) => (dotRows.has(f.prop) ? <Dot env={pinEnv(f.prop)} /> : null)
 
   /** Font colour: the letter A over a colour bar, 58 px, opening the colour menu. */
   const fontColour = (f: Field): ReactNode => {
@@ -422,7 +403,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         glyph={<Icon name="letterA" />}
         bar={current}
         field={f.prop}
-        dot={unlinkedDot(f)}
         spec={() => colourParts(f, current, null)}
         picker={{ current, onPick: (hex) => applyColour(f, hex) }}
       />
@@ -464,7 +444,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         bar={current}
         text={P.shapeFill}
         field={f.prop}
-        dot={unlinkedDot(f)}
         spec={() => colourParts(f, current, { label: P.noFill, run: () => writeColour(f, svg ? 'none' : 'transparent') }, svg ? [] : [gradientItem()])}
         picker={{ current, onPick: (hex) => applyColour(f, hex) }}
       />
@@ -511,7 +490,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         bar={current}
         text={P.shapeOutline}
         field={f.prop}
-        dot={unlinkedDot(f)}
         spec={() => colourParts(f, current, { label: P.noOutline, run: () => (svg ? writeColour(f, 'none') : onSet({ 'border-style': 'none' }, 'border style')) }, extra)}
         picker={{ current, onPick: (hex) => applyColour(f, hex) }}
       />
@@ -570,7 +548,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
   const renderField = (f: Field): ReactNode => {
     const kind = kindOf(f.prop, svg)
     const shown = cs ? f.read(cs) : ''
-    const dot = unlinkedDot(f)
     if (kind === 'family') {
       return (
         <span key={f.prop} className="ue-sel" data-stretch style={minW(78)} data-field={f.prop}>
@@ -581,7 +558,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
               </option>
             ))}
           </select>
-          {dot}
         </span>
       )
     }
@@ -595,7 +571,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
               </option>
             ))}
           </select>
-          {dot}
         </span>
       )
     }
@@ -613,7 +588,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
               <Icon name={ALIGN_ICON[b.value]} />
             </button>
           ))}
-          {dot}
         </div>
       )
     }
@@ -624,7 +598,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       return (
         <Fragment key={f.prop}>
           <RowLabel text={P.rowLabels[f.label] ?? f.label} wide={LABEL_W[f.label]} />
-          <NumBox name={f.label} shown={sides ? showUniform(sides) : ''} stamp={stamp} disabled={!live} step={STEP[key]} unit="px" onStep={(d, sh) => stepSides(f, d, sh)} onCommit={(t) => cs && write(f, t, cs)} field={f.prop} dot={dot} />
+          <NumBox name={f.label} shown={sides ? showUniform(sides) : ''} stamp={stamp} disabled={!live} step={STEP[key]} unit="px" onStep={(d, sh) => stepSides(f, d, sh)} onCommit={(t) => cs && write(f, t, cs)} field={f.prop} />
           <button
             type="button"
             ref={(b) => {
@@ -654,7 +628,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
       const cur = cs ? Math.round((parseFloat(cs.fontSize) || 0) * 100) / 100 : 0
       return (
         <Fragment key={f.prop}>
-          <NumBox name={f.label} shown={shown} stamp={stamp} disabled={!live} fixed step={STEP.fontSize} unit="px" onStep={(d, sh) => stepField(f, d, sh)} onCommit={(t) => commitText(f, t)} field={f.prop} dot={dot}>
+          <NumBox name={f.label} shown={shown} stamp={stamp} disabled={!live} fixed step={STEP.fontSize} unit="px" onStep={(d, sh) => stepField(f, d, sh)} onCommit={(t) => commitText(f, t)} field={f.prop}>
             <MenuButton name={P.fontSizePresets} tip={P.fontSizePresetsTip} disabled={!live} fixed glyph={null} spec={() => FONT_SIZES.map((n) => ({ label: String(n), role: 'menuitemradio' as const, checked: cur === n, run: () => writeColour(f, `${n}px`) }))} />
           </NumBox>
           <RepeatButton fixedIcon label={P.increase(f.label)} tip={P.stepTip(P.increase(f.label), STEP.fontSize, 'px')} disabled={!live} onFire={(sh) => stepField(f, 1, sh)}>
@@ -675,7 +649,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     return (
       <Fragment key={f.prop + f.label}>
         <RowLabel text={P.rowLabels[f.label] ?? f.label} wide={LABEL_W[f.label]} />
-        <NumBox name={f.label} shown={text} stamp={stamp} disabled={!live} step={key === 'width' && unit === '%' ? 1 : STEP[key]} unit={isWidth && unit === '%' ? '%' : 'px'} onStep={(d, sh) => stepField(f, d, sh)} onCommit={(t) => commitText(f, t)} field={f.prop} dot={dot} />
+        <NumBox name={f.label} shown={text} stamp={stamp} disabled={!live} step={key === 'width' && unit === '%' ? 1 : STEP[key]} unit={isWidth && unit === '%' ? '%' : 'px'} onStep={(d, sh) => stepField(f, d, sh)} onCommit={(t) => commitText(f, t)} field={f.prop} />
         {isWidth && (
           <span className="ue-seg2" data-fixed role="group" aria-label={P.widthUnit}>
             {(['px', '%'] as WidthUnit[]).map((u) => (
@@ -748,7 +722,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
   }
 
   const note = !el ? (editable ? P.none : lockedNote) : !editable ? lockedNote : ''
-  const tip = svg ? P.svgLink : P.linkHint
   const nudge = (axis: 'X' | 'Y', label: string) => (
     <NumBox
       key={`${stamp}-n${axis}`}
@@ -813,10 +786,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
           </span>
         </button>
         <strong data-env>{view}</strong>
-        <label className="ue-linkrow" htmlFor="ue-link" title={tip}>
-          <input id="ue-link" type="checkbox" checked={svg ? true : link} disabled={!live || svg} title={tip} onChange={(e) => onLink(e.currentTarget.checked)} />
-          {P.linkTo(other)}
-        </label>
         <p data-ribbon-note className="ue-rnote" hidden={!note} title={note}>
           {note}
         </p>
@@ -862,7 +831,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
           {sidesPopover(P.padding)}
           {sidesPopover(P.margin)}
         </Group>
-        <Group id="position" name={P.groups.arrange} field="position">
+        <Group id="position" name={P.groups.arrange}>
           <Row>
             <RibbonButton icon="moveUp" label={P.moveUp} tip={P.moveUpTip} disabled={!live || !up} min={92} onClick={() => onMove('up')} />
             <RibbonButton icon="moveDown" label={P.moveDown} tip={P.moveDownTip} disabled={!live || !down} min={92} onClick={() => onMove('down')} />
@@ -872,7 +841,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
             {nudge('X', P.nudgeX)}
             {nudge('Y', P.nudgeY)}
           </Row>
-          {dotRows.has('position') && <Dot env={pinEnv('position')} />}
           <span id="ue-nudge-hint" className="ue-sr">
             {P.nudgeHint}
           </span>

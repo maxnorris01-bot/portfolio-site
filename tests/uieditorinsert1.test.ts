@@ -51,7 +51,7 @@ test('the names are exactly the brief\'s, each tooltip starts with a verb, and a
 test('the page: Insert is a menu button in the quick bar right after Redo; Edit text and Delete are in the selection strip; the line and the text box are in the overlay, not the preview', () => {
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
-  assert.ok(bar.indexOf('icon="redo"') < bar.indexOf('name={labels.insert}') && bar.indexOf('name={labels.insert}') < bar.indexOf('icon="review"'), 'Insert is after Redo and before Review unlinked')
+  assert.ok(bar.indexOf('icon="redo"') < bar.indexOf('name={labels.insert}') && bar.indexOf('name={labels.insert}') < bar.indexOf('aria-label={labels.view}'), 'Insert is after Redo and before the view group')
   const ribbon = read('src/ui-editor/Ribbon.tsx')
   const strip = ribbon.slice(ribbon.indexOf('data-ribbon-strip'), ribbon.indexOf('data-ribbon-panel'))
   for (const part of ['labels.editText', 'labels.deleteElement', 'disabled={!canDelete}']) assert.ok(strip.includes(part), part)
@@ -118,7 +118,7 @@ test('the file kind by name, the count of notes and the numbered rows', () => {
 test('the page: Comment follows Insert in the quick bar, Notes is in the strip, Include comments sits by Download; pins are in the overlay and the popovers in <body>', () => {
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   const bar = tool.slice(tool.indexOf('<div className="ue-bar"'), tool.indexOf('{confirm && ('))
-  assert.ok(bar.indexOf('name={labels.insert}') < bar.indexOf('label={labels.comment}') && bar.indexOf('label={labels.comment}') < bar.indexOf('icon="review"'), 'Comment is after Insert and before Review unlinked')
+  assert.ok(bar.indexOf('name={labels.insert}') < bar.indexOf('label={labels.comment}') && bar.indexOf('label={labels.comment}') < bar.indexOf('aria-label={labels.view}'), 'Comment is after Insert and before the view group')
   assert.ok(bar.indexOf('labels.includeComments') < bar.indexOf('icon="download"'), 'Include comments is beside Download')
   assert.match(read('src/ui-editor/Ribbon.tsx'), /aria-label=\{labels\.notes\}/)
   const stage = read('src/ui-editor/Stage.tsx')

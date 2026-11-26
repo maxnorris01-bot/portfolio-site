@@ -116,13 +116,8 @@ export const labels = {
   undoTip: 'Undo the last edit',
   redoTip: 'Redo the edit you undid',
   resetTip: 'Reset every edit and go back to the original',
-  reviewTip: 'Review the edits that apply to one size only',
   rotateTip: 'Turn the device sideways or upright',
   viewTip: (name: string) => `Show the ${name} size`,
-  review: (n: number) => `Review unlinked (${n})`,
-  /** The words shown on that button: its accessible name carries the count, and the count is also drawn as a badge. */
-  reviewWords: 'Review unlinked',
-  reviewList: 'Unlinked edits',
   file: 'File',
   copy: 'Copy code',
   /** The tooltips (and so the accessible descriptions) of Copy code and Download name the file they act on; the accessible names stay `Copy code` and `Download`. */
@@ -153,12 +148,8 @@ export const panel = {
   title: 'Selected element',
   ribbon: 'Formatting ribbon',
   none: 'Click an element to edit it',
-  linkTo: (other: string) => `Link to ${other}`,
-  linkHint: 'Scale the other size by the same ratio when a size changes. Off: the change applies to this size only and is listed under Review unlinked.',
-  svgLink: 'Use the one size an SVG has: every edit applies everywhere.',
   tablet: 'Tablet turned sideways is view-only, so its settings and handles are switched off. Turn it upright, or switch to Desktop or Phone, to edit.',
   viewOnly: 'This size is view-only, so its settings and handles are switched off: turn the phone upright, or switch to Desktop, to edit.',
-  dot: (env: string) => `Unlinked: applies to ${env} only`,
   /** The strip above the ribbon, and the seven groups of one ribbon (the group's name sits under its controls). */
   strip: 'Selected element',
   pathLabel: 'Selected element path',

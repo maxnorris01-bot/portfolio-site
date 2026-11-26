@@ -2,7 +2,7 @@
 // No icon library. Each icon is decoration: the button it sits in carries the accessible name (aria-label) and the tooltip (title).
 import type { ReactNode } from 'react'
 
-export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'review' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow' | 'insert' | 'comment'
+export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow' | 'insert' | 'comment'
 
 const PATHS: Record<IconName, ReactNode> = {
   desktop: (
@@ -27,7 +27,6 @@ const PATHS: Record<IconName, ReactNode> = {
   redo: <path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />,
   // A page with a revert arrow in its corner (not the arrows of Undo and Redo, nor the turning device of Rotate).
   reset: <path d="M13 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h5M13 3l5 5v2.5M17.5 21a4.5 4.5 0 1 0-3.2-7.7M14 13v3.2h3.2" />,
-  review: <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-.8.8M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l.8-.8M3.5 3.5l17 17" />,
   copy: (
     <>
       <rect x="9" y="9" width="11" height="11" rx="2" />
@@ -99,15 +98,10 @@ interface Props {
   label: string
   disabled?: boolean
   pressed?: boolean
-  expanded?: boolean
-  /** A small count drawn on the corner (Review unlinked); it is not part of the name's text in the DOM, the label carries it. */
-  badge?: number
   /** A word shown beside the icon (Rotate, from round 2). */
   text?: string
   /** Show the label itself beside the icon (the view buttons, Copy code, Download and Reset all, from round 3). */
   showLabel?: boolean
-  /** The words to show when the label is longer than they are (Review unlinked: the name carries the count, the words do not; round 4). */
-  words?: string
   /** The tooltip, when it says more than the name (the name is the aria-label, and the tooltip then becomes the accessible description). */
   tip?: string
   /** Stage 2: marks the button that opens a popover, so the popover can give the focus back to it and ignore its click. */
@@ -116,17 +110,12 @@ interface Props {
 }
 
 /** An icon button: aria-label for the name, title for the visible tooltip, a focus ring from the stylesheet. */
-export function IconButton({ icon, label, tip, disabled, pressed, expanded, badge, text, showLabel, words, opens, onClick }: Props) {
-  const word = text ?? words ?? (showLabel ? label : undefined)
+export function IconButton({ icon, label, tip, disabled, pressed, text, showLabel, opens, onClick }: Props) {
+  const word = text ?? (showLabel ? label : undefined)
   return (
-    <button type="button" data-opens={opens} className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} aria-expanded={expanded} onClick={onClick}>
+    <button type="button" data-opens={opens} className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} onClick={onClick}>
       <Icon name={icon} />
       {word && <span className="ue-icon-text">{word}</span>}
-      {badge ? (
-        <span className="ue-badge" aria-hidden="true">
-          {badge}
-        </span>
-      ) : null}
     </button>
   )
 }
