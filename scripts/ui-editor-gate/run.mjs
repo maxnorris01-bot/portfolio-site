@@ -60,6 +60,7 @@ const amendViews1 = existsSync(join(here, 'amendments-views1.json')) ? JSON.pars
 // NUDGE FIX 2 (docs/ui-editor-gate-rules-views1-nudge2.md): the J specs run with --nudge2 (or --only Jnn).
 // NO-NUDGE (docs/ui-editor-gate-rules-views1-nonudge.md): the Q specs run with --nonudge (or --only Qnn); its retiredChecks and amendments apply to the real page and --stub12 only.
 const nonudgeFile = existsSync(join(here, 'specs-views1-nonudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nonudge.json'), 'utf8')) : { specs: [], retiredChecks: {}, amendments: {} }
+const amendNonudgeFile = existsSync(join(here, 'amendments-views1-nonudge.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views1-nonudge.json'), 'utf8')) : { specs: {} }
 const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
 const nudgeFile = existsSync(join(here, 'specs-views1-nudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge.json'), 'utf8')) : { specs: [] }
 const views1File = existsSync(join(here, 'specs-views1.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1.json'), 'utf8')) : { retiredChecks: {}, specs: [] }
@@ -855,7 +856,7 @@ async function runSpec(spec) {
       }
       case 'ribbonBaseline': {
         const now = await page.evaluate(() => {
-          const gs = [...document.querySelectorAll('[data-ribbon-group]')].map((g) => { const r = g.getBoundingClientRect(); return { id: g.getAttribute('data-ribbon-group'), x: r.left, width: r.width, top: r.top + scrollY } })
+          const gs = [...document.querySelectorAll('[data-ribbon-group]')].map((g) => { const r = g.getBoundingClientRect(); return { id: g.getAttribute('data-ribbon-group'), x: r.left, width: r.width, top: r.top + scrollY, height: r.height } })
           const rb = document.querySelector('[data-ribbon]').getBoundingClientRect()
           return { bands: new Set(gs.map((g) => Math.round(g.top))).size, height: rb.height, groups: gs }
         })
@@ -863,14 +864,18 @@ async function runSpec(spec) {
         if (opt('--record-ribbon')) { const f = opt('--record-ribbon'); const all = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {}; all[a.width] = { bands: now.bands, ribbon: { height: now.height }, groups: now.groups }; writeFileSync(f, JSON.stringify(all)); return R(true, `recorded ${a.width}`) }
         const base = opt('--ribbon-baseline') ? JSON.parse(readFileSync(opt('--ribbon-baseline'), 'utf8'))[a.width] : a.baseline, bad = [], info = []
         if (now.bands !== base.bands) bad.push(`${now.bands} bands, was ${base.bands}`)
-        if (Math.abs(now.height - base.ribbon.height) > 0.5) bad.push(`ribbon height ${now.height.toFixed(1)}, was ${base.ribbon.height}`)
+        const dropA = a.stacked ? (base.groups.find((g) => g.id === 'position')?.height ?? 0) - (now.groups.find((g) => g.id === 'position')?.height ?? 0) : 0
+        if (a.stacked) { if (dropA < -0.5) bad.push(`Arrange is ${(-dropA).toFixed(1)} px taller`); else info.push(`Arrange is ${dropA.toFixed(1)} px shorter`) }
+        if (Math.abs(now.height - (base.ribbon.height - dropA)) > 0.5) bad.push(`ribbon height ${now.height.toFixed(1)}, was ${base.ribbon.height}${a.stacked ? ' less the Arrange change ' + dropA.toFixed(1) : ''}`)
+        const arrTop = base.groups.find((g) => g.id === 'position')?.top ?? 0
         for (const g of base.groups) {
           const n = now.groups.find((x) => x.id === g.id)
           if (!n) { bad.push(`group ${g.id} is gone`); continue }
           const dx = n.x - g.x, dw = n.width - g.width, dt = n.top - g.top
           if (Math.abs(dx) > 0.01 || Math.abs(dw) > 0.01) info.push(`${g.id}: x ${dx.toFixed(2)}, width ${dw.toFixed(2)}`)
           if (Math.abs(dx) > 0.5) bad.push(`${g.id} x moved by ${dx.toFixed(2)}`)
-          if (Math.abs(dt) > 0.5) bad.push(`${g.id} top moved by ${dt.toFixed(2)}`)
+          const wantDt = a.stacked && g.top > arrTop + 0.5 ? -dropA : 0
+          if (Math.abs(dt - wantDt) > 0.5) bad.push(`${g.id} top moved by ${dt.toFixed(2)}${wantDt ? ', want ' + wantDt.toFixed(2) : ''}`)
           if (g.id === 'position' ? dw > 0.5 : Math.abs(dw) > 0.5) bad.push(`${g.id} width changed by ${dw.toFixed(2)}`)
         }
         return R(bad.length === 0, bad.length ? bad.join('; ') : `${a.width} px: same layout${info.length ? ' (changes under 0.5 px, reported: ' + info.join('; ') + ')' : ''}`)
@@ -3521,7 +3526,7 @@ function views1Specs() {
 }
 // NO-NUDGE: the numbered amendments (steps replaced) of the Q file, for the real page and --stub12; every step keeps the number it had, so the retired steps still name the right ones.
 function amendNonudge(spec) {
-  const a = NONUDGE ? nonudgeFile.amendments?.[spec.id] : undefined
+  const a = NONUDGE ? (amendNonudgeFile.specs?.[spec.id] ?? nonudgeFile.amendments?.[spec.id]) : undefined
   if (!a) return spec
   const steps = []
   spec.steps.forEach((st, i) => {

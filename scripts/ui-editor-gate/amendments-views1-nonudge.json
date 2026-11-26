@@ -1,0 +1,87 @@
+{
+ "version": 1,
+ "note": "Numbered amendments to specs-views1-nonudge.json (locked). A3: Q07 at 1000 px. Below 1000 px (and at 1000) the ribbon is a stack of full-width groups, each as high as its rows, so removing a row from Arrange makes that group one row (52 px) shorter and the ribbon and the Grid group below it that much shorter / higher: a consequence of the decision, not of a defect. My slip in the locked spec (it demanded the same ribbon height and tops at every width). The amended step accepts exactly that and nothing else at 1000 px: bands, x, width and top of every group unchanged; Arrange no taller; every group after Arrange higher by exactly Arrange's change of height; the ribbon as much shorter. The failed first run of Q07 on the changed page stays on record in docs/ui-editor-gate-log.md.",
+ "specs": {
+  "Q07": {
+   "amendment": "A3",
+   "replace": {
+    "3": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "ribbonBaseline",
+      "width": 1000,
+      "baseline": {
+       "bands": 7,
+       "ribbon": {
+        "x": 23,
+        "width": 954,
+        "height": 970
+       },
+       "groups": [
+        {
+         "id": "font",
+         "name": "Font",
+         "x": 23,
+         "width": 954,
+         "top": 424.52,
+         "height": 131
+        },
+        {
+         "id": "paragraph",
+         "name": "Paragraph",
+         "x": 23,
+         "width": 954,
+         "top": 555.52,
+         "height": 131
+        },
+        {
+         "id": "size",
+         "name": "Size",
+         "x": 23,
+         "width": 954,
+         "top": 686.52,
+         "height": 131
+        },
+        {
+         "id": "shape",
+         "name": "Shape Styles",
+         "x": 23,
+         "width": 954,
+         "top": 817.52,
+         "height": 131
+        },
+        {
+         "id": "spacing",
+         "name": "Spacing",
+         "x": 23,
+         "width": 954,
+         "top": 948.52,
+         "height": 131
+        },
+        {
+         "id": "position",
+         "name": "Arrange",
+         "x": 23,
+         "width": 954,
+         "top": 1079.52,
+         "height": 131
+        },
+        {
+         "id": "grid",
+         "name": "Grid",
+         "x": 23,
+         "width": 954,
+         "top": 1210.52,
+         "height": 130
+        }
+       ],
+       "nudgeInputs": 2
+      },
+      "stacked": true
+     }
+    ]
+   }
+  }
+ }
+}
