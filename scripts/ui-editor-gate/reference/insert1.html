@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>UI Editor gate, insert round 1: scorer-check stub (stages 1 to 3)</title>
+<title>UI Editor gate, insert round 1: scorer-check stub (stages 1 to 3, round 7a, round 7b)</title>
 <style>
   :root { --color-text: #0b1b33; --color-text-muted: #6c7686; --color-border: #c9c8c0; }
   body { font: 14px system-ui, sans-serif; margin: 12px; color: var(--color-text); }
@@ -93,6 +93,7 @@
   [data-menu-heading] { font-size: 12px; color: var(--color-text-muted); padding: 2px 4px; }
   [data-swatches] { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 4px 6px; max-width: 232px; }
   [data-swatch] { width: 20px; height: 20px; padding: 0; border: 1px solid rgba(0,0,0,.25); background: var(--sw); border-radius: 3px; }
+  [data-colour-grid] { max-width: 244px; }
   [data-swatch][aria-checked=true] { outline: 2px solid var(--color-text); outline-offset: 1px; }
   [role=menu] button[role^=menuitem]:not([data-swatch]) { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border: 0; background: none; text-align: left; font: inherit; }
   [role=menu] button[role^=menuitem]:not([data-swatch])[aria-checked=true]::before { content: '✓'; margin-right: 4px; }
@@ -145,6 +146,13 @@
   [data-notes-list] ul { margin: 0; padding: 0; list-style: none; } [data-notes-list] li { display: flex; gap: 6px; align-items: center; padding: 3px 0; }
   #notes b { margin-left: 4px; font-size: 11px; } #notes, #comment { height: 20px; font-size: 11px; padding: 0 6px; border: 1px solid var(--color-border); background: #fff; border-radius: 3px; } #comment { height: 32px; font-size: 14px; } #notes:disabled, #comment:disabled { opacity: .45; }
   body[data-fault=bar-wide] #insert { min-width: 760px; }
+  /* the page's rule: below 1048 px a menu item is 44 px (round 7b specs read the menus at 1000) */
+  @media (max-width: 1047px) {
+    [role=menu] button[role^=menuitem]:not([data-swatch]) { height: 44px; min-height: 44px; }
+    [data-swatch] { width: 44px; height: 44px; }
+    [data-swatches] { max-width: 388px; }
+    body[data-fault=grid-40] [data-colour-grid] [data-swatch] { width: 40px; height: 40px; }
+  }
   @media (max-width: 999px) {
     [data-comment-popover] button, [data-notes-list] button, #notes, #comment { min-height: 44px; min-width: 44px; } [data-pin] { width: 44px; height: 44px; }
     #edittext, #delete { min-height: 44px; min-width: 44px; } #inclwrap { display: inline-flex; align-items: center; min-height: 44px; }
@@ -156,7 +164,8 @@
     [role=menu] { width: calc(100vw - 8px); }
     [role=menu] button[role^=menuitem]:not([data-swatch]) { height: 44px; min-height: 44px; }
     [data-swatch] { width: 44px; height: 44px; }
-    [data-swatches] { max-width: none; }
+    [data-swatches] { max-width: none; } [data-colour-grid] { max-width: 388px; }
+    body[data-fault=grid-40] [data-colour-grid] [data-swatch] { width: 40px; height: 40px; }
     body[data-fault=small-390] #delete { min-height: 40px; height: 40px; }
     body[data-fault=pin-small-390] [data-pin] { width: 30px; height: 30px; }
     body[data-fault=save-small-390] [data-comment-popover] button { min-height: 40px; height: 40px; }
@@ -560,6 +569,7 @@ function placeMenu(m, anchor, side) {
   const room = innerHeight - top - 8
   if (m.offsetHeight > room) { m.style.maxHeight = Math.max(120, room) + 'px'; m.style.overflowY = 'auto' }
   if (F('menu-offscreen')) m.style.left = innerWidth - 40 + 'px'
+  if (F('menu-clipped') && innerWidth < 500 && /colour|Fill|Outline/.test(m.getAttribute('aria-label') ?? '')) m.style.left = innerWidth - 60 + 'px'
   m.style.visibility = ''
 }
 function buildMenu(name, spec, anchor, side) {
@@ -575,7 +585,7 @@ function buildMenu(name, spec, anchor, side) {
     host.appendChild(b)
   }
   for (const part of spec) {
-    if (part.group) { const g = document.createElement('div'); g.setAttribute('role', 'group'); g.setAttribute('aria-label', part.group); g.setAttribute('data-menu-group', ''); const h = document.createElement('div'); h.setAttribute('data-menu-heading', ''); h.setAttribute('aria-hidden', 'true'); h.textContent = part.group; const sw = document.createElement('div'); sw.setAttribute('data-swatches', ''); for (const it of part.items) mk(it, sw); g.append(h, sw); m.appendChild(g) }
+    if (part.group) { const g = document.createElement('div'); g.setAttribute('role', 'group'); g.setAttribute('aria-label', part.group); g.setAttribute('data-menu-group', ''); const h = document.createElement('div'); h.setAttribute('data-menu-heading', ''); h.setAttribute('aria-hidden', 'true'); h.textContent = part.group; const sw = document.createElement('div'); sw.setAttribute('data-swatches', ''); if (part.grid) sw.setAttribute('data-colour-grid', ''); for (const it of part.items) mk(it, sw); g.append(h, sw); m.appendChild(g) }
     else if (part.hex) { const r = document.createElement('div'); r.setAttribute('data-hexrow', ''); r.hidden = true; r.innerHTML = `<input type="text" aria-label="${part.hex.name}" data-hex="${part.hex.prop}" data-field="${part.hex.prop}" title="Type a colour, then press Enter." placeholder="#rrggbb"><p data-hexnote hidden>That is not a colour. Type #rgb or #rrggbb.</p>`; m.appendChild(r) }
     else mk(part, m)
   }
@@ -638,13 +648,48 @@ ribbon.addEventListener('keydown', (e) => {
 const colourParts = (prop, curHex, noneLabel, extra = []) => [
   { group: 'Page colours', items: pageColours().map((c) => ({ label: c, role: 'menuitemradio', swatch: c, checked: curHex === c, run: () => chooseColour(prop, c) })) },
   { group: 'Standard colours', items: STANDARD.map((c) => ({ label: c, role: 'menuitemradio', swatch: c, checked: curHex === c, run: () => chooseColour(F('swatch-wrong-prop') && prop === 'background-color' ? 'color' : prop, c) })) },
-  ...(noneLabel ? [{ label: noneLabel, run: () => { closeMenus(true); return doSet(prop === 'border-color' ? { 'border-style': 'none' } : { 'background-color': 'transparent' }) } }] : []),
+  { group: 'Colour grid', grid: true, items: gridColours().map((c) => ({ label: 'Grid ' + c, role: 'menuitemradio', swatch: c, checked: curHex === c, run: () => chooseColour(F('grid-wrong-prop') && prop === 'background-color' ? 'color' : prop, c) })) },
+  ...(recents.length ? [{ group: 'Recent colours', items: recents.map((c) => ({ label: (F('dup-name-colour') ? 'Grid ' : 'Recent ') + c, role: 'menuitemradio', swatch: c, checked: curHex === c, run: () => chooseColour(prop, c) })) }] : []),
+  { label: 'Pick any colour…', run: () => { closeMenus(true); const el = document.querySelector(`input[type=color][data-picker="${menuNameOf(prop)}"]`); el.value = '#000000'; try { el.showPicker() } catch { el.click() } } },
+  ...(noneLabel ? [{ label: noneLabel, run: () => { closeMenus(true); if (F('recent-nofill')) record('#ffffff'); return doSet(prop === 'border-color' ? { 'border-style': 'none' } : { 'background-color': 'transparent' }) } }] : []),
   { label: 'More colours…', run: () => { const r = document.querySelector('[role=menu] [data-hexrow]'); r.hidden = false; r.querySelector('input').focus() } },
   { hex: { name: { 'background-color': 'Background', 'border-color': 'Border colour', color: 'Text colour' }[prop], prop } },
   ...extra,
 ]
+// ---- round 7b: the grid, the recent colours (in memory only) and the picker ----
+const GRID_GREYS = [100, 95, 85, 75, 50, 35, 25, 15, 5, 0], GRID_HUES = [0, 28, 50, 90, 140, 175, 215, 245, 280, 330], GRID_LIGHTS = [30, 45, 60, 75, 88]
+function hslHex(h, s, l) {
+  h /= 360; s /= 100; l /= 100
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q
+  const f = (t0) => { const t = (t0 + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p }
+  return '#' + [f(h + 1 / 3), f(h), f(h - 1 / 3)].map((x) => Math.floor(x * 255 + 0.5).toString(16).padStart(2, '0')).join('')
+}
+function gridColours() {
+  const out = GRID_GREYS.map((l) => hslHex(0, 0, l))
+  for (const l of GRID_LIGHTS) for (const h of GRID_HUES) out.push(hslHex(h, 70, l))
+  if (F('grid-dup')) out[1] = out[0]
+  return out
+}
+let recents = []
+function record(c) {
+  const m = /^#([0-9a-f]{3})$/i.exec(c), hex = (m ? '#' + [...m[1]].map((x) => x + x).join('') : c).toLowerCase()
+  recents = [hex, ...recents.filter((x) => x !== hex)].slice(0, F('recent-nine') ? 9 : 8)
+  if (F('recent-stored')) localStorage.setItem('ui-editor-recents', JSON.stringify(recents))
+}
+const menuNameOf = (prop) => ({ color: 'Font colour', 'background-color': 'Shape Fill', 'border-color': 'Shape Outline' })[prop]
+const propOfMenu = { 'Font colour': 'color', 'Shape Fill': 'background-color', 'Shape Outline': 'border-color' }
+for (const name of Object.keys(propOfMenu)) {
+  const b = document.querySelector(`[data-menu-button="${name}"]`); if (!b) continue
+  const el = document.createElement('input'); el.type = 'color'; el.setAttribute('data-picker', name); el.tabIndex = -1; el.setAttribute('aria-hidden', 'true')
+  el.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0'
+  b.after(el)
+  el.addEventListener('change', () => { if (!F('picker-input')) { record(el.value); doSet({ [propOfMenu[name]]: el.value }) } })
+  el.addEventListener('input', () => { if (F('picker-input')) { record(el.value); doSet({ [propOfMenu[name]]: el.value }) } })
+  el.addEventListener('blur', () => { if (F('picker-cancel')) { record(el.value); doSet({ [propOfMenu[name]]: el.value }) } })
+}
 function chooseColour(prop, c) {
   closeMenus(true)
+  record(c)
   return doSet({ [prop]: c })
 }
 function gradientState() {
@@ -745,6 +790,7 @@ document.addEventListener('keydown', (e) => {
     const v = t.value.trim()
     if (!(F('hex-lax') ? /^#?[0-9a-f]{1,8}$/i : /^#([0-9a-f]{3}|[0-9a-f]{6})$/i).test(v)) { closeMenus(true); $('#msg').textContent = 'That is not a colour. Type #rgb or #rrggbb.'; return }
     closeMenus(true)
+    record(v)
     return doSet({ [t.dataset.hex]: v })
   }
 })
