@@ -1,0 +1,5217 @@
+{
+ "version": 1,
+ "retiredChecks": {
+  "S04": {
+   "steps": [
+    13,
+    14
+   ],
+   "stepNumbers": [
+    14,
+    15
+   ],
+   "reason": "review n:1 and a dot on the Position row: the Review unlinked button and the dots are removed (a Desktop drag still makes the same unlinked rule; its widths are read by X23).",
+   "replacedBy": "none: feature removed (the move itself stays checked by S04's other steps and X23)"
+  },
+  "S05": {
+   "steps": [
+    9,
+    10
+   ],
+   "stepNumbers": [
+    10,
+    11
+   ],
+   "reason": "a dot on Width and Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "S06": {
+   "steps": [
+    9,
+    10
+   ],
+   "stepNumbers": [
+    10,
+    11
+   ],
+   "reason": "a dot on Height and Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "S07": {
+   "steps": [
+    9
+   ],
+   "stepNumbers": [
+    10
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "S08": {
+   "wholeSpec": true,
+   "reason": "A resize made in Phone with Link on also set Desktop to 330 px (the \"other way round\"); the engine no longer scales Desktop from a Phone edit, and the Link checkbox it reads is gone.",
+   "replacedBy": "X25"
+  },
+  "S09": {
+   "steps": [
+    9,
+    11,
+    12
+   ],
+   "stepNumbers": [
+    10,
+    12,
+    13
+   ],
+   "reason": "the Link to Desktop checkbox, a dot on Font size and Review unlinked 0: removed. The scaled Phone value (35.45 px) and Desktop 52 px stay checked.",
+   "replacedBy": "X01"
+  },
+  "S10": {
+   "wholeSpec": true,
+   "reason": "Unchecks Link to Phone, expects a dot, a Review unlinked list and a jump: all removed.",
+   "replacedBy": "X06"
+  },
+  "S11": {
+   "steps": [
+    7,
+    13,
+    14,
+    15
+   ],
+   "stepNumbers": [
+    8,
+    14,
+    15,
+    16
+   ],
+   "reason": "the Link to Desktop checkbox and the three Tablet view-only checks (the sentence, no handles, Font size disabled): Tablet portrait is editable. The widths, the pressed view and the environment name stay.",
+   "replacedBy": "X14, X17"
+  },
+  "S12": {
+   "steps": [
+    10
+   ],
+   "stepNumbers": [
+    11
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "S13": {
+   "steps": [
+    11
+   ],
+   "stepNumbers": [
+    12
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "S14": {
+   "steps": [
+    2,
+    12
+   ],
+   "stepNumbers": [
+    3,
+    13
+   ],
+   "reason": "the disabled Link to Phone checkbox on an SVG and Review unlinked 0: removed.",
+   "replacedBy": "X18, X19"
+  },
+  "S15": {
+   "steps": [
+    9
+   ],
+   "stepNumbers": [
+    10
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "S16": {
+   "wholeSpec": true,
+   "reason": "Unchecks Link to Phone on Desktop to make an unlinked reorder: without Link, Move up on Desktop is the linked reorder and is allowed in a block parent. The refusal still exists for a Phone or Tablet reorder.",
+   "replacedBy": "X26"
+  },
+  "S17": {
+   "steps": [
+    9
+   ],
+   "stepNumbers": [
+    10
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "S18": {
+   "steps": [
+    11
+   ],
+   "stepNumbers": [
+    12
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "S19": {
+   "steps": [
+    7,
+    18
+   ],
+   "stepNumbers": [
+    8,
+    19
+   ],
+   "reason": "Review unlinked 1 and 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "N03": {
+   "steps": [
+    22
+   ],
+   "stepNumbers": [
+    23
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "N07": {
+   "steps": [
+    5,
+    6,
+    7
+   ],
+   "stepNumbers": [
+    6,
+    7,
+    8
+   ],
+   "reason": "Tablet portrait: no handles, Font size disabled, the view-only sentence. Tablet portrait is editable. The landscape checks (steps 13 to 15) stay.",
+   "replacedBy": "X14, X16"
+  },
+  "R04": {
+   "steps": [
+    8,
+    11
+   ],
+   "stepNumbers": [
+    9,
+    12
+   ],
+   "reason": "the Link to Phone tooltip (step 9) and the view-only note in Tablet with an element selected (step 12): Tablet portrait is editable. (Step 11, ribbonAllDisabled, was retired by round 4.)",
+   "replacedBy": "X14"
+  },
+  "T06": {
+   "steps": [
+    13
+   ],
+   "stepNumbers": [
+    14
+   ],
+   "reason": "the view-only note in Tablet with an element selected (step 14): Tablet portrait is editable. (The ribbonAllDisabled asserts were retired by round 4.)",
+   "replacedBy": "X14, X16"
+  },
+  "T08": {
+   "steps": [
+    24
+   ],
+   "stepNumbers": [
+    25
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "U09": {
+   "steps": [
+    11
+   ],
+   "stepNumbers": [
+    12
+   ],
+   "reason": "enabledOnly Grid, Snap and Grid spacing in Tablet with an element selected: Tablet portrait is editable.",
+   "replacedBy": "X14"
+  },
+  "U11": {
+   "steps": [
+    1,
+    9
+   ],
+   "stepNumbers": [
+    2,
+    10
+   ],
+   "reason": "quickBarWords names Review unlinked.",
+   "replacedBy": "X29"
+  },
+  "V07": {
+   "steps": [
+    2
+   ],
+   "stepNumbers": [
+    3
+   ],
+   "reason": "unchecks Link to Phone: the checkbox is gone, the resize is a Desktop (linked) edit. The edge checks of the drags are read as before.",
+   "replacedBy": "X01 (what a Desktop size edit reaches) and the edge checks themselves"
+  },
+  "V08": {
+   "steps": [
+    12
+   ],
+   "stepNumbers": [
+    13
+   ],
+   "reason": "Review unlinked 0: removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "V09": {
+   "steps": [
+    1,
+    3,
+    10
+   ],
+   "stepNumbers": [
+    2,
+    4,
+    11
+   ],
+   "reason": "quickBarOrder and quickBarWords name Review unlinked (steps 2 and 4); enabledOnly in Tablet with an element selected (step 11).",
+   "replacedBy": "X29, X14"
+  },
+  "W08": {
+   "steps": [
+    5
+   ],
+   "stepNumbers": [
+    6
+   ],
+   "reason": "disabledStyle of Tablet controls with an element selected (they are enabled now). The Tablet view button style (step 5) stays.",
+   "replacedBy": "X16"
+  },
+  "Y01": {
+   "steps": [
+    15
+   ],
+   "stepNumbers": [
+    16
+   ],
+   "reason": "Insert disabled in Tablet portrait with the reason \"Tablet\": Tablet portrait is editable. The SVG reason and the Phone landscape reason stay.",
+   "replacedBy": "X14, X16"
+  },
+  "Y03": {
+   "steps": [
+    6,
+    10
+   ],
+   "stepNumbers": [
+    7,
+    11
+   ],
+   "reason": "setLink false and true: the Link checkbox is gone. The Font size, Width and Background edits on the new element stay.",
+   "replacedBy": "X27 (a custom edit on an inserted element)"
+  },
+  "Y11": {
+   "wholeSpec": true,
+   "reason": "Unchecks Link to Phone and reads Review unlinked three times: both removed. What it guarded (a custom edit follows its element through Insert, Delete and Move up) is guarded by X27.",
+   "replacedBy": "X27"
+  }
+ },
+ "vocabulary": {
+  "steps": {
+   "loadFixture": "open a fresh page, then the hand-written fixture `fixture` (tab900 or bp768, files under scripts/ui-editor-gate/reference/) through Paste: the markup field, Open pasted code. The fixture is then the document the spec reads (its original text is what exportEqualsOriginal compares with).",
+   "view": "as before: click the view button Desktop, Tablet or Phone (the selection is kept).",
+   "click": "as before: a real mouse click at the centre ('center') or 12 px inside the top-left corner ('inset') of sel in the preview.",
+   "type": "as before: type `text` into the ribbon field named `field` and press Enter (the colour fields through their menu's More colours).",
+   "drag": "as before: a real mouse drag of dx, dy window px from the centre of sel, or from the handle named by `handle` (the gate's host is 1920 x 1080, where every view is at scale 1, so a window px is a CSS px).",
+   "chooseFont": "as before: choose the Font family option whose value is `value`.",
+   "rotate": "as before: click Rotate.",
+   "snapshotExport": "as before: store the exported files under `name`.",
+   "clickButton": "as before: click the visible button whose accessible name is `name`.",
+   "confirm": "as before: click the confirm button `name`.",
+   "placeCases": "as before (insert round 1): Insert menu, an item, hover a zone, click, with the insertion line and the position checked.",
+   "key": "as before: press a key.",
+   "fillText": "as before: replace the text of the focused text editor or comment box.",
+   "host": "as before: set the window size."
+  },
+  "asserts": {
+   "computed": "P1 (via preview) or P2 (via export). For each width w of `at` the computed value of `prop` of `sel` equals the expected string; lengths in px are equal within `tol` px, every other value exactly. `not` lists values that must NOT be the computed value at a width. via preview: the preview's frame is set to that width and read (the page under test); via export: the files of the current export are loaded fresh in plain Chromium at that width (independent of the page). `collateral` marks a check that another element is unchanged.",
+   "noLinkUi": "P5. In the editor (the element [data-editor], the code view left out): no checkbox but Include comments, no [data-dot], no element whose text, accessible name or tooltip has the word Link, Unlinked or Review (whole words, case-insensitive), no button whose name starts with Review.",
+   "barNames": "P5. The visible buttons of the group Editor controls, in document order, have exactly the accessible names `names` (a count after a name, as in Review unlinked (0), is part of the name).",
+   "editList": "P5. The edit list the page holds (the attribute data-edit-list of [data-editor]) has exactly the edits of `expect` in order; for each, `op` is equal; `environment` is equal ('absent': the edit has no environment field); `link` is 'absent' (no link field), 'notFalse' (absent or true) or false.",
+   "equalsList": "P2. Every exported file equals, byte for byte, what the vendored engine gives (in the runner's own page) for the page's edit list replayed on the original files.",
+   "movedAt": "P1. At each width of `moved` the transform of sel in the preview is a translation of about (dx, dy) CSS px (within tol; the drag's window px divided by the scale); at each width of `same` it is none.",
+   "tabSequence": "P5. `area` ribbon: with the focus put just before the ribbon, Tab visits (as often as there are names plus 5) the controls of the ribbon and stops where the focus leaves it; the accessible names, in order, are exactly `names`. `area` bar: the same from the first button of the group Editor controls to where the focus leaves it.",
+   "tabOrder": "as before (round 4): Tab visits every enabled ribbon control in visual order, each with a focus indicator.",
+   "pageText": "P5. The text of the page (scope 'page': the body's text content and every title and aria-label; scope 'editor': the same inside [data-editor]) contains every string of `has` and none of `lacks` (case-sensitive).",
+   "ribbonNoteHidden": "P5. The ribbon's note [data-ribbon-note] is hidden or empty.",
+   "textAbsent": "as before: the editor's own text does not contain `contains`.",
+   "message": "as before: the last status message contains `contains` (lower-cased).",
+   "undo": "as before: Undo is enabled or not.",
+   "editCount": "as before: the page's edit list has n edits.",
+   "field": "as before: the ribbon field `label` shows `value` (within `tol` for a number).",
+   "ribbonEnabled": "as before: every named ribbon control is enabled.",
+   "ribbonNote": "as before: the ribbon's note is visible and contains `contains`.",
+   "handles": "as before: n resize handles are shown.",
+   "noHandles": "as before: no resize handle is shown.",
+   "buttonDisabled": "as before: the button `name` is disabled or not.",
+   "disabledWithReason": "as before: the button is disabled and its tooltip contains `contains`.",
+   "fieldDisabled": "as before.",
+   "device": "as before (round 1): the device frame's size, orientation and centring.",
+   "iframeWidth": "as before.",
+   "viewPressed": "as before.",
+   "env": "as before: the strip names the view.",
+   "exportEqualsOriginal": "as before: every exported file equals the original.",
+   "exportsEqual": "as before: two stored exports are byte for byte equal and differ from the original.",
+   "exportNotes": "as before (insert round 1).",
+   "exportText": "as before (insert round 1).",
+   "previewText": "as before (insert round 1).",
+   "gone": "as before (insert round 1).",
+   "insertedVisible": "as before (insert round 1).",
+   "textEditor": "as before (insert round 1).",
+   "pin": "as before (insert round 1).",
+   "noOverflowX": "as before: with `widths` the preview has no sideways overflow at each width (scrollWidth within 1 px of clientWidth).",
+   "order": "as before: `first` is above `second` at the width.",
+   "css": "as before: the computed value of prop of sel in the current view equals `equals`.",
+   "quickBarOrder": "as before (round 3).",
+   "quickBarWords": "as before (round 4).",
+   "insertBarOrder": "as before (insert round 1).",
+   "insertBarFits": "as before (insert round 1)."
+  }
+ },
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "fixtures": {
+  "tab900": "reference/views1-tab900.html",
+  "bp768": "reference/views1-bp768.html"
+ },
+ "outcomes": [
+  "PASS",
+  "FAIL"
+ ],
+ "truth": {
+  "X01": {
+   "page": "landing",
+   "referenceCss": "#headline { font-size: 52px; } @media (max-width: 640px) { #headline { font-size: 35.4545px; } }",
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "35.4545px",
+      "640": "35.4545px",
+      "641": "52px",
+      "768": "52px",
+      "1024": "52px",
+      "1025": "52px",
+      "1280": "52px"
+     }
+    }
+   ]
+  },
+  "X02": {
+   "page": "tab900",
+   "referenceCss": "#title { font-size: 50px; } @media (max-width: 900px) { #title { font-size: 42.5px; } } @media (max-width: 640px) { #title { font-size: 35px; } }",
+   "checks": [
+    {
+     "sel": "#title",
+     "prop": "font-size",
+     "at": {
+      "390": "35px",
+      "640": "35px",
+      "641": "42.5px",
+      "768": "42.5px",
+      "900": "42.5px",
+      "901": "50px",
+      "1024": "50px",
+      "1280": "50px"
+     }
+    }
+   ]
+  },
+  "X03": {
+   "page": "tab900",
+   "referenceCss": "#panel { padding: 36px; } @media (max-width: 640px) { #panel { padding: 24px; } }",
+   "checks": [
+    {
+     "sel": "#panel",
+     "prop": "padding-top",
+     "at": {
+      "390": "24px",
+      "640": "24px",
+      "641": "36px",
+      "768": "36px",
+      "900": "36px",
+      "901": "36px",
+      "1024": "36px",
+      "1280": "36px"
+     }
+    },
+    {
+     "sel": "#panel",
+     "prop": "padding-left",
+     "at": {
+      "390": "24px",
+      "640": "24px",
+      "641": "36px",
+      "768": "36px",
+      "900": "36px",
+      "901": "36px",
+      "1024": "36px",
+      "1280": "36px"
+     }
+    }
+   ]
+  },
+  "X04": {
+   "page": "tab900",
+   "referenceCss": "@media (min-width: 641px) { #panel { width: 600px; max-width: 100%; } }",
+   "checks": [
+    {
+     "sel": "#panel",
+     "prop": "width",
+     "at": {
+      "390": "358px",
+      "640": "608px",
+      "641": "593px",
+      "768": "600px",
+      "900": "600px",
+      "901": "600px",
+      "1024": "600px",
+      "1280": "600px"
+     }
+    }
+   ]
+  },
+  "X05": {
+   "page": "landing",
+   "referenceCss": ".hero h1 { color: #b00020; font-family: Arial, sans-serif; }",
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "color",
+     "at": {
+      "390": "rgb(176, 0, 32)",
+      "640": "rgb(176, 0, 32)",
+      "641": "rgb(176, 0, 32)",
+      "768": "rgb(176, 0, 32)",
+      "1024": "rgb(176, 0, 32)",
+      "1025": "rgb(176, 0, 32)",
+      "1280": "rgb(176, 0, 32)"
+     }
+    },
+    {
+     "sel": "#headline",
+     "prop": "font-family",
+     "at": {
+      "390": "Arial, sans-serif",
+      "640": "Arial, sans-serif",
+      "641": "Arial, sans-serif",
+      "768": "Arial, sans-serif",
+      "1024": "Arial, sans-serif",
+      "1025": "Arial, sans-serif",
+      "1280": "Arial, sans-serif"
+     }
+    }
+   ]
+  },
+  "X06": {
+   "page": "landing",
+   "referenceCss": "@media (max-width: 640px) { #headline { font-size: 36px; } }",
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "36px",
+      "640": "36px",
+      "641": "44px",
+      "768": "44px",
+      "1024": "44px",
+      "1025": "44px",
+      "1280": "44px"
+     }
+    }
+   ]
+  },
+  "X07": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) and (max-width: 1024px) { #headline { font-size: 46px; } }",
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "30px",
+      "640": "30px",
+      "641": "46px",
+      "768": "46px",
+      "1024": "46px",
+      "1025": "44px",
+      "1280": "44px"
+     }
+    }
+   ]
+  },
+  "X08": {
+   "page": "tab900",
+   "referenceCss": "@media (min-width: 641px) and (max-width: 900px) { #panel { padding: 30px; } }",
+   "checks": [
+    {
+     "sel": "#panel",
+     "prop": "padding-top",
+     "at": {
+      "390": "16px",
+      "640": "16px",
+      "641": "30px",
+      "768": "30px",
+      "900": "30px",
+      "901": "24px",
+      "1024": "24px",
+      "1280": "24px"
+     }
+    }
+   ]
+  },
+  "X09": {
+   "page": "tab900",
+   "referenceCss": "#title { font-size: 50px; } @media (max-width: 900px) { #title { font-size: 42.5px; } } @media (max-width: 640px) { #title { font-size: 35px; } } @media (min-width: 641px) and (max-width: 900px) { #title { font-size: 46px; } }",
+   "checks": [
+    {
+     "sel": "#title",
+     "prop": "font-size",
+     "at": {
+      "390": "35px",
+      "640": "35px",
+      "641": "46px",
+      "768": "46px",
+      "900": "46px",
+      "901": "50px",
+      "1024": "50px",
+      "1280": "50px"
+     }
+    }
+   ]
+  },
+  "X11": {
+   "page": "landing",
+   "referenceCss": "#headline { font-size: 52px; } @media (max-width: 640px) { #headline { font-size: 36px; } }",
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "36px",
+      "640": "36px",
+      "641": "52px",
+      "768": "52px",
+      "1024": "52px",
+      "1025": "52px",
+      "1280": "52px"
+     }
+    }
+   ]
+  },
+  "X12": {
+   "page": "landing",
+   "referenceCss": "#headline { color: #00aa55; } @media (max-width: 640px) { #headline { color: #ffcc00; } }",
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "color",
+     "at": {
+      "390": "rgb(255, 204, 0)",
+      "640": "rgb(255, 204, 0)",
+      "641": "rgb(0, 170, 85)",
+      "768": "rgb(0, 170, 85)",
+      "1024": "rgb(0, 170, 85)",
+      "1025": "rgb(0, 170, 85)",
+      "1280": "rgb(0, 170, 85)"
+     }
+    }
+   ]
+  },
+  "X13": {
+   "page": "bp768",
+   "referenceCss": "@media (max-width: 768px) { #title { font-size: 30px; } }",
+   "checks": [
+    {
+     "sel": "#title",
+     "prop": "font-size",
+     "at": {
+      "390": "30px",
+      "768": "30px",
+      "769": "40px",
+      "1280": "40px"
+     }
+    }
+   ]
+  },
+  "X23": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) { #card-plan { transform: translate(40px, 24px); } }",
+   "checks": [
+    {
+     "sel": "#card-plan",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 40, 24)",
+      "768": "matrix(1, 0, 0, 1, 40, 24)",
+      "1024": "matrix(1, 0, 0, 1, 40, 24)",
+      "1025": "matrix(1, 0, 0, 1, 40, 24)",
+      "1280": "matrix(1, 0, 0, 1, 40, 24)"
+     }
+    }
+   ]
+  },
+  "X24t": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) and (max-width: 1024px) { #card-plan { transform: translate(40px, 24px); } }",
+   "checks": [
+    {
+     "sel": "#card-plan",
+     "prop": "transform",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 40, 24)",
+      "768": "matrix(1, 0, 0, 1, 40, 24)",
+      "1024": "matrix(1, 0, 0, 1, 40, 24)",
+      "1025": "none",
+      "1280": "none"
+     }
+    }
+   ]
+  },
+  "X24p": {
+   "page": "landing",
+   "referenceCss": "@media (max-width: 640px) { #card-plan { transform: translate(40px, 24px); } }",
+   "checks": [
+    {
+     "sel": "#card-plan",
+     "prop": "transform",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 40, 24)",
+      "640": "matrix(1, 0, 0, 1, 40, 24)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     }
+    }
+   ]
+  },
+  "X25": {
+   "page": "landing",
+   "referenceCss": "@media (max-width: 640px) { #art { width: 330px; } }",
+   "checks": [
+    {
+     "sel": "#art",
+     "prop": "width",
+     "at": {
+      "390": "330px",
+      "640": "330px",
+      "641": "280px",
+      "768": "280px",
+      "1024": "280px",
+      "1025": "280px",
+      "1280": "280px"
+     }
+    }
+   ]
+  },
+  "X27": {
+   "page": "landing",
+   "referenceCss": "#card-ship { font-size: 26px; } @media (max-width: 640px) { #card-ship { font-size: 18px; } }",
+   "checks": [
+    {
+     "sel": "#card-ship",
+     "prop": "font-size",
+     "at": {
+      "390": "18px",
+      "640": "18px",
+      "641": "26px",
+      "1280": "26px"
+     }
+    }
+   ]
+  },
+  "X14": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) and (max-width: 1024px) { #headline { font-size: 46px; } }",
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "30px",
+      "768": "46px",
+      "1280": "44px"
+     }
+    }
+   ]
+  },
+  "X20a": {
+   "page": "landing",
+   "referenceCss": "@media (max-width: 640px) { #cta { font-size: 20px; } }",
+   "checks": [
+    {
+     "sel": "#cta",
+     "prop": "font-size",
+     "at": {
+      "390": "20px",
+      "640": "20px",
+      "641": "16px",
+      "1280": "16px"
+     }
+    }
+   ]
+  },
+  "X20b": {
+   "page": "landing",
+   "referenceCss": "@media (min-width: 641px) and (max-width: 1024px) { #card-plan { padding: 30px; } }",
+   "checks": [
+    {
+     "sel": "#card-plan",
+     "prop": "padding-top",
+     "at": {
+      "390": "24px",
+      "640": "24px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "24px",
+      "1280": "24px"
+     }
+    }
+   ]
+  },
+  "X21": {
+   "page": "landing",
+   "referenceCss": "",
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "30px",
+      "640": "30px",
+      "641": "44px",
+      "768": "44px",
+      "1024": "44px",
+      "1025": "44px",
+      "1280": "44px"
+     }
+    },
+    {
+     "sel": "#cta",
+     "prop": "font-size",
+     "at": {
+      "390": "16px",
+      "1280": "16px"
+     }
+    },
+    {
+     "sel": "#card-plan",
+     "prop": "padding-top",
+     "at": {
+      "390": "24px",
+      "768": "24px",
+      "1280": "24px"
+     }
+    }
+   ]
+  },
+  "collateral-landing": {
+   "page": "landing",
+   "referenceCss": "",
+   "checks": [
+    {
+     "sel": ".footer",
+     "prop": "font-size",
+     "at": {
+      "390": "14px",
+      "1280": "14px"
+     }
+    },
+    {
+     "sel": "#card-plan h3",
+     "prop": "font-size",
+     "at": {
+      "390": "22px",
+      "1280": "22px"
+     }
+    },
+    {
+     "sel": ".lead",
+     "prop": "font-size",
+     "at": {
+      "390": "20px",
+      "1280": "20px"
+     }
+    }
+   ]
+  },
+  "collateral-tab900": {
+   "page": "tab900",
+   "referenceCss": "",
+   "checks": [
+    {
+     "sel": "#intro",
+     "prop": "font-size",
+     "at": {
+      "390": "18px",
+      "768": "18px",
+      "1280": "18px"
+     }
+    },
+    {
+     "sel": "#note",
+     "prop": "font-size",
+     "at": {
+      "390": "16px",
+      "768": "16px",
+      "1280": "16px"
+     }
+    },
+    {
+     "sel": "#title",
+     "prop": "font-size",
+     "at": {
+      "390": "28px",
+      "640": "28px",
+      "768": "34px",
+      "900": "34px",
+      "901": "40px",
+      "1280": "40px"
+     }
+    }
+   ]
+  }
+ },
+ "specs": [
+  {
+   "id": "X01",
+   "name": "Desktop font size: a Desktop edit of #headline (44 to 52) reaches Phone and Tablet in proportion; the computed value at 1280, 1025, 1024, 768, B+1 (641), B (640) and 390 in the preview and in the export loaded fresh equals the hand-derived truth; nothing else changes; the field shows the view's own value",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "35.4545px",
+      "640": "35.4545px",
+      "641": "52px",
+      "768": "52px",
+      "1024": "52px",
+      "1025": "52px",
+      "1280": "52px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "35.4545px",
+      "640": "35.4545px",
+      "641": "52px",
+      "768": "52px",
+      "1024": "52px",
+      "1025": "52px",
+      "1280": "52px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".footer",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "14px",
+      "1280": "14px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan h3",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "22px",
+      "1280": "22px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".lead",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "20px",
+      "1280": "20px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "font size set to 52px"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "35.45px",
+     "tol": 0.05
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "52px",
+     "tol": 0
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "52px",
+     "tol": 0
+    }
+   ]
+  },
+  {
+   "id": "X02",
+   "name": "Desktop font size on a page with its own tablet band (tab900: B 640, T 900): 40 to 50 gives 50 above 900, 42.5 for 641 to 900 and 35 at 640 and below, at 1280, 1024, 901, 900, 768, 641, 640 and 390",
+   "sample": "tab900",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "tab900"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "50"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "35px",
+      "640": "35px",
+      "641": "42.5px",
+      "768": "42.5px",
+      "900": "42.5px",
+      "901": "50px",
+      "1024": "50px",
+      "1280": "50px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "35px",
+      "640": "35px",
+      "641": "42.5px",
+      "768": "42.5px",
+      "900": "42.5px",
+      "901": "50px",
+      "1024": "50px",
+      "1280": "50px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#intro",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "18px",
+      "768": "18px",
+      "1280": "18px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#note",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "16px",
+      "768": "16px",
+      "1280": "16px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X03",
+   "name": "Desktop padding (tab900 #panel, 24 to 36): 36 above 640, the page's own 16 becomes 24 at 640 and below; Tablet follows Desktop",
+   "sample": "tab900",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "tab900"
+    },
+    {
+     "do": "click",
+     "sel": "#panel",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Padding",
+     "text": "36px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#panel",
+     "prop": "padding-top",
+     "via": "preview",
+     "at": {
+      "390": "24px",
+      "640": "24px",
+      "641": "36px",
+      "768": "36px",
+      "900": "36px",
+      "901": "36px",
+      "1024": "36px",
+      "1280": "36px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#panel",
+     "prop": "padding-top",
+     "via": "export",
+     "at": {
+      "390": "24px",
+      "640": "24px",
+      "641": "36px",
+      "768": "36px",
+      "900": "36px",
+      "901": "36px",
+      "1024": "36px",
+      "1280": "36px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#panel",
+     "prop": "padding-left",
+     "via": "preview",
+     "at": {
+      "390": "24px",
+      "640": "24px",
+      "641": "36px",
+      "768": "36px",
+      "900": "36px",
+      "901": "36px",
+      "1024": "36px",
+      "1280": "36px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#panel",
+     "prop": "padding-left",
+     "via": "export",
+     "at": {
+      "390": "24px",
+      "640": "24px",
+      "641": "36px",
+      "768": "36px",
+      "900": "36px",
+      "901": "36px",
+      "1024": "36px",
+      "1280": "36px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#intro",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "18px",
+      "768": "18px",
+      "1280": "18px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#note",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "16px",
+      "768": "16px",
+      "1280": "16px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "28px",
+      "640": "28px",
+      "768": "34px",
+      "900": "34px",
+      "901": "40px",
+      "1280": "40px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X04",
+   "name": "Desktop width (tab900 #panel, 480 to 600): 600 above 640 but never wider than its parent (593 at 641), the page's own 100% stays 100% (608 at 640, 358 at 390)",
+   "sample": "tab900",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "tab900"
+    },
+    {
+     "do": "click",
+     "sel": "#panel",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Width",
+     "text": "600px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#panel",
+     "prop": "width",
+     "via": "preview",
+     "at": {
+      "390": "358px",
+      "640": "608px",
+      "641": "593px",
+      "768": "600px",
+      "900": "600px",
+      "901": "600px",
+      "1024": "600px",
+      "1280": "600px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#panel",
+     "prop": "width",
+     "via": "export",
+     "at": {
+      "390": "358px",
+      "640": "608px",
+      "641": "593px",
+      "768": "600px",
+      "900": "600px",
+      "901": "600px",
+      "1024": "600px",
+      "1280": "600px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#intro",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "18px",
+      "768": "18px",
+      "1280": "18px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#note",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "16px",
+      "768": "16px",
+      "1280": "16px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "28px",
+      "640": "28px",
+      "768": "34px",
+      "900": "34px",
+      "901": "40px",
+      "1280": "40px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X05",
+   "name": "A Desktop colour and a Desktop font family apply at every width as written (landing #headline: #b00020 and Arial)",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Text colour",
+     "text": "#b00020"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "color",
+     "via": "preview",
+     "at": {
+      "390": "rgb(176, 0, 32)",
+      "640": "rgb(176, 0, 32)",
+      "641": "rgb(176, 0, 32)",
+      "768": "rgb(176, 0, 32)",
+      "1024": "rgb(176, 0, 32)",
+      "1025": "rgb(176, 0, 32)",
+      "1280": "rgb(176, 0, 32)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "color",
+     "via": "export",
+     "at": {
+      "390": "rgb(176, 0, 32)",
+      "640": "rgb(176, 0, 32)",
+      "641": "rgb(176, 0, 32)",
+      "768": "rgb(176, 0, 32)",
+      "1024": "rgb(176, 0, 32)",
+      "1025": "rgb(176, 0, 32)",
+      "1280": "rgb(176, 0, 32)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-family",
+     "via": "preview",
+     "at": {
+      "390": "Arial, sans-serif",
+      "640": "Arial, sans-serif",
+      "641": "Arial, sans-serif",
+      "768": "Arial, sans-serif",
+      "1024": "Arial, sans-serif",
+      "1025": "Arial, sans-serif",
+      "1280": "Arial, sans-serif"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-family",
+     "via": "export",
+     "at": {
+      "390": "Arial, sans-serif",
+      "640": "Arial, sans-serif",
+      "641": "Arial, sans-serif",
+      "768": "Arial, sans-serif",
+      "1024": "Arial, sans-serif",
+      "1025": "Arial, sans-serif",
+      "1280": "Arial, sans-serif"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".footer",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "14px",
+      "1280": "14px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan h3",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "22px",
+      "1280": "22px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".lead",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "20px",
+      "1280": "20px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      },
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    }
+   ]
+  },
+  {
+   "id": "X06",
+   "name": "A Phone custom edit changes only the phone range: a font size typed in Phone (36) is 36 at 640 and 390 only; Desktop and Tablet keep 44, the Desktop view shows 44 and the Tablet view 44; the edit list carries environment phone and nothing else",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "36"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "36px",
+      "640": "36px",
+      "641": "44px",
+      "768": "44px",
+      "1024": "44px",
+      "1025": "44px",
+      "1280": "44px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "36px",
+      "640": "36px",
+      "641": "44px",
+      "768": "44px",
+      "1024": "44px",
+      "1025": "44px",
+      "1280": "44px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".footer",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "14px",
+      "1280": "14px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan h3",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "22px",
+      "1280": "22px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".lead",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "20px",
+      "1280": "20px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "36px",
+     "tol": 0
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "44px",
+     "tol": 0
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "44px",
+     "tol": 0
+    }
+   ]
+  },
+  {
+   "id": "X07",
+   "name": "A Tablet custom edit changes only the tablet range: a font size typed in Tablet (46) is 46 from 641 to 1024 only (T is 1024: the page has no tablet rule); Desktop 44 at 1025 and above, Phone 30; the edit list carries environment tablet and nothing else",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "46"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "30px",
+      "640": "30px",
+      "641": "46px",
+      "768": "46px",
+      "1024": "46px",
+      "1025": "44px",
+      "1280": "44px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "30px",
+      "640": "30px",
+      "641": "46px",
+      "768": "46px",
+      "1024": "46px",
+      "1025": "44px",
+      "1280": "44px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".footer",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "14px",
+      "1280": "14px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan h3",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "22px",
+      "1280": "22px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".lead",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "20px",
+      "1280": "20px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "tablet",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "46px",
+     "tol": 0
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "44px",
+     "tol": 0
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "30px",
+     "tol": 0
+    }
+   ]
+  },
+  {
+   "id": "X08",
+   "name": "A Tablet custom padding on a page with a tablet band (tab900 #panel, 24 to 30): 30 from 641 to 900, 24 above 900, the page's own 16 at 640 and below",
+   "sample": "tab900",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "tab900"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#panel",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Padding",
+     "text": "30px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#panel",
+     "prop": "padding-top",
+     "via": "preview",
+     "at": {
+      "390": "16px",
+      "640": "16px",
+      "641": "30px",
+      "768": "30px",
+      "900": "30px",
+      "901": "24px",
+      "1024": "24px",
+      "1280": "24px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#panel",
+     "prop": "padding-top",
+     "via": "export",
+     "at": {
+      "390": "16px",
+      "640": "16px",
+      "641": "30px",
+      "768": "30px",
+      "900": "30px",
+      "901": "24px",
+      "1024": "24px",
+      "1280": "24px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#intro",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "18px",
+      "768": "18px",
+      "1280": "18px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#note",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "16px",
+      "768": "16px",
+      "1280": "16px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "28px",
+      "640": "28px",
+      "768": "34px",
+      "900": "34px",
+      "901": "40px",
+      "1280": "40px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "tablet",
+       "link": "absent"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X09",
+   "name": "A Tablet custom font size (46), then a Desktop one (50) on the same element: the tablet range keeps 46, Desktop gets 50 and the phone range 35 (tab900 #title)",
+   "sample": "tab900",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "tab900"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "46"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "50"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "35px",
+      "640": "35px",
+      "641": "46px",
+      "768": "46px",
+      "900": "46px",
+      "901": "50px",
+      "1024": "50px",
+      "1280": "50px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "35px",
+      "640": "35px",
+      "641": "46px",
+      "768": "46px",
+      "900": "46px",
+      "901": "50px",
+      "1024": "50px",
+      "1280": "50px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#intro",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "18px",
+      "768": "18px",
+      "1280": "18px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#note",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "16px",
+      "768": "16px",
+      "1280": "16px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "tablet",
+       "link": "absent"
+      },
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "font size set to 50px"
+    }
+   ]
+  },
+  {
+   "id": "X10",
+   "name": "The reverse order: a Desktop font size (50), then a Tablet custom one (46) on the same element, gives the same values (tab900 #title)",
+   "sample": "tab900",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "tab900"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "50"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "46"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "35px",
+      "640": "35px",
+      "641": "46px",
+      "768": "46px",
+      "900": "46px",
+      "901": "50px",
+      "1024": "50px",
+      "1280": "50px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "35px",
+      "640": "35px",
+      "641": "46px",
+      "768": "46px",
+      "900": "46px",
+      "901": "50px",
+      "1024": "50px",
+      "1280": "50px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#intro",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "18px",
+      "768": "18px",
+      "1280": "18px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#note",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "16px",
+      "768": "16px",
+      "1280": "16px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      },
+      {
+       "op": "set",
+       "environment": "tablet",
+       "link": "absent"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X11",
+   "name": "A Phone custom font size (36), then a Desktop one (52) on the same element: the Desktop edit reaches 641 and above (Tablet too) and not the phone range, which keeps 36; no refusal",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "36"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "36px",
+      "640": "36px",
+      "641": "52px",
+      "768": "52px",
+      "1024": "52px",
+      "1025": "52px",
+      "1280": "52px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "36px",
+      "640": "36px",
+      "641": "52px",
+      "768": "52px",
+      "1024": "52px",
+      "1025": "52px",
+      "1280": "52px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".footer",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "14px",
+      "1280": "14px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan h3",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "22px",
+      "1280": "22px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": ".lead",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "20px",
+      "1280": "20px"
+     },
+     "tol": 0.5,
+     "collateral": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      },
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "font size set to 52px"
+    }
+   ]
+  },
+  {
+   "id": "X12",
+   "name": "A Desktop colour after a Phone custom colour is not refused and the Phone view keeps its colour: #ffcc00 in Phone, then #00aa55 in Desktop gives #00aa55 above 640 and #ffcc00 at 640 and below",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Text colour",
+     "text": "#ffcc00"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Text colour",
+     "text": "#00aa55"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "color",
+     "via": "preview",
+     "at": {
+      "390": "rgb(255, 204, 0)",
+      "640": "rgb(255, 204, 0)",
+      "641": "rgb(0, 170, 85)",
+      "768": "rgb(0, 170, 85)",
+      "1024": "rgb(0, 170, 85)",
+      "1025": "rgb(0, 170, 85)",
+      "1280": "rgb(0, 170, 85)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "color",
+     "via": "export",
+     "at": {
+      "390": "rgb(255, 204, 0)",
+      "640": "rgb(255, 204, 0)",
+      "641": "rgb(0, 170, 85)",
+      "768": "rgb(0, 170, 85)",
+      "1024": "rgb(0, 170, 85)",
+      "1025": "rgb(0, 170, 85)",
+      "1280": "rgb(0, 170, 85)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      },
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "text colour set to #00aa55"
+    }
+   ]
+  },
+  {
+   "id": "X13",
+   "name": "A page whose own phone breakpoint is 768 (bp768) has no Tablet range: a Tablet edit is refused with the engine's plain reason in the status line, and nothing changes (the export is the original, the edit list and the undo list are empty); a Phone edit covers 768",
+   "sample": "bp768",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "bp768"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "make the edit in phone instead"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "no tablet range"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "not applied"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "28px",
+     "tol": 0
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#title",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "30px",
+      "768": "30px",
+      "769": "40px",
+      "1280": "40px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#title",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "30px",
+      "768": "30px",
+      "769": "40px",
+      "1280": "40px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Font size",
+     "value": "30px",
+     "tol": 0
+    }
+   ]
+  },
+  {
+   "id": "X14",
+   "name": "Tablet portrait is editable: with an element selected every ribbon control Desktop has is enabled, the handles are there, Insert, Edit text, Delete, Comment and Notes are enabled, there is no view-only note, and a font size typed there is applied",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "iframeWidth",
+     "value": 768
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewPressed",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "env",
+     "text": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonEnabled",
+     "names": [
+      "Font family",
+      "Font size",
+      "Font weight",
+      "Font colour",
+      "Align left",
+      "Align centre",
+      "Align right",
+      "Justify",
+      "Italic",
+      "Underline",
+      "Line spacing",
+      "Height",
+      "Width",
+      "Shape Fill",
+      "Shape Outline",
+      "Border radius",
+      "Shape Effects",
+      "Padding",
+      "Margin",
+      "Move down",
+      "Nudge X",
+      "Nudge Y"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonNoteHidden"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "handles",
+     "n": 8
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Insert",
+     "disabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Edit text",
+     "disabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Delete",
+     "disabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Comment",
+     "disabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Notes",
+     "disabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "textAbsent",
+     "contains": "view-only"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "46"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "font size set to 46px"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "30px",
+      "768": "46px",
+      "1280": "44px"
+     },
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "id": "X15",
+   "name": "In Tablet portrait Insert, Edit text, Delete and Comment work like in Phone: a Rectangle placed after a card, the headline's text changed with F2, the new element deleted, a note saved; content edits carry no environment; the new element shows at 1280, 768 and 390",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Rectangle",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "div",
+       "keep": true
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertedVisible",
+     "sel": ".new-box-1",
+     "widths": [
+      1280,
+      768,
+      390
+     ],
+     "minSize": 8
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "noOverflowX",
+     "widths": [
+      390,
+      768,
+      1280
+     ]
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "key",
+     "key": "F2"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "textEditor",
+     "sel": "#headline",
+     "tol": 2,
+     "value": "Calm software for busy teams"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Calm tablets"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "previewText",
+     "sel": "#headline",
+     "equals": "Calm tablets"
+    },
+    {
+     "do": "click",
+     "sel": ".new-box-1",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Delete"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "gone",
+     "sel": ".new-box-1"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "Tablet note"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportNotes",
+     "file": "landing.html",
+     "notes": [
+      {
+       "sel": "#cta",
+       "text": "Tablet note"
+      }
+     ],
+     "headers": 1,
+     "headerAfter": "doctype"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "pin",
+     "n": 1,
+     "sel": "#cta",
+     "tol": 3
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportText",
+     "file": "landing.html",
+     "sel": "#headline",
+     "equals": "Calm tablets"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "insert",
+       "environment": "absent"
+      },
+      {
+       "op": "text",
+       "environment": "absent"
+      },
+      {
+       "op": "remove",
+       "environment": "absent"
+      },
+      {
+       "op": "note",
+       "environment": "absent"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X16",
+   "name": "A Tablet or a phone turned sideways is view-only with its own wording: every ribbon control but the view aids is off, no handles, Insert and Comment are disabled with the reason, Edit text and Delete are disabled; turned upright again it edits",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "rotate"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "tablet",
+     "orientation": "landscape",
+     "iframeW": 1024,
+     "iframeH": 768,
+     "centredTol": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noHandles"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonNote",
+     "contains": "turned sideways"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonNote",
+     "contains": "upright"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "disabledWithReason",
+     "name": "Insert",
+     "contains": "turned sideways"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "disabledWithReason",
+     "name": "Comment",
+     "contains": "turned sideways"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Edit text",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Delete",
+     "disabled": true
+    },
+    {
+     "do": "rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonNoteHidden"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "device",
+     "kind": "phone",
+     "orientation": "landscape",
+     "iframeW": 844,
+     "iframeH": 390,
+     "centredTol": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noHandles"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonNote",
+     "contains": "turn the phone upright"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "disabledWithReason",
+     "name": "Insert",
+     "contains": "turn the phone upright"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "disabledWithReason",
+     "name": "Comment",
+     "contains": "turn the phone upright"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Edit text",
+     "disabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "buttonDisabled",
+     "name": "Delete",
+     "disabled": true
+    },
+    {
+     "do": "rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fieldDisabled",
+     "label": "Font size",
+     "disabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonNoteHidden"
+    }
+   ]
+  },
+  {
+   "id": "X17",
+   "name": "No Link checkbox, no unlinked dot, no Review button and no sentence about them anywhere in the editor (DOM and accessible names) on an HTML page, in Desktop, Tablet and Phone, with an element selected and after an edit in each view",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "48"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "40"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "32"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "barNames",
+     "names": [
+      "Samples",
+      "Undo",
+      "Redo",
+      "Insert",
+      "Comment",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Rotate",
+      "Download",
+      "Reset all"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "barNames",
+     "names": [
+      "Samples",
+      "Undo",
+      "Redo",
+      "Insert",
+      "Comment",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Download",
+      "Reset all"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X18",
+   "name": "The same on the SVG chart: no Link checkbox, no dot, no Review button in Desktop, Tablet and Phone, with an element selected and after an edit",
+   "sample": "chart",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#336699"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noLinkUi"
+    }
+   ]
+  },
+  {
+   "id": "X19",
+   "name": "SVG documents have no environments: the same fill typed in Desktop, in Tablet and in Phone gives the same bytes, and the edit carries no environment",
+   "sample": "chart",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#336699"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "absent"
+      }
+     ]
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset all"
+    },
+    {
+     "do": "confirm",
+     "name": "Discard edits"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#336699"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "absent"
+      }
+     ]
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset all"
+    },
+    {
+     "do": "confirm",
+     "name": "Discard edits"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Background",
+     "text": "#336699"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "absent"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "desktop",
+     "b": "tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "desktop",
+     "b": "phone"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "css",
+     "sel": "#bar-tue",
+     "prop": "fill",
+     "equals": "rgb(51, 102, 153)"
+    }
+   ]
+  },
+  {
+   "id": "X20",
+   "name": "Undo and redo across views: a Desktop, a Phone and a Tablet edit; Undo three times gives the original bytes, Redo three times gives the same bytes as before",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Padding",
+     "text": "30px"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "all"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      },
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      },
+      {
+       "op": "set",
+       "environment": "tablet",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": true
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "again"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "all",
+     "b": "again"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "20px",
+      "640": "20px",
+      "641": "16px",
+      "1280": "16px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#card-plan",
+     "prop": "padding-top",
+     "via": "export",
+     "at": {
+      "390": "24px",
+      "640": "24px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "24px",
+      "1280": "24px"
+     },
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "id": "X21",
+   "name": "Reset all still clears everything: after a Desktop, a Phone and a Tablet edit, Reset all (and its confirmation) gives the original bytes, an empty edit list and the original values in every view",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Padding",
+     "text": "30px"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset all"
+    },
+    {
+     "do": "confirm",
+     "name": "Discard edits"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "30px",
+      "640": "30px",
+      "641": "44px",
+      "768": "44px",
+      "1024": "44px",
+      "1025": "44px",
+      "1280": "44px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "16px",
+      "1280": "16px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan",
+     "prop": "padding-top",
+     "via": "preview",
+     "at": {
+      "390": "24px",
+      "768": "24px",
+      "1280": "24px"
+     },
+     "tol": 0.05
+    }
+   ]
+  },
+  {
+   "id": "X22",
+   "name": "The export equals the engine's own export of the same edit list, byte for byte (the checker replays the page's list through the vendored engine), after Desktop, Phone, Tablet, insert and text edits",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "52"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Padding",
+     "text": "30px"
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Rectangle",
+       "sel": "#card-build",
+       "zone": "after",
+       "parent": "#plans",
+       "index": 2,
+       "tag": "div",
+       "keep": true
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "key",
+     "key": "F2"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Made by hand."
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "equalsList"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      },
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      },
+      {
+       "op": "set",
+       "environment": "tablet",
+       "link": "absent"
+      },
+      {
+       "op": "insert"
+      },
+      {
+       "op": "text"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X23",
+   "name": "A Desktop drag is one unlinked rule: it moves #card-plan at every width above the phone breakpoint (1280, 1025, 1024, 768 and 641: the tablet range too) and not at 640 or 390; the edit is a set of link false, environment desktop",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "drag",
+     "sel": "#card-plan",
+     "handle": null,
+     "dx": 40,
+     "dy": 24
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 40, 24)",
+      "768": "matrix(1, 0, 0, 1, 40, 24)",
+      "1024": "matrix(1, 0, 0, 1, 40, 24)",
+      "1025": "matrix(1, 0, 0, 1, 40, 24)",
+      "1280": "matrix(1, 0, 0, 1, 40, 24)"
+     },
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#card-plan",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 40, 24)",
+      "768": "matrix(1, 0, 0, 1, 40, 24)",
+      "1024": "matrix(1, 0, 0, 1, 40, 24)",
+      "1025": "matrix(1, 0, 0, 1, 40, 24)",
+      "1280": "matrix(1, 0, 0, 1, 40, 24)"
+     },
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "movedAt",
+     "sel": "#card-plan",
+     "dx": 40,
+     "dy": 24,
+     "moved": [
+      1280,
+      1025,
+      1024,
+      768,
+      641
+     ],
+     "same": [
+      640,
+      390
+     ],
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "desktop",
+       "link": false
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "desktop and tablet sizes"
+    }
+   ]
+  },
+  {
+   "id": "X24",
+   "name": "A Tablet drag moves #card-plan at 641 to 1024 only, a Phone drag at 640 and below only (two runs of the same drag; the edit is an offset with its environment and no link)",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "drag",
+     "sel": "#card-plan",
+     "handle": null,
+     "dx": 40,
+     "dy": 24
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 40, 24)",
+      "768": "matrix(1, 0, 0, 1, 40, 24)",
+      "1024": "matrix(1, 0, 0, 1, 40, 24)",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#card-plan",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 40, 24)",
+      "768": "matrix(1, 0, 0, 1, 40, 24)",
+      "1024": "matrix(1, 0, 0, 1, 40, 24)",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "movedAt",
+     "sel": "#card-plan",
+     "dx": 40,
+     "dy": 24,
+     "moved": [
+      1024,
+      768,
+      641
+     ],
+     "same": [
+      1280,
+      1025,
+      640,
+      390
+     ],
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "tablet",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "tablet only"
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "drag",
+     "sel": "#card-plan",
+     "handle": null,
+     "dx": 40,
+     "dy": 24
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-plan",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 40, 24)",
+      "640": "matrix(1, 0, 0, 1, 40, 24)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#card-plan",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 40, 24)",
+      "640": "matrix(1, 0, 0, 1, 40, 24)",
+      "641": "none",
+      "768": "none",
+      "1024": "none",
+      "1025": "none",
+      "1280": "none"
+     },
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "movedAt",
+     "sel": "#card-plan",
+     "dx": 40,
+     "dy": 24,
+     "moved": [
+      640,
+      390
+     ],
+     "same": [
+      1280,
+      1025,
+      1024,
+      768,
+      641
+     ],
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "phone",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "phone only"
+    }
+   ]
+  },
+  {
+   "id": "X25",
+   "name": "A resize in Phone is custom to Phone: #art dragged from 280 to 330 wide by its east handle in the Phone view is 330 at 640 and 390 and 280 at 641 and above (this replaces the retired S08, whose Desktop width followed the Phone edit)",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "e",
+     "dx": 50,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#art",
+     "prop": "width",
+     "via": "preview",
+     "at": {
+      "390": "330px",
+      "640": "330px",
+      "641": "280px",
+      "768": "280px",
+      "1024": "280px",
+      "1025": "280px",
+      "1280": "280px"
+     },
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#art",
+     "prop": "width",
+     "via": "export",
+     "at": {
+      "390": "330px",
+      "640": "330px",
+      "641": "280px",
+      "768": "280px",
+      "1024": "280px",
+      "1025": "280px",
+      "1280": "280px"
+     },
+     "tol": 1.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Width",
+     "value": "330px",
+     "tol": 0
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "field",
+     "label": "Width",
+     "value": "280px",
+     "tol": 0
+    }
+   ]
+  },
+  {
+   "id": "X26",
+   "name": "A reorder in a block parent is refused in Phone and in Tablet with the engine's reason and changes nothing, and still works on Desktop (this replaces the retired S16)",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan p",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "only works inside a flex or grid container"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan p",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "message",
+     "contains": "only works inside a flex or grid container"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan p",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "order",
+     "at": 1280,
+     "first": "#card-plan p",
+     "second": "#card-plan h3",
+     "q": "top"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "reorder",
+       "environment": "desktop",
+       "link": "notFalse"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X27",
+   "name": "A custom edit follows its element through structure edits: a Phone font size on #card-ship, then Insert before #card-plan, Delete of the new element, Move up of #card-ship, and a Desktop font size on it: 26 at 641 and above, the Phone 18 at 640 and below (replaces the retired Y11); a Phone width on an inserted element is custom to Phone (replaces the Link on and off of the retired Y03 steps)",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "18"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Rectangle",
+       "sel": "#card-plan",
+       "zone": "before",
+       "parent": "#plans",
+       "index": 0,
+       "tag": "div",
+       "keep": true
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "clickButton",
+     "name": "Delete"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "gone",
+     "sel": ".new-box-1"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "clickButton",
+     "name": "Move up"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "26"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#card-ship",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "18px",
+      "640": "18px",
+      "641": "26px",
+      "1280": "26px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#card-ship",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "18px",
+      "640": "18px",
+      "641": "26px",
+      "1280": "26px"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Rectangle",
+       "sel": "#cta",
+       "zone": "after",
+       "parent": ".hero-copy",
+       "index": 3,
+       "tag": "div",
+       "keep": true
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "type",
+     "field": "Width",
+     "text": "120px"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": ".new-box-1",
+     "prop": "width",
+     "via": "export",
+     "at": {
+      "390": "120px"
+     },
+     "not": {
+      "768": "120px",
+      "1280": "120px"
+     },
+     "tol": 0.5
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      },
+      {
+       "op": "insert",
+       "environment": "absent"
+      },
+      {
+       "op": "remove",
+       "environment": "absent"
+      },
+      {
+       "op": "reorder",
+       "environment": "desktop",
+       "link": "notFalse"
+      },
+      {
+       "op": "set",
+       "environment": "desktop",
+       "link": "notFalse"
+      },
+      {
+       "op": "insert",
+       "environment": "absent"
+      },
+      {
+       "op": "set",
+       "environment": "phone",
+       "link": "absent"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X28",
+   "name": "Keyboard and tab order are as before apart from the removed controls: with #headline selected the Tab sequence through the strip and the ribbon is, in Desktop, in Phone and in Tablet portrait, the sequence of the earlier page without the Link checkbox; the quick bar's sequence has no Review button",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabSequence",
+     "area": "ribbon",
+     "names": [
+      "Select header .hero",
+      "Select div .hero-inner",
+      "Select div .hero-copy",
+      "Select parent",
+      "Edit text",
+      "Delete",
+      "Notes",
+      "Font family",
+      "Font size",
+      "Font size presets",
+      "Increase Font size",
+      "Decrease Font size",
+      "Font weight",
+      "Font colour",
+      "Align left",
+      "Align centre",
+      "Align right",
+      "Justify",
+      "Italic",
+      "Underline",
+      "Line spacing",
+      "Height",
+      "Width",
+      "px",
+      "%",
+      "Shape Fill",
+      "Shape Outline",
+      "Border radius",
+      "Shape Effects",
+      "Padding",
+      "Padding sides",
+      "Margin",
+      "Margin sides",
+      "Move down",
+      "Nudge X",
+      "Nudge Y",
+      "Grid",
+      "Snap",
+      "Grid spacing"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabSequence",
+     "area": "bar",
+     "names": [
+      "Samples",
+      "Insert",
+      "Comment",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Download"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabOrder",
+     "max": 140
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabSequence",
+     "area": "ribbon",
+     "names": [
+      "Select header .hero",
+      "Select div .hero-inner",
+      "Select div .hero-copy",
+      "Select parent",
+      "Edit text",
+      "Delete",
+      "Notes",
+      "Font family",
+      "Font size",
+      "Font size presets",
+      "Increase Font size",
+      "Decrease Font size",
+      "Font weight",
+      "Font colour",
+      "Align left",
+      "Align centre",
+      "Align right",
+      "Justify",
+      "Italic",
+      "Underline",
+      "Line spacing",
+      "Height",
+      "Width",
+      "px",
+      "%",
+      "Shape Fill",
+      "Shape Outline",
+      "Border radius",
+      "Shape Effects",
+      "Padding",
+      "Padding sides",
+      "Margin",
+      "Margin sides",
+      "Move down",
+      "Nudge X",
+      "Nudge Y",
+      "Grid",
+      "Snap",
+      "Grid spacing"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabSequence",
+     "area": "ribbon",
+     "names": [
+      "Select header .hero",
+      "Select div .hero-inner",
+      "Select div .hero-copy",
+      "Select parent",
+      "Edit text",
+      "Delete",
+      "Notes",
+      "Font family",
+      "Font size",
+      "Font size presets",
+      "Increase Font size",
+      "Decrease Font size",
+      "Font weight",
+      "Font colour",
+      "Align left",
+      "Align centre",
+      "Align right",
+      "Justify",
+      "Italic",
+      "Underline",
+      "Line spacing",
+      "Height",
+      "Width",
+      "px",
+      "%",
+      "Shape Fill",
+      "Shape Outline",
+      "Border radius",
+      "Shape Effects",
+      "Padding",
+      "Padding sides",
+      "Margin",
+      "Margin sides",
+      "Move down",
+      "Nudge X",
+      "Nudge Y",
+      "Grid",
+      "Snap",
+      "Grid spacing"
+     ]
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "40"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabSequence",
+     "area": "bar",
+     "names": [
+      "Samples",
+      "Undo",
+      "Insert",
+      "Comment",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Rotate",
+      "Download",
+      "Reset all"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X29",
+   "name": "The quick bar without Review unlinked: the buttons in the stated order on one row with Reset all last, Reset all shows its words and Undo and Redo are icon-only with a name and a tooltip, at 1440 and 1920 and at 1000 the bar still fits",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "quickBarOrder",
+     "order": [
+      "Samples",
+      "Undo",
+      "Redo",
+      "Desktop",
+      "Tablet",
+      "Phone",
+      "Download",
+      "Reset all"
+     ],
+     "gapMin": 24,
+     "gapBetween": [
+      "Redo",
+      "Reset all"
+     ],
+     "rowTol": 20
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "quickBarWords",
+     "words": [
+      {
+       "name": "Reset all",
+       "text": "Reset all"
+      }
+     ],
+     "iconOnly": [
+      "Undo",
+      "Redo"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "insertBarOrder",
+     "after": "Redo",
+     "names": [
+      "Insert",
+      "Comment"
+     ]
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 1000
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 1440
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 900
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 1920
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "insertBarFits",
+     "width": 390
+    }
+   ]
+  },
+  {
+   "id": "X30",
+   "name": "The words on the page describe the new model: How it works (Adapt) and the Limits say Phone and Tablet follow Desktop and that a change made in Phone or Tablet applies to that view, and say nothing about Link, Review unlinked, \"the other way round\", a view-only Tablet or \"one size only\"",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "visit"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pageText",
+     "has": [
+      "Phone and Tablet start as your Desktop setup scaled in proportion",
+      "applies to that view only",
+      "a later Desktop change does not override it",
+      "Desktop, Tablet and Phone upright are editable",
+      "A Tablet change on a page whose Phone breakpoint is 768 px is refused: make it in Phone."
+     ],
+     "lacks": [
+      "Link to",
+      "Link on",
+      "Link off",
+      "Review unlinked",
+      "Unlinked edits",
+      "the other way round",
+      "Tablet is view-only",
+      "Tablet is a view-only width",
+      "one size only",
+      "always unlinked",
+      "Desktop and Phone upright are the editable sizes"
+     ]
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pageText",
+     "scope": "editor",
+     "has": [
+      "Samples",
+      "Desktop",
+      "Tablet",
+      "Phone"
+     ],
+     "lacks": [
+      "Link to",
+      "Review unlinked",
+      "Unlinked"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "X31",
+   "name": "Layout kept: the ribbon still fits one band at 1440 and 1920 and the quick bar and the strip fit (the earlier W01, W02, W03 and Y01 PASS in the same run); check:layout is run separately by script",
+   "sample": "landing",
+   "checks": [],
+   "expected": "PASS",
+   "steps": [],
+   "aggregate": [
+    "W01",
+    "W02",
+    "W03",
+    "Y01"
+   ]
+  },
+  {
+   "id": "X32",
+   "name": "Flag OFF: the build without VITE_SHOW_UI_EDITOR behaves exactly as before (flags.mjs, 16 of 16) and every file of that build except the UiEditor chunks is byte for byte the main build's (the chunk names are normalised)",
+   "sample": "landing",
+   "checks": [],
+   "expected": "PASS",
+   "steps": [],
+   "external": "flagOff"
+  }
+ ]
+}
