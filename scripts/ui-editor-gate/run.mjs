@@ -256,7 +256,7 @@ async function runSpec(spec) {
   let src = sources[spec.sample] // ROUND 5 (log #31): follows the sample a `load` step opens (V05 and V06 open two)
   const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
   const page = await ctx.newPage()
-  if (flag('--no-retire-views1')) page.setDefaultTimeout(4000) // a development flag (rules section 7): a control that is gone fails fast
+  if (flag('--fast-fail')) page.setDefaultTimeout(4000) // a development flag: a control that is gone fails in 4 s, not 30 s (used with --no-retire-views1, rules section 7)
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
   const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: null, P4: null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
