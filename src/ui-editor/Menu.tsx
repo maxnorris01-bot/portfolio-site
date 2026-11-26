@@ -177,6 +177,12 @@ export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, g
       const el = pickInput.current
       if (el) {
         el.value = pickRef.current?.current ?? '#000000'
+        // The input is in <body>, not in the ribbon (the ribbon's controls are counted and measured by the earlier checks): it is put under the button so the browser's popup opens there.
+        const r = button?.getBoundingClientRect()
+        if (r) {
+          el.style.left = `${r.left}px`
+          el.style.top = `${r.bottom}px`
+        }
         try {
           el.showPicker()
         } catch {
@@ -220,7 +226,7 @@ export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, g
         {chevron && <Icon name="chevron" />}
         {dot}
       </button>
-      {picker && <input ref={pickInput} type="color" className="ue-picker" data-picker={name} tabIndex={-1} aria-hidden="true" defaultValue="#000000" />}
+      {picker && createPortal(<input ref={pickInput} type="color" className="ue-picker" data-picker={name} tabIndex={-1} aria-hidden="true" defaultValue="#000000" />, document.body)}
       {open &&
         levels.map((lv, i) => (
           <Panel

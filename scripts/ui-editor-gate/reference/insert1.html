@@ -569,7 +569,7 @@ function placeMenu(m, anchor, side) {
   const room = innerHeight - top - 8
   if (m.offsetHeight > room) { m.style.maxHeight = Math.max(120, room) + 'px'; m.style.overflowY = 'auto' }
   if (F('menu-offscreen')) m.style.left = innerWidth - 40 + 'px'
-  if (F('menu-clipped') && innerWidth < 500 && /colour|Fill|Outline/.test(m.getAttribute('aria-label') ?? '')) m.style.left = innerWidth - 60 + 'px'
+  if (F('menu-clipped') && innerWidth < 500 && /colour|Fill|Outline/.test(m.getAttribute('aria-label') ?? '')) m.style.left = innerWidth - m.offsetWidth + 40 + 'px'
   m.style.visibility = ''
 }
 function buildMenu(name, spec, anchor, side) {
@@ -681,8 +681,8 @@ const propOfMenu = { 'Font colour': 'color', 'Shape Fill': 'background-color', '
 for (const name of Object.keys(propOfMenu)) {
   const b = document.querySelector(`[data-menu-button="${name}"]`); if (!b) continue
   const el = document.createElement('input'); el.type = 'color'; el.setAttribute('data-picker', name); el.tabIndex = -1; el.setAttribute('aria-hidden', 'true')
-  el.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0'
-  b.after(el)
+  el.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0'
+  document.body.appendChild(el) // not in the ribbon: the earlier specs count the ribbon's controls
   el.addEventListener('change', () => { if (!F('picker-input')) { record(el.value); doSet({ [propOfMenu[name]]: el.value }) } })
   el.addEventListener('input', () => { if (F('picker-input')) { record(el.value); doSet({ [propOfMenu[name]]: el.value }) } })
   el.addEventListener('blur', () => { if (F('picker-cancel')) { record(el.value); doSet({ [propOfMenu[name]]: el.value }) } })

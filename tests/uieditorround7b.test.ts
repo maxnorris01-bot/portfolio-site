@@ -77,12 +77,13 @@ test('the recents store: one list, in memory only, listeners told once per chang
   assert.doesNotMatch(src.split('\n').filter((l) => !l.trimStart().startsWith('//')).join('\n'), /localStorage|sessionStorage|document\.cookie|indexedDB/)
 })
 
-test('the picker applies one edit, on `change`, never on `input`; its input lives beside the button and the item closes the menu then opens it', () => {
+test('the picker applies one edit, on `change`, never on `input`; its input lives in <body>, outside the ribbon and the menu, and the item closes the menu then opens it', () => {
   const menu = read('src/ui-editor/Menu.tsx')
   assert.match(menu, /addEventListener\('change', on\)/)
   assert.doesNotMatch(menu, /addEventListener\('input'/)
   assert.doesNotMatch(menu, /onInput=|onChange=\{[^}]*pick/)
   assert.match(menu, /type="color"/)
+  assert.match(menu, /createPortal\(<input ref=\{pickInput\} type="color"/, 'in <body>, not in the ribbon whose controls the earlier checks count')
   assert.match(menu, /data-picker=\{name\}/)
   assert.match(menu, /el\.showPicker\(\)/)
   assert.match(menu, /el\.click\(\)/)
@@ -120,5 +121,5 @@ test('the words and the sizes: Grid #rrggbb, Recent #rrggbb, Pick any colour…;
   assert.match(css, /\.ue-swatch-grid \{\s*max-width: 244px;/)
   assert.match(css, /@media \(max-width: 1047px\) \{\s*\.ue-swatch-grid \{\s*max-width: 388px;/)
   assert.match(css, /@media \(max-width: 999px\) \{\s*\.ue-swatch-grid \{\s*max-width: none;/)
-  assert.match(css, /\.ue-picker \{[^}]*opacity: 0;[^}]*pointer-events: none;/)
+  assert.match(css, /\.ue-picker \{[^}]*position: fixed;[^}]*opacity: 0;[^}]*pointer-events: none;/)
 })

@@ -1778,9 +1778,10 @@
   max-width: 244px;
 }
 
-/* The colour input of a menu sits beside its button, never seen and never in the tab order: the menu item opens it with showPicker(). */
+/* The colour input of a menu lives in <body> (not in the ribbon, whose controls the earlier checks count), is never seen and never in the tab order, and stays mounted while the
+   menu closes: the menu item puts it under its button and opens it with showPicker(). */
 .ue-picker {
-  position: absolute;
+  position: fixed;
   width: 1px;
   height: 1px;
   margin: 0;

@@ -36,3 +36,5 @@ Each fault must fail where stated: a duplicate grid value (`grid-dup`) and a gri
 
 ## 7. Amendments
 (none yet; numbered amendments are appended below this line)
+
+**A1. Where the colour input is (found by the first run of the earlier specs on the built page, before the final run; no spec was scored).** The locked text says the input sits "beside the menu button". Put in the ribbon it is one more `input` of `[data-ribbon]`, and the earlier locked checks that count and measure the ribbon's controls (W02, W03, W08, T15, T16, U03, U08, U09, U12, R16, V09, Y14) failed on it. The input is therefore drawn in `<body>`, outside the ribbon and outside the menu: it stays mounted when the menu closes (which is what the rule was for), is never seen (opacity 0, 1 px, `aria-hidden`, out of the tab order) and, when the item is chosen, is put under its button so the browser's popup opens there. The specs find it by `input[type=color][data-picker=<button name>]` in the whole document; "next to the button" in `pickerFire` and `pickerPresent` is read that way. Nothing else changes.
