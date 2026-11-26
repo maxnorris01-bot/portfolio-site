@@ -3250,15 +3250,18 @@ async function builtProbe(id) {
 }
 
 // ---- VIEWS ROUND 1, X32: the flag OFF. flags.mjs (16 checks) builds the site without VITE_SHOW_UI_EDITOR; that build is compared with the one of the baseline (--off-baseline <dir>, the dist-off of main) ----
-// (mine) identical = the same files, and every file byte for byte after the names of the two chunk families are normalised, except the chunks of the family UiEditor-* (the page) and uiEditor-* (its words),
-// which only the editor loads (flags.mjs checks that the page's chunk is never requested with the flag off) and which are expected to differ; both families must exist in both builds.
+// (mine, rules amendment A4) identical = the same files, and every file byte for byte after the content hash in every asset name (and in every reference to one) is normalised, except the chunks of the
+// family UiEditor-* (the page) and uiEditor-* (its words), which only the editor loads (flags.mjs checks that the page's chunk is never requested with the flag off) and which are expected to differ;
+// both families must exist in both builds. A chunk's hash follows its content, so every chunk that names another one changes its hash when that one changes.
 function walkFiles(dir, base = dir) {
   const out = []
   for (const f of readdirSync(dir)) { const p = join(dir, f); if (statSync(p).isDirectory()) out.push(...walkFiles(p, base)); else out.push(p.slice(base.length + 1)) }
   return out.sort()
 }
-const CHUNK = /\b(UiEditor|uiEditor)-[A-Za-z0-9_-]+\.(js|css)/g
-const IS_CHUNK = /\b(UiEditor|uiEditor)-[A-Za-z0-9_-]+\.(js|css)$/
+const HASHED = /([A-Za-z0-9_$.]+?)-[A-Za-z0-9_-]{8}\.(js|css)\b/g
+const IS_CHUNK = /(^|\/)(UiEditor|uiEditor)-[A-Za-z0-9_-]{8}\.(js|css)$/
+const unhash = (s) => s.replace(HASHED, '$1-HASH.$2')
+const unbuild = (s) => s.replace(/\b[0-9a-f]{7}\b(?=[`'", ]*\((?:local|preview|production)\))/g, 'BUILD') // the site prints the short commit it was built from, before " (local)"
 async function flagOffCheck(spec) {
   const r = { id: spec.id, name: spec.name, outcome: 'FAIL', checks: [], P1: [], P5: [], P6: [], setup: [], notes: [] }
   const dir = join(outDir, 'flags-views1')
@@ -3273,19 +3276,26 @@ async function flagOffCheck(spec) {
   else {
     const now = join(dir, 'dist-off')
     const A = walkFiles(base), B = walkFiles(now)
-    const norm = (p) => p.replace(CHUNK, '$1-HASH.$2')
-    const na = A.map(norm), nb = B.map(norm)
-    for (const x of na) if (!nb.includes(x)) problems.push(`only in the baseline build: ${x}`)
-    for (const x of nb) if (!na.includes(x)) problems.push(`only in the new build: ${x}`)
-    for (const fam of ['assets/UiEditor-HASH.js', 'assets/uiEditor-HASH.js']) for (const [n, list] of [['baseline', na], ['new', nb]]) if (!list.includes(fam)) problems.push(`no ${fam} in the ${n} build`)
-    for (const p of A) {
-      if (IS_CHUNK.test(p)) continue
-      const q = B.find((x) => norm(x) === norm(p))
-      if (!q) continue
-      const x = readFileSync(join(base, p)), y = readFileSync(join(now, q))
-      const same = /\.(js|css|html|json|svg|txt|map)$/.test(p) ? x.toString('utf8').replace(CHUNK, '$1-HASH.$2') === y.toString('utf8').replace(CHUNK, '$1-HASH.$2') : x.equals(y)
-      if (!same) problems.push(`differs: ${p}`)
+    const textual = (p) => /\.(js|css|html|json|svg|txt|map)$/.test(p)
+    // the content of every file but the two editor families, keyed by its name with the hash taken out; files that share a base name (two healpix chunks) are paired by content
+    const group = (dir0, files) => {
+      const m = new Map()
+      for (const p of files) {
+        if (IS_CHUNK.test(p)) continue
+        const content = textual(p) ? unbuild(unhash(readFileSync(join(dir0, p), 'utf8'))) : readFileSync(join(dir0, p)).toString('base64')
+        const k = unhash(p)
+        if (!m.has(k)) m.set(k, [])
+        m.get(k).push(content)
+      }
+      for (const v of m.values()) v.sort()
+      return m
     }
+    const ga = group(base, A), gb = group(now, B)
+    for (const k of ga.keys()) if (!gb.has(k)) problems.push(`only in the baseline build: ${k}`)
+    for (const k of gb.keys()) if (!ga.has(k)) problems.push(`only in the new build: ${k}`)
+    for (const [k, v] of ga) { const w = gb.get(k); if (w && (v.length !== w.length || v.some((x, i) => x !== w[i]))) problems.push(`differs: ${k}`) }
+    const fams = (list) => list.filter((p) => IS_CHUNK.test(p)).map(unhash).sort().join(',')
+    if (fams(A) !== fams(B) || !/UiEditor-HASH\.js/.test(fams(A)) || !/uiEditor-HASH\.js/.test(fams(A))) problems.push(`the editor chunk families differ or are missing (${fams(A)} / ${fams(B)})`)
   }
   r.P6.push({ name: 'flag off', ok: problems.length === 0, detail: problems.length ? problems.slice(0, 6).join('; ') : `flags.mjs 16 of 16; the flag-off build equals the baseline's (${nbCount(dir)} files, the two editor chunk families apart)` })
   r.outcome = problems.length === 0 ? 'PASS' : 'FAIL'
