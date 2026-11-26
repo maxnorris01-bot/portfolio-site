@@ -56,6 +56,8 @@ const insert1File = JSON.parse(readFileSync(join(here, 'specs-insert1.json'), 'u
 // the numbered amendments of the views round (amendments-views1.json): steps skipped, replaced or added after, applied to the X specs when they are read
 const amendViews1 = existsSync(join(here, 'amendments-views1.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views1.json'), 'utf8')) : { specs: {} }
 // NUDGE FIX (docs/ui-editor-gate-rules-views1-nudge.md): the K specs run with --nudge (or --only Knn), after the X specs.
+// NUDGE FIX 2 (docs/ui-editor-gate-rules-views1-nudge2.md): the J specs run with --nudge2 (or --only Jnn).
+const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
 const nudgeFile = existsSync(join(here, 'specs-views1-nudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge.json'), 'utf8')) : { specs: [] }
 const views1File = existsSync(join(here, 'specs-views1.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1.json'), 'utf8')) : { retiredChecks: {}, specs: [] }
 const amendFile = JSON.parse(readFileSync(join(here, 'amendments-insert1.json'), 'utf8'))
@@ -118,9 +120,9 @@ const refServer = createServer((q, r) => {
 const refPort = await listen(refServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10')) {
+if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub11') ? 'views1-nudge2.html' : flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -261,7 +263,7 @@ async function runSpec(spec) {
   if (flag('--fast-fail')) page.setDefaultTimeout(4000) // a development flag: a control that is gone fails in 4 s, not 30 s (used with --no-retire-views1, rules section 7)
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
-  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: null, P4: null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
+  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: /^J\d/.test(spec.id) ? [] : null, P4: /^J\d/.test(spec.id) ? [] : null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
   const snaps = {}
   let statusAtCopy = null
   let before = {}
@@ -812,6 +814,26 @@ async function runSpec(spec) {
         for (const [w, want] of Object.entries(a.at ?? {})) if (!sameValue(have[w], want, a.tol)) bad.push(`@${w}: ${have[w]}, want ${want}`)
         for (const [w, no] of Object.entries(a.not ?? {})) if (have[w] === null || sameValue(have[w], no, a.tol)) bad.push(`@${w}: ${have[w]}, want anything but ${no}`)
         return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : `${a.prop} of ${a.sel} (${a.via}): ${widths.map((w) => `${w} ${have[w]}`).join(', ')}`)
+      }
+      // ---- NUDGE FIX 2 (docs/ui-editor-gate-rules-views1-nudge2.md section 3) ----
+      case 'frames': {
+        const fr = await page.evaluate(() => window.__frames)
+        if (!fr) return R(false, 'no frame recording (no frames start step)')
+        const f = fr.frames
+        const flash = f.filter((x) => x.vis === 0 || x.h.some((h) => h === 0)).length
+        const bad = []
+        if (a.maxFlash !== undefined && flash > a.maxFlash) bad.push(`${flash} flash frames of ${f.length}, at most ${a.maxFlash}`)
+        if (a.visible !== undefined && f.some((x) => x.vis !== a.visible)) bad.push(`${f.filter((x) => x.vis !== a.visible).length} frames without exactly ${a.visible} visible preview (visible counts ${[...new Set(f.map((x) => x.vis))].join('/')})`)
+        if (a.overlayAlways && f.some((x) => !x.sel)) bad.push(`${f.filter((x) => !x.sel).length} frames without the selection overlay`)
+        if (a.scrollSame && new Set(f.map((x) => x.sy + ':' + x.st)).size > 1) bad.push(`scroll moved: ${[...new Set(f.map((x) => x.sy + ':' + x.st))].join(' ')}`)
+        if (a.stageHeightSame && new Set(f.map((x) => x.stage)).size > 1) bad.push(`stage height changed: ${[...new Set(f.map((x) => x.stage))].join(' ')}`)
+        if (a.restIframes !== undefined && fr.rest !== a.restIframes) bad.push(`${fr.rest} preview iframes at rest, want ${a.restIframes}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${f.length} frames, ${flash} flash frames, ${fr.rest} iframe at rest`)
+      }
+      case 'box': {
+        const v = await fieldOf(a.field).inputValue()
+        const n = Number(v)
+        return R(v.trim() !== '' && Number.isFinite(n) && Math.abs(n - Number(a.value)) <= (a.tol ?? 0), `${a.field} shows "${v}", want ${a.value}`)
       }
       case 'exportAddedLines': { // NUDGE FIX: how many lines of the export of `file` are new and contain `contains`
         const got = await grabAll()
@@ -3106,6 +3128,35 @@ async function runSpec(spec) {
         } else await b.click()
       } else if (step.do === 'fill') {
         await fieldOf(step.label).fill(step.text)
+      } else if (step.do === 'frames') {
+        if (step.action === 'start') {
+          await page.evaluate(() => {
+            const rec = { frames: [], on: true, rest: -1 }
+            window.__frames = rec
+            const tick = () => {
+              if (!rec.on) return
+              const fs = [...document.querySelectorAll('iframe[title="Preview"]')]
+              const vis = fs.filter((f) => { const r = f.getBoundingClientRect(); const c = getComputedStyle(f); return c.display !== 'none' && c.visibility !== 'hidden' && r.height > 0 && r.left > -1000 })
+              const st = document.querySelector('.ue-frame')
+              const sc = document.querySelector('.ue-scroll')
+              rec.frames.push({ n: fs.length, vis: vis.length, h: vis.map((f) => Math.round(f.getBoundingClientRect().height)), stage: st ? Math.round(st.getBoundingClientRect().height) : -1, sy: Math.round(scrollY), st: sc ? Math.round(sc.scrollTop) : -1, sel: !!document.querySelector('[data-selection]') })
+              requestAnimationFrame(tick)
+            }
+            requestAnimationFrame(tick)
+          })
+        } else {
+          await settle(page)
+          await page.evaluate(() => { window.__frames.on = false; window.__frames.rest = document.querySelectorAll('iframe[title="Preview"]').length })
+        }
+        continue
+      } else if (step.do === 'burst') {
+        const b = spinOf(step.field, step.dir)
+        for (let i = 0; i < step.times; i++) await b.click()
+        await settle(page)
+        continue
+      } else if (step.do === 'scrollTo') {
+        await page.evaluate(([s]) => window.__gate.point(s, 'center'), [step.sel])
+        continue
       } else if (step.do === 'stepper') {
         let b = page.locator('[data-ribbon]').getByRole('button', { name: `${step.dir === '+' ? 'Increase' : 'Decrease'} ${step.field}`, exact: true })
         // ROUND 6 (log #33): a number box has spin arrows (not buttons, so not tab stops) named by data-for; the grow and shrink buttons of the font size keep their button names.
@@ -3157,7 +3208,8 @@ async function runSpec(spec) {
 
     // ---- after the steps: P3 needs the preview now, P2 needs the export (round 1 specs list the checks that apply) ----
     const wants = (k) => !spec.checks || spec.checks.includes(k)
-    const isY = /^[KXYZ]\d/.test(spec.id)
+    const isY = /^[JKXYZ]\d/.test(spec.id)
+    if (/^J\d/.test(spec.id)) for (const k of ['P3', 'P4']) { const arr = res[k]; res[k] = { ok: arr.length > 0 && arr.every((c) => c.ok), detail: arr.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) } }
     if (isY && wants('P2')) res.P2 = { ok: res.P2a.length > 0 && res.P2a.every((c) => c.ok), detail: res.P2a.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) }
     if (!isY && (wants('P2') || wants('P3') || wants('P4'))) {
     const afterDump = await dumps()
@@ -3223,7 +3275,7 @@ async function runSpec(spec) {
   // can fail: it is reported as vacuous, not scored. Only round 3 specs; the earlier files keep the strict reading.
   res.vacuous = []
   // R07 too: its only P5 assert (step 12) is one of the retired checks, so what is left lists P5 without an assert.
-  if (spec.checks && (/^[TUVW]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
+  if (spec.checks && (/^[TUVWJ]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
     const ret = retiredFor(spec.id)
     const live = spec.steps.filter((x, i) => !(ret?.steps?.includes(i) || (ret?.asserts && x.do === 'assert' && ret.asserts.includes(x.k))))
     res.vacuous = ['P1', 'P5', 'P6'].filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
@@ -3405,7 +3457,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : [])].filter((s) => !only || only.includes(s.id))
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : []), ...(flag('--nudge2') || (only && only.some((id) => /^J\d/.test(id))) ? nudge2File.specs : [])].filter((s) => !only || only.includes(s.id))
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -3454,7 +3506,7 @@ if (flag('--noop')) {
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
     if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZK]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZKJ]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
   const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length, retired: tally(round4, 'RETIRED') }, round5: { pass: tally(round5, 'PASS'), fail: tally(round5, 'FAIL'), retired: tally(round5, 'RETIRED'), total: round5.length }, round6: { pass: tally(round6, 'PASS'), fail: tally(round6, 'FAIL'), notBuilt: tally(round6, 'NOT BUILT'), total: round6.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
@@ -3465,6 +3517,8 @@ if (flag('--noop')) {
   if (round6.length) console.log(`Round 6:   PASS ${summary.round6.pass}  FAIL ${summary.round6.fail}${summary.round6.notBuilt ? `  NOT BUILT ${summary.round6.notBuilt}` : ''}  of ${summary.round6.total}`)
   if (insert1.length) console.log(`Insert 1 (stage ${STAGE ?? 'as locked'}): PASS ${tally(insert1, 'PASS')}  FAIL ${tally(insert1, 'FAIL')}${tally(insert1, 'NOT BUILT') ? `  NOT BUILT ${tally(insert1, 'NOT BUILT')}` : ''}  of ${insert1.length}`)
   if (views1.length) console.log(`Views 1:   PASS ${tally(views1, 'PASS')}  FAIL ${tally(views1, 'FAIL')}  of ${views1.length}`)
+  const nudge2 = results.filter((r) => r.id.startsWith('J'))
+  if (nudge2.length) console.log(`Nudge fix 2: PASS ${tally(nudge2, 'PASS')}  FAIL ${tally(nudge2, 'FAIL')}  of ${nudge2.length}`)
   if (nudge.length) console.log(`Nudge fix: PASS ${tally(nudge, 'PASS')}  FAIL ${tally(nudge, 'FAIL')}  of ${nudge.length}`)
   if (round4.length) console.log(`Round 4:   PASS ${summary.round4.pass}  FAIL ${summary.round4.fail}${summary.round4.notApplicable ? `  NOT APPLICABLE ${summary.round4.notApplicable}` : ''}  of ${summary.round4.total}`)
   writeFileSync(join(outDir, `results${fault ? '-' + fault : ''}${only ? '-' + only.join('') : ''}.json`), JSON.stringify({ summary, results: results.map(({ exports, ...r }) => r) }, null, 1))
@@ -3481,7 +3535,7 @@ if (flag('--noop')) {
   const r5Ok = round5.length !== 9 || round5.every((r) => r.outcome === 'PASS' || (ROUND6 && r.outcome === 'RETIRED'))
   const r6Ok = round6.length !== 12 || round6.every((r) => r.outcome === 'PASS' || r.outcome === 'NOT BUILT')
   const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT') || (VIEWS1 && r.outcome === 'RETIRED'))
-  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS')
+  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS') && results.filter((r) => r.id.startsWith('J')).every((r) => r.outcome === 'PASS')
   // FORMATTING ROUND 7a: Z07 is PASS when the earlier specs of this run meet the pass line (the original 20, round 1, rounds 2 to 6, Y01 to Y14 all PASS); with --only it is not run.
   const z07Spec = round7bFile.specs.find((x) => x.aggregate7)
   const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS' || (VIEWS1 && r.outcome === 'RETIRED')) && ['Z01', 'Z02'].every((id) => round7a.find((r) => r.id === id)?.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12
