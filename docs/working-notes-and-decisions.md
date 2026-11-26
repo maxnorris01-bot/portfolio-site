@@ -157,3 +157,6 @@ Record: `docs/sessions/2026-11-26-ui-editor-format7b.md`; gate log #61 to #64; r
 - **Recents are a module-level store, not state:** all three menu buttons draw one list and a new sample does not empty it; nothing is stored, a reload does.
 - **Grid values come from one formula in two places** (the locked table and `colourGrid()`); a test keeps them equal.
 - **Narrow widths wrap the 44 px grid** (8 or 7 to a row) rather than keep ten columns.
+
+## 2026-11-26: a thin outline around the Desktop preview (behind the flag)
+Max: "the desktop view could use an outline like phone and tablet." Desktop now has a 1 px dark outline (`#1b1d22`, the device frame's colour) with 4 px corners: `box-shadow: 0 0 0 calc(1px * var(--ue-inv, 1))` on `.ue-device.is-desktop:not([data-device-frame])` plus `border-radius: 4px` on its iframe. A shadow adds no size, so `bezel()`, `frameSize`, `fitScale` and the overlay coordinates are unchanged; the `--ue-inv` factor keeps it one screen pixel under the scale; no `overflow: hidden`, so the handles and the insertion line can still pass the edge. Phone and Tablet are untouched. Checked: tsc, eslint, build, `npm test` (899 pass, 16 skipped), the specs N05 to N09, T11, S03, S05 (PASS), and screenshots at 1440, 1000 (scale 0.72) and a 390 Phone. Not verified: a real device, Safari, Firefox.

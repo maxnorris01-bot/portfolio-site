@@ -395,6 +395,18 @@
   box-shadow: 0 0 0 1px #3a3d45 inset;
 }
 
+/* Desktop has no frame, only a thin dark outline like the frame's own colour: a box-shadow (it adds no size, so the geometry is exactly as it was), one screen px wide even
+   when the preview is scaled down (--ue-inv), with rounded corners; the iframe's own corners are rounded to match, and nothing is clipped (no overflow: hidden) so the
+   selection outline, the handles and the insertion line can still pass the edge. */
+.ue-device.is-desktop:not([data-device-frame]) {
+  border-radius: 4px;
+  box-shadow: 0 0 0 calc(1px * var(--ue-inv, 1)) #1b1d22;
+}
+
+.ue-device.is-desktop:not([data-device-frame]) .ue-frame iframe {
+  border-radius: 4px;
+}
+
 .ue-device.is-phone[data-device-frame] {
   border-radius: 38px;
 }

@@ -123,3 +123,12 @@ test('the words and the sizes: Grid #rrggbb, Recent #rrggbb, Pick any colour…;
   assert.match(css, /@media \(max-width: 999px\) \{\s*\.ue-swatch-grid \{\s*max-width: none;/)
   assert.match(css, /\.ue-picker \{[^}]*position: fixed;[^}]*opacity: 0;[^}]*pointer-events: none;/)
 })
+
+// ---- the thin outline around the Desktop preview ----
+test('the Desktop preview has a one-pixel dark outline made of a box-shadow (no size added, no overflow clipping), kept one screen pixel under the scale; Phone and Tablet and bezel() are not touched', () => {
+  const css = read('src/ui-editor/UiEditorTool.css')
+  const rule = css.slice(css.indexOf('.ue-device.is-desktop:not([data-device-frame]) {'), css.indexOf('.ue-device.is-phone[data-device-frame] {'))
+  assert.match(rule, /box-shadow: 0 0 0 calc\(1px \* var\(--ue-inv, 1\)\) #1b1d22;/)
+  assert.match(rule, /border-radius: 4px;/)
+  assert.doesNotMatch(rule, /overflow|border:|padding/)
+})
