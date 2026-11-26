@@ -3151,9 +3151,8 @@ async function runSpec(spec) {
         }
         continue
       } else if (step.do === 'burst') {
-        const b = spinOf(step.field, step.dir)
         // the presses are sent from inside the page, one per timer tick, whatever is on screen (a page scrolled down has the ribbon out of view): the next press can land while the last rebuild runs
-        await b.evaluate(async (el, n) => { for (let i = 0; i < n; i++) { el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 })); el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1 })); el.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0, detail: 1 })); await new Promise((r) => setTimeout(r, 0)) } }, step.times)
+        await page.evaluate(async ([field, dir, n]) => { for (let i = 0; i < n; i++) { const el = document.querySelector(`[data-ribbon] [data-spin="${dir === '+' ? 'up' : 'down'}"][data-for="${field}"]`); if (!el) break /* the arrow is drawn again after every edit: the next press goes to the one that is there now */; el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 })); el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1 })); el.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0, detail: 1 })); await new Promise((r) => setTimeout(r, 0)) } }, [step.field, step.dir, step.times])
         await settle(page)
         continue
       } else if (step.do === 'scrollTo') {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { MAX_BYTES, codeView as codeViewText, deviceNote, labels, messages, panel } from '../data/uiEditor'
 import CodeView, { type CodeViewHandle } from './CodeView'
 import { changeOrder, counterText, diffHunks, offsetOfFile, stepChange, type Hunk } from './diff'
@@ -18,7 +18,7 @@ import { copyName, nameList, sectionHeader } from './sections'
 import { SAMPLES, type SampleId } from './samples'
 import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, trialEdit, type Applied, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
-import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
+import { emptyList, listReduce, mergeOffsets, offsetOf, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
 import { listNotes, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
@@ -100,35 +100,68 @@ export default function UiEditorTool() {
   const editable = isEditable(view, orientation)
 
   // ---- the preview: built from the ORIGINAL document, with the edit list replayed on it ----
+  // A new document, a view or an orientation closes the old preview first. A replay of the same document (a merged move, Undo, Redo, Reset all) builds the new preview BEHIND
+  // the old one, which stays on screen until the new one is ready; the swap (below) is one step, so the stage never goes empty.
+  const replayBehind = useRef(false)
+  const swap = useRef<{ buffer: HTMLElement; old: Session } | null>(null)
   useEffect(() => {
     if (!doc) return
     const mine = ++generation.current
     const host = frameHost.current
     if (!host) return
-    setHoldHeight(sessionRef.current?.preview.iframe.offsetHeight ?? 0)
-    closeSession(sessionRef.current)
-    sessionRef.current = null
-    setSession(null)
+    const old = sessionRef.current
+    const behind = replayBehind.current && !!old
+    replayBehind.current = false
+    let buffer: HTMLElement | null = null
+    if (behind) {
+      buffer = document.createElement('div')
+      buffer.setAttribute('data-preview-buffer', '')
+      Object.assign(buffer.style, { position: 'absolute', left: '0', top: '0', visibility: 'hidden' })
+      host.appendChild(buffer)
+    } else {
+      setHoldHeight(old?.preview.iframe.offsetHeight ?? 0)
+      closeSession(old)
+      sessionRef.current = null
+      setSession(null)
+    }
     busyRef.current = true
     setBusy(true)
-    void openSession(doc, listRef.current.edits, host, viewport(viewRef.current, orientRef.current)).then((r) => {
+    void openSession(doc, listRef.current.edits, buffer ?? host, viewport(viewRef.current, orientRef.current)).then((r) => {
       if (mine !== generation.current) {
         if (r.ok) closeSession(r.session)
+        buffer?.remove()
         return
       }
       busyRef.current = false
       setBusy(false)
       if (!r.ok) {
+        buffer?.remove()
+        if (behind) {
+          closeSession(old)
+          sessionRef.current = null
+          setSession(null)
+        }
         show({ kind: 'refusal', text: messages.cannotOpen(r.message) })
         setDoc(null)
         return
       }
+      if (buffer && old) swap.current = { buffer, old }
       sessionRef.current = r.session
       setSession(r.session)
       setHoldHeight(0)
       setRev((n) => n + 1)
     })
   }, [doc, replay])
+  // The swap: before the browser draws, the new preview takes the old one's place and the old one is closed (once). The Stage has measured the new preview by now.
+  useLayoutEffect(() => {
+    const s = swap.current
+    if (!s) return
+    swap.current = null
+    s.buffer.style.cssText = ''
+    const wrapper = s.old.preview.iframe.parentElement
+    closeSession(s.old)
+    if (wrapper?.hasAttribute('data-preview-buffer')) wrapper.remove()
+  }, [session])
 
   // Leaving the page takes the preview away.
   useEffect(
@@ -221,6 +254,7 @@ export default function UiEditorTool() {
       if (Math.abs(after.left - before.left) + Math.abs(after.top - before.top) < 0.4) {
         show({ kind: 'refusal', text: messages.nudgeNoEffect })
         startBusy()
+        replayBehind.current = true
         setReplay((n) => n + 1)
         return false
       }
@@ -233,6 +267,7 @@ export default function UiEditorTool() {
     // Two moves in a row are one edit: the preview is rebuilt so it shows exactly what the list says.
     if (merges) {
       startBusy()
+      replayBehind.current = true
       setReplay((n) => n + 1)
     } else setRev((n) => n + 1)
     return true
@@ -350,10 +385,13 @@ export default function UiEditorTool() {
   }
   // A move (a drag or the Nudge boxes) is custom to where it is made: in Phone or Tablet one rule for that view's own range, in Desktop one rule for every width above the Phone breakpoint
   // (the Tablet range too, when the page has one). An SVG has no environments, so there it applies everywhere.
+  const moveScope = () => (svgDoc ? { link: true } : environment === 'desktop' ? { environment, link: false } : { environment })
   const moveEdit = (t: number, dx: number, dy: number, verb: string): [Edit, string] => {
     const covers = view !== 'Desktop' ? `${view} only` : session && tabletMin(session.breakpoint) <= 768 ? 'Desktop and Tablet sizes' : 'Desktop only'
-    return [{ op: 'offset', target: t, dx, dy, ...(svgDoc ? { link: true } : environment === 'desktop' ? { environment, link: false } : { environment }) }, `${verb} by ${dx}, ${dy} px${svgDoc ? '' : ` (${covers})`}`]
+    return [{ op: 'offset', target: t, dx, dy, ...moveScope() }, `${verb} by ${dx}, ${dy} px${svgDoc ? '' : ` (${covers})`}`]
   }
+  // The Nudge boxes show where the selected element is shifted to in this view; a typed number is the new shift (the edit is the difference, and the list still merges to one offset).
+  const shift = selIndex === null ? { dx: 0, dy: 0 } : offsetOf(list.edits, selIndex, svgDoc ? undefined : environment, svgDoc || environment !== 'desktop')
   // Keys that arrive while the preview is being rebuilt (a run of arrow presses is one merged edit) are added up and applied when it is ready.
   const pendingNudge = useRef({ dx: 0, dy: 0 })
   const onNudge = (dx: number, dy: number) => {
@@ -364,7 +402,15 @@ export default function UiEditorTool() {
     const t = target()
     if (t === null) return
     const [edit, what] = moveEdit(t, dx, dy, 'nudged')
-    run(edit, what, undefined, undefined, session?.preview.elements[t])
+    // The element is read from the live session, not from this render's: a press can land between a rebuild finishing and the screen drawing it again.
+    run(edit, what, undefined, undefined, sessionRef.current?.preview.elements[t])
+  }
+  const onNudgeTo = (axis: 'X' | 'Y', to: number) => {
+    const by = to - (axis === 'X' ? shift.dx : shift.dy) - (axis === 'X' ? pendingNudge.current.dx : pendingNudge.current.dy)
+    if (by === 0) return false
+    if (axis === 'X') onNudge(by, 0)
+    else onNudge(0, by)
+    return true
   }
   const onResize = async ({ handle, box, fullWidth }: ResizeRequest) => {
     const t = target()
@@ -429,6 +475,7 @@ export default function UiEditorTool() {
     setNotesOpen(false)
     setList(next)
     startBusy()
+    replayBehind.current = true
     setReplay((n) => n + 1)
     show({ kind: 'info', text: what })
   }
@@ -669,6 +716,8 @@ export default function UiEditorTool() {
               onMessage={(text) => show({ kind: 'refusal', text })}
               onMove={onReorder}
               onNudge={onNudge}
+              shift={shift}
+              onNudgeTo={onNudgeTo}
               onSelectIndex={selectIndexOnly}
               onEditText={() => startTextEdit(undefined, true)}
               onDelete={deleteElement}

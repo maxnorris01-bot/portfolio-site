@@ -21,6 +21,20 @@ type Offset = Extract<Edit, { op: 'offset' }>
 const sameScope = (a: Offset, b: Offset) => a.target === b.target && (a.environment ?? 'desktop') === (b.environment ?? 'desktop') && (a.link ?? true) === (b.link ?? true)
 
 /**
+ * Where an element is shifted to in one view: the sum of `dx` and `dy` of every offset edit for `target` in the scope a nudge made now would have (same environment, same
+ * `link`). The Nudge boxes show it. A Desktop shift is not in the Phone box and the other way round, and the sums of a merged edit and of its parts are the same.
+ */
+export function offsetOf(edits: readonly Edit[], target: number, environment: Offset['environment'], linked: boolean): { dx: number; dy: number } {
+  let dx = 0, dy = 0
+  for (const e of edits) {
+    if (e.op !== 'offset' || e.target !== target || (e.environment ?? 'desktop') !== (environment ?? 'desktop') || (e.link ?? true) !== linked) continue
+    dx += e.dx
+    dy += e.dy
+  }
+  return { dx, dy }
+}
+
+/**
  * Two moves of the same element in a row (a drag after a drag, or a run of arrow-key nudges) are one move: the engine composes each
  * offset as another translate, so repeating them would pile up `translate(1px, 0) translate(1px, 0) ...` in the visitor's code. The
  * pair becomes one edit (the sum); a pair that cancels out leaves no edit at all.

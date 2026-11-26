@@ -436,6 +436,10 @@
   width: max-content;
 }
 
+.ue-frame {
+  position: relative;
+}
+
 .ue-frame,
 .ue-overlay {
   grid-area: 1 / 1;
