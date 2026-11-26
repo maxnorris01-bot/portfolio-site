@@ -1,0 +1,2711 @@
+{
+ "version": 1,
+ "note": "views round 1, fix 3 (the Nudge boxes are removed). retiredChecks and amendments apply to the real page and the no-nudge stub only (the earlier stubs still have the boxes). Baseline values come from probe-nonudge-views1.mjs on the page at eaf790d.",
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL",
+  "RETIRED"
+ ],
+ "vocabulary": {
+  "note": "as specs-views1-nudge2.json, plus: step keys {key, times, settle} (page.keyboard.press that many times, with a wait for the rebuild after each press when settle is true), step focusOverlay (the pointer layer over the preview takes the focus, so the arrow keys reach it), assert noNudge (no element in the editor with Nudge in its id, name, label, title, data attributes or text, hidden or not, and none of the roles textbox, spinbutton, button named Nudge), assert arrangeGroup {names, disabled, inputs}, assert exportHash {sha1, label} (SHA-1 of the exported files, name and text, sorted by name, joined by a line with ---), assert ribbonBaseline {width, baseline}, assert sourceSearch {forbidden, required}. See docs/ui-editor-gate-rules-views1-nonudge.md section 4."
+ },
+ "retiredChecks": {
+  "K08": {
+   "wholeSpec": true,
+   "reason": "typed numbers no longer exist: the spec types 5 three times into a Nudge box and wants the sum; the Nudge X / Nudge Y boxes are removed (docs/ui-editor-gate-rules-views1-nonudge.md section 2). The merge of repeated moves is read by Q05 and Q06 and by J01 to J05, J13 and J14 with the arrow keys. K08's earlier FAIL (the typed number is the new shift) is settled by this.",
+   "replacedBy": "Q05, Q06 (none for typed numbers: feature removed)"
+  },
+  "K11": {
+   "wholeSpec": true,
+   "reason": "a typed 0 or a non-number in a Nudge box: there is no box to type in.",
+   "replacedBy": "none: feature removed"
+  },
+  "J06": {
+   "wholeSpec": true,
+   "reason": "the boxes show 5 then 10 and 0 in the other views: the spec reads or types in the Nudge boxes, which are removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "J07": {
+   "wholeSpec": true,
+   "reason": "a typed 30 shows 30 and is one offset of 30; typed -8: the spec reads or types in the Nudge boxes, which are removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "J08": {
+   "wholeSpec": true,
+   "reason": "typed 0 puts the element back: the spec reads or types in the Nudge boxes, which are removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "J09": {
+   "wholeSpec": true,
+   "reason": "a typed non-number changes nothing: the spec reads or types in the Nudge boxes, which are removed.",
+   "replacedBy": "none: feature removed"
+  },
+  "J10": {
+   "wholeSpec": true,
+   "reason": "the boxes show the distance of a drag: the spec reads or types in the Nudge boxes, which are removed.",
+   "replacedBy": "none: feature removed (a nudge after a drag: Q06)"
+  },
+  "J11": {
+   "wholeSpec": true,
+   "reason": "each view keeps its own shift, read in the boxes: the spec reads or types in the Nudge boxes, which are removed.",
+   "replacedBy": "none: feature removed (the scopes themselves are read by K05 to K07 and Q06)"
+  },
+  "J12": {
+   "wholeSpec": true,
+   "reason": "Undo and Redo restore the value in the boxes: the spec reads or types in the Nudge boxes, which are removed.",
+   "replacedBy": "none: feature removed (Undo and Redo bytes: K12, Q06)"
+  },
+  "J13": {
+   "steps": [
+    4
+   ],
+   "stepNumbers": [
+    5
+   ],
+   "reason": "the Nudge X box shows 5: the box is removed. The edit count and the export (one translate of 5) stay.",
+   "replacedBy": "none: feature removed"
+  },
+  "J14": {
+   "steps": [
+    7
+   ],
+   "stepNumbers": [
+    8
+   ],
+   "reason": "the Nudge X box shows 50: the box is removed. The frames, the one iframe and the scroll stay.",
+   "replacedBy": "none: feature removed"
+  }
+ },
+ "amendments": {
+  "K01": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowRight",
+      "times": 1,
+      "settle": true
+     },
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 2,
+      "settle": true
+     }
+    ],
+    "6": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "message",
+      "contains": "nudged by 1, 0 px (desktop and tablet sizes)"
+     }
+    ]
+   }
+  },
+  "K02": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowRight",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "K03": {
+   "amendment": "A1",
+   "replace": {
+    "1": [
+     {
+      "do": "view",
+      "name": "Tablet"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "3": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "K04": {
+   "amendment": "A1",
+   "replace": {
+    "1": [
+     {
+      "do": "view",
+      "name": "Phone"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "3": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "K05": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowRight",
+      "times": 1,
+      "settle": true
+     },
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 2,
+      "settle": true
+     }
+    ],
+    "3": [
+     {
+      "do": "view",
+      "name": "Phone"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "4": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "K06": {
+   "amendment": "A1",
+   "replace": {
+    "1": [
+     {
+      "do": "view",
+      "name": "Phone"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "3": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ],
+    "4": [
+     {
+      "do": "view",
+      "name": "Desktop"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "5": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowRight",
+      "times": 1,
+      "settle": true
+     },
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 2,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "K07": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowRight",
+      "times": 1,
+      "settle": true
+     },
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 2,
+      "settle": true
+     }
+    ],
+    "3": [
+     {
+      "do": "view",
+      "name": "Tablet"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "4": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "K09": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "clickButton",
+      "name": "Select parent"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "3": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowRight",
+      "times": 1,
+      "settle": true
+     }
+    ],
+    "8": [
+     {
+      "do": "view",
+      "name": "Tablet"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "9": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ],
+    "12": [
+     {
+      "do": "view",
+      "name": "Phone"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "13": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "K10": {
+   "amendment": "A1",
+   "replace": {
+    "1": [
+     {
+      "do": "view",
+      "name": "Tablet"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "3": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 1,
+      "settle": true
+     }
+    ],
+    "8": [
+     {
+      "do": "view",
+      "name": "Phone"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "9": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "K12": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowRight",
+      "times": 1,
+      "settle": true
+     },
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 2,
+      "settle": true
+     }
+    ],
+    "3": [
+     {
+      "do": "view",
+      "name": "Phone"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "4": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "J01": {
+   "amendment": "A1",
+   "replace": {
+    "3": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 5,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "J02": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "view",
+      "name": "Tablet"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "4": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 5,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "J03": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "view",
+      "name": "Phone"
+     },
+     {
+      "do": "focusOverlay"
+     }
+    ],
+    "4": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 5,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "J04": {
+   "amendment": "A1",
+   "replace": {
+    "5": [
+     {
+      "do": "keys",
+      "key": "ArrowDown",
+      "times": 3,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "J05": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 2,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "J13": {
+   "amendment": "A1",
+   "replace": {
+    "2": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 5,
+      "settle": false
+     }
+    ]
+   }
+  },
+  "J14": {
+   "amendment": "A1",
+   "replace": {
+    "4": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 50,
+      "settle": false
+     }
+    ]
+   }
+  },
+  "R10": {
+   "amendment": "A1",
+   "replace": {
+    "5": [
+     {
+      "do": "keys",
+      "key": "ArrowRight",
+      "times": 1,
+      "settle": true
+     }
+    ],
+    "7": [
+     {
+      "do": "keys",
+      "key": "Shift+ArrowRight",
+      "times": 1,
+      "settle": true
+     }
+    ],
+    "9": [
+     {
+      "do": "keys",
+      "key": "ArrowDown",
+      "times": 1,
+      "settle": true
+     }
+    ]
+   }
+  },
+  "R04": {
+   "amendment": "A2",
+   "replace": {
+    "6": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "ribbonEnabled",
+      "names": [
+       "Font family",
+       "Font size",
+       "Font weight",
+       "Text colour",
+       "Align left",
+       "Width",
+       "Height",
+       "Padding",
+       "Margin",
+       "Background",
+       "Border colour",
+       "Border width",
+       "Border radius",
+       "Link to Phone"
+      ]
+     }
+    ]
+   }
+  },
+  "U01": {
+   "amendment": "A2",
+   "replace": {
+    "3": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "ribbonGroups",
+      "groups": {
+       "Font": [
+        "Font family",
+        "Decrease Font size",
+        "Font size",
+        "Increase Font size",
+        "Font weight",
+        "Text colour",
+        "Pick text colour"
+       ],
+       "Paragraph": [
+        "Align left",
+        "Align centre",
+        "Align right",
+        "Justify"
+       ],
+       "Size": [
+        "Decrease Width",
+        "Width",
+        "Increase Width",
+        "px",
+        "%",
+        "Decrease Height",
+        "Height",
+        "Increase Height"
+       ],
+       "Shape": [
+        "Background",
+        "Pick background",
+        "Border colour",
+        "Pick border colour",
+        "Decrease Border width",
+        "Border width",
+        "Increase Border width",
+        "Decrease Border radius",
+        "Border radius",
+        "Increase Border radius"
+       ],
+       "Spacing": [
+        "Decrease Padding",
+        "Padding",
+        "Increase Padding",
+        "Padding sides",
+        "Decrease Margin",
+        "Margin",
+        "Increase Margin",
+        "Margin sides"
+       ],
+       "Arrange": [
+        "Move up",
+        "Move down"
+       ],
+       "Grid": [
+        "Grid",
+        "Snap",
+        "Grid spacing"
+       ]
+      },
+      "exempt": [
+       "Link to Phone",
+       "Link to Desktop"
+      ],
+      "visibleAll": true
+     }
+    ]
+   }
+  },
+  "U03": {
+   "amendment": "A2",
+   "replace": {
+    "2": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "ribbonLabels",
+      "minFont": 11,
+      "maxFont": 12,
+      "sentenceCase": true,
+      "maxWords": 3,
+      "colour": "--color-text-secondary",
+      "reach": 14,
+      "forbidden": [
+       "W",
+       "H",
+       "Thick",
+       "Round",
+       "Fill",
+       "Line",
+       "Pad",
+       "Mar",
+       "Size",
+       "Text",
+       "X",
+       "Y"
+      ],
+      "table": {
+       "Font family": "Font family",
+       "Font size": "Font size",
+       "Font weight": "Weight",
+       "Text colour": "Text colour",
+       "Align left": "Left",
+       "Align centre": "Centre",
+       "Align right": "Right",
+       "Justify": "Justify",
+       "Anchor start": "Start",
+       "Anchor middle": "Middle",
+       "Anchor end": "End",
+       "Width": "Width",
+       "Width unit": "Unit",
+       "px": "Unit",
+       "%": "Unit",
+       "Height": "Height",
+       "Background": "Fill colour",
+       "Border colour": "Line colour",
+       "Border width": "Line thickness",
+       "Border radius": "Corner rounding",
+       "Padding": "Padding",
+       "Margin": "Margin",
+       "Padding sides": "Sides",
+       "Margin sides": "Sides",
+       "Move up": "Move up",
+       "Move down": "Move down",
+       "Grid": "Grid",
+       "Snap": "Snap",
+       "Grid spacing": "Grid spacing"
+      },
+      "captions": {
+       "Align left": "Left",
+       "Align centre": "Centre",
+       "Align right": "Right",
+       "Justify": "Justify"
+      },
+      "exempt": [
+       "Link to Phone",
+       "Link to Desktop"
+      ],
+      "words": [
+       {
+        "name": "Padding sides",
+        "text": "Sides"
+       },
+       {
+        "name": "Margin sides",
+        "text": "Sides"
+       },
+       {
+        "name": "Move up",
+        "text": "Move up"
+       },
+       {
+        "name": "Move down",
+        "text": "Move down"
+       },
+       {
+        "name": "Grid",
+        "text": "Grid"
+       },
+       {
+        "name": "Snap",
+        "text": "Snap"
+       }
+      ]
+     }
+    ],
+    "5": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "ribbonLabels",
+      "minFont": 11,
+      "maxFont": 12,
+      "sentenceCase": true,
+      "maxWords": 3,
+      "colour": "--color-text-secondary",
+      "reach": 14,
+      "forbidden": [
+       "W",
+       "H",
+       "Thick",
+       "Round",
+       "Fill",
+       "Line",
+       "Pad",
+       "Mar",
+       "Size",
+       "Text",
+       "X",
+       "Y"
+      ],
+      "table": {
+       "Font family": "Font family",
+       "Font size": "Font size",
+       "Font weight": "Weight",
+       "Text colour": "Text colour",
+       "Align left": "Left",
+       "Align centre": "Centre",
+       "Align right": "Right",
+       "Justify": "Justify",
+       "Anchor start": "Start",
+       "Anchor middle": "Middle",
+       "Anchor end": "End",
+       "Width": "Width",
+       "Width unit": "Unit",
+       "px": "Unit",
+       "%": "Unit",
+       "Height": "Height",
+       "Background": "Fill colour",
+       "Border colour": "Line colour",
+       "Border width": "Line thickness",
+       "Border radius": "Corner rounding",
+       "Padding": "Padding",
+       "Margin": "Margin",
+       "Padding sides": "Sides",
+       "Margin sides": "Sides",
+       "Move up": "Move up",
+       "Move down": "Move down",
+       "Grid": "Grid",
+       "Snap": "Snap",
+       "Grid spacing": "Grid spacing"
+      },
+      "captions": {
+       "Align left": "Left",
+       "Align centre": "Centre",
+       "Align right": "Right",
+       "Justify": "Justify"
+      },
+      "exempt": [
+       "Link to Phone",
+       "Link to Desktop"
+      ],
+      "words": [
+       {
+        "name": "Padding sides",
+        "text": "Sides"
+       },
+       {
+        "name": "Margin sides",
+        "text": "Sides"
+       },
+       {
+        "name": "Move up",
+        "text": "Move up"
+       },
+       {
+        "name": "Move down",
+        "text": "Move down"
+       },
+       {
+        "name": "Grid",
+        "text": "Grid"
+       },
+       {
+        "name": "Snap",
+        "text": "Snap"
+       }
+      ]
+     }
+    ],
+    "9": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "ribbonLabels",
+      "minFont": 11,
+      "maxFont": 12,
+      "sentenceCase": true,
+      "maxWords": 3,
+      "colour": "--color-text-secondary",
+      "reach": 14,
+      "forbidden": [
+       "W",
+       "H",
+       "Thick",
+       "Round",
+       "Fill",
+       "Line",
+       "Pad",
+       "Mar",
+       "Size",
+       "Text",
+       "X",
+       "Y"
+      ],
+      "table": {
+       "Font family": "Font family",
+       "Font size": "Font size",
+       "Font weight": "Weight",
+       "Text colour": "Text colour",
+       "Align left": "Left",
+       "Align centre": "Centre",
+       "Align right": "Right",
+       "Justify": "Justify",
+       "Anchor start": "Start",
+       "Anchor middle": "Middle",
+       "Anchor end": "End",
+       "Width": "Width",
+       "Width unit": "Unit",
+       "px": "Unit",
+       "%": "Unit",
+       "Height": "Height",
+       "Background": "Fill colour",
+       "Border colour": "Line colour",
+       "Border width": "Line thickness",
+       "Border radius": "Corner rounding",
+       "Padding": "Padding",
+       "Margin": "Margin",
+       "Padding sides": "Sides",
+       "Margin sides": "Sides",
+       "Move up": "Move up",
+       "Move down": "Move down",
+       "Grid": "Grid",
+       "Snap": "Snap",
+       "Grid spacing": "Grid spacing"
+      },
+      "captions": {
+       "Anchor start": "Start",
+       "Anchor middle": "Middle",
+       "Anchor end": "End"
+      },
+      "exempt": [
+       "Link to Phone",
+       "Link to Desktop"
+      ]
+     }
+    ]
+   }
+  },
+  "X14": {
+   "amendment": "A2",
+   "replace": {
+    "6": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "ribbonEnabled",
+      "names": [
+       "Font family",
+       "Font size",
+       "Font weight",
+       "Font colour",
+       "Align left",
+       "Align centre",
+       "Align right",
+       "Justify",
+       "Italic",
+       "Underline",
+       "Line spacing",
+       "Height",
+       "Width",
+       "Shape Fill",
+       "Shape Outline",
+       "Border radius",
+       "Shape Effects",
+       "Padding",
+       "Margin",
+       "Move down"
+      ]
+     }
+    ]
+   }
+  },
+  "X28": {
+   "amendment": "A2",
+   "replace": {
+    "2": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "tabSequence",
+      "area": "ribbon",
+      "names": [
+       "Select header .hero",
+       "Select div .hero-inner",
+       "Select div .hero-copy",
+       "Select parent",
+       "Edit text",
+       "Delete",
+       "Notes",
+       "Font family",
+       "Font size",
+       "Font size presets",
+       "Increase Font size",
+       "Decrease Font size",
+       "Font weight",
+       "Font colour",
+       "Align left",
+       "Align centre",
+       "Align right",
+       "Justify",
+       "Italic",
+       "Underline",
+       "Line spacing",
+       "Height",
+       "Width",
+       "px",
+       "%",
+       "Shape Fill",
+       "Shape Outline",
+       "Border radius",
+       "Shape Effects",
+       "Padding",
+       "Padding sides",
+       "Margin",
+       "Margin sides",
+       "Move down",
+       "Grid",
+       "Snap",
+       "Grid spacing"
+      ]
+     }
+    ],
+    "7": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "tabSequence",
+      "area": "ribbon",
+      "names": [
+       "Select header .hero",
+       "Select div .hero-inner",
+       "Select div .hero-copy",
+       "Select parent",
+       "Edit text",
+       "Delete",
+       "Notes",
+       "Font family",
+       "Font size",
+       "Font size presets",
+       "Increase Font size",
+       "Decrease Font size",
+       "Font weight",
+       "Font colour",
+       "Align left",
+       "Align centre",
+       "Align right",
+       "Justify",
+       "Italic",
+       "Underline",
+       "Line spacing",
+       "Height",
+       "Width",
+       "px",
+       "%",
+       "Shape Fill",
+       "Shape Outline",
+       "Border radius",
+       "Shape Effects",
+       "Padding",
+       "Padding sides",
+       "Margin",
+       "Margin sides",
+       "Move down",
+       "Grid",
+       "Snap",
+       "Grid spacing"
+      ]
+     }
+    ],
+    "10": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "tabSequence",
+      "area": "ribbon",
+      "names": [
+       "Select header .hero",
+       "Select div .hero-inner",
+       "Select div .hero-copy",
+       "Select parent",
+       "Edit text",
+       "Delete",
+       "Notes",
+       "Font family",
+       "Font size",
+       "Font size presets",
+       "Increase Font size",
+       "Decrease Font size",
+       "Font weight",
+       "Font colour",
+       "Align left",
+       "Align centre",
+       "Align right",
+       "Justify",
+       "Italic",
+       "Underline",
+       "Line spacing",
+       "Height",
+       "Width",
+       "px",
+       "%",
+       "Shape Fill",
+       "Shape Outline",
+       "Border radius",
+       "Shape Effects",
+       "Padding",
+       "Padding sides",
+       "Margin",
+       "Margin sides",
+       "Move down",
+       "Grid",
+       "Snap",
+       "Grid spacing"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "baseline": {
+  "url": "http://127.0.0.1:4321/ui-editor",
+  "arrange": {
+   "Desktop first #card-plan": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": true
+     },
+     {
+      "name": "Move down",
+      "disabled": false
+     }
+    ],
+    "inputs": 2
+   },
+   "Desktop middle #card-build": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": false
+     },
+     {
+      "name": "Move down",
+      "disabled": false
+     }
+    ],
+    "inputs": 2
+   },
+   "Desktop last #card-ship": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": false
+     },
+     {
+      "name": "Move down",
+      "disabled": true
+     }
+    ],
+    "inputs": 2
+   },
+   "Tablet first #card-plan": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": true
+     },
+     {
+      "name": "Move down",
+      "disabled": false
+     }
+    ],
+    "inputs": 2
+   },
+   "Tablet middle #card-build": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": false
+     },
+     {
+      "name": "Move down",
+      "disabled": false
+     }
+    ],
+    "inputs": 2
+   },
+   "Tablet last #card-ship": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": false
+     },
+     {
+      "name": "Move down",
+      "disabled": true
+     }
+    ],
+    "inputs": 2
+   },
+   "Phone first #card-plan": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": true
+     },
+     {
+      "name": "Move down",
+      "disabled": false
+     }
+    ],
+    "inputs": 2
+   },
+   "Phone middle #card-build": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": false
+     },
+     {
+      "name": "Move down",
+      "disabled": false
+     }
+    ],
+    "inputs": 2
+   },
+   "Phone last #card-ship": {
+    "name": "Arrange",
+    "buttons": [
+     {
+      "name": "Move up",
+      "disabled": false
+     },
+     {
+      "name": "Move down",
+      "disabled": true
+     }
+    ],
+    "inputs": 2
+   }
+  },
+  "moves": {
+   "desktop card-build up": {
+    "status": "Applied: moved up in the order.",
+    "sha1": "fc8ff1f3da21ce06a446fa0ab00ab40c3505d798"
+   },
+   "desktop card-plan down": {
+    "status": "Applied: moved down in the order.",
+    "sha1": "fc8ff1f3da21ce06a446fa0ab00ab40c3505d798"
+   },
+   "desktop card-ship up": {
+    "status": "Applied: moved up in the order.",
+    "sha1": "17f6360a136a0a4845b09a444ea0c8e3b3227bff"
+   },
+   "tablet art up": {
+    "status": "Applied: moved up in the order.",
+    "sha1": "a44afe0be0c9f557d31f3a3abefc6cc1539dcbbd"
+   },
+   "phone art up": {
+    "status": "Applied: moved up in the order.",
+    "sha1": "e97583f20e4429a7b2b0aed1f7c4fa9a9b441a5c"
+   },
+   "phone card-build up": {
+    "status": "Applied: moved up in the order.",
+    "sha1": "9ea34913e7130efc110155b42cb2ce96f2970a81"
+   }
+  },
+  "ribbon": {
+   "1000": {
+    "bands": 7,
+    "ribbon": {
+     "x": 23,
+     "width": 954,
+     "height": 970
+    },
+    "groups": [
+     {
+      "id": "font",
+      "name": "Font",
+      "x": 23,
+      "width": 954,
+      "top": 424.52,
+      "height": 131
+     },
+     {
+      "id": "paragraph",
+      "name": "Paragraph",
+      "x": 23,
+      "width": 954,
+      "top": 555.52,
+      "height": 131
+     },
+     {
+      "id": "size",
+      "name": "Size",
+      "x": 23,
+      "width": 954,
+      "top": 686.52,
+      "height": 131
+     },
+     {
+      "id": "shape",
+      "name": "Shape Styles",
+      "x": 23,
+      "width": 954,
+      "top": 817.52,
+      "height": 131
+     },
+     {
+      "id": "spacing",
+      "name": "Spacing",
+      "x": 23,
+      "width": 954,
+      "top": 948.52,
+      "height": 131
+     },
+     {
+      "id": "position",
+      "name": "Arrange",
+      "x": 23,
+      "width": 954,
+      "top": 1079.52,
+      "height": 131
+     },
+     {
+      "id": "grid",
+      "name": "Grid",
+      "x": 23,
+      "width": 954,
+      "top": 1210.52,
+      "height": 130
+     }
+    ],
+    "nudgeInputs": 2
+   },
+   "1280": {
+    "bands": 2,
+    "ribbon": {
+     "x": 29,
+     "width": 1222,
+     "height": 218
+    },
+    "groups": [
+     {
+      "id": "font",
+      "name": "Font",
+      "x": 29.16,
+      "width": 333.98,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "name": "Paragraph",
+      "x": 363.14,
+      "width": 212.28,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "name": "Size",
+      "x": 575.42,
+      "width": 270.17,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "name": "Shape Styles",
+      "x": 845.59,
+      "width": 405.25,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "name": "Spacing",
+      "x": 29.16,
+      "width": 333.98,
+      "top": 429.31,
+      "height": 96
+     },
+     {
+      "id": "position",
+      "name": "Arrange",
+      "x": 363.14,
+      "width": 482.45,
+      "top": 429.31,
+      "height": 96
+     },
+     {
+      "id": "grid",
+      "name": "Grid",
+      "x": 845.59,
+      "width": 405.25,
+      "top": 429.31,
+      "height": 96
+     }
+    ],
+    "nudgeInputs": 2
+   },
+   "1440": {
+    "bands": 1,
+    "ribbon": {
+     "x": 33,
+     "width": 1375,
+     "height": 122
+    },
+    "groups": [
+     {
+      "id": "font",
+      "name": "Font",
+      "x": 32.67,
+      "width": 229.44,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "name": "Paragraph",
+      "x": 262.11,
+      "width": 145.83,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "name": "Size",
+      "x": 407.94,
+      "width": 185.61,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "name": "Shape Styles",
+      "x": 593.55,
+      "width": 278.39,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "name": "Spacing",
+      "x": 871.94,
+      "width": 190.7,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "position",
+      "name": "Arrange",
+      "x": 1062.64,
+      "width": 209.05,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "grid",
+      "name": "Grid",
+      "x": 1271.69,
+      "width": 135.63,
+      "top": 337.52,
+      "height": 95
+     }
+    ],
+    "nudgeInputs": 2
+   },
+   "1920": {
+    "bands": 1,
+    "ribbon": {
+     "x": 43,
+     "width": 1834,
+     "height": 122
+    },
+    "groups": [
+     {
+      "id": "font",
+      "name": "Font",
+      "x": 43.23,
+      "width": 306.03,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "name": "Paragraph",
+      "x": 349.27,
+      "width": 194.52,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "name": "Size",
+      "x": 543.78,
+      "width": 247.55,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "name": "Shape Styles",
+      "x": 791.33,
+      "width": 371.33,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "name": "Spacing",
+      "x": 1162.66,
+      "width": 254.36,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "position",
+      "name": "Arrange",
+      "x": 1417.02,
+      "width": 278.84,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "grid",
+      "name": "Grid",
+      "x": 1695.86,
+      "width": 180.89,
+      "top": 349.92,
+      "height": 95
+     }
+    ],
+    "nudgeInputs": 2
+   }
+  }
+ },
+ "specs": [
+  {
+   "id": "Q01",
+   "name": "No element named, labelled, titled or identified Nudge exists anywhere in the editor (the DOM, hidden text and the accessible roles textbox, spinbutton and button): HTML sample with nothing selected and with the headline selected in Desktop, Tablet and Phone, and the SVG sample",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noNudge"
+    }
+   ]
+  },
+  {
+   "id": "Q02",
+   "name": "No text of the ribbon, the hint or the tooltips says Nudge or nudge, and the hint still says the arrow keys move the selected element by 1 px, 10 px with Shift",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pageText",
+     "scope": "editor",
+     "lacks": [
+      "Nudge",
+      "nudge",
+      "Nudge X",
+      "Nudge Y"
+     ],
+     "has": [
+      "the arrow keys move it by 1 px (10 px with Shift)"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Q03",
+   "name": "The Arrange group holds exactly Move up and Move down and no input, with each button enabled or disabled as on the page before the change (baseline recorded by probe-nonudge-views1.mjs): a first, a middle and a last card of the landing page in Desktop, Tablet and Phone",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      true,
+      false
+     ],
+     "inputs": 0
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      true,
+      false
+     ],
+     "inputs": 0
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      true,
+      false
+     ],
+     "inputs": 0
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      false,
+      false
+     ],
+     "inputs": 0
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      false,
+      false
+     ],
+     "inputs": 0
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      false,
+      false
+     ],
+     "inputs": 0
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      false,
+      true
+     ],
+     "inputs": 0
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      false,
+      true
+     ],
+     "inputs": 0
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "arrangeGroup",
+     "names": [
+      "Move up",
+      "Move down"
+     ],
+     "disabled": [
+      false,
+      true
+     ],
+     "inputs": 0
+    }
+   ]
+  },
+  {
+   "id": "Q04",
+   "name": "Move up and Move down give byte-identical exports to the page before the change for the same steps (six scenarios in Desktop, Tablet and Phone; SHA-1 of the exported files recorded by probe-nonudge-views1.mjs)",
+   "sample": "landing",
+   "checks": [
+    "P2"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHash",
+     "sha1": "fc8ff1f3da21ce06a446fa0ab00ab40c3505d798",
+     "label": "desktop card-build up"
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move down"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHash",
+     "sha1": "fc8ff1f3da21ce06a446fa0ab00ab40c3505d798",
+     "label": "desktop card-plan down"
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHash",
+     "sha1": "17f6360a136a0a4845b09a444ea0c8e3b3227bff",
+     "label": "desktop card-ship up"
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "inset"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHash",
+     "sha1": "a44afe0be0c9f557d31f3a3abefc6cc1539dcbbd",
+     "label": "tablet art up"
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "inset"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHash",
+     "sha1": "e97583f20e4429a7b2b0aed1f7c4fa9a9b441a5c",
+     "label": "phone art up"
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "button",
+     "name": "Move up"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHash",
+     "sha1": "9ea34913e7130efc110155b42cb2ce96f2970a81",
+     "label": "phone card-build up"
+    }
+   ]
+  },
+  {
+   "id": "Q05",
+   "name": "The arrow keys still move the selected element: one ArrowRight is 1 px, Shift+ArrowRight 10 px more, five ArrowDown presses 5 px more, all one merged offset (desktop, link false) with no flash frame, one preview iframe at rest and the overlay on every frame",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P3",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "keys",
+     "key": "ArrowRight",
+     "times": 1,
+     "settle": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 1, 0)",
+      "768": "matrix(1, 0, 0, 1, 1, 0)",
+      "1024": "matrix(1, 0, 0, 1, 1, 0)",
+      "1025": "matrix(1, 0, 0, 1, 1, 0)",
+      "1280": "matrix(1, 0, 0, 1, 1, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "keys",
+     "key": "Shift+ArrowRight",
+     "times": 1,
+     "settle": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 11, 0)",
+      "768": "matrix(1, 0, 0, 1, 11, 0)",
+      "1024": "matrix(1, 0, 0, 1, 11, 0)",
+      "1025": "matrix(1, 0, 0, 1, 11, 0)",
+      "1280": "matrix(1, 0, 0, 1, 11, 0)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "keys",
+     "key": "ArrowDown",
+     "times": 5,
+     "settle": true
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "overlayAlways": true,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 11, 5)",
+      "768": "matrix(1, 0, 0, 1, 11, 5)",
+      "1024": "matrix(1, 0, 0, 1, 11, 5)",
+      "1025": "matrix(1, 0, 0, 1, 11, 5)",
+      "1280": "matrix(1, 0, 0, 1, 11, 5)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "none",
+      "640": "none",
+      "641": "matrix(1, 0, 0, 1, 11, 5)",
+      "768": "matrix(1, 0, 0, 1, 11, 5)",
+      "1024": "matrix(1, 0, 0, 1, 11, 5)",
+      "1025": "matrix(1, 0, 0, 1, 11, 5)",
+      "1280": "matrix(1, 0, 0, 1, 11, 5)"
+     },
+     "tol": 0.05
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "dx": 11,
+       "dy": 5,
+       "environment": "desktop",
+       "link": false
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Q06",
+   "name": "A drag and then arrow keys are one move in Desktop and a Phone arrow press is its own edit; Undo twice gives the original bytes and Redo twice the same bytes as before",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": null,
+     "dx": 30,
+     "dy": 0
+    },
+    {
+     "do": "keys",
+     "key": "ArrowDown",
+     "times": 3,
+     "settle": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "focusOverlay"
+    },
+    {
+     "do": "keys",
+     "key": "ArrowRight",
+     "times": 2,
+     "settle": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "offset",
+       "environment": "desktop",
+       "link": false
+      },
+      {
+       "op": "offset",
+       "environment": "phone",
+       "link": "absent"
+      }
+     ]
+    },
+    {
+     "do": "snapshotExport",
+     "name": "both"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "again"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "both",
+     "b": "again"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    }
+   ]
+  },
+  {
+   "id": "Q07",
+   "name": "The ribbon is as it was: the same number of bands, the same ribbon height, every group but Arrange at the same x, width and top (0.5 px), Arrange at the same x and top and no wider, at 1000, 1280, 1440 and 1920 px with the headline selected; the Arrange width change is reported",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 1080
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonBaseline",
+     "width": 1000,
+     "baseline": {
+      "bands": 7,
+      "ribbon": {
+       "x": 23,
+       "width": 954,
+       "height": 970
+      },
+      "groups": [
+       {
+        "id": "font",
+        "name": "Font",
+        "x": 23,
+        "width": 954,
+        "top": 424.52,
+        "height": 131
+       },
+       {
+        "id": "paragraph",
+        "name": "Paragraph",
+        "x": 23,
+        "width": 954,
+        "top": 555.52,
+        "height": 131
+       },
+       {
+        "id": "size",
+        "name": "Size",
+        "x": 23,
+        "width": 954,
+        "top": 686.52,
+        "height": 131
+       },
+       {
+        "id": "shape",
+        "name": "Shape Styles",
+        "x": 23,
+        "width": 954,
+        "top": 817.52,
+        "height": 131
+       },
+       {
+        "id": "spacing",
+        "name": "Spacing",
+        "x": 23,
+        "width": 954,
+        "top": 948.52,
+        "height": 131
+       },
+       {
+        "id": "position",
+        "name": "Arrange",
+        "x": 23,
+        "width": 954,
+        "top": 1079.52,
+        "height": 131
+       },
+       {
+        "id": "grid",
+        "name": "Grid",
+        "x": 23,
+        "width": 954,
+        "top": 1210.52,
+        "height": 130
+       }
+      ],
+      "nudgeInputs": 2
+     }
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 1080
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonBaseline",
+     "width": 1280,
+     "baseline": {
+      "bands": 2,
+      "ribbon": {
+       "x": 29,
+       "width": 1222,
+       "height": 218
+      },
+      "groups": [
+       {
+        "id": "font",
+        "name": "Font",
+        "x": 29.16,
+        "width": 333.98,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "name": "Paragraph",
+        "x": 363.14,
+        "width": 212.28,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "name": "Size",
+        "x": 575.42,
+        "width": 270.17,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "name": "Shape Styles",
+        "x": 845.59,
+        "width": 405.25,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "name": "Spacing",
+        "x": 29.16,
+        "width": 333.98,
+        "top": 429.31,
+        "height": 96
+       },
+       {
+        "id": "position",
+        "name": "Arrange",
+        "x": 363.14,
+        "width": 482.45,
+        "top": 429.31,
+        "height": 96
+       },
+       {
+        "id": "grid",
+        "name": "Grid",
+        "x": 845.59,
+        "width": 405.25,
+        "top": 429.31,
+        "height": 96
+       }
+      ],
+      "nudgeInputs": 2
+     }
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 1080
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonBaseline",
+     "width": 1440,
+     "baseline": {
+      "bands": 1,
+      "ribbon": {
+       "x": 33,
+       "width": 1375,
+       "height": 122
+      },
+      "groups": [
+       {
+        "id": "font",
+        "name": "Font",
+        "x": 32.67,
+        "width": 229.44,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "name": "Paragraph",
+        "x": 262.11,
+        "width": 145.83,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "name": "Size",
+        "x": 407.94,
+        "width": 185.61,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "name": "Shape Styles",
+        "x": 593.55,
+        "width": 278.39,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "name": "Spacing",
+        "x": 871.94,
+        "width": 190.7,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "position",
+        "name": "Arrange",
+        "x": 1062.64,
+        "width": 209.05,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "grid",
+        "name": "Grid",
+        "x": 1271.69,
+        "width": 135.63,
+        "top": 337.52,
+        "height": 95
+       }
+      ],
+      "nudgeInputs": 2
+     }
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 1080
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "ribbonBaseline",
+     "width": 1920,
+     "baseline": {
+      "bands": 1,
+      "ribbon": {
+       "x": 43,
+       "width": 1834,
+       "height": 122
+      },
+      "groups": [
+       {
+        "id": "font",
+        "name": "Font",
+        "x": 43.23,
+        "width": 306.03,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "name": "Paragraph",
+        "x": 349.27,
+        "width": 194.52,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "name": "Size",
+        "x": 543.78,
+        "width": 247.55,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "name": "Shape Styles",
+        "x": 791.33,
+        "width": 371.33,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "name": "Spacing",
+        "x": 1162.66,
+        "width": 254.36,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "position",
+        "name": "Arrange",
+        "x": 1417.02,
+        "width": 278.84,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "grid",
+        "name": "Grid",
+        "x": 1695.86,
+        "width": 180.89,
+        "top": 349.92,
+        "height": 95
+       }
+      ],
+      "nudgeInputs": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "Q08",
+   "name": "Nothing in src/ still feeds the boxes: no offsetOf (the diff.ts offsetOfFile is another function), onNudgeTo, nudgeX, nudgeY, nudgeHint, ue-nudge-hint, 'Nudge X', 'Nudge Y', rowLabels.nudge, STEP.nudge or a nudge step key; and what the arrow keys use is still there (onNudge, arrowNudge, pendingNudge, mergeOffsets, moveEdit, nudgeNoEffect)",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "sourceSearch",
+     "forbidden": [
+      "\\boffsetOf\\b",
+      "onNudgeTo",
+      "nudgeX",
+      "nudgeY",
+      "nudgeHint",
+      "ue-nudge-hint",
+      "Nudge [XY]",
+      "rowLabels\\.nudge|nudge: 'Nudge'",
+      "STEP\\.nudge",
+      "stepAmount\\('nudge'",
+      "nudge: (1|null)\\b",
+      "\\| 'nudge'",
+      "LABEL_W\\.nudge",
+      "shift=\\{shift\\}",
+      "\\^Nudge",
+      "Type how many pixels to move by",
+      "Pixels to move by"
+     ],
+     "required": [
+      {
+       "file": "src/ui-editor/Stage.tsx",
+       "re": "onNudge\\(n\\.dx, n\\.dy\\)"
+      },
+      {
+       "file": "src/ui-editor/geometry.ts",
+       "re": "export function arrowNudge"
+      },
+      {
+       "file": "src/ui-editor/UiEditorTool.tsx",
+       "re": "pendingNudge"
+      },
+      {
+       "file": "src/ui-editor/UiEditorTool.tsx",
+       "re": "moveEdit"
+      },
+      {
+       "file": "src/ui-editor/state.ts",
+       "re": "export function mergeOffsets"
+      },
+      {
+       "file": "src/data/uiEditor.ts",
+       "re": "nudgeNoEffect"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Q09",
+   "name": "Flag OFF: the build without VITE_SHOW_UI_EDITOR behaves exactly as before (flags.mjs, 16 of 16) and every file of that build except the UiEditor chunks is byte for byte the main build's",
+   "sample": "landing",
+   "checks": [],
+   "expected": "PASS",
+   "steps": [],
+   "external": "flagOff"
+  }
+ ]
+}
