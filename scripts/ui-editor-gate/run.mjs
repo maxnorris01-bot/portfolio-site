@@ -825,7 +825,7 @@ async function runSpec(spec) {
         if (a.maxFlash !== undefined && flash > a.maxFlash) bad.push(`${flash} flash frames of ${f.length}, at most ${a.maxFlash}`)
         if (a.visible !== undefined && f.some((x) => x.vis !== a.visible)) bad.push(`${f.filter((x) => x.vis !== a.visible).length} frames without exactly ${a.visible} visible preview (visible counts ${[...new Set(f.map((x) => x.vis))].join('/')})`)
         if (a.overlayAlways && f.some((x) => !x.sel)) bad.push(`${f.filter((x) => !x.sel).length} frames without the selection overlay`)
-        if (a.scrollSame && new Set(f.map((x) => x.sy + ':' + x.st)).size > 1) bad.push(`scroll moved: ${[...new Set(f.map((x) => x.sy + ':' + x.st))].join(' ')}`)
+        if (a.scrollSame) { const sc = new Set([fr.y0 + ':' + fr.st0, ...f.map((x) => x.sy + ':' + x.st)]); if (sc.size > 1) bad.push(`scroll moved: ${[...sc].join(' ')}`) }
         if (a.stageHeightSame && new Set(f.map((x) => x.stage)).size > 1) bad.push(`stage height changed: ${[...new Set(f.map((x) => x.stage))].join(' ')}`)
         if (a.restIframes !== undefined && fr.rest !== a.restIframes) bad.push(`${fr.rest} preview iframes at rest, want ${a.restIframes}`)
         if (process.env.UI_GATE_VERBOSE) console.log('      frames:', spec.id, bad.length ? bad.join('; ') : 'ok', `${f.length} frames, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}, flash ${flash}`)
@@ -3132,7 +3132,7 @@ async function runSpec(spec) {
       } else if (step.do === 'frames') {
         if (step.action === 'start') {
           await page.evaluate(() => {
-            const rec = { frames: [], on: true, rest: -1 }
+            const rec = { frames: [], on: true, rest: -1, y0: Math.round(scrollY), st0: Math.round(document.querySelector('.ue-scroll')?.scrollTop ?? -1) } // the scroll position when the recording starts counts as a frame of its own for scrollSame
             window.__frames = rec
             const tick = () => {
               if (!rec.on) return
@@ -3152,8 +3152,8 @@ async function runSpec(spec) {
         continue
       } else if (step.do === 'burst') {
         const b = spinOf(step.field, step.dir)
-        const bb = await b.boundingBox()
-        for (let i = 0; i < step.times; i++) await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2) // no actionability wait and no settle between: the next click can land while the last rebuild runs
+        // the presses are sent from inside the page, one per timer tick, whatever is on screen (a page scrolled down has the ribbon out of view): the next press can land while the last rebuild runs
+        await b.evaluate(async (el, n) => { for (let i = 0; i < n; i++) { el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1 })); el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1 })); el.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0, detail: 1 })); await new Promise((r) => setTimeout(r, 0)) } }, step.times)
         await settle(page)
         continue
       } else if (step.do === 'scrollTo') {
