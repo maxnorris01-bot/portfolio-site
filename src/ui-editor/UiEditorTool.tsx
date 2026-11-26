@@ -206,13 +206,24 @@ export default function UiEditorTool() {
   const scope = () => (svgDoc ? {} : { environment })
 
   /** One more edit on the live preview. A refusal shows the engine's reason and changes nothing. */
-  const run = (edit: Edit, what: string, nextSel?: string | null | ((s: Session, applied: Extract<Applied, { ok: true }>) => string | null), extra?: string): boolean => {
+  const run = (edit: Edit, what: string, nextSel?: string | null | ((s: Session, applied: Extract<Applied, { ok: true }>) => string | null), extra?: string, watch?: Element | null): boolean => {
     const s = sessionRef.current
     if (!s || busyRef.current || !editable) return false
+    const before = watch?.getBoundingClientRect()
     const applied = applyOne(s, edit)
     if (!applied.ok) {
       show({ kind: 'refusal', text: refusalSentence(messages.refused, { code: 'engine', message: applied.message }) })
       return false
+    }
+    // `watch`: an element that must have moved (a nudge). An edit the engine took but that shows nothing (a table cell ignores a shift) is not kept: the preview is built again from the list and one plain line says why.
+    if (watch && before) {
+      const after = watch.getBoundingClientRect()
+      if (Math.abs(after.left - before.left) + Math.abs(after.top - before.top) < 0.4) {
+        show({ kind: 'refusal', text: messages.nudgeNoEffect })
+        startBusy()
+        setReplay((n) => n + 1)
+        return false
+      }
     }
     const last = listRef.current.edits[listRef.current.edits.length - 1]
     const merges = mergeOffsets(last, edit) !== undefined
@@ -335,10 +346,13 @@ export default function UiEditorTool() {
   const onMove = (dx: number, dy: number) => {
     const t = target()
     if (t === null) return
-    // Moving is custom to where it is made: in Phone or Tablet one rule for that view's own range, in Desktop one rule for every width above the Phone breakpoint (the Tablet range
-    // too, when the page has one). An SVG has no environments, so there it applies everywhere.
+    run(...moveEdit(t, dx, dy, 'moved'))
+  }
+  // A move (a drag or the Nudge boxes) is custom to where it is made: in Phone or Tablet one rule for that view's own range, in Desktop one rule for every width above the Phone breakpoint
+  // (the Tablet range too, when the page has one). An SVG has no environments, so there it applies everywhere.
+  const moveEdit = (t: number, dx: number, dy: number, verb: string): [Edit, string] => {
     const covers = view !== 'Desktop' ? `${view} only` : session && tabletMin(session.breakpoint) <= 768 ? 'Desktop and Tablet sizes' : 'Desktop only'
-    run({ op: 'offset', target: t, dx, dy, ...(svgDoc ? { link: true } : environment === 'desktop' ? { environment, link: false } : { environment }) }, `moved by ${dx}, ${dy} px${svgDoc ? '' : ` (${covers})`}`)
+    return [{ op: 'offset', target: t, dx, dy, ...(svgDoc ? { link: true } : environment === 'desktop' ? { environment, link: false } : { environment }) }, `${verb} by ${dx}, ${dy} px${svgDoc ? '' : ` (${covers})`}`]
   }
   // Keys that arrive while the preview is being rebuilt (a run of arrow presses is one merged edit) are added up and applied when it is ready.
   const pendingNudge = useRef({ dx: 0, dy: 0 })
@@ -349,7 +363,8 @@ export default function UiEditorTool() {
     }
     const t = target()
     if (t === null) return
-    run({ op: 'offset', target: t, dx, dy, ...scope() }, `nudged by ${dx}, ${dy} px`)
+    const [edit, what] = moveEdit(t, dx, dy, 'nudged')
+    run(edit, what, undefined, undefined, session?.preview.elements[t])
   }
   const onResize = async ({ handle, box, fullWidth }: ResizeRequest) => {
     const t = target()

@@ -286,6 +286,7 @@ export const messages = {
   missingCss: (href: string) => `This page links to the stylesheet "${href}", which was not supplied, so those styles are missing from the preview. Add it with Upload or Paste.`,
   unusedCss: (name: string) => `The stylesheet "${name}" is not linked from the page, so it has no effect on the preview.`,
   badValue: (label: string) => `Not applied: that is not a value ${label} can take.`,
+  nudgeNoEffect: 'Not applied: that element does not move when it is shifted at this size (a table cell, for example, ignores a shift), so nothing was changed.',
   /** Insert round 1: placing, and what an insert, a text edit and a Delete say. */
   placing: (what: string) => `Click where the ${what} should go, or press Escape to cancel.`,
   placingCancelled: 'Cancelled: nothing was inserted.',
