@@ -1,0 +1,14 @@
+{
+ "version": 1,
+ "note": "Numbered amendments of docs/ui-editor-gate-rules-views1.md section 9. A spec of specs-views1.json is read with its amendments applied: `skip` lists 0-based step indexes left out, `replace` maps a 0-based index to the steps that replace it, `insertAfter` maps a 0-based index to the steps added after it. specs-views1.json itself is never edited.",
+ "specs": {
+  "X29": {
+   "amendment": "A1",
+   "insertAfter": {
+    "1": [
+     { "do": "assert", "p": "P5", "k": "barNames", "names": ["Samples", "Undo", "Redo", "Insert", "Comment", "Desktop", "Tablet", "Phone", "Download", "Reset all"] }
+    ]
+   }
+  }
+ }
+}
