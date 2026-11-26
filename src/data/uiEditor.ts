@@ -129,7 +129,7 @@ export const labels = {
   code: 'Updated code',
   result: 'Edit result',
   preview: 'Preview',
-  previewHint: 'Click an element to select it. Drag it to move it, or drag a handle to resize it. Double-click an element, or press F2, to change its text; the Delete key removes it. With an element selected, the arrow keys nudge it by 1 px (10 px with Shift). Handles are for the pointer; the ribbon controls and the arrow keys do the same from the keyboard.',
+  previewHint: 'Click an element to select it. Drag it to move it, or drag a handle to resize it. Double-click an element, or press F2, to change its text; the Delete key removes it. With an element selected, the arrow keys move it by 1 px (10 px with Shift). Handles are for the pointer; the ribbon controls and the arrow keys do the same from the keyboard.',
   discard: 'Discard edits',
   keep: 'Keep editing',
   openPaste: 'Open pasted code',
@@ -173,9 +173,6 @@ export const panel = {
   borderRadius: 'Border radius',
   moveUp: 'Move up',
   moveDown: 'Move down',
-  nudgeX: 'Nudge X',
-  nudgeY: 'Nudge Y',
-  nudgeHint: 'Pixels to move by; press Enter.',
   decrease: (label: string) => `Decrease ${label}`,
   increase: (label: string) => `Increase ${label}`,
   /** The Sides button of Padding and Margin: it opens a small popover with the four sides. */
@@ -187,10 +184,10 @@ export const panel = {
   mixed: 'mixed',
   sideNames: ['top', 'right', 'bottom', 'left'],
   /** The visible label above each control, in plain words (round 4): the control's accessible name is the key and stays as it was. */
-  ctl: { 'Font family': 'Font family', 'Font size': 'Font size', 'Font weight': 'Weight', 'Text colour': 'Text colour', Width: 'Width', Height: 'Height', Padding: 'Padding', Margin: 'Margin', Background: 'Fill colour', 'Border colour': 'Line colour', 'Border width': 'Line thickness', 'Border radius': 'Corner rounding', 'Nudge X': 'Nudge X', 'Nudge Y': 'Nudge Y' } as Record<string, string>,
+  ctl: { 'Font family': 'Font family', 'Font size': 'Font size', 'Font weight': 'Weight', 'Text colour': 'Text colour', Width: 'Width', Height: 'Height', Padding: 'Padding', Margin: 'Margin', Background: 'Fill colour', 'Border colour': 'Line colour', 'Border width': 'Line thickness', 'Border radius': 'Corner rounding' } as Record<string, string>,
   unitLabel: 'Unit',
   /** Round 6 (PowerPoint-style ribbon): the words beside the number boxes (the control's accessible name is unchanged), the menus and their tooltips. */
-  rowLabels: { Height: 'Height', Width: 'Width', 'Border radius': 'Corner radius', Padding: 'Padding', Margin: 'Margin', nudge: 'Nudge' } as Record<string, string>,
+  rowLabels: { Height: 'Height', Width: 'Width', 'Border radius': 'Corner radius', Padding: 'Padding', Margin: 'Margin' } as Record<string, string>,
   fontColour: 'Font colour',
   fontColourTip: 'Open the colours for the text.',
   fontSizePresets: 'Font size presets',
@@ -233,7 +230,7 @@ export const panel = {
   /** Tooltips: short, verb first. */
   alignTips: { 'Align left': 'Align the text to the left.', 'Align centre': 'Align the text to the centre.', 'Align right': 'Align the text to the right.', Justify: 'Justify the text to both edges.', 'Anchor start': 'Align the text so it starts at its anchor point.', 'Anchor middle': 'Align the text around its anchor point.', 'Anchor end': 'Align the text so it ends at its anchor point.' } as Record<string, string>,
   alignTip: (name: string): string => panel.alignTips[name] ?? `Align the text: ${name.toLowerCase()}.`,
-  typeTip: (name: string): string => (/^Nudge/.test(name) ? 'Type how many pixels to move by, then press Enter.' : `Type the ${name.toLowerCase()}, then press Enter.`),
+  typeTip: (name: string): string => `Type the ${name.toLowerCase()}, then press Enter.`,
   fontTip: (stack: string): string => (stack ? `Choose the font for this text. Now: ${stack}.` : 'Choose the font for this text.'),
   weightTip: 'Choose how heavy the text is.',
   colourTip: 'Type a colour such as #1d3557 or a colour name, then press Enter.',

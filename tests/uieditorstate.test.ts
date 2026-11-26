@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { canRedo, canUndo, emptyList, listReduce, mergeOffsets, offsetOf, type EditList } from '../src/ui-editor/state.ts'
+import { canRedo, canUndo, emptyList, listReduce, mergeOffsets, type EditList } from '../src/ui-editor/state.ts'
 import type { Edit } from '../src/ui-editor/vendor/engine.js'
 
 const set = (n: number): Edit => ({ op: 'set', target: n, properties: { color: `#00000${n}` } })
@@ -48,29 +48,10 @@ test('two moves of the same element in a row are one edit; different elements, s
   assert.equal(mergeOffsets(set(1), move(1, 1, 1)), undefined)
 })
 
-test('offsetOf: the sum of the offsets of one element in the scope of the next nudge', () => {
-  const phone = (target: number, dx: number, dy: number): Edit => ({ op: 'offset', target, dx, dy, environment: 'phone' })
-  const tablet = (target: number, dx: number, dy: number): Edit => ({ op: 'offset', target, dx, dy, environment: 'tablet' })
-  const plain = (target: number, dx: number, dy: number): Edit => ({ op: 'offset', target, dx, dy, environment: 'desktop' })
-  const list = [move(1, 5, 2), set(1), move(1, 4, -1), phone(1, 7, 0), tablet(1, 3, 3), move(2, 9, 9), plain(1, 100, 100)]
-  assert.deepEqual(offsetOf(list, 1, 'desktop', false), { dx: 9, dy: 1 }, 'Desktop (link false): the Desktop edits of that element, not Phone, Tablet or a linked one')
-  assert.deepEqual(offsetOf(list, 1, 'phone', true), { dx: 7, dy: 0 })
-  assert.deepEqual(offsetOf(list, 1, 'tablet', true), { dx: 3, dy: 3 })
-  assert.deepEqual(offsetOf(list, 1, 'desktop', true), { dx: 100, dy: 100 }, 'a linked Desktop edit is another scope')
-  assert.deepEqual(offsetOf(list, 3, 'desktop', false), { dx: 0, dy: 0 }, 'an element with no offset is 0')
-  assert.deepEqual(offsetOf([], 1, 'desktop', false), { dx: 0, dy: 0 })
-  assert.deepEqual(offsetOf([{ op: 'offset', target: 4, dx: 6, dy: -2, link: true }], 4, undefined, true), { dx: 6, dy: -2 }, 'an SVG edit has no environment')
-})
-
-test('offsetOf agrees with the merged list: the shift after any run of moves is the sum of the steps', () => {
+test('a run of arrow-key moves of one element is one offset, and steps that cancel leave none', () => {
   let s = emptyList()
-  let want = 0
-  for (const dx of [5, 5, -3, 10, -17]) {
-    s = apply(s, move(1, dx, 0))
-    want += dx
-    assert.equal(offsetOf(s.edits, 1, 'desktop', false).dx, want)
-  }
+  for (const dx of [5, 5, -3, 10, -17]) s = apply(s, move(1, dx, 0))
   assert.equal(s.edits.length, 0, 'the steps cancelled to nothing: no edit is left')
-  s = apply(apply(s, move(1, 8, 0)), move(1, -8 + 30, 0))
-  assert.deepEqual(s.edits, [move(1, 30, 0)], 'a typed 30 after 8 is the difference 22: one offset of 30')
+  s = apply(apply(s, move(1, 8, 0)), move(1, 22, 0))
+  assert.deepEqual(s.edits, [move(1, 30, 0)])
 })

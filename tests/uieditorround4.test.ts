@@ -46,8 +46,8 @@ test('every field of the ribbon has a visible label in plain words: no abbreviat
     assert.match(label, /^\p{Lu}/u, 'sentence case')
   }
   assert.deepEqual(
-    [panel.ctl['Font family'], panel.ctl['Font size'], panel.ctl['Font weight'], panel.ctl['Text colour'], panel.ctl.Width, panel.ctl.Height, panel.ctl.Background, panel.ctl['Border colour'], panel.ctl['Border width'], panel.ctl['Border radius'], panel.ctl.Padding, panel.ctl.Margin, panel.ctl['Nudge X'], panel.ctl['Nudge Y']],
-    ['Font family', 'Font size', 'Weight', 'Text colour', 'Width', 'Height', 'Fill colour', 'Line colour', 'Line thickness', 'Corner rounding', 'Padding', 'Margin', 'Nudge X', 'Nudge Y'],
+    [panel.ctl['Font family'], panel.ctl['Font size'], panel.ctl['Font weight'], panel.ctl['Text colour'], panel.ctl.Width, panel.ctl.Height, panel.ctl.Background, panel.ctl['Border colour'], panel.ctl['Border width'], panel.ctl['Border radius'], panel.ctl.Padding, panel.ctl.Margin],
+    ['Font family', 'Font size', 'Weight', 'Text colour', 'Width', 'Height', 'Fill colour', 'Line colour', 'Line thickness', 'Corner rounding', 'Padding', 'Margin'],
   )
   assert.equal(panel.unitLabel, 'Unit')
   const forbidden = new Set(['w', 'h', 'thick', 'round', 'fill', 'line', 'pad', 'mar', 'size', 'text', 'x', 'y'])
@@ -77,7 +77,6 @@ test('every ribbon tooltip is a short verb-first sentence that is not just the c
     ['sides', panel.sidesTip('Padding')],
     ['step', panel.stepTip(panel.decrease('Font size'), 1, 'px')],
     ['type', panel.typeTip('Font size')],
-    ['nudge', panel.typeTip('Nudge X')],
   ]
   for (const b of [...alignButtons(false), ...alignButtons(true)]) tips.push([b.label, panel.alignTip(b.label)])
   for (const f of [...htmlFields(computed)]) tips.push([`pick ${f.label}`, panel.pickTip(f.label)])

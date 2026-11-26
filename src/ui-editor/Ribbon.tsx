@@ -34,10 +34,6 @@ interface Props {
   /** One plain line for a value that was refused (an invalid hex, a double line under 3 px): nothing was changed. */
   onMessage: (text: string) => void
   onMove: (dir: 'up' | 'down') => void
-  onNudge: (dx: number, dy: number) => void
-  /** Where the selected element is shifted to in this view (the Nudge boxes show it), and a typed number: the new shift on one axis; false when it changes nothing. */
-  shift: { dx: number; dy: number }
-  onNudgeTo: (axis: 'X' | 'Y', to: number) => boolean
   /** Select another element of the preview by its index (a segment of the path, Select parent): the selection only, never an edit. */
   onSelectIndex: (index: number) => void
   /** Insert round 1: the strip's Edit text and Delete (the page decides what they do; Delete is off when the engine would refuse). */
@@ -135,21 +131,15 @@ function SpinArrow({ name, dir, step, unit, disabled, onFire }: { name: string; 
 /** The number in a box: always a real text input. Enter (or leaving it) commits what was typed; the arrow keys step it. Made new for each preview (`key`), so every typed value commits once and the next can follow. */
 function NumberInput({ name, shown, disabled, describedBy, tip, onCommit, onArrow }: { name: string; shown: string; disabled: boolean; describedBy?: string; tip?: string; onCommit: (text: string) => boolean | void; onArrow?: (dir: 1 | -1, shift: boolean) => void }) {
   const done = useRef(false)
-  const input = useRef<HTMLInputElement | null>(null)
   const commit = (text: string) => {
     if (done.current || text === shown) return
     done.current = true
     refocus.name = name
-    // A commit that returns false changed nothing: the box shows what it showed (a typed number that is not one, or the number already there), and can commit again.
-    if (onCommit(text) === false) {
-      done.current = false
-      if (input.current) input.current.value = shown
-    }
+    onCommit(text)
   }
   return (
     <input
       ref={(el) => {
-        input.current = el
         if (el && refocus.name === name) {
           refocus.name = null
           el.focus({ preventScroll: true })
@@ -237,14 +227,14 @@ function Row({ children }: { children: ReactNode }) {
   )
 }
 
-/** The word beside a number box (Height, Width, Corner radius, Padding, Margin, Nudge): the box carries the accessible name, so this is not read twice. */
+/** The word beside a number box (Height, Width, Corner radius, Padding, Margin): the box carries the accessible name, so this is not read twice. */
 const RowLabel = ({ text, wide }: { text: string; wide?: number }) => (
   <span className="ue-rl" data-row-label aria-hidden="true" style={wide ? { width: wide } : undefined}>
     {text}
   </span>
 )
 /** The room each row label takes, so the boxes of a group start at one edge. */
-const LABEL_W: Record<string, number> = { Height: 40, Width: 40, 'Border radius': 80, Padding: 48, Margin: 48, nudge: 38 }
+const LABEL_W: Record<string, number> = { Height: 40, Width: 40, 'Border radius': 80, Padding: 48, Margin: 48 }
 
 /** A 28 px button with its icon and its word (Move up, Grid, Snap). The accessible name is the label. */
 function RibbonButton({ icon, label, tip, pressed, disabled, min, onClick }: { icon: IconName; label: string; tip: string; pressed?: boolean; disabled: boolean; min: number; onClick: () => void }) {
@@ -256,7 +246,7 @@ function RibbonButton({ icon, label, tip, pressed, disabled, min, onClick }: { i
   )
 }
 
-export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, unit, onUnit, onSet, onBadValue, onMessage, onMove, onNudge, shift, onNudgeTo, onSelectIndex, onEditText, onDelete, canDelete, notesCount, notesOpen, onNotes, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
+export default function Ribbon({ session, rev, nonce, selected, view, editable, lockedNote, unit, onUnit, onSet, onBadValue, onMessage, onMove, onSelectIndex, onEditText, onDelete, canDelete, notesCount, notesOpen, onNotes, grid, onGrid, snap, onSnap, spacing, onSpacing }: Props) {
   const el = session && selected !== null ? (session.preview.elements[selected] ?? null) : null
   const svg = !!el && isSvgElement(el)
   // The path of the strip: the chain from the child of <body> down to the selected element; the deepest PATH_MAX of it, with a leading ellipsis when it is longer.
@@ -731,28 +721,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
   }
 
   const note = !el ? (editable ? P.none : lockedNote) : !editable ? lockedNote : ''
-  const nudge = (axis: 'X' | 'Y', label: string) => (
-    <NumBox
-      key={`${stamp}-n${axis}`}
-      name={label}
-      shown={String(axis === 'X' ? shift.dx : shift.dy)}
-      stamp={stamp}
-      disabled={!live}
-      step={STEP.nudge}
-      unit="px"
-      describedBy="ue-nudge-hint"
-      onStep={(d, s) => {
-        const a = d * stepAmount('nudge', s)
-        if (axis === 'X') onNudge(a, 0)
-        else onNudge(0, a)
-      }}
-      onCommit={(t) => {
-        const v = Math.round(Number(t.trim()))
-        return t.trim() !== '' && Number.isFinite(v) && onNudgeTo(axis, v)
-      }}
-    />
-  )
-
   return (
     <div className="ue-ribbon" data-ribbon>
       <div className="ue-strip" data-ribbon-strip>
@@ -843,14 +811,6 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
             <RibbonButton icon="moveUp" label={P.moveUp} tip={P.moveUpTip} disabled={!live || !up} min={92} onClick={() => onMove('up')} />
             <RibbonButton icon="moveDown" label={P.moveDown} tip={P.moveDownTip} disabled={!live || !down} min={92} onClick={() => onMove('down')} />
           </Row>
-          <Row>
-            <RowLabel text={P.rowLabels.nudge} wide={LABEL_W.nudge} />
-            {nudge('X', P.nudgeX)}
-            {nudge('Y', P.nudgeY)}
-          </Row>
-          <span id="ue-nudge-hint" className="ue-sr">
-            {P.nudgeHint}
-          </span>
         </Group>
         <Group id="grid" name={P.groups.grid}>
           <Row>

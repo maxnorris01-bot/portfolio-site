@@ -86,8 +86,8 @@ import { fullWidthFits, percentOf, pxOfPercent, showWidth, snapsToParent, SNAP_P
 import { SIDES, allSidesBy, expandSides, isMixed, showUniform, sidesText, withSide } from '../src/ui-editor/sides.ts'
 import { FAMILIES, STEP_OF, alignButtons, familyOptions, kindOf, pressedAlign } from '../src/ui-editor/ribbonfields.ts'
 
-test('each stepper has the step the brief gives: font size 1, width, height, padding and margin 4, border width 1, radius 2, nudges 1; Shift is ten times', () => {
-  assert.deepEqual({ ...STEP }, { fontSize: 1, width: 4, height: 4, padding: 4, margin: 4, borderWidth: 1, borderRadius: 2, nudge: 1 })
+test('each stepper has the step the brief gives: font size 1, width, height, padding and margin 4, border width 1, radius 2; Shift is ten times', () => {
+  assert.deepEqual({ ...STEP }, { fontSize: 1, width: 4, height: 4, padding: 4, margin: 4, borderWidth: 1, borderRadius: 2 })
   assert.equal(SHIFT_TIMES, 10)
   assert.equal(stepAmount('fontSize', false), 1)
   assert.equal(stepAmount('fontSize', true), 10)
@@ -105,7 +105,7 @@ test('holding a stepper repeats after about 400 ms and then every 80 ms', () => 
   assert.equal(HOLD_EVERY, 80)
 })
 
-test('a click is one step; three clicks are three steps; the number never goes under its minimum, and a margin or nudge may go negative', () => {
+test('a click is one step; three clicks are three steps; the number never goes under its minimum, and a margin may go negative', () => {
   let v = 44
   for (let i = 0; i < 3; i++) v = stepped(v, 1, stepAmount('fontSize', false), MIN.fontSize)
   assert.equal(v, 47)
@@ -114,7 +114,6 @@ test('a click is one step; three clicks are three steps; the number never goes u
   assert.equal(stepped(1, -1, 1, MIN.fontSize), 1, 'a font size stays at 1 px at least')
   assert.equal(stepped(2, -1, 4, MIN.padding), 0, 'padding stops at 0')
   assert.equal(stepped(0, -1, 4, MIN.margin), -4)
-  assert.equal(stepped(0, -1, 1, MIN.nudge), -1)
   assert.equal(stepped(10.005, 1, 4, 0), 14.01, 'rounded to two decimals')
 })
 

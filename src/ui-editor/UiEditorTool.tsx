@@ -18,7 +18,7 @@ import { copyName, nameList, sectionHeader } from './sections'
 import { SAMPLES, type SampleId } from './samples'
 import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, trialEdit, type Applied, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
-import { emptyList, listReduce, mergeOffsets, offsetOf, canRedo, canUndo, type EditList, type ListAction } from './state'
+import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
 import { listNotes, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
@@ -383,15 +383,13 @@ export default function UiEditorTool() {
     if (t === null) return
     run(...moveEdit(t, dx, dy, 'moved'))
   }
-  // A move (a drag or the Nudge boxes) is custom to where it is made: in Phone or Tablet one rule for that view's own range, in Desktop one rule for every width above the Phone breakpoint
+  // A move (a drag or an arrow key) is custom to where it is made: in Phone or Tablet one rule for that view's own range, in Desktop one rule for every width above the Phone breakpoint
   // (the Tablet range too, when the page has one). An SVG has no environments, so there it applies everywhere.
   const moveScope = () => (svgDoc ? { link: true } : environment === 'desktop' ? { environment, link: false } : { environment })
   const moveEdit = (t: number, dx: number, dy: number, verb: string): [Edit, string] => {
     const covers = view !== 'Desktop' ? `${view} only` : session && tabletMin(session.breakpoint) <= 768 ? 'Desktop and Tablet sizes' : 'Desktop only'
     return [{ op: 'offset', target: t, dx, dy, ...moveScope() }, `${verb} by ${dx}, ${dy} px${svgDoc ? '' : ` (${covers})`}`]
   }
-  // The Nudge boxes show where the selected element is shifted to in this view; a typed number is the new shift (the edit is the difference, and the list still merges to one offset).
-  const shift = selIndex === null ? { dx: 0, dy: 0 } : offsetOf(list.edits, selIndex, svgDoc ? undefined : environment, svgDoc || environment !== 'desktop')
   // Keys that arrive while the preview is being rebuilt (a run of arrow presses is one merged edit) are added up and applied when it is ready.
   const pendingNudge = useRef({ dx: 0, dy: 0 })
   const onNudge = (dx: number, dy: number) => {
@@ -404,13 +402,6 @@ export default function UiEditorTool() {
     const [edit, what] = moveEdit(t, dx, dy, 'nudged')
     // The element is read from the live session, not from this render's: a press can land between a rebuild finishing and the screen drawing it again.
     run(edit, what, undefined, undefined, sessionRef.current?.preview.elements[t])
-  }
-  const onNudgeTo = (axis: 'X' | 'Y', to: number) => {
-    const by = to - (axis === 'X' ? shift.dx : shift.dy) - (axis === 'X' ? pendingNudge.current.dx : pendingNudge.current.dy)
-    if (by === 0) return false
-    if (axis === 'X') onNudge(by, 0)
-    else onNudge(0, by)
-    return true
   }
   const onResize = async ({ handle, box, fullWidth }: ResizeRequest) => {
     const t = target()
@@ -715,9 +706,6 @@ export default function UiEditorTool() {
               onBadValue={onBadValue}
               onMessage={(text) => show({ kind: 'refusal', text })}
               onMove={onReorder}
-              onNudge={onNudge}
-              shift={shift}
-              onNudgeTo={onNudgeTo}
               onSelectIndex={selectIndexOnly}
               onEditText={() => startTextEdit(undefined, true)}
               onDelete={deleteElement}

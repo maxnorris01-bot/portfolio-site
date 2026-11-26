@@ -97,7 +97,7 @@ test('the measured claims about the three views are the engine gate\'s own numbe
 test('a nudge is the same kind of edit as a drag, and one that shows nothing is not kept', () => {
   const tool = read('src/ui-editor/UiEditorTool.tsx')
   const nudge = tool.slice(tool.indexOf('const onNudge = '), tool.indexOf('const onResize = '))
-  assert.match(nudge, /moveEdit\(t, dx, dy, 'nudged'\)/, 'the Nudge boxes and a drag build the edit in one place')
+  assert.match(nudge, /moveEdit\(t, dx, dy, 'nudged'\)/, 'the arrow keys and a drag build the edit in one place')
   assert.match(nudge, /sessionRef\.current\?\.preview\.elements\[t\]/, 'the element that must move is watched, read from the live session')
   assert.doesNotMatch(nudge, /scope\(\)/)
   const run = tool.slice(tool.indexOf('const run = '), tool.indexOf('const target = '))

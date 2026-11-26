@@ -545,15 +545,6 @@
    buttons (28 px), row labels, the px/% toggle and the Sides buttons keep a width. Wide (the ribbon is at least 1352 px): one band. Medium (1000 to 1351 px): two bands on
    shared column edges (Font, Paragraph, Size, Shape Styles; then Spacing under Font, Arrange under Paragraph and Size together, Grid under Shape Styles). Narrow (below
    1000 px): the groups stack and every control is at least 44 x 44. Tokens only. ---- */
-.ue-sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
 .ue-sheet {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
