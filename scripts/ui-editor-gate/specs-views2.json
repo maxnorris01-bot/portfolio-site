@@ -1,0 +1,4354 @@
+{
+ "version": 1,
+ "note": "UI Editor views stage 2: the customised mark and Reset to Desktop view. H01 to H14; the prefix H is used by no earlier spec file. retiredChecks and amendments apply to the real page and --stub13 only. Truth values come from the engine's export of the edit lists below, loaded in plain Chromium (validate-views2.mjs), never from the page.",
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL",
+  "RETIRED"
+ ],
+ "vocabulary": {
+  "note": "as specs-views1-nonudge.json and specs-views1-nudge2.json, plus: step snapshotList {name} (the page's effective edit list, as data-edit-list gives it, kept), step snapshotBar {name} (the boxes of the three view buttons, kept), step focusControl {name} also names a button of the bar; assert viewButtons {desktop, tablet, phone, tip?}: for each view button, whether it is customised (its accessible name is 'Phone, customised' and a mark element is drawn; otherwise the plain name and no mark) and, with tip, whether its tooltip says customised; assert viewButtonBoxes {against, tol}; assert resetButton {present, enabled?, tipHas?} (the button whose accessible name is 'Reset to Desktop view'); assert dialog {open, has?, buttons?} (the Confirm group); assert listIs {snapshot} (the effective list now equals the snapshot); assert exportEqualsFiltered {snapshot, env} (the engine replays the snapshot list with every set, offset and reorder of that environment taken out, by the runner's own filter, and its files equal the page's export); assert layoutBaseline {width, view, baseline}. A name given for a view button in a view, viewPressed, device or barNames step may be the plain name or the name followed by ', customised'. See docs/ui-editor-gate-rules-views2.md section 4."
+ },
+ "retiredChecks": {},
+ "amendments": {
+  "X17": {
+   "amendment": "A1",
+   "replace": {
+    "15": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "barNames",
+      "names": [
+       "Samples",
+       "Undo",
+       "Redo",
+       "Insert",
+       "Comment",
+       "Desktop",
+       "Tablet, customised",
+       "Phone, customised",
+       "Rotate",
+       "Reset to Desktop view",
+       "Download",
+       "Reset all"
+      ]
+     }
+    ],
+    "17": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "barNames",
+      "names": [
+       "Samples",
+       "Undo",
+       "Redo",
+       "Insert",
+       "Comment",
+       "Desktop",
+       "Tablet, customised",
+       "Phone, customised",
+       "Download",
+       "Reset all"
+      ]
+     }
+    ]
+   }
+  },
+  "X28": {
+   "amendment": "A1",
+   "replace": {
+    "12": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "tabSequence",
+      "area": "bar",
+      "names": [
+       "Samples",
+       "Undo",
+       "Insert",
+       "Comment",
+       "Desktop",
+       "Tablet, customised",
+       "Phone",
+       "Rotate",
+       "Reset to Desktop view",
+       "Download",
+       "Reset all"
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "truth": {
+  "E1": {
+   "page": "landing",
+   "edits": [
+    {
+     "op": "set",
+     "sel": "#headline",
+     "properties": {
+      "font-size": "60px"
+     },
+     "environment": "desktop"
+    }
+   ],
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "60px",
+      "768": "60px",
+      "1024": "60px",
+      "1025": "60px",
+      "1280": "60px"
+     }
+    }
+   ]
+  },
+  "E1,E2": {
+   "page": "landing",
+   "edits": [
+    {
+     "op": "set",
+     "sel": "#headline",
+     "properties": {
+      "font-size": "60px"
+     },
+     "environment": "desktop"
+    },
+    {
+     "op": "set",
+     "sel": "#headline",
+     "properties": {
+      "font-size": "20px"
+     },
+     "environment": "phone"
+    }
+   ],
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "20px",
+      "640": "20px",
+      "641": "60px",
+      "768": "60px",
+      "1024": "60px",
+      "1025": "60px",
+      "1280": "60px"
+     }
+    }
+   ]
+  },
+  "E1,E3": {
+   "page": "landing",
+   "edits": [
+    {
+     "op": "set",
+     "sel": "#headline",
+     "properties": {
+      "font-size": "60px"
+     },
+     "environment": "desktop"
+    },
+    {
+     "op": "set",
+     "sel": "#headline",
+     "properties": {
+      "font-size": "30px"
+     },
+     "environment": "tablet"
+    }
+   ],
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "60px",
+      "1280": "60px"
+     }
+    }
+   ]
+  },
+  "E1,E2,E3": {
+   "page": "landing",
+   "edits": [
+    {
+     "op": "set",
+     "sel": "#headline",
+     "properties": {
+      "font-size": "60px"
+     },
+     "environment": "desktop"
+    },
+    {
+     "op": "set",
+     "sel": "#headline",
+     "properties": {
+      "font-size": "20px"
+     },
+     "environment": "phone"
+    },
+    {
+     "op": "set",
+     "sel": "#headline",
+     "properties": {
+      "font-size": "30px"
+     },
+     "environment": "tablet"
+    }
+   ],
+   "checks": [
+    {
+     "sel": "#headline",
+     "prop": "font-size",
+     "at": {
+      "390": "20px",
+      "640": "20px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "60px",
+      "1280": "60px"
+     }
+    }
+   ]
+  }
+ },
+ "specs": [
+  {
+   "id": "H01",
+   "name": "The customised mark is absent at load in Desktop, Tablet and Phone and in both orientations, after a Desktop edit (seen from every view), and after Insert, Text, Delete and a Note made in Phone",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "60"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "clickButton",
+     "name": "Comment"
+    },
+    {
+     "do": "fillText",
+     "target": "commentBox",
+     "text": "a note"
+    },
+    {
+     "do": "clickButton",
+     "name": "Save"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "dblclickElement",
+     "sel": "#cta"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Open the plans"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "placeCases",
+     "cases": [
+      {
+       "kind": "Rectangle",
+       "sel": "#cta",
+       "zone": "after",
+       "parent": ".hero-copy",
+       "index": 3,
+       "tag": "div",
+       "keep": true
+      }
+     ],
+     "lineTol": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "clickButton",
+     "name": "Delete"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 5
+    }
+   ]
+  },
+  {
+   "id": "H02",
+   "name": "The mark appears on the Phone button only after a Phone edit and on the Tablet button only after a Tablet edit; the button's name is 'Phone, customised' and its tooltip says so; the buttons keep their size and place",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "snapshotBar",
+     "name": "plain"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true,
+     "tip": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtonBoxes",
+     "against": "plain",
+     "tol": 0.5
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "snapshotBar",
+     "name": "plain2"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": true,
+     "phone": false,
+     "tip": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtonBoxes",
+     "against": "plain2",
+     "tol": 0.5
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": true,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "present",
+     "items": [
+      {
+       "role": "button",
+       "name": "Tablet, customised"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "absent",
+     "items": [
+      {
+       "role": "button",
+       "name": "Phone, customised"
+      }
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": true,
+     "phone": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    }
+   ]
+  },
+  {
+   "id": "H03",
+   "name": "The mark follows Undo, Redo and Reset all, and belongs to the view, not the orientation: it shows in upright and sideways Phone and Tablet alike",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": true,
+     "phone": true
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": true,
+     "phone": true
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": true,
+     "phone": true
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset all"
+    },
+    {
+     "do": "confirm",
+     "name": "Discard edits"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "id": "H04",
+   "name": "The Reset to Desktop view button: not in Desktop; in Tablet and Phone, upright or sideways; disabled with no changes of its own and its tooltip says why; enabled with some and its tooltip says what it does; an SVG has no environments so it is disabled there and says so",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "resetButton",
+     "present": false
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false,
+     "tipHas": [
+      "Reset the Tablet view to the Desktop setup",
+      "no changes of its own"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false,
+     "tipHas": [
+      "Reset the Phone view to the Desktop setup",
+      "no changes of its own"
+     ]
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": true,
+     "tipHas": [
+      "Reset the Phone view to the Desktop setup",
+      "Phone only",
+      "text, inserted items and notes stay",
+      "Undo brings the changes back"
+     ]
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": true
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "resetButton",
+     "present": false
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false,
+     "tipHas": [
+      "an SVG has no separate Phone changes"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false,
+     "tipHas": [
+      "an SVG has no separate Tablet changes"
+     ]
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P6",
+     "k": "resetButton",
+     "present": false
+    }
+   ]
+  },
+  {
+   "id": "H05",
+   "name": "The confirm dialog names the view, says only that view changes, that Desktop and the other small view are untouched, that text, inserted items and notes stay and that Undo brings the changes back; Cancel changes nothing (list and bytes) and the focus goes back to the Reset button",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "snapshotList",
+     "name": "before"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "before"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dialog",
+     "open": true,
+     "has": [
+      "Reset the Phone view to the Desktop setup?",
+      "removes the changes made in Phone only",
+      "Desktop and the other small view are untouched",
+      "text, inserted items and notes stay",
+      "Undo brings the changes back"
+     ],
+     "buttons": [
+      "Reset Phone view",
+      "Keep editing"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "listIs",
+     "snapshot": "before"
+    },
+    {
+     "do": "confirm",
+     "name": "Keep editing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dialog",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "listIs",
+     "snapshot": "before"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "after"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "before",
+     "b": "after"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dialog",
+     "open": true,
+     "has": [
+      "Reset the Tablet view to the Desktop setup?",
+      "removes the changes made in Tablet only"
+     ],
+     "buttons": [
+      "Reset Tablet view",
+      "Keep editing"
+     ]
+    },
+    {
+     "do": "confirm",
+     "name": "Keep editing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    }
+   ]
+  },
+  {
+   "id": "H06",
+   "name": "Reset in Phone: with a Desktop edit (headline 60), a Phone edit (20), a Tablet edit (30) and a Phone text edit, Confirm puts the Phone range back to the Desktop-scaled 40.9091 px (measured in plain Chromium), leaves Desktop 60 and Tablet 30 alone, keeps the text, and the export equals the engine's export of the list with the Phone edits filtered out",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "60"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "dblclickElement",
+     "sel": "#cta"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Open the plans"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "20px",
+      "640": "20px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "snapshotList",
+     "name": "before"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "before"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Phone view"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsFiltered",
+     "snapshot": "before",
+     "env": "phone"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "equalsList"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "text": "Open the plans"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "statusContains",
+     "text": "Phone view reset to the Desktop setup"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": true,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false
+    }
+   ]
+  },
+  {
+   "id": "H07",
+   "name": "Reset in Tablet: the same with the Tablet edit gone: the Tablet range is back to Desktop 60 px, Desktop 60 and Phone 20 are untouched, the text stays, and the export equals the engine's export of the filtered list",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "60"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "dblclickElement",
+     "sel": "#cta"
+    },
+    {
+     "do": "fillText",
+     "target": "textEditor",
+     "text": "Open the plans"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "20px",
+      "640": "20px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "snapshotList",
+     "name": "before"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Tablet view"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "20px",
+      "640": "20px",
+      "641": "60px",
+      "768": "60px",
+      "1024": "60px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "20px",
+      "640": "20px",
+      "641": "60px",
+      "768": "60px",
+      "1024": "60px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsFiltered",
+     "snapshot": "before",
+     "env": "tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "equalsList"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "text": "Open the plans"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "statusContains",
+     "text": "Tablet view reset to the Desktop setup"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false
+    }
+   ]
+  },
+  {
+   "id": "H08",
+   "name": "Reset Phone leaves an earlier and a later Desktop edit in force; one Undo restores the exact bytes and the mark, one Redo re-applies the reset; a Desktop edit after it joins the list",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "60"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "22"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "s3"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "snapshotList",
+     "name": "before"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Phone view"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "reset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop"
+      },
+      {
+       "op": "set",
+       "environment": "desktop"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "60px",
+      "768": "60px",
+      "1024": "60px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsFiltered",
+     "snapshot": "before",
+     "env": "phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "undone"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "s3",
+     "b": "undone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "listIs",
+     "snapshot": "before"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "statusContains",
+     "text": "Undid the reset"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "redone"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "reset",
+     "b": "redone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "statusContains",
+     "text": "Redid the reset"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Padding",
+     "text": "30px"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 3
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editList",
+     "expect": [
+      {
+       "op": "set",
+       "environment": "desktop"
+      },
+      {
+       "op": "set",
+       "environment": "desktop"
+      },
+      {
+       "op": "set",
+       "environment": "desktop"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "equalsList"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "60px",
+      "768": "60px",
+      "1024": "60px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    }
+   ]
+  },
+  {
+   "id": "H09",
+   "name": "The long mixed sequence: edit A in Phone, edit B in Desktop, reset Phone, edit C, then Undo, Undo, Undo, Redo, Redo, Redo give the exact bytes of the states in between, the edit count, Undo and Redo and the mark stay right, the engine's replay of the final list equals the export, and Reset all still clears everything",
+   "sample": "landing",
+   "checks": [
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "s0"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "s1"
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "22"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "s2"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Phone view"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "s3"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "type",
+     "field": "Padding",
+     "text": "30px"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "s4"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "equalsList"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "u1"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "s3",
+     "b": "u1"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "u2"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "s2",
+     "b": "u2"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "u3"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "s1",
+     "b": "u3"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "r1"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "s2",
+     "b": "r1"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "r2"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "s3",
+     "b": "r2"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "r3"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqual",
+     "a": "s4",
+     "b": "r3"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "equalsList"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset all"
+    },
+    {
+     "do": "confirm",
+     "name": "Discard edits"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "undo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "redo",
+     "enabled": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false
+    }
+   ]
+  },
+  {
+   "id": "H10",
+   "name": "Reset in sideways (view-only) Phone and Tablet: the button works there (decided: the view's changes belong to the view, not the orientation); the Phone range, then the Tablet range, are back to the Desktop-scaled values in the export and the upright preview",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "60"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "30"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": true
+    },
+    {
+     "do": "snapshotList",
+     "name": "before"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Phone view"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsFiltered",
+     "snapshot": "before",
+     "env": "phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": true,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": false
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "preview",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "30px",
+      "768": "30px",
+      "1024": "30px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "resetButton",
+     "present": true,
+     "enabled": true
+    },
+    {
+     "do": "snapshotList",
+     "name": "before2"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Tablet view"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsFiltered",
+     "snapshot": "before2",
+     "env": "tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#headline",
+     "prop": "font-size",
+     "via": "export",
+     "at": {
+      "390": "40.9091px",
+      "640": "40.9091px",
+      "641": "60px",
+      "768": "60px",
+      "1024": "60px",
+      "1025": "60px",
+      "1280": "60px"
+     },
+     "tol": 0.01
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    }
+   ]
+  },
+  {
+   "id": "H11",
+   "name": "No flash on a view reset, or on Undo and Redo of it: the old preview stays until the new one is ready (no frame without a visible preview, one preview iframe at rest, the scroll and the stage height unchanged)",
+   "sample": "landing",
+   "checks": [
+    "P3",
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Phone view"
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "scrollSame": true,
+     "stageHeightSame": true,
+     "restIframes": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "viewButtons",
+     "desktop": false,
+     "tablet": false,
+     "phone": true
+    }
+   ]
+  },
+  {
+   "id": "H12",
+   "name": "Keyboard: the Reset button is in the bar's tab order right after Rotate, opens the dialog with Enter and with Space, Keep editing (the dialog's first focus) closes it and the focus goes back to the Reset button",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "focusControl",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dialog",
+     "open": true,
+     "has": [
+      "Reset the Phone view"
+     ]
+    },
+    {
+     "do": "confirm",
+     "name": "Keep editing"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "key",
+     "key": "Space"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dialog",
+     "open": true,
+     "has": [
+      "Reset the Phone view"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "dialog",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "tabSequence",
+     "area": "bar",
+     "names": [
+      "Samples",
+      "Undo",
+      "Insert",
+      "Comment",
+      "Desktop",
+      "Tablet",
+      "Phone, customised",
+      "Rotate",
+      "Reset to Desktop view",
+      "Download",
+      "Reset all"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "H13",
+   "name": "The layout is as it was apart from the one new button: at 1000, 1280, 1440 and 1920 px in Desktop, Tablet and Phone no ribbon group moves (0.5 px), the bar has the same number of rows and the same height, every button that was there keeps its size, the Desktop bar has no new button and the Tablet and Phone bar gain the Reset button (the changes in x are reported)",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 1080
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1000,
+     "view": "Desktop",
+     "baseline": {
+      "ribbonBands": 7,
+      "groups": [
+       {
+        "id": "font",
+        "x": 23,
+        "width": 954,
+        "top": 424.52,
+        "height": 131
+       },
+       {
+        "id": "paragraph",
+        "x": 23,
+        "width": 954,
+        "top": 555.52,
+        "height": 131
+       },
+       {
+        "id": "size",
+        "x": 23,
+        "width": 954,
+        "top": 686.52,
+        "height": 131
+       },
+       {
+        "id": "shape",
+        "x": 23,
+        "width": 954,
+        "top": 817.52,
+        "height": 131
+       },
+       {
+        "id": "spacing",
+        "x": 23,
+        "width": 954,
+        "top": 948.52,
+        "height": 131
+       },
+       {
+        "id": "position",
+        "x": 23,
+        "width": 954,
+        "top": 1079.52,
+        "height": 79
+       },
+       {
+        "id": "grid",
+        "x": 23,
+        "width": 954,
+        "top": 1158.52,
+        "height": 130
+       }
+      ],
+      "bar": {
+       "x": 23,
+       "y": 274.52,
+       "width": 954,
+       "height": 96,
+       "rows": 2,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 31,
+         "y": 282.52,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 35,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 77,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 119,
+         "y": 326.52,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 218.73,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 302.72,
+         "y": 326.52,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 400.36,
+         "y": 326.52,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 484.89,
+         "y": 326.52,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 758.48,
+         "y": 326.52,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 874.81,
+         "y": 326.52,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1000,
+     "view": "Tablet",
+     "baseline": {
+      "ribbonBands": 7,
+      "groups": [
+       {
+        "id": "font",
+        "x": 23,
+        "width": 954,
+        "top": 468.52,
+        "height": 131
+       },
+       {
+        "id": "paragraph",
+        "x": 23,
+        "width": 954,
+        "top": 599.52,
+        "height": 131
+       },
+       {
+        "id": "size",
+        "x": 23,
+        "width": 954,
+        "top": 730.52,
+        "height": 131
+       },
+       {
+        "id": "shape",
+        "x": 23,
+        "width": 954,
+        "top": 861.52,
+        "height": 131
+       },
+       {
+        "id": "spacing",
+        "x": 23,
+        "width": 954,
+        "top": 992.52,
+        "height": 131
+       },
+       {
+        "id": "position",
+        "x": 23,
+        "width": 954,
+        "top": 1123.52,
+        "height": 79
+       },
+       {
+        "id": "grid",
+        "x": 23,
+        "width": 954,
+        "top": 1202.52,
+        "height": 130
+       }
+      ],
+      "bar": {
+       "x": 23,
+       "y": 274.52,
+       "width": 954,
+       "height": 140,
+       "rows": 3,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 31,
+         "y": 282.52,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 35,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 77,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 119,
+         "y": 326.52,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 218.73,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 306.38,
+         "y": 326.52,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 404.02,
+         "y": 326.52,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 488.55,
+         "y": 326.52,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Rotate",
+         "x": 573.69,
+         "y": 326.52,
+         "width": 80.89,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 852.67,
+         "y": 326.52,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 874.81,
+         "y": 370.52,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1000,
+     "view": "Phone",
+     "baseline": {
+      "ribbonBands": 7,
+      "groups": [
+       {
+        "id": "font",
+        "x": 23,
+        "width": 954,
+        "top": 468.52,
+        "height": 131
+       },
+       {
+        "id": "paragraph",
+        "x": 23,
+        "width": 954,
+        "top": 599.52,
+        "height": 131
+       },
+       {
+        "id": "size",
+        "x": 23,
+        "width": 954,
+        "top": 730.52,
+        "height": 131
+       },
+       {
+        "id": "shape",
+        "x": 23,
+        "width": 954,
+        "top": 861.52,
+        "height": 131
+       },
+       {
+        "id": "spacing",
+        "x": 23,
+        "width": 954,
+        "top": 992.52,
+        "height": 131
+       },
+       {
+        "id": "position",
+        "x": 23,
+        "width": 954,
+        "top": 1123.52,
+        "height": 79
+       },
+       {
+        "id": "grid",
+        "x": 23,
+        "width": 954,
+        "top": 1202.52,
+        "height": 130
+       }
+      ],
+      "bar": {
+       "x": 23,
+       "y": 274.52,
+       "width": 954,
+       "height": 140,
+       "rows": 3,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 31,
+         "y": 282.52,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 35,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 77,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 119,
+         "y": 326.52,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 218.73,
+         "y": 326.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 306.38,
+         "y": 326.52,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 404.02,
+         "y": 326.52,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 488.55,
+         "y": 326.52,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Rotate",
+         "x": 573.69,
+         "y": 326.52,
+         "width": 80.89,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 852.67,
+         "y": 326.52,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 874.81,
+         "y": 370.52,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "host",
+     "width": 1280,
+     "height": 1080
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1280,
+     "view": "Desktop",
+     "baseline": {
+      "ribbonBands": 2,
+      "groups": [
+       {
+        "id": "font",
+        "x": 29.16,
+        "width": 333.98,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 363.14,
+        "width": 212.28,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 575.42,
+        "width": 270.17,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 845.59,
+        "width": 405.25,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 29.16,
+        "width": 333.98,
+        "top": 429.31,
+        "height": 96
+       },
+       {
+        "id": "position",
+        "x": 363.14,
+        "width": 482.45,
+        "top": 429.31,
+        "height": 96
+       },
+       {
+        "id": "grid",
+        "x": 845.59,
+        "width": 405.25,
+        "top": 429.31,
+        "height": 96
+       }
+      ],
+      "bar": {
+       "x": 29.16,
+       "y": 255.31,
+       "width": 1221.69,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 37.16,
+         "y": 263.31,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 132.47,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 174.47,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 216.47,
+         "y": 263.31,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 316.2,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 488.38,
+         "y": 263.31,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 586.02,
+         "y": 263.31,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 670.55,
+         "y": 263.31,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1032.33,
+         "y": 263.31,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1148.66,
+         "y": 263.31,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1280,
+     "view": "Tablet",
+     "baseline": {
+      "ribbonBands": 2,
+      "groups": [
+       {
+        "id": "font",
+        "x": 29.16,
+        "width": 333.98,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 363.14,
+        "width": 212.28,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 575.42,
+        "width": 270.17,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 845.59,
+        "width": 405.25,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 29.16,
+        "width": 333.98,
+        "top": 429.31,
+        "height": 96
+       },
+       {
+        "id": "position",
+        "x": 363.14,
+        "width": 482.45,
+        "top": 429.31,
+        "height": 96
+       },
+       {
+        "id": "grid",
+        "x": 845.59,
+        "width": 405.25,
+        "top": 429.31,
+        "height": 96
+       }
+      ],
+      "bar": {
+       "x": 29.16,
+       "y": 255.31,
+       "width": 1221.69,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 37.16,
+         "y": 263.31,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 132.47,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 174.47,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 216.47,
+         "y": 263.31,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 316.2,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 444.94,
+         "y": 263.31,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 542.58,
+         "y": 263.31,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 627.11,
+         "y": 263.31,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Rotate",
+         "x": 712.25,
+         "y": 263.31,
+         "width": 80.89,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1032.33,
+         "y": 263.31,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1148.66,
+         "y": 263.31,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1280,
+     "view": "Phone",
+     "baseline": {
+      "ribbonBands": 2,
+      "groups": [
+       {
+        "id": "font",
+        "x": 29.16,
+        "width": 333.98,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 363.14,
+        "width": 212.28,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 575.42,
+        "width": 270.17,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 845.59,
+        "width": 405.25,
+        "top": 334.31,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 29.16,
+        "width": 333.98,
+        "top": 429.31,
+        "height": 96
+       },
+       {
+        "id": "position",
+        "x": 363.14,
+        "width": 482.45,
+        "top": 429.31,
+        "height": 96
+       },
+       {
+        "id": "grid",
+        "x": 845.59,
+        "width": 405.25,
+        "top": 429.31,
+        "height": 96
+       }
+      ],
+      "bar": {
+       "x": 29.16,
+       "y": 255.31,
+       "width": 1221.69,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 37.16,
+         "y": 263.31,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 132.47,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 174.47,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 216.47,
+         "y": 263.31,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 316.2,
+         "y": 263.31,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 444.94,
+         "y": 263.31,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 542.58,
+         "y": 263.31,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 627.11,
+         "y": 263.31,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Rotate",
+         "x": 712.25,
+         "y": 263.31,
+         "width": 80.89,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1032.33,
+         "y": 263.31,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1148.66,
+         "y": 263.31,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 1080
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1440,
+     "view": "Desktop",
+     "baseline": {
+      "ribbonBands": 1,
+      "groups": [
+       {
+        "id": "font",
+        "x": 32.67,
+        "width": 229.44,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 262.11,
+        "width": 145.83,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 407.94,
+        "width": 185.61,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 593.55,
+        "width": 278.39,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 871.94,
+        "width": 190.7,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "position",
+        "x": 1062.64,
+        "width": 209.05,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "grid",
+        "x": 1271.69,
+        "width": 135.63,
+        "top": 337.52,
+        "height": 95
+       }
+      ],
+      "bar": {
+       "x": 32.67,
+       "y": 258.52,
+       "width": 1374.66,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 40.67,
+         "y": 266.52,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 135.98,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 177.98,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 219.98,
+         "y": 266.52,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 319.72,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 568.38,
+         "y": 266.52,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 666.02,
+         "y": 266.52,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 750.55,
+         "y": 266.52,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1188.81,
+         "y": 266.52,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1305.14,
+         "y": 266.52,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1440,
+     "view": "Tablet",
+     "baseline": {
+      "ribbonBands": 1,
+      "groups": [
+       {
+        "id": "font",
+        "x": 32.67,
+        "width": 229.44,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 262.11,
+        "width": 145.83,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 407.94,
+        "width": 185.61,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 593.55,
+        "width": 278.39,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 871.94,
+        "width": 190.7,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "position",
+        "x": 1062.64,
+        "width": 209.05,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "grid",
+        "x": 1271.69,
+        "width": 135.63,
+        "top": 337.52,
+        "height": 95
+       }
+      ],
+      "bar": {
+       "x": 32.67,
+       "y": 258.52,
+       "width": 1374.66,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 40.67,
+         "y": 266.52,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 135.98,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 177.98,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 219.98,
+         "y": 266.52,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 319.72,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 524.94,
+         "y": 266.52,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 622.58,
+         "y": 266.52,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 707.11,
+         "y": 266.52,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Rotate",
+         "x": 792.25,
+         "y": 266.52,
+         "width": 80.89,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1188.81,
+         "y": 266.52,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1305.14,
+         "y": 266.52,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1440,
+     "view": "Phone",
+     "baseline": {
+      "ribbonBands": 1,
+      "groups": [
+       {
+        "id": "font",
+        "x": 32.67,
+        "width": 229.44,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 262.11,
+        "width": 145.83,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 407.94,
+        "width": 185.61,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 593.55,
+        "width": 278.39,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 871.94,
+        "width": 190.7,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "position",
+        "x": 1062.64,
+        "width": 209.05,
+        "top": 337.52,
+        "height": 95
+       },
+       {
+        "id": "grid",
+        "x": 1271.69,
+        "width": 135.63,
+        "top": 337.52,
+        "height": 95
+       }
+      ],
+      "bar": {
+       "x": 32.67,
+       "y": 258.52,
+       "width": 1374.66,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 40.67,
+         "y": 266.52,
+         "width": 83.31,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 135.98,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 177.98,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 219.98,
+         "y": 266.52,
+         "width": 93.73,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 319.72,
+         "y": 266.52,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 524.94,
+         "y": 266.52,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 622.58,
+         "y": 266.52,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 707.11,
+         "y": 266.52,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Rotate",
+         "x": 792.25,
+         "y": 266.52,
+         "width": 80.89,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1188.81,
+         "y": 266.52,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1305.14,
+         "y": 266.52,
+         "width": 94.19,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 1080
+    },
+    {
+     "do": "view",
+     "name": "Desktop"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1920,
+     "view": "Desktop",
+     "baseline": {
+      "ribbonBands": 1,
+      "groups": [
+       {
+        "id": "font",
+        "x": 43.23,
+        "width": 306.03,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 349.27,
+        "width": 194.52,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 543.78,
+        "width": 247.55,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 791.33,
+        "width": 371.33,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 1162.66,
+        "width": 254.36,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "position",
+        "x": 1417.02,
+        "width": 278.84,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "grid",
+        "x": 1695.86,
+        "width": 180.89,
+        "top": 349.92,
+        "height": 95
+       }
+      ],
+      "bar": {
+       "x": 43.23,
+       "y": 270.92,
+       "width": 1833.53,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 51.23,
+         "y": 278.92,
+         "width": 83.33,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 146.56,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 188.56,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 230.56,
+         "y": 278.92,
+         "width": 93.75,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 330.31,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 808.38,
+         "y": 278.92,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 906.02,
+         "y": 278.92,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 990.55,
+         "y": 278.92,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1658.23,
+         "y": 278.92,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1774.56,
+         "y": 278.92,
+         "width": 94.2,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1920,
+     "view": "Tablet",
+     "baseline": {
+      "ribbonBands": 1,
+      "groups": [
+       {
+        "id": "font",
+        "x": 43.23,
+        "width": 306.03,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 349.27,
+        "width": 194.52,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 543.78,
+        "width": 247.55,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 791.33,
+        "width": 371.33,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 1162.66,
+        "width": 254.36,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "position",
+        "x": 1417.02,
+        "width": 278.84,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "grid",
+        "x": 1695.86,
+        "width": 180.89,
+        "top": 349.92,
+        "height": 95
+       }
+      ],
+      "bar": {
+       "x": 43.23,
+       "y": 270.92,
+       "width": 1833.53,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 51.23,
+         "y": 278.92,
+         "width": 83.33,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 146.56,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 188.56,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 230.56,
+         "y": 278.92,
+         "width": 93.75,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 330.31,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 764.92,
+         "y": 278.92,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 862.56,
+         "y": 278.92,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 947.09,
+         "y": 278.92,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Rotate",
+         "x": 1032.23,
+         "y": 278.92,
+         "width": 80.92,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1658.23,
+         "y": 278.92,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1774.56,
+         "y": 278.92,
+         "width": 94.2,
+         "height": 36
+        }
+       ]
+      }
+     }
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "layoutBaseline",
+     "width": 1920,
+     "view": "Phone",
+     "baseline": {
+      "ribbonBands": 1,
+      "groups": [
+       {
+        "id": "font",
+        "x": 43.23,
+        "width": 306.03,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "paragraph",
+        "x": 349.27,
+        "width": 194.52,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "size",
+        "x": 543.78,
+        "width": 247.55,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "shape",
+        "x": 791.33,
+        "width": 371.33,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "spacing",
+        "x": 1162.66,
+        "width": 254.36,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "position",
+        "x": 1417.02,
+        "width": 278.84,
+        "top": 349.92,
+        "height": 95
+       },
+       {
+        "id": "grid",
+        "x": 1695.86,
+        "width": 180.89,
+        "top": 349.92,
+        "height": 95
+       }
+      ],
+      "bar": {
+       "x": 43.23,
+       "y": 270.92,
+       "width": 1833.53,
+       "height": 52,
+       "rows": 1,
+       "buttons": [
+        {
+         "name": "Samples",
+         "x": 51.23,
+         "y": 278.92,
+         "width": 83.33,
+         "height": 36
+        },
+        {
+         "name": "Undo",
+         "x": 146.56,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Redo",
+         "x": 188.56,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Insert",
+         "x": 230.56,
+         "y": 278.92,
+         "width": 93.75,
+         "height": 36
+        },
+        {
+         "name": "Comment",
+         "x": 330.31,
+         "y": 278.92,
+         "width": 36,
+         "height": 36
+        },
+        {
+         "name": "Desktop",
+         "x": 764.92,
+         "y": 278.92,
+         "width": 91.64,
+         "height": 36
+        },
+        {
+         "name": "Tablet",
+         "x": 862.56,
+         "y": 278.92,
+         "width": 78.53,
+         "height": 36
+        },
+        {
+         "name": "Phone",
+         "x": 947.09,
+         "y": 278.92,
+         "width": 79.14,
+         "height": 36
+        },
+        {
+         "name": "Rotate",
+         "x": 1032.23,
+         "y": 278.92,
+         "width": 80.92,
+         "height": 36
+        },
+        {
+         "name": "Download",
+         "x": 1658.23,
+         "y": 278.92,
+         "width": 103.33,
+         "height": 36
+        },
+        {
+         "name": "Reset all",
+         "x": 1774.56,
+         "y": 278.92,
+         "width": 94.2,
+         "height": 36
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "H14",
+   "name": "Flag OFF: the build without VITE_SHOW_UI_EDITOR behaves exactly as before (flags.mjs, 16 of 16) and every file of that build except the UiEditor chunks is byte for byte the main build's",
+   "sample": "landing",
+   "checks": [],
+   "expected": "PASS",
+   "steps": [],
+   "external": "flagOff"
+  }
+ ]
+}
