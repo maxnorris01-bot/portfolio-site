@@ -1,8 +1,9 @@
-import { Children, Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Children, Fragment, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { labels, messages, panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { MenuButton, type MenuPart } from './Menu'
-import { DASHES, DIRECTIONS, DOUBLE_MIN, EFFECTS, FONT_SIZES, LINE_SPACINGS, OUTLINE_WEIGHTS, STANDARD_COLOURS, gradientCss, hexTyped, opaqueHex, pageColours, readGradient, type Gradient } from './menus'
+import { getRecents, recordRecent, subscribeRecents } from './recents'
+import { DASHES, DIRECTIONS, DOUBLE_MIN, EFFECTS, FONT_SIZES, LINE_SPACINGS, OUTLINE_WEIGHTS, STANDARD_COLOURS, gradientCss, colourGrid, hexTyped, opaqueHex, pageColours, readGradient, type Gradient } from './menus'
 import { htmlFields, rowOfPin, svgFields, type Computed, type Field } from './panelfields'
 import { STEP_OF, alignButtons, familyChoices, kindOf, pressedAlign } from './ribbonfields'
 import { PATH_MAX, chainOf, visiblePath } from './path'
@@ -375,6 +376,12 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     const n = now()
     if (n) write(f, text, n.cs)
   }
+  // Round 7b: the colours applied through the menus are remembered (the last eight, one list for the three menus); "No fill" and "No outline" are not colours and Undo applies nothing.
+  const recents = useSyncExternalStore(subscribeRecents, getRecents)
+  const applyColour = (f: Field, hex: string) => {
+    writeColour(f, hex)
+    recordRecent(hex)
+  }
   const hexBox = (f: Field): MenuPart => ({
     hex: {
       name: f.label,
@@ -384,13 +391,17 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         const v = hexTyped(text)
         if (!v) return onMessage(messages.notAColour)
         writeColour(f, v)
+        recordRecent(v)
       },
     },
   })
-  /** The colour groups every colour menu starts with: the page's own colours, the eight standard ones, the "No …" item when there is one, and More colours… */
+  /** The colour groups every colour menu starts with: the page's own colours, the eight standard ones, the grid, the recent colours, Pick any colour…, the "No …" item when there is one, and More colours… */
   const colourParts = (f: Field, current: string | null, none: { label: string; run: () => void } | null, extra: MenuPart[] = []): MenuPart[] => [
-    { group: P.pageColours, items: pageColoursOf().map((c) => ({ label: c, role: 'menuitemradio' as const, swatch: c, checked: current === c, run: () => writeColour(f, c) })) },
-    { group: P.standardColours, items: STANDARD_COLOURS.map((c) => ({ label: c, role: 'menuitemradio' as const, swatch: c, checked: current === c, run: () => writeColour(f, c) })) },
+    { group: P.pageColours, items: pageColoursOf().map((c) => ({ label: c, role: 'menuitemradio' as const, swatch: c, checked: current === c, run: () => applyColour(f, c) })) },
+    { group: P.standardColours, items: STANDARD_COLOURS.map((c) => ({ label: c, role: 'menuitemradio' as const, swatch: c, checked: current === c, run: () => applyColour(f, c) })) },
+    { group: P.colourGrid, grid: true, items: colourGrid().map((c) => ({ label: P.gridName(c), role: 'menuitemradio' as const, swatch: c, checked: current === c, run: () => applyColour(f, c) })) },
+    ...(recents.length ? [{ group: P.recentColours, items: recents.map((c) => ({ label: P.recentName(c), role: 'menuitemradio' as const, swatch: c, checked: current === c, run: () => applyColour(f, c) })) }] : []),
+    { label: P.pickColour, tip: P.pickColourTip, pick: true },
     ...(none ? [{ label: none.label, run: none.run }] : []),
     { label: P.moreColours, reveals: 'hex' as const },
     hexBox(f),
@@ -413,6 +424,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         field={f.prop}
         dot={unlinkedDot(f)}
         spec={() => colourParts(f, current, null)}
+        picker={{ current, onPick: (hex) => applyColour(f, hex) }}
       />
     )
   }
@@ -454,6 +466,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         field={f.prop}
         dot={unlinkedDot(f)}
         spec={() => colourParts(f, current, { label: P.noFill, run: () => writeColour(f, svg ? 'none' : 'transparent') }, svg ? [] : [gradientItem()])}
+        picker={{ current, onPick: (hex) => applyColour(f, hex) }}
       />
     )
   }
@@ -500,6 +513,7 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
         field={f.prop}
         dot={unlinkedDot(f)}
         spec={() => colourParts(f, current, { label: P.noOutline, run: () => (svg ? writeColour(f, 'none') : onSet({ 'border-style': 'none' }, 'border style')) }, extra)}
+        picker={{ current, onPick: (hex) => applyColour(f, hex) }}
       />
     )
   }
