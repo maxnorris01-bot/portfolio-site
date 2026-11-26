@@ -4,8 +4,8 @@
 `src/ui-editor/`) imports only this file, through `engine.d.ts` (strict types, no `any`). It is **not** a dependency: the
 engine's source lives in a private repository (`ui-editor`), and this copy is public once merged (see the README at the repo root).
 
-- **Source:** the `ui-editor` repository at commit `a5f954a610cfdf2693fadd2a7b105b4acf59a9e3` (`main`).
-- **Size:** 290,095 bytes, 81.9 KB gzip. SHA-256 `7d23069c17f658eb7836abedfda8fc4601f03e1eb0cda986e63107948c827916`.
+- **Source:** the `ui-editor` repository at commit `02b946673684aa26e5699fefcde49ad673a4888d` (`main`).
+- **Size:** 292,819 bytes, 82.8 KB gzip. SHA-256 `a073a76d306cf8326cd833fd34ff449ef046144d20d05464518b566e9bede9bb`.
 - **Contents:** the engine plus parse5, entities, postcss, nanoid, picocolors and source-map-js, bundled. Their licences are in
   `THIRD-PARTY-NOTICES.md`.
 - **Do not edit `engine.js` by hand.** If the engine changes, rebuild.
