@@ -828,7 +828,8 @@ async function runSpec(spec) {
         if (a.scrollSame && new Set(f.map((x) => x.sy + ':' + x.st)).size > 1) bad.push(`scroll moved: ${[...new Set(f.map((x) => x.sy + ':' + x.st))].join(' ')}`)
         if (a.stageHeightSame && new Set(f.map((x) => x.stage)).size > 1) bad.push(`stage height changed: ${[...new Set(f.map((x) => x.stage))].join(' ')}`)
         if (a.restIframes !== undefined && fr.rest !== a.restIframes) bad.push(`${fr.rest} preview iframes at rest, want ${a.restIframes}`)
-        return R(bad.length === 0, bad.length ? bad.join('; ') : `${f.length} frames, ${flash} flash frames, ${fr.rest} iframe at rest`)
+        if (process.env.UI_GATE_VERBOSE) console.log('      frames:', spec.id, bad.length ? bad.join('; ') : 'ok', `${f.length} frames, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}, flash ${flash}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${f.length} frames, ${flash} flash frames, ${fr.rest} iframe at rest, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}`)
       }
       case 'box': {
         const v = await fieldOf(a.field).inputValue()
@@ -3151,11 +3152,13 @@ async function runSpec(spec) {
         continue
       } else if (step.do === 'burst') {
         const b = spinOf(step.field, step.dir)
-        for (let i = 0; i < step.times; i++) await b.click()
+        const bb = await b.boundingBox()
+        for (let i = 0; i < step.times; i++) await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2) // no actionability wait and no settle between: the next click can land while the last rebuild runs
         await settle(page)
         continue
       } else if (step.do === 'scrollTo') {
-        await page.evaluate(([s]) => window.__gate.point(s, 'center'), [step.sel])
+        // the host window is scrolled so the element is in the middle of the window (as far as the page can scroll)
+        await page.evaluate(([s]) => { const f = window.__gate.frame(); const k = window.__gate.scaleOf(); const b = f.contentDocument.querySelector(s).getBoundingClientRect(); const top = f.getBoundingClientRect().top + b.top * k + scrollY; window.scrollTo(0, Math.max(0, top - innerHeight / 2)) }, [step.sel])
         continue
       } else if (step.do === 'stepper') {
         let b = page.locator('[data-ribbon]').getByRole('button', { name: `${step.dir === '+' ? 'Increase' : 'Decrease'} ${step.field}`, exact: true })

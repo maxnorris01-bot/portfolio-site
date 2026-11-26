@@ -199,7 +199,7 @@
 <!--
   The nudge fix 2 scorer-check stub (docs/ui-editor-gate-rules-views1-nudge2.md section 5): the nudge stub with the new preview built BEHIND the old one (swapped in one step when ready), the Nudge X / Nudge Y
   boxes showing the element's shift in the view, a typed number as the new shift, and input during a rebuild kept. Faults, ?fault=NAME:
-    flash-close-first        the old preview is closed before the new one is ready (J01 to J05, J13, J14)
+    flash-close-first        the old preview is closed before the new one is ready (J01 to J05, J14)
     swap-two-iframes         the swap leaves the old preview in the page (J01 to J05, J14)
     swap-no-overlay          the selection overlay is gone while the new preview builds (J01, J14)
     swap-scroll-reset        the scroll position is reset at the swap (J14)
@@ -375,7 +375,7 @@ async function rebuild(list = edits, fresh = false) {
   // the swap: one step, no frame in between
   preview = p2; hostBuf = buf
   buf.style.visibility = 'visible'
-  if (behind && fault !== 'flash-close-first') { if (fault !== 'swap-two-iframes') old?.dispose(); oldBuf?.remove() }
+  if (behind && fault !== 'flash-close-first' && fault !== 'swap-two-iframes') { old?.dispose(); oldBuf?.remove() }
   if (fault === 'swap-scroll-reset') window.scrollTo(0, 0)
   $('[data-editor]').removeAttribute('aria-busy')
   layout(); paint()
@@ -541,7 +541,7 @@ const shiftOf = () => {
   if (sel === null) return { dx: 0, dy: 0 }
   if (fault === 'box-last-step') return lastStep
   const sc = nudgeScope(); let dx = 0, dy = 0
-  for (const e of edits) if (e.op === 'offset' && e.target === sel && (fault === 'desktop-in-phone-box' || (e.environment ?? 'desktop') === (sc.environment ?? 'desktop')) && (e.link ?? true) === (sc.link ?? true)) { dx += e.dx; dy += e.dy }
+  for (const e of edits) if (e.op === 'offset' && e.target === sel && (fault === 'desktop-in-phone-box' || ((e.environment ?? 'desktop') === (sc.environment ?? 'desktop') && (e.link ?? true) === (sc.link ?? true)))) { dx += e.dx; dy += e.dy }
   return { dx, dy }
 }
 const doNudge = async (dx, dy) => {
