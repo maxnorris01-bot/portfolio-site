@@ -115,3 +115,31 @@ export function readGradient(computed: string): Gradient | null {
   const from = toHex(m[2]), to = toHex(m[3])
   return from && to ? { dir: dir as Direction, from, to } : null
 }
+
+
+// ---- Round 7b: the colour grid and the recent colours (docs/ui-editor-gate-rules-round7b.md) ----
+
+/** The grey row of the grid: HSL lightness, saturation 0. */
+export const GRID_GREYS = [100, 95, 85, 75, 50, 35, 25, 15, 5, 0] as const
+/** The ten hues of the grid (red, orange, yellow, lime, green, teal, blue, indigo, purple, pink), as HSL angles. */
+export const GRID_HUES = [0, 28, 50, 90, 140, 175, 215, 245, 280, 330] as const
+/** The five shades of every hue, dark to light, at saturation 70. */
+export const GRID_LIGHTS = [30, 45, 60, 75, 88] as const
+export const GRID_COLUMNS = 10
+
+/** The 60 colours of the grid, row by row: the greys, then the five shades of the ten hues; six-digit lower-case hex. */
+export function colourGrid(): string[] {
+  const out: string[] = GRID_GREYS.map((l) => toHex(`hsl(0, 0%, ${l}%)`) as string)
+  for (const l of GRID_LIGHTS) for (const h of GRID_HUES) out.push(toHex(`hsl(${h}, 70%, ${l}%)`) as string)
+  return out
+}
+
+/** How many recent colours are kept. */
+export const RECENT_MAX = 8
+
+/** The recent colours after one more was applied: newest first, six-digit lower-case hex, no duplicates, at most eight. Anything that is not a colour changes nothing. */
+export function pushRecent(list: readonly string[], colour: string): string[] {
+  const hex = toHex(colour)
+  if (!hex) return [...list]
+  return [hex, ...list.filter((c) => c !== hex)].slice(0, RECENT_MAX)
+}

@@ -150,3 +150,10 @@ Record: `docs/sessions/2026-11-25-ui-editor-format7a.md`; gate log #57 to #60; r
 - **The popover was too narrow, not too wide a content:** `max-width: 100%` of a Spacing group that is 190 to 250 px at 1440 and 1920; it is now as wide as its steppers and is moved left near the window's edge.
 - **Fonts are names plus fallbacks, never web fonts;** the page says a font shows only if the computer has it.
 - **A round that appends to a list breaks exact-list checks:** round 4's U06 and two unit tests pinned 12 options; the brief's own "twelve first" became a head comparison (A1) and a count of `1 + FAMILIES.length`.
+
+## 2026-11-26: UI Editor formatting round 7b (colour grid, recent colours, colour picker; behind the flag, not released)
+Record: `docs/sessions/2026-11-26-ui-editor-format7b.md`; gate log #61 to #64; rules `docs/ui-editor-gate-rules-round7b.md` (A1).
+- **The picker's input is in `<body>`:** an input in the ribbon is counted by a dozen earlier locked checks; in `<body>` it still outlives the menu.
+- **Recents are a module-level store, not state:** all three menu buttons draw one list and a new sample does not empty it; nothing is stored, a reload does.
+- **Grid values come from one formula in two places** (the locked table and `colourGrid()`); a test keeps them equal.
+- **Narrow widths wrap the 44 px grid** (8 or 7 to a row) rather than keep ten columns.

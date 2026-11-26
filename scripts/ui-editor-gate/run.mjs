@@ -47,6 +47,8 @@ const round6File = JSON.parse(readFileSync(join(here, 'specs-round6.json'), 'utf
 // INSERT ROUND 1 (docs/ui-editor-gate-log.md #42 and following): the Y specs run only with --stage N (or --only Yxx); the amendments of docs/ui-editor-gate-rules-insert1.md section 7 are read from amendments-insert1.json.
 // FORMATTING ROUND 7a (docs/ui-editor-gate-rules-round7a.md): Z01 (the Sides popover fits), Z02 (more fonts), Z07 (every earlier spec still passes).
 const round7aFile = JSON.parse(readFileSync(join(here, 'specs-round7a.json'), 'utf8'))
+// FORMATTING ROUND 7b (docs/ui-editor-gate-rules-round7b.md): Z03 (colour grid), Z04 (recent colours), Z05 (the picker), Z06 (small screens and keyboard), Z07 (kept).
+const round7bFile = JSON.parse(readFileSync(join(here, 'specs-round7b.json'), 'utf8'))
 const insert1File = JSON.parse(readFileSync(join(here, 'specs-insert1.json'), 'utf8'))
 const amendFile = JSON.parse(readFileSync(join(here, 'amendments-insert1.json'), 'utf8'))
 // --timing: a timestamp and the elapsed time at the start of every spec and every step (insert round 1: to see where a long run first goes wrong).
@@ -371,6 +373,7 @@ async function runSpec(spec) {
     throw new Error(`no menu item ${name}`)
   }
   const snapExports = {}
+  const storageSnaps = {}
   const toHex = (c) => {
     c = c.trim().toLowerCase()
     let m
@@ -769,6 +772,133 @@ async function runSpec(spec) {
     const bucket = a.p === 'P2' ? 'P2a' : a.p // insert round 1: a P2 assert of a Y spec is one of the export checks (docs/ui-editor-gate-log.md)
     const R = (ok, detail) => rec(bucket, a.k + (a.sel ? ' ' + a.sel : '') + (a.q ? ' ' + a.q : '') + (a.at ? ' @' + a.at : '') + (a.field ? ' ' + a.field : '') + (a.label ? ' ' + a.label : '') + (a.name ? ' ' + a.name : ''), ok, detail)
     switch (a.k) {
+      // ---- formatting round 7b ----
+      case 'colourGrid': {
+        const m = await page.evaluate((button) => {
+          const menu = [...document.querySelectorAll('[role=menu]')].find((e) => e.getAttribute('aria-label') === button && e.getClientRects().length)
+          if (!menu) return null
+          const g = [...menu.querySelectorAll('[role=group]')].find((e) => e.getAttribute('aria-label') === 'Colour grid')
+          if (!g) return { none: true }
+          const cells = [...g.querySelectorAll('[role=menuitemradio]')].map((e) => { const r = e.getBoundingClientRect(); return { name: e.getAttribute('aria-label'), sw: getComputedStyle(e).backgroundColor, l: r.left, t: r.top, w: r.width, h: r.height, checked: e.getAttribute('aria-checked') } })
+          return { cells, role: g.getAttribute('role') }
+        }, a.button)
+        if (!m) return R(false, `no open menu ${a.button}`)
+        if (m.none) return R(false, `${a.button} has no Colour grid group`)
+        const bad = []
+        const hexOf = (c) => { const x = /rgba?\((\d+), (\d+), (\d+)/.exec(c); return x ? '#' + [x[1], x[2], x[3]].map((v) => Number(v).toString(16).padStart(2, '0')).join('') : c }
+        if (m.cells.length !== a.values.length) bad.push(`${m.cells.length} cells, want ${a.values.length}`)
+        a.values.forEach((v, i) => { const c = m.cells[i]; if (!c) return; if (c.name !== `Grid ${v}`) bad.push(`cell ${i + 1} is named ${c.name}, want Grid ${v}`); if (hexOf(c.sw) !== v) bad.push(`cell ${i + 1} (${c.name}) is drawn ${hexOf(c.sw)}, want ${v}`) })
+        if (new Set(m.cells.map((c) => c.name)).size !== m.cells.length) bad.push('two cells have the same name')
+        if (a.columns) { // layout: rows by top (4 px), columns by left (4 px)
+          const tops = [...new Set(m.cells.map((c) => Math.round(c.t / 4)))].sort((x, y) => x - y)
+          if (tops.length !== a.rows) bad.push(`${tops.length} rows, want ${a.rows}`)
+          for (const tp of tops) { const row = m.cells.filter((c) => Math.round(c.t / 4) === tp); if (row.length !== a.columns) bad.push(`a row of ${row.length} cells, want ${a.columns}`) }
+          const lefts = [...new Set(m.cells.map((c) => Math.round(c.l / 4)))]
+          if (lefts.length !== a.columns) bad.push(`${lefts.length} columns, want ${a.columns}`)
+          // reading order: each cell follows the one before it, left to right, row by row
+          m.cells.forEach((c, i) => { if (i && ((c.t > m.cells[i - 1].t + 2 && c.l >= m.cells[i - 1].l - 2) || (c.t < m.cells[i - 1].t - 2))) bad.push(`cell ${i + 1} is out of reading order`) })
+          for (const c of m.cells) if (Math.abs(c.w - a.cell) > 1 || Math.abs(c.h - a.cell) > 1) { bad.push(`a cell is ${c.w.toFixed(1)}x${c.h.toFixed(1)}, want ${a.cell}`); break }
+        }
+        return R(bad.length === 0, bad.length ? bad.slice(0, 3).join('; ') : `${m.cells.length} cells in order, named and drawn as stated${a.columns ? `, ${a.columns} by ${a.rows}` : ''}`)
+      }
+      case 'menuOrder': {
+        const got = await page.evaluate((button) => {
+          const menu = [...document.querySelectorAll('[role=menu]')].find((e) => e.getAttribute('aria-label') === button && e.getClientRects().length)
+          return menu ? [...menu.children].filter((e) => e.getClientRects().length).map((e) => e.getAttribute('aria-label')).filter(Boolean) : null
+        }, a.button)
+        return R(!!got && got.join('|') === a.order.join('|'), got ? `${got.join(' | ')}` : `no open menu ${a.button}`)
+      }
+      case 'recentList': {
+        const got = await page.evaluate((button) => {
+          const menu = [...document.querySelectorAll('[role=menu]')].find((e) => e.getAttribute('aria-label') === button && e.getClientRects().length)
+          if (!menu) return null
+          const g = [...menu.querySelectorAll('[role=group]')].find((e) => e.getAttribute('aria-label') === 'Recent colours')
+          return g ? [...g.querySelectorAll('[role=menuitemradio]')].map((e) => e.getAttribute('aria-label')) : []
+        }, a.button)
+        const want = a.want.map((h) => `Recent ${h}`)
+        return R(!!got && got.join('|') === want.join('|'), got ? (got.length ? got.join(', ') : 'no Recent colours group') : `no open menu ${a.button}`)
+      }
+      case 'gridChecked': {
+        const got = await page.evaluate((button) => {
+          const menu = [...document.querySelectorAll('[role=menu]')].find((e) => e.getAttribute('aria-label') === button && e.getClientRects().length)
+          if (!menu) return null
+          const out = {}
+          for (const g of menu.querySelectorAll('[role=group]')) out[g.getAttribute('aria-label')] = [...g.querySelectorAll('[role=menuitemradio][aria-checked=true]')].map((e) => e.getAttribute('aria-label'))
+          return out
+        }, a.button)
+        if (!got) return R(false, `no open menu ${a.button}`)
+        const have = got['Colour grid'] ?? []
+        return R(have.join('|') === a.want.map((h) => `Grid ${h}`).join('|'), `checked in the grid: ${have.join(', ') || 'none'}`)
+      }
+      case 'exportsEqualSub': { // the export after a Standard swatch equals the export after a grid cell once the swatch's colour is replaced by the cell's
+        const A = snapExports[a.a], B = snapExports[a.b]
+        if (!A || !B) return R(false, 'a snapshot is missing')
+        const bad = Object.keys(A).filter((f) => A[f].split(a.from).join(a.to) !== B[f])
+        return R(bad.length === 0 && Object.keys(A).some((f) => A[f].includes(a.from)), bad.length ? `${bad.join(', ')} differ` : `same property and value, ${a.from} read as ${a.to}`)
+      }
+      case 'storageSame': {
+        const now = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage }, cookie: document.cookie }))
+        return R(now === storageSnaps[a.name], now === storageSnaps[a.name] ? 'localStorage, sessionStorage and cookies unchanged' : `storage changed: ${now}`)
+      }
+      case 'editCount': {
+        const n = JSON.parse((await page.locator('[data-editor]').first().getAttribute('data-edit-list')) ?? '[]').length
+        return R(n === a.n, `${n} edits, want ${a.n}`)
+      }
+      case 'otherMenusLackGrid': {
+        const names = await page.evaluate(() => [...document.querySelectorAll('[data-menu-button]')].filter((b) => b.getClientRects().length && !b.disabled).map((b) => b.getAttribute('data-menu-button')))
+        const others = names.filter((n) => !a.except.includes(n))
+        const bad = []
+        for (const n of others) {
+          await page.locator(`[data-menu-button="${n}"]`).first().click(); await settle(page)
+          const found = await page.evaluate(() => [...document.querySelectorAll('[role=menu]')].filter((e) => e.getClientRects().length).flatMap((m) => [...m.querySelectorAll('[role=group]')].map((g) => g.getAttribute('aria-label')).filter((x) => x === 'Colour grid' || x === 'Recent colours').concat([...m.querySelectorAll('[role^=menuitem]')].filter((e) => e.getAttribute('aria-label') === 'Pick any colour…').map(() => 'Pick any colour…'))))
+          if (found.length) bad.push(`${n} has ${found.join(', ')}`)
+          await page.keyboard.press('Escape'); await settle(page)
+        }
+        return R(bad.length === 0 && others.length >= 3, bad.length ? bad.join('; ') : `${others.length} other menus (${others.join(', ')}) have none of it`)
+      }
+      case 'noGridIn': {
+        const m = await page.evaluate((names) => names.map((n) => { const menu = [...document.querySelectorAll('[role=menu]')].find((e) => e.getAttribute('aria-label') === n && e.getClientRects().length); return [n, menu ? [...menu.querySelectorAll('[role=group]')].map((g) => g.getAttribute('aria-label')) : null] }), a.menus)
+        const bad = m.filter(([, g]) => !g || g.includes('Colour grid') || g.includes('Recent colours')).map(([n, g]) => `${n}: ${g ? g.join(', ') : 'not open'}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${a.menus.join(', ')} unchanged (groups: ${m.map(([, g]) => g.join('/')).join(' ; ')})`)
+      }
+      case 'menuTouch': {
+        const m = await page.evaluate(([button, min]) => {
+          const menu = [...document.querySelectorAll('[role=menu]')].find((e) => e.getAttribute('aria-label') === button && e.getClientRects().length)
+          if (!menu) return null
+          const small = [], n = { grid: 0, recent: 0, pick: 0, all: 0 }
+          for (const it of menu.querySelectorAll('[role^=menuitem]')) {
+            const r = it.getBoundingClientRect(), nm = it.getAttribute('aria-label') ?? ''
+            n.all++; if (/^Grid /.test(nm)) n.grid++; if (/^Recent /.test(nm)) n.recent++; if (nm === 'Pick any colour…') n.pick++
+            if (r.width < min - 0.5 || r.height < min - 0.5) small.push(`${nm} ${r.width.toFixed(1)}x${r.height.toFixed(1)}`)
+          }
+          const r = menu.getBoundingClientRect()
+          return { small, n, inside: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.top >= -0.5 && (r.bottom <= innerHeight + 0.5 || /auto|scroll/.test(getComputedStyle(menu).overflowY)), box: [Math.round(r.left), Math.round(r.right), innerWidth], clippedX: menu.scrollWidth > menu.clientWidth + 1 }
+        }, [a.button, a.min])
+        if (!m) return R(false, `no open menu ${a.button}`)
+        const p = []
+        if (m.small.length) p.push(`under ${a.min} px: ${m.small.slice(0, 3).join('; ')}`)
+        if (!m.inside) p.push(`the menu lies at ${m.box[0]}..${m.box[1]} of a window ${m.box[2]} wide or runs off the bottom without scrolling`)
+        if (m.clippedX) p.push('the menu is clipped sideways')
+        if (!m.n.grid || !m.n.pick) p.push(`${m.n.grid} grid cells, ${m.n.pick} Pick items`)
+        if (a.recents && !m.n.recent) p.push('no recent colours')
+        return R(p.length === 0, p.length ? p.join('; ') : `${m.n.all} items (${m.n.grid} grid, ${m.n.recent} recent, ${m.n.pick} Pick) all at least ${a.min} px, the menu inside the window`)
+      }
+      case 'uniqueMenuNames': {
+        const m = await page.evaluate((button) => {
+          const menu = [...document.querySelectorAll('[role=menu]')].find((e) => e.getAttribute('aria-label') === button && e.getClientRects().length)
+          if (!menu) return null
+          const names = [...menu.querySelectorAll('[role^=menuitem]')].map((e) => e.getAttribute('aria-label') ?? '')
+          const count = {}; for (const n of names) count[n] = (count[n] ?? 0) + 1
+          // my definition: every name of the new items (Grid …, Recent …, Pick any colour…) occurs once among all the items of the menu (the page colours and the standard colours already repeat a colour that both hold)
+          return Object.entries(count).filter(([n, c]) => c > 1 && (/^(Grid|Recent) /.test(n) || n === 'Pick any colour…')).map(([n, c]) => `${n} x${c}`).concat(names.some((n) => !n) ? ['an item has no name'] : [])
+        }, a.button)
+        if (!m) return R(false, `no open menu ${a.button}`)
+        return R(m.length === 0, m.length ? m.join('; ') : 'the names of the grid, the recents and the Pick item are each on one item')
+      }
+      case 'pickerPresent': {
+        const n = await page.evaluate((b) => document.querySelectorAll(`input[type=color][data-picker="${b}"]`).length, a.button)
+        return R(n === 1, `${n} colour inputs next to ${a.button}`)
+      }
       // ---- formatting round 7a ----
       case 'sidesFit': { // docs/ui-editor-gate-rules-round7a.md, vocabulary
         const m = await page.evaluate((field) => {
@@ -2823,6 +2953,22 @@ async function runSpec(spec) {
         else await reveal(page.locator('[data-ribbon]').getByRole('button', { name: `${step.dir === '+' ? 'Increase' : 'Decrease'} ${step.field}`, exact: true, includeHidden: true }))
         for (let i = 0; i < step.times; i++) { await b.click(step.shift ? { modifiers: ['Shift'] } : {}); await settle(page) }
         continue
+      } else if (step.do === 'pickerFire') { // round 7b, rules vocabulary: what the browser does to the colour input of a menu, without the native popup
+        const ok = await page.evaluate(([name, value, inputs, change, blur]) => {
+          const el = document.querySelector(`input[type=color][data-picker="${name}"]`)
+          if (!el) return false
+          el.value = value
+          for (let i = 0; i < inputs; i++) el.dispatchEvent(new Event('input', { bubbles: true }))
+          if (change) el.dispatchEvent(new Event('change', { bubbles: true }))
+          if (blur) { el.dispatchEvent(new Event('blur')); el.dispatchEvent(new Event('focusout', { bubbles: true })) }
+          return true
+        }, [step.button, step.value, step.inputs ?? 0, !!step.change, !!step.blur])
+        if (!ok) rec('setup', `pickerFire ${step.button}`, false, 'no colour input next to that button')
+        await settle(page)
+      } else if (step.do === 'snapshotStorage') {
+        storageSnaps[step.name] = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage }, cookie: document.cookie }))
+      } else if (step.do === 'focusMenuItem') {
+        await page.evaluate((name) => { const m = [...document.querySelectorAll('[role=menu]')].filter((e) => e.getClientRects().length).pop(); const b = m && [...m.querySelectorAll('[role^=menuitem]')].find((e) => e.getAttribute('aria-label') === name); if (b) b.focus() }, step.name)
       } else if (step.do === 'chooseFont') {
         await reveal(fieldOf(step.label))
         await fieldOf(step.label).selectOption({ value: step.value })
@@ -2995,7 +3141,8 @@ function amended(spec) {
   return { ...spec, steps, amendment: a.amendment }
 }
 function round7Specs() {
-  return STAGE || flag('--round7a') || (only && only.some((id) => /^Z\d/.test(id))) ? round7aFile.specs : []
+  // Round 7b brings its own Z07 (it also needs Z01 and Z02): the one of round 7a is not run then.
+  return STAGE || flag('--round7a') || (only && only.some((id) => /^Z\d/.test(id))) ? [...round7aFile.specs.filter((x) => !x.aggregate7), ...round7bFile.specs] : []
 }
 function insertSpecs() {
   if (STAGE) {
@@ -3081,8 +3228,8 @@ if (flag('--noop')) {
   const r6Ok = round6.length !== 12 || round6.every((r) => r.outcome === 'PASS' || r.outcome === 'NOT BUILT')
   const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT'))
   // FORMATTING ROUND 7a: Z07 is PASS when the earlier specs of this run meet the pass line (the original 20, round 1, rounds 2 to 6, Y01 to Y14 all PASS); with --only it is not run.
-  const z07Spec = round7aFile.specs.find((x) => x.aggregate7)
-  const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12
+  const z07Spec = round7bFile.specs.find((x) => x.aggregate7)
+  const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS') && ['Z01', 'Z02'].every((id) => round7a.find((r) => r.id === id)?.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12
   if (z07Spec && round7Specs().some((x) => x.id === 'Z07') && (!only || only.includes('Z07'))) {
     round7a.push({ id: 'Z07', name: z07Spec.name, outcome: earlierOk ? 'PASS' : 'FAIL', checks: [] })
     console.log(`Z07  ${earlierOk ? 'PASS' : 'FAIL'}    ${z07Spec.name.slice(0, 100)}`)

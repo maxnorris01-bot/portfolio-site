@@ -1,0 +1,1978 @@
+{
+ "version": 1,
+ "vocabulary": {
+  "steps": {
+   "pickerFire": "Round 7b (my definition): find the colour input next to the menu button `button` (input[type=color][data-picker=<button>]); set its value to `value`; fire `inputs` bubbling `input` events; then, if `change`, one `change` event; if `blur`, a `blur` and a `focusout` event (a cancelled picker: the browser's popup cannot be driven by a script, so what the page does with the input's events is what is checked).",
+   "snapshotStorage": "store localStorage, sessionStorage and document.cookie under `name`.",
+   "focusMenuItem": "script-focus the item named `name` of the open menu (then the key steps follow).",
+   "button": "as before: click the button named `name`.",
+   "type": "as before (round 6): `field` is the hex box's field (Text colour, Background, Border colour), `text` what is typed, then Enter.",
+   "openMenu/menuItem/key/focusControl/host/load/click": "as before."
+  },
+  "asserts": {
+   "colourGrid": "P1. The open menu `button` has a group named `Colour grid` with `values.length` items (role menuitemradio) in this order, each named `Grid <hex>` and drawn in that colour (the swatch's background colour as six-digit hex); no two have the same name; at the wide width (`columns`, `rows`, `cell` given): `rows` rows and `columns` columns (tops and lefts grouped within 4 px), `columns` cells in every row, reading order left to right then down, every cell `cell` px square within 1 px.",
+   "menuOrder": "P5. The names of the open menu's direct children (groups by aria-label, items by name), hidden ones left out, equal `order`.",
+   "recentList": "P5. The `Recent colours` group of the open menu holds exactly the items `Recent <hex>` for `want`, in order (an empty `want` means there is no such group).",
+   "gridChecked": "P5. The cells of the Colour grid with aria-checked true are exactly `Grid <hex>` for `want`.",
+   "exportsEqualSub": "P2. For every exported file, the text stored under `a` with every `from` replaced by `to` equals the text stored under `b` (the same property and value a Standard swatch writes), and `a` contains `from` somewhere.",
+   "storageSame": "P5. localStorage, sessionStorage and document.cookie equal the snapshot `name`.",
+   "editCount": "P5. The tool's read-only attribute data-edit-list holds `n` edits.",
+   "otherMenusLackGrid": "P5. Every other visible, enabled menu button (not in `except`, at least three of them) is opened and has no group named Colour grid or Recent colours and no item named Pick any colour\u2026 (then Escape).",
+   "noGridIn": "P5. The open menus named in `menus` (the Gradient From and To colour submenus) have no group named Colour grid or Recent colours.",
+   "menuTouch": "P1 (my definition). Every item (role menuitem or menuitemradio) of the open menu `button` is at least `min` px high and wide (0.5 px), the menu lies inside the window (or scrolls inside it), is not clipped sideways, has grid cells and a Pick item, and with `recents` also recent colours.",
+   "uniqueMenuNames": "P5 (my definition). Every name of the new items (Grid <hex>, Recent <hex>, Pick any colour\u2026) occurs once among the open menu's items, and no item lacks a name (the page colours and the standard colours already repeat a colour that both hold; that is not counted).",
+   "pickerPresent": "P5. There is exactly one colour input next to the menu button `button` (so it is still mounted when the menu has closed).",
+   "menuState/menuFits/focusOn/css/exportEqualsOriginal": "as before."
+  }
+ },
+ "hostViewport": {
+  "width": 1440,
+  "height": 900
+ },
+ "previewHeight": 800,
+ "outcomes": "As in the earlier rounds. Z07 is PASS when the other specs of the run meet the pass line of the rules, section 5.",
+ "specs": [
+  {
+   "expected": "PASS",
+   "id": "Z03",
+   "name": "Colour grid: Font colour, Shape Fill and Shape Outline each hold, after Standard colours, a Colour grid of 60 named cells (10 by 6, the table of the rules), then Recent colours when there are any and Pick any colour\u2026; a cell writes what a Standard swatch writes; aria-checked follows the colour; no other menu has any of it",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "colourGrid",
+     "button": "Font colour",
+     "values": [
+      "#ffffff",
+      "#f2f2f2",
+      "#d9d9d9",
+      "#bfbfbf",
+      "#808080",
+      "#595959",
+      "#404040",
+      "#262626",
+      "#0d0d0d",
+      "#000000",
+      "#821717",
+      "#824917",
+      "#827017",
+      "#4d8217",
+      "#17823b",
+      "#178279",
+      "#174482",
+      "#201782",
+      "#5e1782",
+      "#82174d",
+      "#c32222",
+      "#c36d22",
+      "#c3a822",
+      "#73c322",
+      "#22c358",
+      "#22c3b6",
+      "#2265c3",
+      "#3022c3",
+      "#8e22c3",
+      "#c32273",
+      "#e05252",
+      "#e09452",
+      "#e0c952",
+      "#99e052",
+      "#52e081",
+      "#52e0d4",
+      "#528de0",
+      "#5d52e0",
+      "#b152e0",
+      "#e05299",
+      "#ec9393",
+      "#ecbc93",
+      "#ecdd93",
+      "#bfec93",
+      "#93ecb0",
+      "#93ece4",
+      "#93b8ec",
+      "#9a93ec",
+      "#ce93ec",
+      "#ec93bf",
+      "#f6cbcb",
+      "#f6dfcb",
+      "#f6efcb",
+      "#e0f6cb",
+      "#cbf6d9",
+      "#cbf6f2",
+      "#cbddf6",
+      "#cfcbf6",
+      "#e8cbf6",
+      "#f6cbe0"
+     ],
+     "columns": 10,
+     "rows": 6,
+     "cell": 20
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuOrder",
+     "button": "Font colour",
+     "order": [
+      "Page colours",
+      "Standard colours",
+      "Colour grid",
+      "Pick any colour\u2026",
+      "More colours\u2026"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "gridChecked",
+     "button": "Font colour",
+     "want": []
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "colourGrid",
+     "button": "Shape Fill",
+     "values": [
+      "#ffffff",
+      "#f2f2f2",
+      "#d9d9d9",
+      "#bfbfbf",
+      "#808080",
+      "#595959",
+      "#404040",
+      "#262626",
+      "#0d0d0d",
+      "#000000",
+      "#821717",
+      "#824917",
+      "#827017",
+      "#4d8217",
+      "#17823b",
+      "#178279",
+      "#174482",
+      "#201782",
+      "#5e1782",
+      "#82174d",
+      "#c32222",
+      "#c36d22",
+      "#c3a822",
+      "#73c322",
+      "#22c358",
+      "#22c3b6",
+      "#2265c3",
+      "#3022c3",
+      "#8e22c3",
+      "#c32273",
+      "#e05252",
+      "#e09452",
+      "#e0c952",
+      "#99e052",
+      "#52e081",
+      "#52e0d4",
+      "#528de0",
+      "#5d52e0",
+      "#b152e0",
+      "#e05299",
+      "#ec9393",
+      "#ecbc93",
+      "#ecdd93",
+      "#bfec93",
+      "#93ecb0",
+      "#93ece4",
+      "#93b8ec",
+      "#9a93ec",
+      "#ce93ec",
+      "#ec93bf",
+      "#f6cbcb",
+      "#f6dfcb",
+      "#f6efcb",
+      "#e0f6cb",
+      "#cbf6d9",
+      "#cbf6f2",
+      "#cbddf6",
+      "#cfcbf6",
+      "#e8cbf6",
+      "#f6cbe0"
+     ],
+     "columns": 10,
+     "rows": 6,
+     "cell": 20
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuOrder",
+     "button": "Shape Fill",
+     "order": [
+      "Page colours",
+      "Standard colours",
+      "Colour grid",
+      "Pick any colour\u2026",
+      "No fill",
+      "More colours\u2026",
+      "Gradient"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "gridChecked",
+     "button": "Shape Fill",
+     "want": [
+      "#ffffff"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "colourGrid",
+     "button": "Shape Outline",
+     "values": [
+      "#ffffff",
+      "#f2f2f2",
+      "#d9d9d9",
+      "#bfbfbf",
+      "#808080",
+      "#595959",
+      "#404040",
+      "#262626",
+      "#0d0d0d",
+      "#000000",
+      "#821717",
+      "#824917",
+      "#827017",
+      "#4d8217",
+      "#17823b",
+      "#178279",
+      "#174482",
+      "#201782",
+      "#5e1782",
+      "#82174d",
+      "#c32222",
+      "#c36d22",
+      "#c3a822",
+      "#73c322",
+      "#22c358",
+      "#22c3b6",
+      "#2265c3",
+      "#3022c3",
+      "#8e22c3",
+      "#c32273",
+      "#e05252",
+      "#e09452",
+      "#e0c952",
+      "#99e052",
+      "#52e081",
+      "#52e0d4",
+      "#528de0",
+      "#5d52e0",
+      "#b152e0",
+      "#e05299",
+      "#ec9393",
+      "#ecbc93",
+      "#ecdd93",
+      "#bfec93",
+      "#93ecb0",
+      "#93ece4",
+      "#93b8ec",
+      "#9a93ec",
+      "#ce93ec",
+      "#ec93bf",
+      "#f6cbcb",
+      "#f6dfcb",
+      "#f6efcb",
+      "#e0f6cb",
+      "#cbf6d9",
+      "#cbf6f2",
+      "#cbddf6",
+      "#cfcbf6",
+      "#e8cbf6",
+      "#f6cbe0"
+     ],
+     "columns": 10,
+     "rows": 6,
+     "cell": 20
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuOrder",
+     "button": "Shape Outline",
+     "order": [
+      "Page colours",
+      "Standard colours",
+      "Colour grid",
+      "Pick any colour\u2026",
+      "No outline",
+      "More colours\u2026",
+      "Weight",
+      "Dashes"
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "gridChecked",
+     "button": "Shape Outline",
+     "want": []
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "#c00000"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "color",
+     "equals": "rgb(192, 0, 0)"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "std-Font colour"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "Grid #2265c3"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "color",
+     "equals": "rgb(34, 101, 195)"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "grid-Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqualSub",
+     "a": "std-Font colour",
+     "b": "grid-Font colour",
+     "from": "#c00000",
+     "to": "#2265c3"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "gridChecked",
+     "button": "Font colour",
+     "want": [
+      "#2265c3"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "#c00000"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(192, 0, 0)"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "std-Shape Fill"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Grid #2265c3"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(34, 101, 195)"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "grid-Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqualSub",
+     "a": "std-Shape Fill",
+     "b": "grid-Shape Fill",
+     "from": "#c00000",
+     "to": "#2265c3"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "gridChecked",
+     "button": "Shape Fill",
+     "want": [
+      "#2265c3"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "#c00000"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "borderTopColor",
+     "equals": "rgb(192, 0, 0)"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "std-Shape Outline"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Grid #2265c3"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "borderTopColor",
+     "equals": "rgb(34, 101, 195)"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "grid-Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqualSub",
+     "a": "std-Shape Outline",
+     "b": "grid-Shape Outline",
+     "from": "#c00000",
+     "to": "#2265c3"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "gridChecked",
+     "button": "Shape Outline",
+     "want": [
+      "#2265c3"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "otherMenusLackGrid",
+     "except": [
+      "Font colour",
+      "Shape Fill",
+      "Shape Outline"
+     ]
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "From colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noGridIn",
+     "menus": [
+      "From colour"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Gradient"
+    },
+    {
+     "do": "menuItem",
+     "name": "To colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noGridIn",
+     "menus": [
+      "To colour"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "colourGrid",
+     "button": "Shape Fill",
+     "values": [
+      "#ffffff",
+      "#f2f2f2",
+      "#d9d9d9",
+      "#bfbfbf",
+      "#808080",
+      "#595959",
+      "#404040",
+      "#262626",
+      "#0d0d0d",
+      "#000000",
+      "#821717",
+      "#824917",
+      "#827017",
+      "#4d8217",
+      "#17823b",
+      "#178279",
+      "#174482",
+      "#201782",
+      "#5e1782",
+      "#82174d",
+      "#c32222",
+      "#c36d22",
+      "#c3a822",
+      "#73c322",
+      "#22c358",
+      "#22c3b6",
+      "#2265c3",
+      "#3022c3",
+      "#8e22c3",
+      "#c32273",
+      "#e05252",
+      "#e09452",
+      "#e0c952",
+      "#99e052",
+      "#52e081",
+      "#52e0d4",
+      "#528de0",
+      "#5d52e0",
+      "#b152e0",
+      "#e05299",
+      "#ec9393",
+      "#ecbc93",
+      "#ecdd93",
+      "#bfec93",
+      "#93ecb0",
+      "#93ece4",
+      "#93b8ec",
+      "#9a93ec",
+      "#ce93ec",
+      "#ec93bf",
+      "#f6cbcb",
+      "#f6dfcb",
+      "#f6efcb",
+      "#e0f6cb",
+      "#cbf6d9",
+      "#cbf6f2",
+      "#cbddf6",
+      "#cfcbf6",
+      "#e8cbf6",
+      "#f6cbe0"
+     ],
+     "columns": 10,
+     "rows": 6,
+     "cell": 20
+    },
+    {
+     "do": "menuItem",
+     "name": "#c00000"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "std-svg"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Grid #2265c3"
+    },
+    {
+     "do": "snapshotExport",
+     "name": "grid-svg"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportsEqualSub",
+     "a": "std-svg",
+     "b": "grid-svg",
+     "from": "#c00000",
+     "to": "#2265c3"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Z04",
+   "name": "Recent colours: none until a colour is applied; then newest first, no duplicates, six-digit hex, at most eight, one list for the three menus; not added by No fill, No outline or Undo; the hex box records six-digit hex; empty after a reload; nothing stored (localStorage, sessionStorage and cookies unchanged)",
+   "sample": "landing",
+   "checks": [
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "snapshotStorage",
+     "name": "s0"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": []
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuOrder",
+     "button": "Shape Fill",
+     "order": [
+      "Page colours",
+      "Standard colours",
+      "Colour grid",
+      "Pick any colour\u2026",
+      "No fill",
+      "More colours\u2026",
+      "Gradient"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "#ff0000"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Font colour",
+     "want": [
+      "#ff0000"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": [
+      "#ff0000"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "Grid #821717"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Outline",
+     "want": [
+      "#821717",
+      "#ff0000"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "#00b050"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": [
+      "#00b050",
+      "#821717",
+      "#ff0000"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "Recent #ff0000"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Outline",
+     "want": [
+      "#ff0000",
+      "#00b050",
+      "#821717"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "More colours\u2026"
+    },
+    {
+     "do": "type",
+     "field": "Text colour",
+     "text": "#abc"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": [
+      "#aabbcc",
+      "#ff0000",
+      "#00b050",
+      "#821717"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "No fill"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Outline",
+     "want": [
+      "#aabbcc",
+      "#ff0000",
+      "#00b050",
+      "#821717"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "No outline"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Outline",
+     "want": [
+      "#aabbcc",
+      "#ff0000",
+      "#00b050",
+      "#821717"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Font colour",
+     "want": [
+      "#aabbcc",
+      "#ff0000",
+      "#00b050",
+      "#821717"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "pickerFire",
+     "button": "Shape Fill",
+     "value": "#123456",
+     "inputs": 3,
+     "change": true
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": [
+      "#123456",
+      "#aabbcc",
+      "#ff0000",
+      "#00b050",
+      "#821717"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "#ffc000"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "#7030a0"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "Grid #52e0d4"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "#0070c0"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "Grid #f6cbe0"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": [
+      "#f6cbe0",
+      "#0070c0",
+      "#52e0d4",
+      "#7030a0",
+      "#ffc000",
+      "#123456",
+      "#aabbcc",
+      "#ff0000"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Font colour",
+     "want": [
+      "#f6cbe0",
+      "#0070c0",
+      "#52e0d4",
+      "#7030a0",
+      "#ffc000",
+      "#123456",
+      "#aabbcc",
+      "#ff0000"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "storageSame",
+     "name": "s0"
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": []
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Font colour",
+     "want": []
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "storageSame",
+     "name": "s0"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Z05",
+   "name": "Colour picker: one edit and one recent when the input says change, however many input events came before; none for input events alone or when it is cancelled; the item closes the menu and the input next to the button stays",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 0
+    },
+    {
+     "do": "pickerFire",
+     "button": "Shape Fill",
+     "value": "#112233",
+     "inputs": 1,
+     "change": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(17, 34, 51)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": [
+      "#112233"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "pickerFire",
+     "button": "Shape Fill",
+     "value": "#445566",
+     "inputs": 6,
+     "change": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(68, 85, 102)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": [
+      "#445566",
+      "#112233"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "pickerFire",
+     "button": "Shape Fill",
+     "value": "#778899",
+     "inputs": 4,
+     "change": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(68, 85, 102)"
+    },
+    {
+     "do": "pickerFire",
+     "button": "Shape Fill",
+     "value": "#aabbcc",
+     "inputs": 2,
+     "change": false,
+     "blur": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 2
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(68, 85, 102)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Shape Fill",
+     "want": [
+      "#445566",
+      "#112233"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "pickerFire",
+     "button": "Font colour",
+     "value": "#0a0b0c",
+     "inputs": 2,
+     "change": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 3
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "color",
+     "equals": "rgb(10, 11, 12)"
+    },
+    {
+     "do": "pickerFire",
+     "button": "Shape Outline",
+     "value": "#a0b0c0",
+     "inputs": 2,
+     "change": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 4
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "borderTopColor",
+     "equals": "rgb(160, 176, 192)"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "recentList",
+     "button": "Font colour",
+     "want": [
+      "#a0b0c0",
+      "#0a0b0c",
+      "#445566",
+      "#112233"
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "Pick any colour\u2026"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "pickerPresent",
+     "button": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 4
+    },
+    {
+     "do": "pickerFire",
+     "button": "Shape Fill",
+     "value": "#556677",
+     "inputs": 3,
+     "change": true
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 5
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(85, 102, 119)"
+    },
+    {
+     "do": "button",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "editCount",
+     "n": 4
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Z06",
+   "name": "Small screens and keyboard: at 390 and at 1000 every item of the three colour menus (the grid cells, the recents, Pick any colour\u2026) is at least 44 px high and wide and the menu is inside the window; names of the new items are unique; the colour menus work from the keyboard end to end (open, move with the arrows, Enter applies, Escape closes with the focus on the button)",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "#ff0000"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuTouch",
+     "button": "Font colour",
+     "min": 44,
+     "recents": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuFits",
+     "itemMin": 44
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "uniqueMenuNames",
+     "button": "Font colour"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "#00b050"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuTouch",
+     "button": "Shape Fill",
+     "min": 44,
+     "recents": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuFits",
+     "itemMin": 44
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "uniqueMenuNames",
+     "button": "Shape Fill"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "#0070c0"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuTouch",
+     "button": "Shape Outline",
+     "min": 44,
+     "recents": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuFits",
+     "itemMin": 44
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "uniqueMenuNames",
+     "button": "Shape Outline"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 900
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "menuItem",
+     "name": "#00b050"
+    },
+    {
+     "do": "openMenu",
+     "name": "Font colour"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuTouch",
+     "button": "Font colour",
+     "min": 44,
+     "recents": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuFits",
+     "itemMin": 44
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "uniqueMenuNames",
+     "button": "Font colour"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "menuItem",
+     "name": "#0070c0"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuTouch",
+     "button": "Shape Fill",
+     "min": 44,
+     "recents": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuFits",
+     "itemMin": 44
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "uniqueMenuNames",
+     "button": "Shape Fill"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "menuItem",
+     "name": "#ff0000"
+    },
+    {
+     "do": "openMenu",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuTouch",
+     "button": "Shape Outline",
+     "min": 44,
+     "recents": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "menuFits",
+     "itemMin": 44
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "uniqueMenuNames",
+     "button": "Shape Outline"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan",
+     "at": "inset"
+    },
+    {
+     "do": "focusControl",
+     "name": "Font colour"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Font colour",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "focusMenuItem",
+     "name": "Grid #e0c952"
+    },
+    {
+     "do": "key",
+     "key": "ArrowRight"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Grid #99e052"
+    },
+    {
+     "do": "key",
+     "key": "ArrowLeft"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Grid #e0c952"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Font colour",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "color",
+     "equals": "rgb(224, 201, 82)"
+    },
+    {
+     "do": "focusControl",
+     "name": "Font colour"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "gridChecked",
+     "button": "Font colour",
+     "want": [
+      "#e0c952"
+     ]
+    },
+    {
+     "do": "focusMenuItem",
+     "name": "Recent #e0c952"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Recent #e0c952"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Font colour",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "focusControl",
+     "name": "Shape Fill"
+    },
+    {
+     "do": "key",
+     "key": "ArrowDown"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "focusMenuItem",
+     "name": "Recent #e0c952"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#card-plan",
+     "prop": "backgroundColor",
+     "equals": "rgb(224, 201, 82)"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Fill",
+     "open": false,
+     "focus": "button"
+    },
+    {
+     "do": "focusControl",
+     "name": "Shape Outline"
+    },
+    {
+     "do": "key",
+     "key": "Space"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Outline",
+     "open": true,
+     "focus": "inside"
+    },
+    {
+     "do": "focusMenuItem",
+     "name": "Pick any colour\u2026"
+    },
+    {
+     "do": "key",
+     "key": "Enter"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "menuState",
+     "button": "Shape Outline",
+     "open": false,
+     "focus": "button"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Z07",
+   "name": "Kept: the original 20 (18 PASS, 2 REFUSED, 0 FAIL), round 1 N03 to N11, rounds 2 to 6 (retired checks skipped, T10 the already failed locked spec), insert 1 Y01 to Y14 and round 7a Z01 and Z02 all pass in the same run (an aggregate: it has no steps)",
+   "sample": "landing",
+   "aggregate7": true,
+   "checks": [],
+   "steps": []
+  }
+ ]
+}

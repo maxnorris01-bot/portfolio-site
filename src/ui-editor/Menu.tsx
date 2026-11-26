@@ -24,10 +24,14 @@ export interface MenuItem {
   run?: () => void
   /** Choosing it does not close the menu: it reveals the hex box inside it ("More colours…"). */
   reveals?: 'hex'
+  /** Choosing it closes the menu and opens the browser's colour picker (the button's `picker`). */
+  pick?: boolean
 }
 export interface MenuGroup {
   group: string
   items: MenuItem[]
+  /** The swatches are laid out as the colour grid (ten to a row where there is room). */
+  grid?: boolean
 }
 /** The hex box of "More colours…": shown once that item was chosen. `onCommit` gets what was typed; it says whether it was taken (the menu closes either way). */
 export interface MenuHex {
@@ -63,16 +67,32 @@ interface ButtonProps {
   /** The `data-field` of the setting this menu belongs to (the gate reads the unlinked dot inside it). */
   field?: string
   dot?: ReactNode
+  /** Round 7b: the colour picker of this menu. Its input lives next to the button (outside the menu, which closes when an item is chosen) so it stays mounted until `change`. */
+  picker?: { current: string | null; onPick: (hex: string) => void }
 }
 
 /** The button of a menu and the menu itself. */
-export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, glyph, bar, text, chevron = true, spec, field, dot }: ButtonProps) {
+export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, glyph, bar, text, chevron = true, spec, field, dot, picker }: ButtonProps) {
   const [open, setOpen] = useState(false)
   /** The labels of the submenus open now, with the element that opened each (for placing and for the focus on closing). */
   const [path, setPath] = useState<{ label: string; trigger: HTMLElement }[]>([])
   const [hexOpen, setHexOpen] = useState(false)
   const [button, setButton] = useState<HTMLButtonElement | null>(null)
   const closeMine = useRef<() => void>(() => {})
+  const pickInput = useRef<HTMLInputElement>(null)
+  const pickRef = useRef(picker)
+  const hasPicker = !!picker
+  useEffect(() => {
+    pickRef.current = picker
+  })
+  // The picker applies ONE colour, when the browser says `change` (the choice was confirmed): never on `input` (dragging), and nothing when it is cancelled.
+  useEffect(() => {
+    const el = pickInput.current
+    if (!el) return
+    const on = () => pickRef.current?.onPick(el.value.toLowerCase())
+    el.addEventListener('change', on)
+    return () => el.removeEventListener('change', on)
+  }, [hasPicker])
 
   const close = useCallback(
     (focusButton: boolean) => {
@@ -153,6 +173,24 @@ export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, g
     if (it.sub) return openSub(it, el, depth)
     if (it.reveals === 'hex') return setHexOpen(true)
     close(true)
+    if (it.pick) {
+      const el = pickInput.current
+      if (el) {
+        el.value = pickRef.current?.current ?? '#000000'
+        // The input is in <body>, not in the ribbon (the ribbon's controls are counted and measured by the earlier checks): it is put under the button so the browser's popup opens there.
+        const r = button?.getBoundingClientRect()
+        if (r) {
+          el.style.left = `${r.left}px`
+          el.style.top = `${r.bottom}px`
+        }
+        try {
+          el.showPicker()
+        } catch {
+          el.click()
+        }
+      }
+      return
+    }
     it.run?.()
   }
 
@@ -188,6 +226,7 @@ export function MenuButton({ name, tip, disabled, fixed, min, quickBar: inBar, g
         {chevron && <Icon name="chevron" />}
         {dot}
       </button>
+      {picker && createPortal(<input ref={pickInput} type="color" className="ue-picker" data-picker={name} tabIndex={-1} aria-hidden="true" defaultValue="#000000" />, document.body)}
       {open &&
         levels.map((lv, i) => (
           <Panel
@@ -359,7 +398,7 @@ function Panel({ label, parts, anchor, depth, expandedLabel, hexOpen, onChoose, 
             <div className="ue-menuhead" data-menu-heading aria-hidden="true">
               {p.group}
             </div>
-            <div className="ue-swatches" data-swatches>
+            <div className={p.grid ? 'ue-swatches ue-swatch-grid' : 'ue-swatches'} data-swatches data-colour-grid={p.grid ? '' : undefined}>
               {p.items.map((it, j) => item(it, `${i}-${j}-${it.label}`))}
             </div>
           </div>
