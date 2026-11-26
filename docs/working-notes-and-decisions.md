@@ -144,3 +144,9 @@ Y11 to Y13 pass and the whole round passes: Y01 to Y14, the earlier rounds as be
 - **Focus returns to the opener** (Comment, a pin, Notes, Edit text) when a popover or the text box closes.
 - **The text box is 16 px or more on the screen**, 44 x 160 px at least on a scaled device, exactly the element's box at full size.
 - **Spec slip caught by the scorer check:** Y11's Move up was refused by the engine (Link off), so nothing was tested; A19 turns Link on first.
+
+## 2026-11-25: UI Editor formatting round 7a (Sides popover fits, 29 more system fonts; behind the flag, not released)
+Record: `docs/sessions/2026-11-25-ui-editor-format7a.md`; gate log #57 to #60; rules `docs/ui-editor-gate-rules-round7a.md` (A1). The colour menu is round 7b.
+- **The popover was too narrow, not too wide a content:** `max-width: 100%` of a Spacing group that is 190 to 250 px at 1440 and 1920; it is now as wide as its steppers and is moved left near the window's edge.
+- **Fonts are names plus fallbacks, never web fonts;** the page says a font shows only if the computer has it.
+- **A round that appends to a list breaks exact-list checks:** round 4's U06 and two unit tests pinned 12 options; the brief's own "twelve first" became a head comparison (A1) and a count of `1 + FAMILIES.length`.

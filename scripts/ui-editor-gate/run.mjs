@@ -45,6 +45,8 @@ const round4File = JSON.parse(readFileSync(join(here, 'specs-round4.json'), 'utf
 const round5File = JSON.parse(readFileSync(join(here, 'specs-round5.json'), 'utf8'))
 const round6File = JSON.parse(readFileSync(join(here, 'specs-round6.json'), 'utf8'))
 // INSERT ROUND 1 (docs/ui-editor-gate-log.md #42 and following): the Y specs run only with --stage N (or --only Yxx); the amendments of docs/ui-editor-gate-rules-insert1.md section 7 are read from amendments-insert1.json.
+// FORMATTING ROUND 7a (docs/ui-editor-gate-rules-round7a.md): Z01 (the Sides popover fits), Z02 (more fonts), Z07 (every earlier spec still passes).
+const round7aFile = JSON.parse(readFileSync(join(here, 'specs-round7a.json'), 'utf8'))
 const insert1File = JSON.parse(readFileSync(join(here, 'specs-insert1.json'), 'utf8'))
 const amendFile = JSON.parse(readFileSync(join(here, 'amendments-insert1.json'), 'utf8'))
 // --timing: a timestamp and the elapsed time at the start of every spec and every step (insert round 1: to see where a long run first goes wrong).
@@ -767,6 +769,66 @@ async function runSpec(spec) {
     const bucket = a.p === 'P2' ? 'P2a' : a.p // insert round 1: a P2 assert of a Y spec is one of the export checks (docs/ui-editor-gate-log.md)
     const R = (ok, detail) => rec(bucket, a.k + (a.sel ? ' ' + a.sel : '') + (a.q ? ' ' + a.q : '') + (a.at ? ' @' + a.at : '') + (a.field ? ' ' + a.field : '') + (a.label ? ' ' + a.label : '') + (a.name ? ' ' + a.name : ''), ok, detail)
     switch (a.k) {
+      // ---- formatting round 7a ----
+      case 'sidesFit': { // docs/ui-editor-gate-rules-round7a.md, vocabulary
+        const m = await page.evaluate((field) => {
+          const pop = [...document.querySelectorAll('[data-sides-popover]')].find((e) => e.getClientRects().length && e.getAttribute('aria-label') === `${field} sides`)
+          if (!pop) return null
+          const R = (e) => e.getBoundingClientRect()
+          const P = R(pop), card = R(document.querySelector('[data-editor]'))
+          const inside = (b, o, t) => b.left >= o.left - t && b.right <= o.right + t && b.top >= o.top - t && b.bottom <= o.bottom + t
+          const bad = [], widths = []
+          for (const side of ['top', 'right', 'bottom', 'left']) {
+            const name = `${field} ${side}`
+            const input = pop.querySelector(`input[aria-label="${name}"]`)
+            const dec = pop.querySelector(`button[aria-label="Decrease ${name}"]`), inc = pop.querySelector(`button[aria-label="Increase ${name}"]`)
+            if (!input || !dec || !inc) { bad.push(`${side}: a control is missing`); continue }
+            let st = input.parentElement
+            while (st && st !== pop && !(st.contains(dec) && st.contains(inc))) st = st.parentElement
+            let cell = input
+            while (cell && cell.parentElement !== pop) cell = cell.parentElement
+            if (!st || st === pop || !cell) { bad.push(`${side}: no stepper box`); continue }
+            widths.push(R(st).width)
+            const boxes = [['cell', cell], ['stepper', st], ['minus', dec], ['input', input], ['plus', inc]]
+            const labels = [...cell.querySelectorAll('*')].filter((e) => !st.contains(e) && [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()))
+            labels.forEach((l) => boxes.push(['label', l]))
+            if (!labels.length) bad.push(`${side}: no label`)
+            for (const [what, e] of boxes) { const b = R(e); if (!inside(b, P, 1)) bad.push(`${side} ${what} ${Math.round(b.left)}..${Math.round(b.right)} outside the popover ${Math.round(P.left)}..${Math.round(P.right)}`) }
+            for (const l of labels) for (const btn of [dec, inc]) { const a = R(l), b = R(btn); const w = Math.min(a.right, b.right) - Math.max(a.left, b.left), h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top); if (w > 0 && h > 0 && w * h >= 0.5) bad.push(`${side} label overlaps a button`) }
+          }
+          if (P.left < -0.5 || P.right > innerWidth + 0.5) bad.push(`popover ${Math.round(P.left)}..${Math.round(P.right)} in a window ${innerWidth} wide`)
+          if (P.left < card.left - 1 || P.right > card.right + 1) bad.push(`popover ${Math.round(P.left)}..${Math.round(P.right)} outside the card ${Math.round(card.left)}..${Math.round(card.right)}`)
+          if (document.documentElement.scrollWidth > innerWidth + 0.5) bad.push(`the page scrolls sideways (${document.documentElement.scrollWidth} in ${innerWidth})`)
+          if (widths.length === 4 && Math.max(...widths) - Math.min(...widths) > 1) bad.push(`stepper widths ${widths.map((x) => x.toFixed(1)).join(', ')}`)
+          return { bad, pop: [Math.round(P.left), Math.round(P.right)], widths: widths.map((x) => Math.round(x)) }
+        }, a.field)
+        if (!m) return R(false, `no visible ${a.field} sides popover`)
+        return R(m.bad.length === 0, m.bad.length ? m.bad.slice(0, 3).join('; ') : `${a.field}: popover ${m.pop[0]}..${m.pop[1]}, steppers ${m.widths.join('/')} px, everything inside`)
+      }
+      case 'fontList': {
+        const m = await page.evaluate(async ([label, sel]) => {
+          const s = document.querySelector(`select[aria-label="${label}"]`)
+          if (!s) return null
+          const cs = window.__gate.cssOf('current', sel, 'fontFamily')
+          return { tag: s.tagName, opts: [...s.options].map((o) => [o.textContent.trim(), o.value]), cs, free: document.querySelectorAll(`[data-field="font-family"] input[type=text], [data-field="font-family"] input:not([type])`).length }
+        }, [a.label, a.sel])
+        if (!m) return R(false, 'no such select')
+        const bad = []
+        const first = (m.cs.split(',')[0] ?? '').trim().replace(/^["']|["']$/g, '')
+        if (m.tag !== 'SELECT') bad.push(`a ${m.tag}`)
+        if (m.opts.length !== 1 + a.list.length) bad.push(`${m.opts.length} options, want ${1 + a.list.length}`)
+        if (m.opts[0]?.[0] !== first) bad.push(`first option "${m.opts[0]?.[0]}", want "${first}"`)
+        a.list.forEach((x, i) => { const o = m.opts[i + 1]; if (!o || o[0] !== x.label || o[1] !== x.value) bad.push(`option ${i + 1}: ${o ? `${o[0]} = ${o[1]}` : 'missing'}, want ${x.label} = ${x.value}`) })
+        a.originals.forEach((l, i) => { if (m.opts[i + 1]?.[0] !== l) bad.push(`original ${i + 1} is not ${l}`) })
+        const GEN = ['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui']
+        for (const [l, v] of m.opts.slice(1)) {
+          if (/[,"']/.test(l)) bad.push(`"${l}" is not a name only`)
+          const toks = v.split(',').map((t) => t.trim())
+          if (!GEN.includes(toks[toks.length - 1])) bad.push(`${l}: the stack does not end in a generic family`)
+          for (const t of toks) if (/\s/.test(t) && !/^".*"$/.test(t)) bad.push(`${l}: ${t} has a space and no quotes`)
+        }
+        return R(bad.length === 0, bad.length ? bad.slice(0, 3).join('; ') : `${m.opts.length - 1} fonts after the page's own "${first}", names only, every stack ends in a generic family`)
+      }
       // ---- insert round 1, stage 3 ----
       case 'uniqueNames': { // A18.4
         const m = await page.evaluate((names) => {
@@ -2042,7 +2104,9 @@ async function runSpec(spec) {
         const p = []
         if (m.shown !== a.expect) p.push(`shows "${m.shown}", want "${a.expect}"`)
         if (!m.title.includes(a.stackContains)) p.push(`tooltip "${m.title}" does not hold the stack (${a.stackContains})`)
-        if (m.options.join('|') !== a.options.join('|')) p.push(`options ${m.options.join(', ')}`)
+        // docs/ui-editor-gate-rules-round7a.md section 7, A1: from round 7a the list goes on after the twelve originals, so the page (and the round 7a stub) is read by its first options; the earlier stubs have exactly these.
+        const head = flag('--stub') || flag('--stub2') || flag('--stub3') || flag('--stub4') || flag('--stub5') || flag('--stub6') || flag('--stub7') ? m.options : m.options.slice(0, a.options.length)
+        if (head.join('|') !== a.options.join('|')) p.push(`options ${m.options.join(', ')}`)
         if (m.options.some((o) => o.includes(','))) p.push('an option shows a whole stack')
         return R(p.length === 0, p.length ? p.join('; ') : `shows "${m.shown}", options by name, stack in the tooltip`)
       }
@@ -2759,6 +2823,9 @@ async function runSpec(spec) {
         else await reveal(page.locator('[data-ribbon]').getByRole('button', { name: `${step.dir === '+' ? 'Increase' : 'Decrease'} ${step.field}`, exact: true, includeHidden: true }))
         for (let i = 0; i < step.times; i++) { await b.click(step.shift ? { modifiers: ['Shift'] } : {}); await settle(page) }
         continue
+      } else if (step.do === 'chooseFont') {
+        await reveal(fieldOf(step.label))
+        await fieldOf(step.label).selectOption({ value: step.value })
       } else if (step.do === 'choose') {
         await reveal(fieldOf(step.label))
         await fieldOf(step.label).selectOption({ label: step.option })
@@ -2784,7 +2851,7 @@ async function runSpec(spec) {
 
     // ---- after the steps: P3 needs the preview now, P2 needs the export (round 1 specs list the checks that apply) ----
     const wants = (k) => !spec.checks || spec.checks.includes(k)
-    const isY = /^Y\d/.test(spec.id)
+    const isY = /^[YZ]\d/.test(spec.id)
     if (isY && wants('P2')) res.P2 = { ok: res.P2a.length > 0 && res.P2a.every((c) => c.ok), detail: res.P2a.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) }
     if (!isY && (wants('P2') || wants('P3') || wants('P4'))) {
     const afterDump = await dumps()
@@ -2927,6 +2994,9 @@ function amended(spec) {
   })
   return { ...spec, steps, amendment: a.amendment }
 }
+function round7Specs() {
+  return STAGE || flag('--round7a') || (only && only.some((id) => /^Z\d/.test(id))) ? round7aFile.specs : []
+}
 function insertSpecs() {
   if (STAGE) {
     const st = amendFile.stages[String(STAGE)]
@@ -2943,7 +3013,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs()].filter((s) => !only || only.includes(s.id))
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs()].filter((s) => !only || only.includes(s.id))
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -2960,6 +3030,7 @@ if (flag('--noop')) {
       console.log(`${spec.id}  NOT BUILT  (stage ${STAGE}: ${spec.id} belongs to a later stage; docs/ui-editor-gate-rules-insert1.md section 7)`)
       continue
     }
+    if (spec.aggregate7) { continue } // Z07 is read after the loop, from the pass line of the earlier specs
     if (spec.aggregate) {
       const need = spec.aggregate.map((id) => results.find((x) => x.id === id))
       let ok = need.every((x) => x && x.outcome === 'PASS')
@@ -2985,7 +3056,7 @@ if (flag('--noop')) {
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
     if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWY]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWYZ]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
   const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length, retired: tally(round4, 'RETIRED') }, round5: { pass: tally(round5, 'PASS'), fail: tally(round5, 'FAIL'), retired: tally(round5, 'RETIRED'), total: round5.length }, round6: { pass: tally(round6, 'PASS'), fail: tally(round6, 'FAIL'), notBuilt: tally(round6, 'NOT BUILT'), total: round6.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
@@ -3009,7 +3080,16 @@ if (flag('--noop')) {
   const r5Ok = round5.length !== 9 || round5.every((r) => r.outcome === 'PASS' || (ROUND6 && r.outcome === 'RETIRED'))
   const r6Ok = round6.length !== 12 || round6.every((r) => r.outcome === 'PASS' || r.outcome === 'NOT BUILT')
   const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT'))
-  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && yOk ? 0 : 1
+  // FORMATTING ROUND 7a: Z07 is PASS when the earlier specs of this run meet the pass line (the original 20, round 1, rounds 2 to 6, Y01 to Y14 all PASS); with --only it is not run.
+  const z07Spec = round7aFile.specs.find((x) => x.aggregate7)
+  const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12
+  if (z07Spec && round7Specs().some((x) => x.id === 'Z07') && (!only || only.includes('Z07'))) {
+    round7a.push({ id: 'Z07', name: z07Spec.name, outcome: earlierOk ? 'PASS' : 'FAIL', checks: [] })
+    console.log(`Z07  ${earlierOk ? 'PASS' : 'FAIL'}    ${z07Spec.name.slice(0, 100)}`)
+  }
+  if (round7a.length) console.log(`Round 7a:  PASS ${tally(round7a, 'PASS')}  FAIL ${tally(round7a, 'FAIL')}  of ${round7a.length}`)
+  const zOk = round7a.every((r) => r.outcome === 'PASS')
+  exitCode = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && yOk && zOk ? 0 : 1
 }
 await browser.close()
 exportServer.close()

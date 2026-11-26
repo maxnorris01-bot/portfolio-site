@@ -1,4 +1,4 @@
-import { Children, Fragment, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Children, Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { labels, messages, panel as P } from '../data/uiEditor'
 import { Icon, type IconName } from './icons'
 import { MenuButton, type MenuPart } from './Menu'
@@ -305,6 +305,16 @@ export default function Ribbon({ session, rev, nonce, selected, view, editable, 
     }
     document.addEventListener('pointerdown', away)
     return () => document.removeEventListener('pointerdown', away)
+  }, [sidesOpen])
+
+  // The popover is as wide as its four steppers (CSS: `width: max-content`) and stays inside the window: where the Spacing group sits near the right edge it is moved left.
+  useLayoutEffect(() => {
+    const p = popover.current
+    if (!sidesOpen || !p) return
+    p.style.marginLeft = ''
+    const r = p.getBoundingClientRect()
+    const over = r.right - (window.innerWidth - 8)
+    if (over > 0) p.style.marginLeft = `-${Math.min(over, Math.max(0, r.left - 8))}px`
   }, [sidesOpen])
 
   // What a stepper click acts on is read from the preview at that moment (a held button repeats on the value the last repeat made).

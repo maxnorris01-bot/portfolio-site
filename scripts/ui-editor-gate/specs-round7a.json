@@ -1,0 +1,2455 @@
+{
+ "version": 1,
+ "vocabulary": {
+  "steps": {
+   "chooseFont": "choose the option of the Font family select whose VALUE is `value` (the option's label may occur twice: the page's own family is the first option).",
+   "button": "as before (round 3): click the button named `name`.",
+   "key": "as before: press `key` on the focused element.",
+   "host": "as before: set the window to width x height.",
+   "view": "as before: click the Desktop, Tablet or Phone view button."
+  },
+  "asserts": {
+   "sidesFit": "P1 (my definition). With the Sides popover of `field` (Padding or Margin) open: for each side the number input named `<field> <side>` (lower-case side) has a stepper box (the smallest ancestor of the input that also contains its two buttons named `Decrease <field> <side>` and `Increase <field> <side>`), a cell (the child of the popover that contains the input) and label boxes (every element of the cell outside the stepper that has text of its own). (a) the cell, the stepper, its three controls and every label box lie inside the popover's border box, 1 px; (b) the popover lies inside the window, 0.5 px; (c) it lies inside the editor card ([data-editor]) left to right, 1 px; (d) the document does not scroll sideways (scrollWidth <= innerWidth + 0.5); (e) the four stepper boxes have equal widths, 1 px; (f) no label box overlaps a button of its stepper (overlap area under 0.5 px squared; touching edges are allowed).",
+   "fontList": "P5 (my definition). The select named `label`: a SELECT; its first option shows the first family name of the computed font-family of `sel` (quotes stripped); the next options are `list` in order, each with exactly that label and that value; the first len(originals) of them are `originals`, in order; no option label contains a comma or a quote; independently of `list`: every option value after the first ends in one of the generic families (serif, sans-serif, monospace, cursive, fantasy, system-ui) and every name inside a value that contains a space is double-quoted.",
+   "popover": "as in round 3 T07.",
+   "focusOn": "as before.",
+   "css": "as before (equals: the computed value as a string).",
+   "exportHas": "as before (P2: the regular expression is matched against the exported file).",
+   "exportEqualsOriginal": "as before (insert 1)."
+  }
+ },
+ "hostViewport": {
+  "width": 1440,
+  "height": 900
+ },
+ "previewHeight": 800,
+ "outcomes": "As in the earlier rounds: a spec is PASS when every listed check holds. Z07 is PASS when the other specs of the run meet the pass line of the rules, section 5.",
+ "specs": [
+  {
+   "expected": "PASS",
+   "id": "Z01",
+   "name": "Sides popover: for Padding and for Margin at 1000, 1290, 1440 and 1920 and in the Phone view at a 390 window, every stepper and label box lies inside the popover's border box, the popover lies inside the window and the editor card, nothing scrolls sideways, the four steppers are equally wide, the labels do not overlap their buttons, Escape closes it and gives the focus back to the Sides button",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "host",
+     "width": 1000,
+     "height": 900
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Padding sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": true,
+     "inputs": [
+      "Padding top",
+      "Padding right",
+      "Padding bottom",
+      "Padding left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Padding"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Padding sides"
+    },
+    {
+     "do": "button",
+     "name": "Margin sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": true,
+     "inputs": [
+      "Margin top",
+      "Margin right",
+      "Margin bottom",
+      "Margin left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Margin"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Margin sides"
+    },
+    {
+     "do": "host",
+     "width": 1290,
+     "height": 900
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Padding sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": true,
+     "inputs": [
+      "Padding top",
+      "Padding right",
+      "Padding bottom",
+      "Padding left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Padding"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Padding sides"
+    },
+    {
+     "do": "button",
+     "name": "Margin sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": true,
+     "inputs": [
+      "Margin top",
+      "Margin right",
+      "Margin bottom",
+      "Margin left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Margin"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Margin sides"
+    },
+    {
+     "do": "host",
+     "width": 1440,
+     "height": 900
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Padding sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": true,
+     "inputs": [
+      "Padding top",
+      "Padding right",
+      "Padding bottom",
+      "Padding left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Padding"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Padding sides"
+    },
+    {
+     "do": "button",
+     "name": "Margin sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": true,
+     "inputs": [
+      "Margin top",
+      "Margin right",
+      "Margin bottom",
+      "Margin left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Margin"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Margin sides"
+    },
+    {
+     "do": "host",
+     "width": 1920,
+     "height": 900
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Padding sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": true,
+     "inputs": [
+      "Padding top",
+      "Padding right",
+      "Padding bottom",
+      "Padding left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Padding"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Padding sides"
+    },
+    {
+     "do": "button",
+     "name": "Margin sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": true,
+     "inputs": [
+      "Margin top",
+      "Margin right",
+      "Margin bottom",
+      "Margin left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Margin"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Margin sides"
+    },
+    {
+     "do": "host",
+     "width": 390,
+     "height": 844
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "button",
+     "name": "Padding sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": true,
+     "inputs": [
+      "Padding top",
+      "Padding right",
+      "Padding bottom",
+      "Padding left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Padding"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Padding sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Padding sides"
+    },
+    {
+     "do": "button",
+     "name": "Margin sides"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": true,
+     "inputs": [
+      "Margin top",
+      "Margin right",
+      "Margin bottom",
+      "Margin left"
+     ],
+     "focusInside": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "sidesFit",
+     "field": "Margin"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "popover",
+     "name": "Margin sides",
+     "open": false
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "focusOn",
+     "name": "Margin sides"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Z02",
+   "name": "Fonts: the twelve originals come first and in order, then 29 system fonts in four groups; every value is a stack that ends in a generic family with names that contain a space quoted; choosing each of the 41 options writes exactly its stack (computed font-family in the preview, exact text in the export) and Undo restores the exact bytes; the select has no free text and shows names only",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2",
+    "P5"
+   ],
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "fontList",
+     "label": "Font family",
+     "sel": "#headline",
+     "originals": [
+      "Georgia",
+      "Times New Roman",
+      "Arial",
+      "Helvetica",
+      "Verdana",
+      "Trebuchet MS",
+      "Tahoma",
+      "Courier New",
+      "system-ui",
+      "serif",
+      "sans-serif",
+      "monospace"
+     ],
+     "list": [
+      {
+       "label": "Georgia",
+       "value": "Georgia, serif"
+      },
+      {
+       "label": "Times New Roman",
+       "value": "\"Times New Roman\", serif"
+      },
+      {
+       "label": "Arial",
+       "value": "Arial, sans-serif"
+      },
+      {
+       "label": "Helvetica",
+       "value": "Helvetica, Arial, sans-serif"
+      },
+      {
+       "label": "Verdana",
+       "value": "Verdana, sans-serif"
+      },
+      {
+       "label": "Trebuchet MS",
+       "value": "\"Trebuchet MS\", sans-serif"
+      },
+      {
+       "label": "Tahoma",
+       "value": "Tahoma, sans-serif"
+      },
+      {
+       "label": "Courier New",
+       "value": "\"Courier New\", monospace"
+      },
+      {
+       "label": "system-ui",
+       "value": "system-ui"
+      },
+      {
+       "label": "serif",
+       "value": "serif"
+      },
+      {
+       "label": "sans-serif",
+       "value": "sans-serif"
+      },
+      {
+       "label": "monospace",
+       "value": "monospace"
+      },
+      {
+       "label": "Palatino Linotype",
+       "value": "\"Palatino Linotype\", \"Book Antiqua\", Palatino, serif"
+      },
+      {
+       "label": "Book Antiqua",
+       "value": "\"Book Antiqua\", Palatino, \"Palatino Linotype\", serif"
+      },
+      {
+       "label": "Garamond",
+       "value": "Garamond, \"Times New Roman\", serif"
+      },
+      {
+       "label": "Baskerville",
+       "value": "Baskerville, \"Baskerville Old Face\", \"Times New Roman\", serif"
+      },
+      {
+       "label": "Cambria",
+       "value": "Cambria, Georgia, serif"
+      },
+      {
+       "label": "Constantia",
+       "value": "Constantia, Georgia, serif"
+      },
+      {
+       "label": "Didot",
+       "value": "Didot, \"Bodoni MT\", \"Times New Roman\", serif"
+      },
+      {
+       "label": "Rockwell",
+       "value": "Rockwell, \"Courier Bold\", Courier, serif"
+      },
+      {
+       "label": "Segoe UI",
+       "value": "\"Segoe UI\", Tahoma, Geneva, sans-serif"
+      },
+      {
+       "label": "Calibri",
+       "value": "Calibri, Candara, \"Segoe UI\", sans-serif"
+      },
+      {
+       "label": "Candara",
+       "value": "Candara, Calibri, \"Segoe UI\", sans-serif"
+      },
+      {
+       "label": "Corbel",
+       "value": "Corbel, \"Lucida Grande\", \"Segoe UI\", sans-serif"
+      },
+      {
+       "label": "Century Gothic",
+       "value": "\"Century Gothic\", CenturyGothic, \"Apple Gothic\", sans-serif"
+      },
+      {
+       "label": "Gill Sans",
+       "value": "\"Gill Sans\", \"Gill Sans MT\", Calibri, sans-serif"
+      },
+      {
+       "label": "Optima",
+       "value": "Optima, Candara, \"Segoe UI\", sans-serif"
+      },
+      {
+       "label": "Futura",
+       "value": "Futura, \"Trebuchet MS\", Arial, sans-serif"
+      },
+      {
+       "label": "Franklin Gothic Medium",
+       "value": "\"Franklin Gothic Medium\", \"Arial Narrow\", Arial, sans-serif"
+      },
+      {
+       "label": "Lucida Sans Unicode",
+       "value": "\"Lucida Sans Unicode\", \"Lucida Grande\", sans-serif"
+      },
+      {
+       "label": "Geneva",
+       "value": "Geneva, Verdana, sans-serif"
+      },
+      {
+       "label": "Consolas",
+       "value": "Consolas, \"Lucida Console\", monospace"
+      },
+      {
+       "label": "Menlo",
+       "value": "Menlo, Monaco, Consolas, monospace"
+      },
+      {
+       "label": "Monaco",
+       "value": "Monaco, Menlo, Consolas, monospace"
+      },
+      {
+       "label": "Lucida Console",
+       "value": "\"Lucida Console\", Monaco, monospace"
+      },
+      {
+       "label": "Andale Mono",
+       "value": "\"Andale Mono\", \"Courier New\", monospace"
+      },
+      {
+       "label": "Impact",
+       "value": "Impact, \"Arial Narrow Bold\", Haettenschweiler, sans-serif"
+      },
+      {
+       "label": "Arial Black",
+       "value": "\"Arial Black\", \"Arial Bold\", Gadget, sans-serif"
+      },
+      {
+       "label": "Comic Sans MS",
+       "value": "\"Comic Sans MS\", \"Comic Sans\", cursive"
+      },
+      {
+       "label": "Brush Script MT",
+       "value": "\"Brush Script MT\", \"Brush Script Std\", cursive"
+      },
+      {
+       "label": "Copperplate",
+       "value": "Copperplate, \"Copperplate Gothic Light\", fantasy"
+      }
+     ]
+    },
+    {
+     "do": "assert",
+     "p": "P5",
+     "k": "noTextInput",
+     "field": "font-family"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Georgia, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Georgia, serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Times New Roman\", serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Arial, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Helvetica, Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Helvetica, Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Helvetica, Arial, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Verdana, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Verdana, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Verdana, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Trebuchet MS\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Trebuchet MS\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Trebuchet MS\", sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Tahoma, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Tahoma, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Tahoma, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Courier New\", monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Courier New\", monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Courier New\", monospace\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "system-ui"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "system-ui"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*system-ui\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*monospace\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Palatino Linotype\", \"Book Antiqua\", Palatino, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Palatino Linotype\", \"Book Antiqua\", Palatino, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Palatino Linotype\", \"Book Antiqua\", Palatino, serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Book Antiqua\", Palatino, \"Palatino Linotype\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Book Antiqua\", Palatino, \"Palatino Linotype\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Book Antiqua\", Palatino, \"Palatino Linotype\", serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Garamond, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Garamond, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Garamond, \"Times New Roman\", serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Baskerville, \"Baskerville Old Face\", \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Baskerville, \"Baskerville Old Face\", \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Baskerville, \"Baskerville Old Face\", \"Times New Roman\", serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Cambria, Georgia, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Cambria, Georgia, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Cambria, Georgia, serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Constantia, Georgia, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Constantia, Georgia, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Constantia, Georgia, serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Didot, \"Bodoni MT\", \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Didot, \"Bodoni MT\", \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Didot, \"Bodoni MT\", \"Times New Roman\", serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Rockwell, \"Courier Bold\", Courier, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Rockwell, \"Courier Bold\", Courier, serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Rockwell, \"Courier Bold\", Courier, serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Segoe UI\", Tahoma, Geneva, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Segoe UI\", Tahoma, Geneva, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Segoe UI\", Tahoma, Geneva, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Calibri, Candara, \"Segoe UI\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Calibri, Candara, \"Segoe UI\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Calibri, Candara, \"Segoe UI\", sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Candara, Calibri, \"Segoe UI\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Candara, Calibri, \"Segoe UI\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Candara, Calibri, \"Segoe UI\", sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Corbel, \"Lucida Grande\", \"Segoe UI\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Corbel, \"Lucida Grande\", \"Segoe UI\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Corbel, \"Lucida Grande\", \"Segoe UI\", sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Century Gothic\", CenturyGothic, \"Apple Gothic\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Century Gothic\", CenturyGothic, \"Apple Gothic\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Century Gothic\", CenturyGothic, \"Apple Gothic\", sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Gill Sans\", \"Gill Sans MT\", Calibri, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Gill Sans\", \"Gill Sans MT\", Calibri, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Gill Sans\", \"Gill Sans MT\", Calibri, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Optima, Candara, \"Segoe UI\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Optima, Candara, \"Segoe UI\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Optima, Candara, \"Segoe UI\", sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Futura, \"Trebuchet MS\", Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Futura, \"Trebuchet MS\", Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Futura, \"Trebuchet MS\", Arial, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Franklin Gothic Medium\", \"Arial Narrow\", Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Franklin Gothic Medium\", \"Arial Narrow\", Arial, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Franklin Gothic Medium\", \"Arial Narrow\", Arial, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Lucida Sans Unicode\", \"Lucida Grande\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Lucida Sans Unicode\", \"Lucida Grande\", sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Lucida Sans Unicode\", \"Lucida Grande\", sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Geneva, Verdana, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Geneva, Verdana, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Geneva, Verdana, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Consolas, \"Lucida Console\", monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Consolas, \"Lucida Console\", monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Consolas, \"Lucida Console\", monospace\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Menlo, Monaco, Consolas, monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Menlo, Monaco, Consolas, monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Menlo, Monaco, Consolas, monospace\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Monaco, Menlo, Consolas, monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Monaco, Menlo, Consolas, monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Monaco, Menlo, Consolas, monospace\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Lucida Console\", Monaco, monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Lucida Console\", Monaco, monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Lucida Console\", Monaco, monospace\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Andale Mono\", \"Courier New\", monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Andale Mono\", \"Courier New\", monospace"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Andale Mono\", \"Courier New\", monospace\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Impact, \"Arial Narrow Bold\", Haettenschweiler, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Impact, \"Arial Narrow Bold\", Haettenschweiler, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Impact, \"Arial Narrow Bold\", Haettenschweiler, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Arial Black\", \"Arial Bold\", Gadget, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Arial Black\", \"Arial Bold\", Gadget, sans-serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Arial Black\", \"Arial Bold\", Gadget, sans-serif\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Comic Sans MS\", \"Comic Sans\", cursive"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Comic Sans MS\", \"Comic Sans\", cursive"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Comic Sans MS\", \"Comic Sans\", cursive\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "\"Brush Script MT\", \"Brush Script Std\", cursive"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "\"Brush Script MT\", \"Brush Script Std\", cursive"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*\"Brush Script MT\", \"Brush Script Std\", cursive\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    },
+    {
+     "do": "chooseFont",
+     "label": "Font family",
+     "value": "Copperplate, \"Copperplate Gothic Light\", fantasy"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Copperplate, \"Copperplate Gothic Light\", fantasy"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportHas",
+     "file": "landing.css",
+     "pattern": "font-family:\\s*Copperplate, \"Copperplate Gothic Light\", fantasy\\s*[;}\\n]"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "css",
+     "sel": "#headline",
+     "prop": "fontFamily",
+     "equals": "Georgia, \"Times New Roman\", serif"
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "exportEqualsOriginal"
+    }
+   ]
+  },
+  {
+   "expected": "PASS",
+   "id": "Z07",
+   "name": "Kept: the original 20 (18 PASS, 2 REFUSED, 0 FAIL), round 1 N03 to N11, rounds 2 to 6 (retired checks skipped, T10 the already failed locked spec) and insert 1 Y01 to Y14 all pass in the same run (an aggregate: it has no steps)",
+   "sample": "landing",
+   "aggregate7": true,
+   "checks": [],
+   "steps": []
+  }
+ ]
+}

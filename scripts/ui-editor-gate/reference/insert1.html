@@ -81,8 +81,14 @@
   #up, #down, #grid, #snap { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
   button.sides { flex: none; width: 44px; padding: 0; }
   [data-ribbon-panel] button[aria-pressed=true] { background: var(--color-text); color: #fff; }
-  [data-sides-popover] { position: absolute; top: 100%; left: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; max-width: 100%; border: 1px solid var(--color-border); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
-  [data-sides-popover] .step { display: inline-flex; } [data-sides-popover] button { width: 28px; padding: 0; } [data-sides-popover] input { width: 64px; text-align: center; }
+  [data-sides-popover] { position: absolute; top: 100%; left: 0; z-index: 10; display: grid; grid-template-columns: repeat(2, max-content); gap: 8px 16px; padding: 8px 12px; width: max-content; max-width: calc(100vw - 16px); box-sizing: border-box; border: 1px solid var(--color-border); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  [data-sides-popover] .sidec { display: inline-flex; flex-direction: column; } [data-sides-popover] .cl { height: 13px; font-size: 11px; } [data-sides-popover] .step { display: inline-flex; }
+  [data-ribbon-group=spacing] { position: relative; }
+  /* the fault of round 7a: the popover capped at 100% of its group, in a group as narrow as the page's at 1440 and 1920 (the stub's own group is wider) */
+  @media (min-width: 1400px) { body[data-fault=sides-cap] [data-ribbon-group=spacing] { width: 190px; flex: none; } }
+  @media (min-width: 1800px) { body[data-fault=sides-cap] [data-ribbon-group=spacing] { width: 253px; } }
+  body[data-fault=sides-cap] [data-sides-popover] { width: auto; max-width: 100%; }
+  body[data-fault=sides-stepper-out] [data-sides-popover] .sidec:nth-child(2) { position: relative; left: 70px; } [data-sides-popover] button { width: 28px; padding: 0; } [data-sides-popover] input { width: 64px; text-align: center; }
   [role=menu] { z-index: 50; background: #fff; border: 1px solid var(--color-border); box-shadow: 0 4px 14px rgba(0,0,0,.2); border-radius: 6px; padding: 6px; min-width: 180px; max-width: calc(100vw - 8px); box-sizing: border-box; font-size: 13px; }
   [data-menu-heading] { font-size: 12px; color: var(--color-text-muted); padding: 2px 4px; }
   [data-swatches] { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 4px 6px; max-width: 232px; }
@@ -171,7 +177,8 @@
     [data-menu-button][data-fixed] { width: 72px; }
     [data-rows] { gap: 6px; }
     button.sides, .seg2 button { width: 44px; }
-    [data-sides-popover] { position: static; flex-direction: column; box-shadow: none; }
+    [data-sides-popover] { position: static; grid-template-columns: max-content; box-shadow: none; }
+    body[data-fault=sides-off-390] [data-sides-popover] { position: absolute; left: 330px; }
   }
   body[data-fault=height-selection].has-sel [data-ribbon-strip] { height: 40px; }
   body[data-fault=clip-font] #i-ff { width: 60px; }
@@ -387,7 +394,44 @@ async function apply(edit, extra = '', verify = null) {
 }
 
 // ---- the ribbon ----
-const FAMS = ['Georgia', 'Times New Roman', 'Arial', 'Helvetica', 'Verdana', 'Trebuchet MS', 'Tahoma', 'Courier New', 'system-ui', 'serif', 'sans-serif', 'monospace']
+const FAMS = [["Georgia", "Georgia, serif"], ["Times New Roman", "\"Times New Roman\", serif"], ["Arial", "Arial, sans-serif"], ["Helvetica", "Helvetica, Arial, sans-serif"], ["Verdana", "Verdana, sans-serif"], ["Trebuchet MS", "\"Trebuchet MS\", sans-serif"], ["Tahoma", "Tahoma, sans-serif"], ["Courier New", "\"Courier New\", monospace"], ["system-ui", "system-ui"], ["serif", "serif"], ["sans-serif", "sans-serif"], ["monospace", "monospace"]]
+const FAMS_NEW = [["Palatino Linotype", "\"Palatino Linotype\", \"Book Antiqua\", Palatino, serif"],
+  ["Book Antiqua", "\"Book Antiqua\", Palatino, \"Palatino Linotype\", serif"],
+  ["Garamond", "Garamond, \"Times New Roman\", serif"],
+  ["Baskerville", "Baskerville, \"Baskerville Old Face\", \"Times New Roman\", serif"],
+  ["Cambria", "Cambria, Georgia, serif"],
+  ["Constantia", "Constantia, Georgia, serif"],
+  ["Didot", "Didot, \"Bodoni MT\", \"Times New Roman\", serif"],
+  ["Rockwell", "Rockwell, \"Courier Bold\", Courier, serif"],
+  ["Segoe UI", "\"Segoe UI\", Tahoma, Geneva, sans-serif"],
+  ["Calibri", "Calibri, Candara, \"Segoe UI\", sans-serif"],
+  ["Candara", "Candara, Calibri, \"Segoe UI\", sans-serif"],
+  ["Corbel", "Corbel, \"Lucida Grande\", \"Segoe UI\", sans-serif"],
+  ["Century Gothic", "\"Century Gothic\", CenturyGothic, \"Apple Gothic\", sans-serif"],
+  ["Gill Sans", "\"Gill Sans\", \"Gill Sans MT\", Calibri, sans-serif"],
+  ["Optima", "Optima, Candara, \"Segoe UI\", sans-serif"],
+  ["Futura", "Futura, \"Trebuchet MS\", Arial, sans-serif"],
+  ["Franklin Gothic Medium", "\"Franklin Gothic Medium\", \"Arial Narrow\", Arial, sans-serif"],
+  ["Lucida Sans Unicode", "\"Lucida Sans Unicode\", \"Lucida Grande\", sans-serif"],
+  ["Geneva", "Geneva, Verdana, sans-serif"],
+  ["Consolas", "Consolas, \"Lucida Console\", monospace"],
+  ["Menlo", "Menlo, Monaco, Consolas, monospace"],
+  ["Monaco", "Monaco, Menlo, Consolas, monospace"],
+  ["Lucida Console", "\"Lucida Console\", Monaco, monospace"],
+  ["Andale Mono", "\"Andale Mono\", \"Courier New\", monospace"],
+  ["Impact", "Impact, \"Arial Narrow Bold\", Haettenschweiler, sans-serif"],
+  ["Arial Black", "\"Arial Black\", \"Arial Bold\", Gadget, sans-serif"],
+  ["Comic Sans MS", "\"Comic Sans MS\", \"Comic Sans\", cursive"],
+  ["Brush Script MT", "\"Brush Script MT\", \"Brush Script Std\", cursive"],
+  ["Copperplate", "Copperplate, \"Copperplate Gothic Light\", fantasy"]]
+// round 7a: the faults of the font list (Z02)
+const famsNow = () => {
+  let l = [...FAMS, ...FAMS_NEW]
+  if (fault === 'font-drop-original') l = l.filter(([n]) => n !== 'Tahoma')
+  if (fault === 'font-wrong-stack') l = l.map(([n, v]) => (n === 'Palatino Linotype' ? [n, 'Garamond, serif'] : [n, v]))
+  if (fault === 'font-no-generic') l = l.map(([n, v]) => (n === 'Cambria' ? [n, 'Cambria, Georgia'] : [n, v]))
+  return l
+}
 const F = (n) => fault === n
 if (fault === 'file-selector') { const f = document.createElement('select'); f.id = 'file'; f.setAttribute('aria-label', 'File'); f.innerHTML = '<option>landing.html</option>'; document.querySelector('#download').before(f) }
 if (!F('no-sentence')) { const li = document.createElement('li'); li.textContent = 'With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge.'; $('#limits').appendChild(li) }
@@ -398,11 +442,11 @@ const rlabel = (text, w) => `<span data-row-label style="width:${w}px">${text}</
 const numbox = (name, field, label = name) => `<span data-numbox data-stretch data-field="${field}"><input type="text" aria-label="${name}" title="Type the ${label.toLowerCase()}, then press Enter." data-num="${name}"><span data-spin="up" data-for="${name}" data-name="Increase ${name}" data-st="${name}|1" aria-hidden="true"></span><span data-spin="down" data-for="${name}" data-name="Decrease ${name}" data-st="${name}|-1" aria-hidden="true"></span></span>`
 const menuBtn = (name, tip, glyph, o = {}) => `<button type="button" data-menu-button="${name}" ${o.fixed ? '' : 'data-stretch'} aria-haspopup="menu" aria-expanded="false" aria-label="${name}" title="${tip}"${o.id ? ` id="${o.id}"` : ''}>${glyph}${o.bar ? `<i data-colour-bar></i>` : ''}${o.text ? `<span>${o.text}</span>` : ''}${CHEV}</button>`
 const sidesBtn = (name) => `<button type="button" class="sides" data-fixed aria-label="${name} sides" title="Edit each side of ${name.toLowerCase()}" aria-expanded="false" data-sides-btn="${name}">Sides</button>`
-const popover = (name) => `<div role="dialog" aria-label="${name} sides" data-sides-popover="${name}" hidden>${['top', 'right', 'bottom', 'left'].map((s) => `<span class="step"><button type="button" aria-label="Decrease ${name} ${s}" title="Decrease ${name} ${s} by one step" data-st="${name} ${s}|-1">−</button><input type="text" aria-label="${name} ${s}" title="Type the ${name.toLowerCase()} ${s}, then press Enter." data-num="${name} ${s}"><button type="button" aria-label="Increase ${name} ${s}" title="Increase ${name} ${s} by one step" data-st="${name} ${s}|1">+</button></span>`).join('')}</div>`
+const popover = (name) => `<div role="dialog" aria-label="${name} sides" data-sides-popover="${name}" hidden>${['top', 'right', 'bottom', 'left'].map((s) => `<span class="sidec"><span class="cl">${s[0].toUpperCase() + s.slice(1)}</span><span class="step"><button type="button" aria-label="Decrease ${name} ${s}" title="Decrease ${name} ${s} by one step" data-st="${name} ${s}|-1">−</button><input type="text" aria-label="${name} ${s}" title="Type the ${name.toLowerCase()} ${s}, then press Enter." data-num="${name} ${s}"><button type="button" aria-label="Increase ${name} ${s}" title="Increase ${name} ${s} by one step" data-st="${name} ${s}|1">+</button></span></span>`).join('')}</div>`
 const AL = [['left', 'Align left', 'left'], ['center', 'Align centre', 'centre'], ['right', 'Align right', 'right'], ['justify', 'Justify', 'justify']]
 const alignBtns = AL.map(([v, n, cap]) => `<button type="button" class="al" data-stretch aria-label="${n}" title="Align the text to the ${cap}" aria-pressed="false" data-al="${v}">${icon('M4 6h16M4 12h10M4 18h16')}</button>`).join('')
 const fontG = group('font', 'Font', [
-  `<select id="i-ff" data-stretch aria-label="Font family" title="Choose the font for this text"></select><span data-numbox data-fixed data-field="font-size"><input type="text" aria-label="Font size" title="Type the font size, then press Enter." data-num="Font size"><button type="button" data-menu-button="Font size presets" aria-haspopup="menu" aria-expanded="false" aria-label="Font size presets" title="Open the list of font sizes.">${CHEV}</button></span><button type="button" data-fixed-icon data-st="Font size|1" aria-label="Increase Font size" title="Increase the font size by one step">${icon('M4 19 9 6l5 13M6 14h6M18 6v6M15 9h6')}</button><button type="button" data-fixed-icon data-st="Font size|-1" aria-label="Decrease Font size" title="Decrease the font size by one step">${icon('M4 19 9 6l5 13M6 14h6M15 9h6')}</button>`,
+  `<span data-stretch data-field="font-family" style="display:flex;min-width:90px"><select id="i-ff" aria-label="Font family" title="Choose the font for this text" style="flex:1;min-width:0;width:100%"></select></span><span data-numbox data-fixed data-field="font-size"><input type="text" aria-label="Font size" title="Type the font size, then press Enter." data-num="Font size"><button type="button" data-menu-button="Font size presets" aria-haspopup="menu" aria-expanded="false" aria-label="Font size presets" title="Open the list of font sizes.">${CHEV}</button></span><button type="button" data-fixed-icon data-st="Font size|1" aria-label="Increase Font size" title="Increase the font size by one step">${icon('M4 19 9 6l5 13M6 14h6M18 6v6M15 9h6')}</button><button type="button" data-fixed-icon data-st="Font size|-1" aria-label="Decrease Font size" title="Decrease the font size by one step">${icon('M4 19 9 6l5 13M6 14h6M15 9h6')}</button>`,
   `<select id="i-fw" data-stretch aria-label="Font weight" title="Choose how heavy the text is">${[100, 200, 300, 400, 500, 600, 700, 800, 900].map((w) => `<option>${w}</option>`).join('')}</select>${menuBtn('Font colour', 'Open the colours for the text.', `${icon('M5 19 12 4l7 15M8 14h8')}`, { fixed: true, bar: true, id: 'fc' })}`,
 ])
 const paraG = group('paragraph', 'Paragraph', [
@@ -680,7 +724,7 @@ ribbon.addEventListener('click', async (e) => {
   const b = e.target.closest('button, [data-spin]'); if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true') return
   if (b.dataset.swallow) { delete b.dataset.swallow; return }
   if (b.dataset.menuButton) return openMenuFor(b)
-  if (b.dataset.sidesBtn) { const p = document.querySelector(`[data-sides-popover="${b.dataset.sidesBtn}"]`); const open = p.hidden; closePopovers(false); p.hidden = !open; b.setAttribute('aria-expanded', String(open)); if (open) p.querySelector('input').focus(); return }
+  if (b.dataset.sidesBtn) { const p = document.querySelector(`[data-sides-popover="${b.dataset.sidesBtn}"]`); const open = p.hidden; closePopovers(false); p.hidden = !open; b.setAttribute('aria-expanded', String(open)); if (open) { p.style.marginLeft = ''; const r = p.getBoundingClientRect(), over = r.right - (innerWidth - 8); if (over > 0 && fault !== 'sides-cap' && fault !== 'sides-off-390') p.style.marginLeft = `-${Math.min(over, Math.max(0, r.left - 8))}px`; p.querySelector('input').focus() } return }
   if (b.dataset.st) { const [name, dir] = b.dataset.st.split('|'); return stepOnce(name, Number(dir), e.shiftKey) }
   if (b.dataset.al) return doSet({ 'text-align': b.dataset.al })
   if (b.dataset.unit) { unit = b.dataset.unit; return paint() }
@@ -706,7 +750,7 @@ document.addEventListener('keydown', (e) => {
 })
 ribbon.addEventListener('change', (e) => {
   const t = e.target
-  if (t.id === 'i-ff') return doSet({ 'font-family': /\s/.test(t.value) ? `"${t.value}"` : t.value })
+  if (t.id === 'i-ff') return doSet({ 'font-family': t.value })
   if (t.id === 'i-fw') return doSet({ 'font-weight': t.value })
   if (t.id === 'spacing') { spacing = Number(t.value); return paintGrid() }
 })
@@ -752,7 +796,8 @@ var paintRibbon = function () {
   if (el) {
     const c = cs()
     const first = (st) => st.split(',')[0].trim().replace(/^["']|["']$/g, '')
-    f.innerHTML = [first(c.fontFamily), ...FAMS].map((o) => `<option>${o.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</option>`).join(''); f.selectedIndex = 0
+    const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
+    f.innerHTML = [[first(c.fontFamily), c.fontFamily], ...famsNow()].map(([l, v]) => `<option value="${esc(v)}">${esc(l)}</option>`).join(''); f.selectedIndex = 0
     f.title = `Choose the font for this text. Now: ${c.fontFamily}.`
     $('#i-fw').value = c.fontWeight
     for (const i of ribbon.querySelectorAll('[data-num]')) { const n = i.dataset.num; i.value = /^Nudge/.test(n) ? '0' : (unit === '%' && n === 'Width' ? current(n) + '%' : current(n) + 'px') }
