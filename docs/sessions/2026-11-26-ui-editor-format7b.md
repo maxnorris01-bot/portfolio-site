@@ -23,7 +23,7 @@ Bundles, flag ON: main 244.31 kB / 77.04 gzip (unchanged); page chunk 384.06 / 1
 - **Layout:** 20 px cells ten to a row; below 1048 px 44 px cells wrapping to as many as fit (8 at 1000 px, 7 at 390).
 
 ## Amendments
-**A1** (round 7b rules section 7): the colour input is drawn in `<body>`, not beside the button as the locked text says: next to the button it is an `input` of the ribbon and 13 earlier locked checks that count and measure the ribbon's controls failed on it (found by the first run of the earlier specs on the built page, before the final run). It stays mounted when the menu closes, which is what the brief's rule was for. No other amendment.
+**A1** (round 7b rules section 7): the colour input is drawn in `<body>`, not beside the button as the locked text says: next to the button it is an `input` of the ribbon and 12 earlier locked checks (and so Z07) that count and measure the ribbon's controls failed on it (found by the first run of the earlier specs on the built page, before the final run). It stays mounted when the menu closes, which is what the brief's rule was for. No other amendment.
 
 ## Iterations
 No labelled iteration: the final run is the first complete run of the final code. Partial runs kept: the dry runs before the lock, the first run of the earlier specs (the 13 failures that gave A1), the first scorer set (a clipped-menu fault that only made the runner time out, and the stub's input in the ribbon).
