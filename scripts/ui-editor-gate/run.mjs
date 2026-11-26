@@ -3196,12 +3196,19 @@ async function runSpec(spec) {
     res.notes.push('runner error: ' + (e?.stack ?? e))
   }
   if (DUMP) {
+    // the exported files of the spec's last state, when the page has a Download button to give them (a spec that ends with nothing open has none); a failure here never changes the spec's outcome
     try {
-      const files = res.exports ?? (await grabAll())
-      const d = join(DUMP, spec.id)
-      mkdirSync(d, { recursive: true })
-      for (const [f, text] of Object.entries(files)) writeFileSync(join(d, f), text)
-    } catch (e) { res.notes.push('dump failed: ' + String(e).split('\n')[0]) }
+      let files = res.exports
+      if (!files) {
+        const dl = page.getByRole('button', { name: 'Download', exact: true })
+        if ((await dl.count()) && (await dl.first().isEnabled().catch(() => false))) files = await grabAll()
+      }
+      if (files) {
+        const d = join(DUMP, spec.id)
+        mkdirSync(d, { recursive: true })
+        for (const [f, text] of Object.entries(files)) writeFileSync(join(d, f), text)
+      }
+    } catch (e) { res.dumpNote = String(e).split('\n')[0] }
   }
   await ctx.close()
   // READING (docs/ui-editor-gate-log.md #24): T11 lists P5 but has no P5 assert (my slip in the locked file). A listed check that no assert of the spec belongs to has nothing that
