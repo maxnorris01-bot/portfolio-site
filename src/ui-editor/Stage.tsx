@@ -108,6 +108,13 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     sel.current = selected
   }, [selected])
 
+  const sessionRef = useRef(session)
+  useLayoutEffect(() => {
+    sessionRef.current = session
+  }, [session])
+  /** The measure of the effect below, for the frame loop. */
+  const measureNow = useRef<(() => void) | null>(null)
+
   const elementOf = useCallback((i: number | null) => (session && i !== null ? (session.preview.elements[i] ?? null) : null), [session])
 
   // Measure the selection again whenever the preview changed, the selection moved, or the page reflowed (images, fonts, a resize of the frame).
@@ -129,6 +136,7 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
         return k.length === Object.keys(prev).length && k.every((i) => prev[Number(i)] && prev[Number(i)].left === at[Number(i)].left && prev[Number(i)].top === at[Number(i)].top) ? prev : at
       })
     }
+    measureNow.current = measure
     measure()
     const doc = session?.preview.doc
     const root = doc?.documentElement
@@ -143,6 +151,51 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       doc.removeEventListener('scroll', measure, { capture: true })
     }
   }, [session, rev, selected, elementOf, pinKey])
+
+  // A frame loop while something is selected and the tab is visible. Safari delivers no scroll event from the preview (a sandboxed frame with scripts off), and a trackpad's momentum scroll can come late
+  // in any browser, so each frame the live preview document's scroll position, the selected element's box and the scale are read, and `measure` runs only when one of them changed since the last frame:
+  // an idle selection costs two cheap reads a frame and no write. The session is read from a ref every frame (a replay swaps it), and the loop stops when the selection is cleared, the tab is hidden and on unmount.
+  useEffect(() => {
+    if (selected === null) return
+    let id = 0
+    let last = ''
+    const key = () => {
+      const s = sessionRef.current
+      const el = s ? (s.preview.elements[selected] ?? null) : null
+      const win = s?.preview.doc.defaultView
+      const layer = overlay.current
+      if (!s || !el || !win || !el.isConnected) return 'none'
+      const r = el.getBoundingClientRect()
+      const k = layer && layer.offsetWidth ? layer.getBoundingClientRect().width / layer.offsetWidth : 1
+      return `${win.scrollX}|${win.scrollY}|${r.left}|${r.top}|${r.width}|${r.height}|${k}`
+    }
+    const frame = () => {
+      id = 0
+      if (document.hidden) return
+      const now = key()
+      if (now !== last) {
+        last = now
+        measureNow.current?.()
+      }
+      id = requestAnimationFrame(frame)
+    }
+    const start = () => {
+      if (!id && !document.hidden) id = requestAnimationFrame(frame)
+    }
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(id)
+        id = 0
+      } else start()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    start()
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      cancelAnimationFrame(id)
+      id = 0
+    }
+  }, [selected])
 
   // The pointer layer covers the frame, so the wheel is handed on to a screen that scrolls (a phone or tablet); at its end the page scrolls as usual.
   useEffect(() => {
