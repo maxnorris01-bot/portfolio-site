@@ -1,0 +1,1665 @@
+{
+ "url": "http://127.0.0.1:4341/ui-editor",
+ "widths": {
+  "1000": {
+   "Desktop": {
+    "ribbonBands": 7,
+    "groups": [
+     {
+      "id": "font",
+      "x": 23,
+      "width": 954,
+      "top": 424.52,
+      "height": 131
+     },
+     {
+      "id": "paragraph",
+      "x": 23,
+      "width": 954,
+      "top": 555.52,
+      "height": 131
+     },
+     {
+      "id": "size",
+      "x": 23,
+      "width": 954,
+      "top": 686.52,
+      "height": 131
+     },
+     {
+      "id": "shape",
+      "x": 23,
+      "width": 954,
+      "top": 817.52,
+      "height": 131
+     },
+     {
+      "id": "spacing",
+      "x": 23,
+      "width": 954,
+      "top": 948.52,
+      "height": 131
+     },
+     {
+      "id": "position",
+      "x": 23,
+      "width": 954,
+      "top": 1079.52,
+      "height": 79
+     },
+     {
+      "id": "grid",
+      "x": 23,
+      "width": 954,
+      "top": 1158.52,
+      "height": 130
+     }
+    ],
+    "bar": {
+     "x": 23,
+     "y": 274.52,
+     "width": 954,
+     "height": 96,
+     "rows": 2,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 31,
+       "y": 282.52,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 35,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 77,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 119,
+       "y": 326.52,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 218.73,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 302.72,
+       "y": 326.52,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 400.36,
+       "y": 326.52,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 484.89,
+       "y": 326.52,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 758.48,
+       "y": 326.52,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 874.81,
+       "y": 326.52,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   },
+   "Tablet": {
+    "ribbonBands": 7,
+    "groups": [
+     {
+      "id": "font",
+      "x": 23,
+      "width": 954,
+      "top": 468.52,
+      "height": 131
+     },
+     {
+      "id": "paragraph",
+      "x": 23,
+      "width": 954,
+      "top": 599.52,
+      "height": 131
+     },
+     {
+      "id": "size",
+      "x": 23,
+      "width": 954,
+      "top": 730.52,
+      "height": 131
+     },
+     {
+      "id": "shape",
+      "x": 23,
+      "width": 954,
+      "top": 861.52,
+      "height": 131
+     },
+     {
+      "id": "spacing",
+      "x": 23,
+      "width": 954,
+      "top": 992.52,
+      "height": 131
+     },
+     {
+      "id": "position",
+      "x": 23,
+      "width": 954,
+      "top": 1123.52,
+      "height": 79
+     },
+     {
+      "id": "grid",
+      "x": 23,
+      "width": 954,
+      "top": 1202.52,
+      "height": 130
+     }
+    ],
+    "bar": {
+     "x": 23,
+     "y": 274.52,
+     "width": 954,
+     "height": 140,
+     "rows": 3,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 31,
+       "y": 282.52,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 35,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 77,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 119,
+       "y": 326.52,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 218.73,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 306.38,
+       "y": 326.52,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 404.02,
+       "y": 326.52,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 488.55,
+       "y": 326.52,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Rotate",
+       "x": 573.69,
+       "y": 326.52,
+       "width": 80.89,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 852.67,
+       "y": 326.52,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 874.81,
+       "y": 370.52,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   },
+   "Phone": {
+    "ribbonBands": 7,
+    "groups": [
+     {
+      "id": "font",
+      "x": 23,
+      "width": 954,
+      "top": 468.52,
+      "height": 131
+     },
+     {
+      "id": "paragraph",
+      "x": 23,
+      "width": 954,
+      "top": 599.52,
+      "height": 131
+     },
+     {
+      "id": "size",
+      "x": 23,
+      "width": 954,
+      "top": 730.52,
+      "height": 131
+     },
+     {
+      "id": "shape",
+      "x": 23,
+      "width": 954,
+      "top": 861.52,
+      "height": 131
+     },
+     {
+      "id": "spacing",
+      "x": 23,
+      "width": 954,
+      "top": 992.52,
+      "height": 131
+     },
+     {
+      "id": "position",
+      "x": 23,
+      "width": 954,
+      "top": 1123.52,
+      "height": 79
+     },
+     {
+      "id": "grid",
+      "x": 23,
+      "width": 954,
+      "top": 1202.52,
+      "height": 130
+     }
+    ],
+    "bar": {
+     "x": 23,
+     "y": 274.52,
+     "width": 954,
+     "height": 140,
+     "rows": 3,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 31,
+       "y": 282.52,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 35,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 77,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 119,
+       "y": 326.52,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 218.73,
+       "y": 326.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 306.38,
+       "y": 326.52,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 404.02,
+       "y": 326.52,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 488.55,
+       "y": 326.52,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Rotate",
+       "x": 573.69,
+       "y": 326.52,
+       "width": 80.89,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 852.67,
+       "y": 326.52,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 874.81,
+       "y": 370.52,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   }
+  },
+  "1280": {
+   "Desktop": {
+    "ribbonBands": 2,
+    "groups": [
+     {
+      "id": "font",
+      "x": 29.16,
+      "width": 333.98,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 363.14,
+      "width": 212.28,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 575.42,
+      "width": 270.17,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 845.59,
+      "width": 405.25,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 29.16,
+      "width": 333.98,
+      "top": 429.31,
+      "height": 96
+     },
+     {
+      "id": "position",
+      "x": 363.14,
+      "width": 482.45,
+      "top": 429.31,
+      "height": 96
+     },
+     {
+      "id": "grid",
+      "x": 845.59,
+      "width": 405.25,
+      "top": 429.31,
+      "height": 96
+     }
+    ],
+    "bar": {
+     "x": 29.16,
+     "y": 255.31,
+     "width": 1221.69,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 37.16,
+       "y": 263.31,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 132.47,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 174.47,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 216.47,
+       "y": 263.31,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 316.2,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 488.38,
+       "y": 263.31,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 586.02,
+       "y": 263.31,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 670.55,
+       "y": 263.31,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1032.33,
+       "y": 263.31,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1148.66,
+       "y": 263.31,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   },
+   "Tablet": {
+    "ribbonBands": 2,
+    "groups": [
+     {
+      "id": "font",
+      "x": 29.16,
+      "width": 333.98,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 363.14,
+      "width": 212.28,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 575.42,
+      "width": 270.17,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 845.59,
+      "width": 405.25,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 29.16,
+      "width": 333.98,
+      "top": 429.31,
+      "height": 96
+     },
+     {
+      "id": "position",
+      "x": 363.14,
+      "width": 482.45,
+      "top": 429.31,
+      "height": 96
+     },
+     {
+      "id": "grid",
+      "x": 845.59,
+      "width": 405.25,
+      "top": 429.31,
+      "height": 96
+     }
+    ],
+    "bar": {
+     "x": 29.16,
+     "y": 255.31,
+     "width": 1221.69,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 37.16,
+       "y": 263.31,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 132.47,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 174.47,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 216.47,
+       "y": 263.31,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 316.2,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 444.94,
+       "y": 263.31,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 542.58,
+       "y": 263.31,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 627.11,
+       "y": 263.31,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Rotate",
+       "x": 712.25,
+       "y": 263.31,
+       "width": 80.89,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1032.33,
+       "y": 263.31,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1148.66,
+       "y": 263.31,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   },
+   "Phone": {
+    "ribbonBands": 2,
+    "groups": [
+     {
+      "id": "font",
+      "x": 29.16,
+      "width": 333.98,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 363.14,
+      "width": 212.28,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 575.42,
+      "width": 270.17,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 845.59,
+      "width": 405.25,
+      "top": 334.31,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 29.16,
+      "width": 333.98,
+      "top": 429.31,
+      "height": 96
+     },
+     {
+      "id": "position",
+      "x": 363.14,
+      "width": 482.45,
+      "top": 429.31,
+      "height": 96
+     },
+     {
+      "id": "grid",
+      "x": 845.59,
+      "width": 405.25,
+      "top": 429.31,
+      "height": 96
+     }
+    ],
+    "bar": {
+     "x": 29.16,
+     "y": 255.31,
+     "width": 1221.69,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 37.16,
+       "y": 263.31,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 132.47,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 174.47,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 216.47,
+       "y": 263.31,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 316.2,
+       "y": 263.31,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 444.94,
+       "y": 263.31,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 542.58,
+       "y": 263.31,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 627.11,
+       "y": 263.31,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Rotate",
+       "x": 712.25,
+       "y": 263.31,
+       "width": 80.89,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1032.33,
+       "y": 263.31,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1148.66,
+       "y": 263.31,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   }
+  },
+  "1440": {
+   "Desktop": {
+    "ribbonBands": 1,
+    "groups": [
+     {
+      "id": "font",
+      "x": 32.67,
+      "width": 229.44,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 262.11,
+      "width": 145.83,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 407.94,
+      "width": 185.61,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 593.55,
+      "width": 278.39,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 871.94,
+      "width": 190.7,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "position",
+      "x": 1062.64,
+      "width": 209.05,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "grid",
+      "x": 1271.69,
+      "width": 135.63,
+      "top": 337.52,
+      "height": 95
+     }
+    ],
+    "bar": {
+     "x": 32.67,
+     "y": 258.52,
+     "width": 1374.66,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 40.67,
+       "y": 266.52,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 135.98,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 177.98,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 219.98,
+       "y": 266.52,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 319.72,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 568.38,
+       "y": 266.52,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 666.02,
+       "y": 266.52,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 750.55,
+       "y": 266.52,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1188.81,
+       "y": 266.52,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1305.14,
+       "y": 266.52,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   },
+   "Tablet": {
+    "ribbonBands": 1,
+    "groups": [
+     {
+      "id": "font",
+      "x": 32.67,
+      "width": 229.44,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 262.11,
+      "width": 145.83,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 407.94,
+      "width": 185.61,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 593.55,
+      "width": 278.39,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 871.94,
+      "width": 190.7,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "position",
+      "x": 1062.64,
+      "width": 209.05,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "grid",
+      "x": 1271.69,
+      "width": 135.63,
+      "top": 337.52,
+      "height": 95
+     }
+    ],
+    "bar": {
+     "x": 32.67,
+     "y": 258.52,
+     "width": 1374.66,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 40.67,
+       "y": 266.52,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 135.98,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 177.98,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 219.98,
+       "y": 266.52,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 319.72,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 524.94,
+       "y": 266.52,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 622.58,
+       "y": 266.52,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 707.11,
+       "y": 266.52,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Rotate",
+       "x": 792.25,
+       "y": 266.52,
+       "width": 80.89,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1188.81,
+       "y": 266.52,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1305.14,
+       "y": 266.52,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   },
+   "Phone": {
+    "ribbonBands": 1,
+    "groups": [
+     {
+      "id": "font",
+      "x": 32.67,
+      "width": 229.44,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 262.11,
+      "width": 145.83,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 407.94,
+      "width": 185.61,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 593.55,
+      "width": 278.39,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 871.94,
+      "width": 190.7,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "position",
+      "x": 1062.64,
+      "width": 209.05,
+      "top": 337.52,
+      "height": 95
+     },
+     {
+      "id": "grid",
+      "x": 1271.69,
+      "width": 135.63,
+      "top": 337.52,
+      "height": 95
+     }
+    ],
+    "bar": {
+     "x": 32.67,
+     "y": 258.52,
+     "width": 1374.66,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 40.67,
+       "y": 266.52,
+       "width": 83.31,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 135.98,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 177.98,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 219.98,
+       "y": 266.52,
+       "width": 93.73,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 319.72,
+       "y": 266.52,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 524.94,
+       "y": 266.52,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 622.58,
+       "y": 266.52,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 707.11,
+       "y": 266.52,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Rotate",
+       "x": 792.25,
+       "y": 266.52,
+       "width": 80.89,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1188.81,
+       "y": 266.52,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1305.14,
+       "y": 266.52,
+       "width": 94.19,
+       "height": 36
+      }
+     ]
+    }
+   }
+  },
+  "1920": {
+   "Desktop": {
+    "ribbonBands": 1,
+    "groups": [
+     {
+      "id": "font",
+      "x": 43.23,
+      "width": 306.03,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 349.27,
+      "width": 194.52,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 543.78,
+      "width": 247.55,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 791.33,
+      "width": 371.33,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 1162.66,
+      "width": 254.36,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "position",
+      "x": 1417.02,
+      "width": 278.84,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "grid",
+      "x": 1695.86,
+      "width": 180.89,
+      "top": 349.92,
+      "height": 95
+     }
+    ],
+    "bar": {
+     "x": 43.23,
+     "y": 270.92,
+     "width": 1833.53,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 51.23,
+       "y": 278.92,
+       "width": 83.33,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 146.56,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 188.56,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 230.56,
+       "y": 278.92,
+       "width": 93.75,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 330.31,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 808.38,
+       "y": 278.92,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 906.02,
+       "y": 278.92,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 990.55,
+       "y": 278.92,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1658.23,
+       "y": 278.92,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1774.56,
+       "y": 278.92,
+       "width": 94.2,
+       "height": 36
+      }
+     ]
+    }
+   },
+   "Tablet": {
+    "ribbonBands": 1,
+    "groups": [
+     {
+      "id": "font",
+      "x": 43.23,
+      "width": 306.03,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 349.27,
+      "width": 194.52,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 543.78,
+      "width": 247.55,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 791.33,
+      "width": 371.33,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 1162.66,
+      "width": 254.36,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "position",
+      "x": 1417.02,
+      "width": 278.84,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "grid",
+      "x": 1695.86,
+      "width": 180.89,
+      "top": 349.92,
+      "height": 95
+     }
+    ],
+    "bar": {
+     "x": 43.23,
+     "y": 270.92,
+     "width": 1833.53,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 51.23,
+       "y": 278.92,
+       "width": 83.33,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 146.56,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 188.56,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 230.56,
+       "y": 278.92,
+       "width": 93.75,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 330.31,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 764.92,
+       "y": 278.92,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 862.56,
+       "y": 278.92,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 947.09,
+       "y": 278.92,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Rotate",
+       "x": 1032.23,
+       "y": 278.92,
+       "width": 80.92,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1658.23,
+       "y": 278.92,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1774.56,
+       "y": 278.92,
+       "width": 94.2,
+       "height": 36
+      }
+     ]
+    }
+   },
+   "Phone": {
+    "ribbonBands": 1,
+    "groups": [
+     {
+      "id": "font",
+      "x": 43.23,
+      "width": 306.03,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "paragraph",
+      "x": 349.27,
+      "width": 194.52,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "size",
+      "x": 543.78,
+      "width": 247.55,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "shape",
+      "x": 791.33,
+      "width": 371.33,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "spacing",
+      "x": 1162.66,
+      "width": 254.36,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "position",
+      "x": 1417.02,
+      "width": 278.84,
+      "top": 349.92,
+      "height": 95
+     },
+     {
+      "id": "grid",
+      "x": 1695.86,
+      "width": 180.89,
+      "top": 349.92,
+      "height": 95
+     }
+    ],
+    "bar": {
+     "x": 43.23,
+     "y": 270.92,
+     "width": 1833.53,
+     "height": 52,
+     "rows": 1,
+     "buttons": [
+      {
+       "name": "Samples",
+       "x": 51.23,
+       "y": 278.92,
+       "width": 83.33,
+       "height": 36
+      },
+      {
+       "name": "Undo",
+       "x": 146.56,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Redo",
+       "x": 188.56,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Insert",
+       "x": 230.56,
+       "y": 278.92,
+       "width": 93.75,
+       "height": 36
+      },
+      {
+       "name": "Comment",
+       "x": 330.31,
+       "y": 278.92,
+       "width": 36,
+       "height": 36
+      },
+      {
+       "name": "Desktop",
+       "x": 764.92,
+       "y": 278.92,
+       "width": 91.64,
+       "height": 36
+      },
+      {
+       "name": "Tablet",
+       "x": 862.56,
+       "y": 278.92,
+       "width": 78.53,
+       "height": 36
+      },
+      {
+       "name": "Phone",
+       "x": 947.09,
+       "y": 278.92,
+       "width": 79.14,
+       "height": 36
+      },
+      {
+       "name": "Rotate",
+       "x": 1032.23,
+       "y": 278.92,
+       "width": 80.92,
+       "height": 36
+      },
+      {
+       "name": "Download",
+       "x": 1658.23,
+       "y": 278.92,
+       "width": 103.33,
+       "height": 36
+      },
+      {
+       "name": "Reset all",
+       "x": 1774.56,
+       "y": 278.92,
+       "width": 94.2,
+       "height": 36
+      }
+     ]
+    }
+   }
+  }
+ }
+}

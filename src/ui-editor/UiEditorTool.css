@@ -127,6 +127,23 @@
   flex: none;
 }
 
+/* Views stage 2: the mark on a Phone or Tablet button whose view has changes of its own. It sits in the corner and takes no room (the button keeps its size); the name and the tooltip say it too. */
+.ue-tool .btn.ue-icon.is-customised {
+  position: relative;
+}
+
+.ue-tool .ue-mark {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-surface);
+  pointer-events: none;
+}
+
 /* An icon button that also shows its word (the view buttons, Rotate, Copy code, Download, Reset all). */
 .ue-tool .btn.ue-icon.has-text {
   width: auto;
@@ -318,6 +335,42 @@
 
 .ue-preview {
   position: relative;
+}
+
+/* Views stage 2: the banner above the preview in Tablet and Phone. Both of its sentences are always in the box (one in front of the other, the one that does not apply is hidden and out of the page's tab order and
+   accessible tree), so its height is that of the taller one at every width and the stage never moves when a view gets its first change. In the flow, not an overlay. */
+.ue-banner {
+  display: grid;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: inset 4px 0 0 var(--color-accent);
+  line-height: var(--leading);
+}
+
+.ue-banner-row {
+  grid-area: 1 / 1;
+  align-self: center;
+  margin: 0;
+  min-width: 0;
+}
+
+.ue-banner-row.has-button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.ue-banner-row.has-button p {
+  flex: 1 1 24rem;
+  margin: 0;
+}
+
+.ue-banner-row.is-off {
+  visibility: hidden;
 }
 
 /* The stage area: the device is centred in it. A phone or tablet sits in a plain dark outline (CSS only, no real model); Desktop has none. */

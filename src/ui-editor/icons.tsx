@@ -104,18 +104,25 @@ interface Props {
   showLabel?: boolean
   /** The tooltip, when it says more than the name (the name is the aria-label, and the tooltip then becomes the accessible description). */
   tip?: string
+  /** Views stage 2: a small mark on the button (the view has changes of its own). It is in the name and the tooltip too, and takes no room. */
+  mark?: boolean
+  /** Views stage 2: the accessible name when it says more than the visible word ("Phone, customised"). */
+  named?: string
+  /** Views stage 2: the view buttons, found by the page to give the focus back after a dialog. */
+  view?: boolean
   /** Stage 2: marks the button that opens a popover, so the popover can give the focus back to it and ignore its click. */
   opens?: 'comment' | 'notes'
   onClick: () => void
 }
 
 /** An icon button: aria-label for the name, title for the visible tooltip, a focus ring from the stylesheet. */
-export function IconButton({ icon, label, tip, disabled, pressed, text, showLabel, opens, onClick }: Props) {
+export function IconButton({ icon, label, tip, disabled, pressed, text, showLabel, mark, named, view, opens, onClick }: Props) {
   const word = text ?? (showLabel ? label : undefined)
   return (
-    <button type="button" data-opens={opens} className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} onClick={onClick}>
+    <button type="button" data-opens={opens} data-customised={mark ? '' : undefined} data-view-button={view ? '' : undefined} className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}${mark ? ' is-customised' : ''}`} aria-label={named ?? label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} onClick={onClick}>
       <Icon name={icon} />
       {word && <span className="ue-icon-text">{word}</span>}
+      {mark && <span className="ue-mark" aria-hidden="true" />}
     </button>
   )
 }

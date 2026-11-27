@@ -118,6 +118,17 @@ export const labels = {
   resetTip: 'Reset every edit and go back to the original',
   rotateTip: 'Turn the device sideways or upright',
   viewTip: (name: string) => `Show the ${name} size`,
+  /** Views stage 2: a Phone or Tablet that has changes of its own: the name says so (a dot is not enough), and the tip says what it means. */
+  customised: 'customised',
+  resetView: 'Reset to Desktop view',
+  /** The banner above the preview in Tablet and Phone: what the view is now, in one line; the button (same words as the dialog's title) only when the view has changes of its own. */
+  bannerName: (name: string) => `About the ${name} view`,
+  bannerFollows: (name: string) => `${name} follows Desktop. Changes you make here apply to ${name} only.`,
+  bannerChanged: (name: string) => `This ${name} view has changes that don't follow Desktop. Reset to Desktop view removes them.`,
+  resetViewText: (name: string) => `Reset the ${name} view to the Desktop setup? This removes the changes made in ${name} only. Desktop and the other small view are untouched, text, inserted items and notes stay, and Undo brings the changes back.`,
+  resetViewYes: (name: string) => `Reset ${name} view`,
+  viewNameCustom: (name: string) => `${name}, customised`,
+  viewTipCustom: (name: string) => `Show the ${name} size. This view is customised: it has changes of its own that a Desktop change does not override.`,
   file: 'File',
   copy: 'Copy code',
   /** The tooltips (and so the accessible descriptions) of Copy code and Download name the file they act on; the accessible names stay `Copy code` and `Download`. */
@@ -300,6 +311,9 @@ export const messages = {
   undone: 'Undid the last edit.',
   redone: 'Redid the edit.',
   reset: 'Reset: the code is the original again.',
+  viewReset: (name: string) => `${name} view reset to the Desktop setup. Undo brings the changes back.`,
+  undoneViewReset: (name: string) => `Undid the reset: the ${name} view has its changes again.`,
+  redoneViewReset: (name: string) => `Redid the reset: the ${name} view is back to the Desktop setup.`,
 }
 
 /** "How it works": five steps in the Search-pipeline style, then what is measured and what is not. */
@@ -309,7 +323,7 @@ export const how = {
     { name: 'Open', detail: 'Paste, upload or pick a sample. The editor reads your text once to learn where every element and style rule starts and ends, so later it can change only those characters.' },
     { name: 'Preview', detail: 'Your page shows in a sandboxed frame with scripts off, at its real size: Desktop 1280 px, or Tablet 768 px or Phone 390 px in a plain device outline you can turn sideways. Your page is never scaled: in a small window the whole frame is shrunk to fit, and every pointer movement is converted back to your page’s own pixels, so a 40 px drag moves an element 40 px.' },
     { name: 'Edit', detail: 'Click one element. Change it from the ribbon above the preview, or drag its handles or the element. The engine decides where the change goes: the element’s own style, a rule that matches only that element, or a new rule at the end of your stylesheet. A class shared by several elements is never edited in place.' },
-    { name: 'Adapt', detail: 'Phone and Tablet start as your Desktop setup scaled in proportion to their screens, and follow it. A change made in Desktop reaches all three: sizes in proportion, colours, fonts, order and text as they are, except what you customised in Phone or Tablet. A change made in Phone or Tablet applies to that view only, and a later Desktop change does not override it. Dragging an element to move it follows the same rule: in Phone or Tablet it moves it there only, in Desktop it covers every width above the Phone breakpoint, so the Tablet range too.' },
+    { name: 'Adapt', detail: 'Phone and Tablet start as your Desktop setup scaled in proportion to their screens, and follow it. A change made in Desktop reaches all three: sizes in proportion, colours, fonts, order and text as they are, except what you customised in Phone or Tablet. A change made in Phone or Tablet applies to that view only, and a later Desktop change does not override it; a view with changes of its own shows a dot on its button. “Reset to Desktop view” removes all the changes made in the Phone or Tablet view you have open, and nothing else (text, inserted items and notes stay), and Undo brings them back. Dragging an element to move it follows the same rule: in Phone or Tablet it moves it there only, in Desktop it covers every width above the Phone breakpoint, so the Tablet range too.' },
     { name: 'Export', detail: 'Copy or download the updated code. Every character you did not change stays as you wrote it, and only the lines for your edits are added. Undo all your edits and the code is byte for byte the original. The updated code view marks every line that changed against your original, and you can step from change to change.' },
   ],
   measuredTitle: 'What is measured, and what is not',
@@ -326,7 +340,7 @@ export const how = {
 /** The limits, in plain words (from the engine's list of known limits). */
 export const limits = {
   title: 'Limits',
-  /** One sentence each. The page shows them in `groups`: consecutive sentences joined into six short paragraphs, so a reader sees six items. */
+  /** One sentence each. The page shows them in `groups`: consecutive sentences joined into seven short paragraphs, so a reader sees seven items. */
   items: [
     'The preview runs with scripts off, so content that JavaScript builds cannot show or be edited.',
     'External fonts, images from other sites and any CSS you do not supply are missing.',
@@ -338,6 +352,7 @@ export const limits = {
     'Min-width, max-width, min-height, max-height, aspect-ratio, percentages and viewport units are left as the page wrote them, and the editor does not always say so.',
     'A flex item that grows (flex-grow above 0, such as flex: 1) cannot be sized exactly, so resizing it is refused.',
     'Dragging an element to move it applies to the view you drag in; Desktop covers every width above Phone.',
+    'A property you changed in Phone or Tablet stays as you set it when Desktop changes; only the whole view can be reset to the Desktop setup, never one property.',
     // Verified with the engine before it was written (docs/ui-editor-baseline-round4.md): an east drag on a left-anchored element lands its right edge on the line, and on the
     // element fixed to the right of its row the right edge does not move at all.
     'With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge.',
@@ -352,7 +367,7 @@ export const limits = {
     'Tested in Chromium only.',
   ],
   /** How many consecutive sentences make each paragraph shown. */
-  groups: [4, 3, 2, 2, 4, 4],
+  groups: [4, 3, 2, 2, 2, 4, 3],
 }
 
 /** The paragraphs a list shows: `items` joined in runs of the given sizes (every item once, in order). */

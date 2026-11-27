@@ -88,11 +88,11 @@ test('every ribbon tooltip is a short verb-first sentence that is not just the c
   assert.ok(panel.fontTip('Georgia, "Times New Roman", serif').includes('Times New Roman'), 'the whole stack is in the font control\'s tooltip')
 })
 
-test('the Limits list has the verified snapping sentence once, and still shows at most six paragraphs of at most 50 words', () => {
+test('the Limits list has the verified snapping sentence once, and still shows at most seven paragraphs (views stage 2) of at most 50 words', () => {
   assert.equal(specs.limitsSentence, 'With Snap on, a dragged edge lands on a grid line only when that edge can move; an element fixed to the right of its row keeps its right edge.')
   assert.equal(limits.items.filter((i) => i.includes(specs.limitsSentence)).length, 1)
   const shown = paragraphs(limits.items, limits.groups)
-  assert.ok(shown.length >= 3 && shown.length <= 6, `${shown.length} paragraphs`)
+  assert.ok(shown.length >= 3 && shown.length <= 7, `${shown.length} paragraphs`)
   for (const p of shown) assert.ok(p.split(/\s+/).length <= 50, `${p.split(/\s+/).length} words: ${p.slice(0, 40)}`)
 })
 

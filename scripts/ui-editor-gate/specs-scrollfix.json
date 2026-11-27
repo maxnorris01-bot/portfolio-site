@@ -1,0 +1,2063 @@
+{
+ "version": 1,
+ "note": "UI Editor scroll fix. L01 to L11; the prefix L is used by no earlier spec file. Independent checks: real boxes, a screenshot of the bands round the screen, and a count of scroll listeners made from the host window; never the page's own state.",
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL"
+ ],
+ "fixtures": {
+  "scrollinner": "reference/scrollfix-inner.html",
+  "scrollbody": "reference/scrollfix-body.html"
+ },
+ "vocabulary": {
+  "note": "as specs-views2-banner.json, plus: step scrollPreview {how: wheel|pagedown|pageup|home|end|space|scrollTo|scrollTop, y, sel} (the wheel over the preview with the real mouse; a key pressed with the focus on the pointer layer; the preview window's scrollTo; the scrollTop of the scrolling element, #scroller or the body, or sel), step snapshotScroll {name}; assert outlineFollows {sel, tol}, previewScrollSame {against, tol}, previewScrollChanged {against, min}, scrollListeners {live, dropped}, outlineClipped {allow, depth}. See docs/ui-editor-gate-rules-scrollfix.md section 4."
+ },
+ "specs": [
+  {
+   "id": "L01",
+   "name": "Phone upright: the outline follows the selected element within 1 px, in the next frame and after 200 ms, whether the preview is scrolled by PageDown, PageUp, End, Home or Space (each moves the preview), by the wheel or by scrollTo; two elements of the landing page",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pageup"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "end"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "home"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "space"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 90
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 260
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan h3",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pageup"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "end"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "home"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "space"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollChanged",
+     "against": "k",
+     "min": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 90
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 260
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "L02",
+   "name": "Tablet upright, Phone sideways and Tablet sideways: the same, with the keyboard, the wheel and scrollTo",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 70
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "end"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 70
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "end"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "k"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 70
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "end"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "L03",
+   "name": "Desktop (the host scrolls) and the email and chart samples: the outline follows after the wheel, PageDown and scrollTo, HTML and SVG, Desktop and Phone",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 200
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "load",
+     "sample": "email"
+    },
+    {
+     "do": "click",
+     "sel": "#pick-two",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#pick-two",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#pick-two",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#fine",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#fine",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 60
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#fine",
+     "tol": 1
+    },
+    {
+     "do": "load",
+     "sample": "chart"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-tue",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#bar-tue",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#bar-thu",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#bar-thu",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#bar-thu",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "L04",
+   "name": "A page whose own element scrolls (an inner scrolling element, a scrolling body): the outline follows when that element is scrolled, in Phone and Tablet",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "loadFixture",
+     "fixture": "scrollinner"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#r5",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 60
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 200
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "loadFixture",
+     "fixture": "scrollinner"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#r5",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 60
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 200
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "loadFixture",
+     "fixture": "scrollbody"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#r5",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 60
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 200
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "loadFixture",
+     "fixture": "scrollbody"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#r5",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 60
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 200
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 20
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTop",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#r5",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "L05",
+   "name": "After every step that rebuilds the preview (an edit, Undo, Redo, a view switch, a rotate, a view Reset, a Delete, an Insert menu opened and cancelled) the outline still follows scrolling by the wheel and scrollTo",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Increase Font size"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Phone view"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "click",
+     "sel": "#card-ship",
+     "at": "inset"
+    },
+    {
+     "do": "clickButton",
+     "name": "Delete"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "click",
+     "sel": "#card-build",
+     "at": "inset"
+    },
+    {
+     "do": "openMenu",
+     "name": "Insert"
+    },
+    {
+     "do": "menuItem",
+     "name": "Rectangle"
+    },
+    {
+     "do": "hoverElement",
+     "sel": "#card-build",
+     "zone": "before"
+    },
+    {
+     "do": "key",
+     "key": "Escape"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "wheel",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "L06",
+   "name": "A replay keeps the preview where it was scrolled: with Phone scrolled to 150 the preview is still at 150 (1 px) after a merged arrow-key move, Undo, Redo, a view Reset and the Undo of it, and the outline is on the element",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 150
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "s"
+    },
+    {
+     "do": "keys",
+     "key": "ArrowRight",
+     "times": 3,
+     "settle": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollSame",
+     "against": "s",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollSame",
+     "against": "s",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollSame",
+     "against": "s",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "snapshotScroll",
+     "name": "t"
+    },
+    {
+     "do": "clickButton",
+     "name": "Reset to Desktop view"
+    },
+    {
+     "do": "confirm",
+     "name": "Reset Phone view"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollSame",
+     "against": "t",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "previewScrollSame",
+     "against": "t",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "L07",
+   "name": "The outline and its handles are clipped to the device's screen: with the element straddling the top edge of the screen (the page itself scrolled to its top so the room round the device is on the screen) no accent-coloured outline or handle is drawn in the margin beyond 8 px of the screen; with the element wholly on the screen there is none to draw there either",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "scrollHost",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineClipped",
+     "allow": 8
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 70
+    },
+    {
+     "do": "scrollHost",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineClipped",
+     "allow": 8
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 85
+    },
+    {
+     "do": "scrollHost",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineClipped",
+     "allow": 8
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 100
+    },
+    {
+     "do": "scrollHost",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineClipped",
+     "allow": 8
+    },
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 70
+    },
+    {
+     "do": "scrollHost",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineClipped",
+     "allow": 8
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 70
+    },
+    {
+     "do": "scrollHost",
+     "y": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineClipped",
+     "allow": 8
+    }
+   ]
+  },
+  {
+   "id": "L08",
+   "name": "Exactly one scroll listener on each live preview document, and none left on a preview that was dropped, at load, after an edit, after a view switch and after twenty Undo and Redo replays",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "scrollListeners",
+     "live": 1,
+     "dropped": 0
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "type",
+     "field": "Font size",
+     "text": "20"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "scrollListeners",
+     "live": 1,
+     "dropped": 0
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "scrollListeners",
+     "live": 1,
+     "dropped": 0
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "scrollListeners",
+     "live": 1,
+     "dropped": 0
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "scrollListeners",
+     "live": 1,
+     "dropped": 0
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "L09",
+   "name": "Dragging and resizing a scrolled preview still give the right edit: with Phone scrolled to 40 a 30 px drag of #cta is a Phone offset of 30 px (at 390 and 640 and nowhere else) and an east-handle resize of #art to 330 px is 330 at 640 and 390 and 280 above",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P2"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#cta",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "drag",
+     "sel": "#cta",
+     "handle": null,
+     "dx": 30,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "preview",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 30, 0)",
+      "640": "matrix(1, 0, 0, 1, 30, 0)",
+      "641": "none",
+      "768": "none",
+      "1280": "none"
+     },
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P2",
+     "k": "computed",
+     "sel": "#cta",
+     "prop": "transform",
+     "via": "export",
+     "at": {
+      "390": "matrix(1, 0, 0, 1, 30, 0)",
+      "640": "matrix(1, 0, 0, 1, 30, 0)",
+      "641": "none",
+      "768": "none",
+      "1280": "none"
+     },
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#cta",
+     "tol": 1
+    },
+    {
+     "do": "click",
+     "sel": "#art",
+     "at": "inset"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 40
+    },
+    {
+     "do": "drag",
+     "sel": "#art",
+     "handle": "e",
+     "dx": 50,
+     "dy": 0
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 390,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 330,
+     "tol": 0.6
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "measure",
+     "at": 1280,
+     "sel": "#art",
+     "q": "width",
+     "mode": "abs",
+     "value": 280,
+     "tol": 0.6
+    }
+   ]
+  },
+  {
+   "id": "L10",
+   "name": "No flash and no movement of the stage while a scrolled preview is replayed: with Phone scrolled to 100, three arrow-key moves (a merged replay each time after the first), no frame shows no preview, the preview's top stays, one preview iframe at rest and the outline is on the element",
+   "sample": "landing",
+   "checks": [
+    "P1",
+    "P3"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 100
+    },
+    {
+     "do": "frames",
+     "action": "start"
+    },
+    {
+     "do": "keys",
+     "key": "ArrowRight",
+     "times": 3,
+     "settle": true
+    },
+    {
+     "do": "frames",
+     "action": "stop"
+    },
+    {
+     "do": "assert",
+     "p": "P3",
+     "k": "frames",
+     "maxFlash": 0,
+     "visible": 1,
+     "stageHeightSame": true,
+     "restIframes": 1,
+     "stageTopSame": true
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "L11",
+   "name": "Flag OFF: the build without VITE_SHOW_UI_EDITOR behaves exactly as before (flags.mjs, 16 of 16) and every file of that build except the UiEditor chunks is byte for byte the main build's",
+   "sample": "landing",
+   "checks": [],
+   "expected": "PASS",
+   "steps": [],
+   "external": "flagOff"
+  }
+ ]
+}

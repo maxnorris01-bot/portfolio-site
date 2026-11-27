@@ -18,14 +18,14 @@ import { copyName, nameList, sectionHeader } from './sections'
 import { SAMPLES, type SampleId } from './samples'
 import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, trialEdit, type Applied, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
-import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
+import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, customCount, effectiveEdits, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
 import { listNotes, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
 import './UiEditorTool.css'
 
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
-type Confirm = { text: string; run: () => void }
+type Confirm = { text: string; run: () => void; /** Views stage 2: the words of the yes button, and where the focus goes (the Reset button when nothing was done, the open view's button when it was). */ yes?: string; back?: string; after?: string }
 
 const VIEWS: { name: ViewName; icon: IconName }[] = [
   { name: 'Desktop', icon: 'desktop' },
@@ -126,7 +126,7 @@ export default function UiEditorTool() {
     }
     busyRef.current = true
     setBusy(true)
-    void openSession(doc, listRef.current.edits, buffer ?? host, viewport(viewRef.current, orientRef.current)).then((r) => {
+    void openSession(doc, effectiveEdits(listRef.current.edits), buffer ?? host, viewport(viewRef.current, orientRef.current)).then((r) => {
       if (mine !== generation.current) {
         if (r.ok) closeSession(r.session)
         buffer?.remove()
@@ -145,7 +145,12 @@ export default function UiEditorTool() {
         setDoc(null)
         return
       }
-      if (buffer && old) swap.current = { buffer, old }
+      // A replay builds the new preview where the old one was scrolled (clamped to what it allows), before it is shown: a merged move, Undo, Redo or a view reset do not throw the page back to the top.
+      if (buffer && old) {
+        const was = old.preview.doc.defaultView
+        if (was && (was.scrollX || was.scrollY)) r.session.preview.doc.defaultView?.scrollTo(was.scrollX, was.scrollY)
+        swap.current = { buffer, old }
+      }
       sessionRef.current = r.session
       setSession(r.session)
       setHoldHeight(0)
@@ -201,6 +206,11 @@ export default function UiEditorTool() {
     if (confirm) keepRef.current?.focus()
   }, [confirm])
 
+  /** After a dialog closes the focus goes back to a button of the bar (a view reset: the Reset button when nothing was done, the open view's button when it was). */
+  const giveFocusTo = (selector?: string) => {
+    if (!selector) return
+    window.setTimeout(() => rootRef.current?.querySelector<HTMLElement>(`${selector}:not(:disabled)`)?.focus({ preventScroll: true }), 0)
+  }
   const onPickSample = (id: SampleId) => replaceDocument(() => load(SAMPLES[id], []))
   /** The Samples button: over an open document it shows or hides the gallery; on a first visit the gallery is already there, so it takes the visitor to it. */
   const onSamples = () => {
@@ -436,7 +446,7 @@ export default function UiEditorTool() {
     const margins = compensated(handle, { width: num(cs.width), height: num(cs.height), marginLeft: parseFloat(cs.marginLeft), marginTop: parseFloat(cs.marginTop) }, size)
     const compEdit: Edit = { op: 'set', target: t, properties: { ...properties, ...Object.fromEntries(Object.entries(margins).filter(([k]) => k.startsWith('margin'))) }, ...scope() }
     busyRef.current = true
-    const tried = await trialEdges(session, listRef.current.edits, compEdit, viewport(viewRef.current, orientRef.current), t, handle, box.left - rect.left, box.top - rect.top).finally(() => {
+    const tried = await trialEdges(session, effectiveEdits(listRef.current.edits), compEdit, viewport(viewRef.current, orientRef.current), t, handle, box.left - rect.left, box.top - rect.top).finally(() => {
       busyRef.current = false
     })
     if (sessionRef.current !== session) return
@@ -457,7 +467,7 @@ export default function UiEditorTool() {
     const before = listRef.current
     const next = listReduce(before, action)
     if (next === before) return
-    const changed = action.type === 'undo' ? before.edits.slice(next.edits.length) : action.type === 'redo' ? next.edits.slice(before.edits.length) : before.edits
+    const changed = action.type === 'undo' ? before.edits.slice(next.edits.length) : action.type === 'redo' ? next.edits.slice(before.edits.length) : action.type === 'resetView' ? [] : before.edits
     // A reorder changes which element a path names: the selection is let go rather than guessed.
     if (changed.some((e) => e.op === 'reorder' || e.op === 'insert' || e.op === 'remove')) setSelPath(null)
     setPlacing(null)
@@ -470,8 +480,24 @@ export default function UiEditorTool() {
     setReplay((n) => n + 1)
     show({ kind: 'info', text: what })
   }
-  const onUndo = () => stepList({ type: 'undo' }, messages.undone)
-  const onRedo = () => stepList({ type: 'redo' }, messages.redone)
+  // Views stage 2: the small views' own changes (the engine's list of them, with the view resets applied): the mark on a view button reads them.
+  const customised = { Tablet: customCount(list.edits, 'tablet') > 0, Phone: customCount(list.edits, 'phone') > 0 }
+  const viewOf = (e: { environment: 'phone' | 'tablet' }) => (e.environment === 'phone' ? 'Phone' : 'Tablet')
+  const onUndo = () => {
+    const last = list.edits[list.edits.length - 1]
+    stepList({ type: 'undo' }, last?.op === 'resetView' ? messages.undoneViewReset(viewOf(last)) : messages.undone)
+  }
+  const onRedo = () => {
+    const next = list.redo[list.redo.length - 1]
+    stepList({ type: 'redo' }, next?.op === 'resetView' ? messages.redoneViewReset(viewOf(next)) : messages.redone)
+  }
+  const small = view === 'Phone' || view === 'Tablet'
+  /** "Reset to Desktop view": takes every change made in the open small view out of the list (one history entry, so one Undo brings them back); the dialog says so first. */
+  const onResetView = () => {
+    if (!small || !customised[view] || busyRef.current) return
+    const environment = view === 'Phone' ? 'phone' : 'tablet'
+    setConfirm({ text: labels.resetViewText(view), yes: labels.resetViewYes(view), back: '[data-reset-view]', after: '[data-view-button][aria-pressed="true"]', run: () => stepList({ type: 'resetView', environment }, messages.viewReset(view)) })
+  }
   const onReset = () => setConfirm({ text: labels.resetText, run: () => stepList({ type: 'reset' }, messages.reset) })
 
   const onRootKey = (e: KeyboardEvent<HTMLElement>) => {
@@ -552,7 +578,7 @@ export default function UiEditorTool() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const noteList = useMemo(() => (session ? listNotes(session.preview.model) : { page: null, notes: [] }), [session, rev])
   // The edit list as the gate reads it (a read-only attribute of the tool): written again only when the list changed.
-  const editListJson = useMemo(() => JSON.stringify(list.edits), [list.edits])
+  const editListJson = useMemo(() => JSON.stringify(effectiveEdits(list.edits)), [list.edits])
   const notesTotal = noteCount(noteList)
   const pinRows = noteRows(noteList)
   // With no notes the switch is on again, so a note written next is in the code.
@@ -671,9 +697,10 @@ export default function UiEditorTool() {
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group" role="group" aria-label={labels.view}>
-                {VIEWS.map((v) => (
-                  <IconButton key={v.name} icon={v.icon} label={v.name} showLabel tip={labels.viewTip(v.name)} pressed={view === v.name} onClick={() => onView(v.name)} />
-                ))}
+                {VIEWS.map((v) => {
+                  const mark = v.name !== 'Desktop' && customised[v.name]
+                  return <IconButton key={v.name} icon={v.icon} label={v.name} showLabel named={mark ? labels.viewNameCustom(v.name) : undefined} tip={mark ? labels.viewTipCustom(v.name) : labels.viewTip(v.name)} mark={mark} view pressed={view === v.name} onClick={() => onView(v.name)} />
+                })}
                 {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} tip={labels.rotateTip} onClick={onRotate} />}
               </div>
               <span className="ue-flex" />
@@ -735,11 +762,21 @@ export default function UiEditorTool() {
               const c = confirm
               setConfirm(null)
               c.run()
+              giveFocusTo(c.after)
             }}
           >
-            {labels.discard}
+            {confirm.yes ?? labels.discard}
           </button>
-          <button ref={keepRef} type="button" className="btn btn-secondary" onClick={() => setConfirm(null)}>
+          <button
+            ref={keepRef}
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              const c = confirm
+              setConfirm(null)
+              giveFocusTo(c.back)
+            }}
+          >
             {labels.keep}
           </button>
         </div>
@@ -782,6 +819,17 @@ export default function UiEditorTool() {
       {hasDoc && (
         <div className="ue-work">
           <div className="ue-preview">
+            {small && !svgDoc && (
+              <div className="ue-banner" role="group" aria-label={labels.bannerName(view)} data-view-banner>
+                <p className={`ue-banner-row${customised[view] ? ' is-off' : ''}`}>{labels.bannerFollows(view)}</p>
+                <div className={`ue-banner-row has-button${customised[view] ? '' : ' is-off'}`}>
+                  <p>{labels.bannerChanged(view)}</p>
+                  <button type="button" className="btn btn-secondary" data-reset-view disabled={!customised[view] || busy} onClick={onResetView}>
+                    {labels.resetView}
+                  </button>
+                </div>
+              </div>
+            )}
             {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
             <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
               <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} placing={placing} trialInsert={trialInsert} onPlace={onPlace} onPlaceReason={onPlaceReason} textEdit={editingText !== null && editingText === selPath} onTextApply={applyText} onTextCancel={() => stopTextEdit(true)} onEditText={(i) => startTextEdit(i)} onDelete={deleteElement} pins={pinRows} onPin={(i) => { selectIndexOnly(i); openComment({ target: i, opener: 'pin', pin: pinRows.find((r) => r.index === i)?.n }) }} />

@@ -31,10 +31,13 @@ const flag = (n) => args.includes(n)
 const opt = (n) => (args.includes(n) ? args[args.indexOf(n) + 1] : undefined)
 
 let chromium
+let BROWSER_NAME = 'chromium'
 try {
   const require = createRequire(import.meta.url)
   const entry = require.resolve('playwright', process.env.PLAYWRIGHT_DIR ? { paths: [process.env.PLAYWRIGHT_DIR] } : undefined)
-  ;({ chromium } = require(entry))
+  const pwm = require(entry)
+  BROWSER_NAME = process.argv.includes('--browser') ? process.argv[process.argv.indexOf('--browser') + 1] : 'chromium'
+  chromium = pwm[BROWSER_NAME] // SCROLL FIX 2: --browser webkit runs the gate's browser in WebKit (the M specs)
 } catch {
   console.error('the gate needs Playwright with Chromium (set PLAYWRIGHT_DIR to a folder whose node_modules has it).')
   process.exit(2)
@@ -61,6 +64,17 @@ const amendViews1 = existsSync(join(here, 'amendments-views1.json')) ? JSON.pars
 // NO-NUDGE (docs/ui-editor-gate-rules-views1-nonudge.md): the Q specs run with --nonudge (or --only Qnn); its retiredChecks and amendments apply to the real page and --stub12 only.
 const nonudgeFile = existsSync(join(here, 'specs-views1-nonudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nonudge.json'), 'utf8')) : { specs: [], retiredChecks: {}, amendments: {} }
 const amendNonudgeFile = existsSync(join(here, 'amendments-views1-nonudge.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views1-nonudge.json'), 'utf8')) : { specs: {} }
+// VIEWS STAGE 2 (docs/ui-editor-gate-rules-views2.md): the H specs run with --views2 (or --only Hnn); its amendments (and those of amendments-views2.json) apply to the real page and --stub13 only.
+const views2File = existsSync(join(here, 'specs-views2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views2.json'), 'utf8')) : { specs: [], retiredChecks: {}, amendments: {} }
+const amendViews2File = existsSync(join(here, 'amendments-views2.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views2.json'), 'utf8')) : { specs: {} }
+// VIEWS STAGE 2 BANNER (docs/ui-editor-gate-rules-views2-banner.md): the B specs run with --views2banner (or --only Bnn); its retirements and amendments apply to the real page and --stub14 only.
+const bannerFile = existsSync(join(here, 'specs-views2-banner.json')) ? JSON.parse(readFileSync(join(here, 'specs-views2-banner.json'), 'utf8')) : { specs: [], retiredChecks: {}, amendments: {} }
+const amendBannerFile = existsSync(join(here, 'amendments-views2-banner.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views2-banner.json'), 'utf8')) : { specs: {} }
+// SCROLL FIX (docs/ui-editor-gate-rules-scrollfix.md): the L specs run with --scrollfix (or --only Lnn).
+// SCROLL FIX 2 (docs/ui-editor-gate-rules-scrollfix2.md): the M specs run with --scrollfix2 (or --only Mnn), in Chromium or, with --browser webkit, in WebKit.
+const scroll2File = existsSync(join(here, 'specs-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix2.json'), 'utf8')) : { specs: [] }
+const amendScroll2File = existsSync(join(here, 'amendments-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'amendments-scrollfix2.json'), 'utf8')) : { specs: {} }
+const scrollFile = existsSync(join(here, 'specs-scrollfix.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix.json'), 'utf8')) : { specs: [], fixtures: {} }
 const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
 const nudgeFile = existsSync(join(here, 'specs-views1-nudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge.json'), 'utf8')) : { specs: [] }
 const views1File = existsSync(join(here, 'specs-views1.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1.json'), 'utf8')) : { retiredChecks: {}, specs: [] }
@@ -80,10 +94,12 @@ const ROUND5 = !(OLD_STUB || flag('--stub5'))
 const ROUND6 = !(OLD_STUB || flag('--stub5') || flag('--stub6'))
 // VIEWS ROUND 1: the retired checks of the views round apply to the real page and the views stub (--stub9) only; the earlier stubs still have the Link checkbox, the dots and Review unlinked.
 const VIEWS1 = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8'))
+const VIEWS2B = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12') || flag('--stub13'))
+const VIEWS2 = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12'))
 const NONUDGE = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11'))
 const retiredFor = (id) => {
-  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined, d = ROUND6 ? round6File.retiredChecks?.[id] : undefined, e = VIEWS1 && !flag('--no-retire-views1') ? views1File.retiredChecks?.[id] : undefined, f = NONUDGE ? nonudgeFile.retiredChecks?.[id] : undefined
-  const parts = [a, b, c, d, e, f].filter(Boolean)
+  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined, d = ROUND6 ? round6File.retiredChecks?.[id] : undefined, e = VIEWS1 && !flag('--no-retire-views1') ? views1File.retiredChecks?.[id] : undefined, f = NONUDGE ? nonudgeFile.retiredChecks?.[id] : undefined, g = VIEWS2 ? views2File.retiredChecks?.[id] : undefined, h = VIEWS2B ? bannerFile.retiredChecks?.[id] : undefined
+  const parts = [a, b, c, d, e, f, g, h].filter(Boolean)
   if (!parts.length) return undefined
   return { steps: parts.flatMap((p) => p.steps ?? []), asserts: parts.flatMap((p) => p.asserts ?? []), wholeSpec: parts.some((p) => p.wholeSpec), replacedBy: parts.map((p) => p.replacedBy).filter(Boolean).join('; '), reason: parts.map((p) => p.reason).filter(Boolean).join(' ') }
 }
@@ -95,11 +111,11 @@ for (const s of SAMPLE_FILES) {
   for (const f of sources[s.id].order) sources[s.id].files[f] = readFileSync(join(sampleDir, f), 'utf8')
 }
 // VIEWS ROUND 1: the two hand-written fixtures (reference/views1-*.html) are documents of their own, opened through Paste.
-for (const [id, file] of Object.entries({ ...(views1File.fixtures ?? {}), ...(nudgeFile.fixtures ?? {}) })) {
+for (const [id, file] of Object.entries({ ...(views1File.fixtures ?? {}), ...(nudgeFile.fixtures ?? {}), ...(scrollFile.fixtures ?? {}) })) {
   const name = file.split('/').pop()
   sources[id] = { files: { [name]: readFileSync(join(here, file), 'utf8') }, primary: name, kind: 'html', order: [name] }
 }
-const READY = { landing: '#headline', email: '#hello', chart: '#bar-tue', tab900: '#title', bp768: '#title', noop: '#inner' }
+const READY = { landing: '#headline', email: '#hello', chart: '#bar-tue', tab900: '#title', bp768: '#title', noop: '#inner', scrollinner: '#r5', scrollbody: '#r5' }
 const outDir = process.env.UI_GATE_OUT ?? join(here, 'out')
 mkdirSync(outDir, { recursive: true })
 const only = opt('--only')?.split(',')
@@ -125,9 +141,9 @@ const refServer = createServer((q, r) => {
 const refPort = await listen(refServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12')) {
+if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12') || flag('--stub13') || flag('--stub14') || flag('--stub15') || flag('--stub16')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub12') ? 'views1-nonudge.html' : flag('--stub11') ? 'views1-nudge2.html' : flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub16') ? 'scrollfix2.html' : flag('--stub15') ? 'scrollfix.html' : flag('--stub14') ? 'views2-banner.html' : flag('--stub13') ? 'views2.html' : flag('--stub12') ? 'views1-nonudge.html' : flag('--stub11') ? 'views1-nudge2.html' : flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -145,7 +161,7 @@ if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('-
 }
 if (!baseUrl) { console.error('give --url <page> or --stub'); process.exit(2) }
 
-const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+const browser = await chromium.launch(BROWSER_NAME === 'chromium' ? { headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] } : { headless: true })
 
 // ---- in-page helpers (strings are evaluated in the host page; they read the preview iframe's document) ----
 const PAGE_HELPERS = `(() => {
@@ -263,12 +279,49 @@ const settle = async (page) => {
 async function runSpec(spec) {
   if (TIMING) console.log(`TIME ${new Date().toISOString()} +${((Date.now() - T0) / 1000).toFixed(1)}s SPEC START ${spec.id}`)
   let src = sources[spec.sample] // ROUND 5 (log #31): follows the sample a `load` step opens (V05 and V06 open two)
-  const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
+  const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, ...(BROWSER_NAME === 'chromium' ? { permissions: ['clipboard-read', 'clipboard-write'] } : {}) })
+  // SCROLL FIX: the scroll listeners of the preview documents are counted from the host window (an L spec): when a preview iframe has loaded, addEventListener and removeEventListener of that frame are
+  // replaced by host-side wrappers that keep the net count of `scroll` listeners per target in window.__sl. Nothing runs inside the sandboxed preview.
+  if (/^L\d/.test(spec.id)) await ctx.addInitScript(() => {
+    if (window !== window.top) return
+    const m = (window.__sl = new Map())
+    const patch = (f) => {
+      const w = f.contentWindow
+      if (!w) return
+      const proto = w.EventTarget.prototype
+      if (proto.__probed) return
+      Object.defineProperty(proto, '__probed', { value: true })
+      const add = proto.addEventListener, rem = proto.removeEventListener
+      proto.addEventListener = function (type, l, o) { if (type === 'scroll' && l) m.set(this, (m.get(this) ?? 0) + 1); return add.call(this, type, l, o) }
+      proto.removeEventListener = function (type, l, o) { if (type === 'scroll' && l && (m.get(this) ?? 0) > 0) m.set(this, m.get(this) - 1); return rem.call(this, type, l, o) }
+    }
+    new MutationObserver((ms) => { for (const r of ms) for (const n of r.addedNodes) if (n.nodeType === 1) for (const f of n.localName === 'iframe' ? [n] : n.querySelectorAll('iframe')) { patch(f); f.addEventListener('load', () => patch(f)) } }).observe(document, { childList: true, subtree: true })
+  })
+  // SCROLL FIX 2: the frame callbacks the page requests (and those still pending), the measures of the preview's elements and the changes of the overlay are counted from the host window.
+  if (/^M\d/.test(spec.id)) await ctx.addInitScript(() => {
+    if (window !== window.top) return
+    const c = (window.__cnt = { raf: 0, pending: new Set(), gbcr: 0, mut: 0, t0: performance.now() })
+    const raf = window.requestAnimationFrame.bind(window), caf = window.cancelAnimationFrame.bind(window)
+    // only the tool's own frame callbacks count: a request whose call stack runs through the UiEditor chunk (or, on the scorer stub, a function named selectionLoop); the site's other pages animate on their own
+    const mine = () => /UiEditor|selectionLoop/.test(new Error().stack ?? '')
+    window.requestAnimationFrame = (cb) => { const m = mine(); if (m) c.raf++; const id = raf((ts) => { c.pending.delete(id); cb(ts) }); if (m) c.pending.add(id); return id }
+    window.cancelAnimationFrame = (id) => { c.pending.delete(id); caf(id) }
+    const patch = (f) => {
+      const w = f.contentWindow
+      if (!w) return
+      const proto = w.Element.prototype
+      if (proto.__probed) return
+      Object.defineProperty(proto, '__probed', { value: true })
+      const g = proto.getBoundingClientRect
+      proto.getBoundingClientRect = function () { c.gbcr++; return g.call(this) }
+    }
+    new MutationObserver((ms) => { for (const r of ms) for (const n of r.addedNodes) if (n.nodeType === 1) for (const f of n.localName === 'iframe' ? [n] : n.querySelectorAll('iframe')) { patch(f); f.addEventListener('load', () => patch(f)) } }).observe(document, { childList: true, subtree: true })
+  })
   const page = await ctx.newPage()
   if (flag('--fast-fail')) page.setDefaultTimeout(4000) // a development flag: a control that is gone fails in 4 s, not 30 s (used with --no-retire-views1, rules section 7)
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
-  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: /^[JQ]\d/.test(spec.id) ? [] : null, P4: /^[JQ]\d/.test(spec.id) ? [] : null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
+  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: /^[JQHBLM]\d/.test(spec.id) ? [] : null, P4: /^[JQHBLM]\d/.test(spec.id) ? [] : null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
   const snaps = {}
   let statusAtCopy = null
   let before = {}
@@ -321,6 +374,10 @@ async function runSpec(spec) {
     for (const f of src.order) out[f] = (await grab(f)).text
     return out
   }
+  // VIEWS STAGE 2: kept lists and boxes, and the boxes of the three view buttons
+  const listSnaps = {}, barSnaps = {}, stageSnaps = {}, bannerSnaps = {}, scrollSnaps = {}
+  const stageBoxes = () => page.evaluate(() => { const top = (e) => (e ? e.getBoundingClientRect().top + scrollY : null); return { area: top(document.querySelector('[data-stage-area]')), frame: top(document.querySelector('[data-device-frame]')), preview: top(document.querySelector('iframe[title="Preview"]')) } })
+  const viewBoxes = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[role=group][aria-label="View"] button')].map((b) => { const r = b.getBoundingClientRect(); return [b.textContent.trim().split(/\s+/)[0] || b.getAttribute('data-view'), { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height }] })))
   const dumps = async () => {
     const out = {}
     for (const w of widths) out[w] = await page.evaluate((w) => window.__gate.dumpAt(w), w)
@@ -384,7 +441,7 @@ async function runSpec(spec) {
 
   // ---- ROUND 6 (docs/ui-editor-gate-log.md #33): the menus of the new ribbon, and the page colours of a document ----
   // INSERT ROUND 1: the Insert menu button is in the quick bar, so a menu button is looked for in the ribbon and in the bar.
-  const ribbonBtn = (name) => page.locator('[data-ribbon], [role=group][aria-label="Editor controls"]').getByRole('button', { name, exact: true })
+  const ribbonBtn = (name) => page.locator('[data-ribbon], [role=group][aria-label="Editor controls"], [data-view-banner]').getByRole('button', { name, exact: true })
   const spinOf = (field, dir) => page.locator(`[data-ribbon] [data-spin="${dir === '+' ? 'up' : 'down'}"][data-for="${field}"]`)
   const controlNamed = (name) => page.locator(`[data-ribbon] [aria-label="${name}"], [data-ribbon] [data-name="${name}"]`)
   const MENU_FOR = { Background: 'Shape Fill', 'Border colour': 'Shape Outline', 'Text colour': 'Font colour' }
@@ -821,6 +878,240 @@ async function runSpec(spec) {
         return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : `${a.prop} of ${a.sel} (${a.via}): ${widths.map((w) => `${w} ${have[w]}`).join(', ')}`)
       }
       // ---- NUDGE FIX 2 (docs/ui-editor-gate-rules-views1-nudge2.md section 3) ----
+      // ---- SCROLL FIX 2 (docs/ui-editor-gate-rules-scrollfix2.md section 4) ----
+      case 'outlineLag': {
+        // the frames of the burst: each frame's outline against the element's box in that frame and in the frame before; the element's box is read afterwards from the scroll position of the frame (the element's own offset does not move)
+        const g = await page.evaluate((s) => {
+          const f = document.querySelector('iframe[title="Preview"]'); const el = f.contentDocument.querySelector(s)
+          const rec = window.__burst; if (!rec) return null
+          // the element's top and left in the preview's own coordinates at scroll 0
+          const w = f.contentWindow, y0 = w.scrollY; const r = el.getBoundingClientRect()
+          return { frames: rec.frames, elTop0: r.top + y0, elLeft: r.left, w: r.width, h: r.height }
+        }, a.sel)
+        if (!g) return R(false, 'no burst recorded')
+        const box = (fr, y) => { const [fl, ft, k] = fr; return [fl + g.elLeft * k, ft + (g.elTop0 - y) * k, g.w * k, g.h * k] }
+        const diff = (o, e) => Math.max(...o.map((v, i) => Math.abs(v - e[i])))
+        const bad = []
+        let worst = 0
+        g.frames.forEach((fm, i) => {
+          const here = diff(fm.o, box(fm.fr, fm.y))
+          const before = i > 0 ? diff(fm.o, box(fm.fr, g.frames[i - 1].y)) : here
+          const d = Math.min(here, before)
+          worst = Math.max(worst, d)
+          if (d > a.tol) bad.push(`frame ${i}: the outline is ${d.toFixed(1)} px from the element of this frame and of the one before`)
+        })
+        const tail = g.frames.slice(-3).map((fm) => diff(fm.o, box(fm.fr, fm.y)))
+        if (tail.some((d) => d > a.tol)) bad.push(`after the burst the outline is ${Math.max(...tail).toFixed(1)} px off`)
+        return R(bad.length === 0 && g.frames.length > 5, bad.length ? `${bad.length} frames: ${bad.slice(0, 2).join('; ')}` : `${g.frames.length} frames sampled, the outline never more than ${worst.toFixed(1)} px from the element of its frame or the one before`)
+      }
+      case 'outlineStays': {
+        const bad = []
+        for (let t = 0; t <= a.ms; t += a.every) {
+          const m = await page.evaluate((s) => {
+            const f = document.querySelector('iframe[title="Preview"]'); const fr = f.getBoundingClientRect(); const k = fr.width / f.offsetWidth
+            const el = f.contentDocument.querySelector(s); const o = document.querySelector('[data-selection]')
+            if (!el || !o) return { error: !el ? 'no element' : 'no outline' }
+            const er = el.getBoundingClientRect(), r = o.getBoundingClientRect()
+            return { d: Math.max(Math.abs(r.left - (fr.left + er.left * k)), Math.abs(r.top - (fr.top + er.top * k)), Math.abs(r.width - er.width * k), Math.abs(r.height - er.height * k)) }
+          }, a.sel)
+          if (m.error) bad.push(`${t} ms: ${m.error}`); else if (m.d > a.tol) bad.push(`${t} ms: ${m.d.toFixed(1)} px off`)
+          await page.waitForTimeout(a.every)
+        }
+        return R(bad.length === 0, bad.length ? bad.slice(0, 3).join('; ') : `within ${a.tol} px every ${a.every} ms for ${a.ms} ms`)
+      }
+      case 'counters': {
+        const c = await page.evaluate(() => { const c = window.__cnt; const s = (performance.now() - c.t0) / 1000; return { raf: c.raf, gbcr: c.gbcr, mut: c.mut, pending: c.pending.size, s } })
+        const bad = []
+        const rps = c.raf / c.s, gps = c.gbcr / c.s
+        if (a.rafPerSecMin !== undefined && rps < a.rafPerSecMin) bad.push(`${rps.toFixed(0)} frame callbacks a second, at least ${a.rafPerSecMin} wanted`)
+        if (a.rafPerSecMax !== undefined && rps > a.rafPerSecMax) bad.push(`${rps.toFixed(0)} frame callbacks a second, at most ${a.rafPerSecMax} wanted`)
+        if (a.overlayMutations !== undefined && c.mut !== a.overlayMutations) bad.push(`${c.mut} changes of the overlay, ${a.overlayMutations} wanted`)
+        if (a.gbcrPerSecMax !== undefined && gps > a.gbcrPerSecMax) bad.push(`${gps.toFixed(0)} measures of the preview's elements a second, at most ${a.gbcrPerSecMax} wanted`)
+        if (a.pendingMax !== undefined && c.pending > a.pendingMax) bad.push(`${c.pending} frame callbacks pending, at most ${a.pendingMax}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${rps.toFixed(0)} frame callbacks and ${gps.toFixed(0)} measures a second, ${c.mut} overlay changes, ${c.pending} pending, over ${c.s.toFixed(1)} s`)
+      }
+      // ---- SCROLL FIX (docs/ui-editor-gate-rules-scrollfix.md section 4) ----
+      case 'outlineFollows': {
+        const meas = () => page.evaluate((s) => {
+          const f = document.querySelector('iframe[title="Preview"]'); const fr = f.getBoundingClientRect(); const k = fr.width / f.offsetWidth
+          const el = f.contentDocument.querySelector(s); const o = document.querySelector('[data-selection]')
+          if (!el) return { error: `no ${s} in the preview` }
+          const er = el.getBoundingClientRect(), real = { left: fr.left + er.left * k, top: fr.top + er.top * k, width: er.width * k, height: er.height * k }
+          if (!o) return { error: 'no outline', visible: real.top + real.height > fr.top && real.top < fr.bottom }
+          const r = o.getBoundingClientRect()
+          return { d: Math.max(Math.abs(r.left - real.left), Math.abs(r.top - real.top), Math.abs(r.width - real.width), Math.abs(r.height - real.height)) }
+        }, a.sel)
+        const first = await meas()
+        await page.waitForTimeout(200)
+        const later = await meas()
+        const bad = []
+        for (const [when, m] of [['next frame', first], ['after 200 ms', later]]) { if (m.error) bad.push(`${when}: ${m.error}`); else if (m.d > a.tol) bad.push(`${when}: the outline is ${m.d.toFixed(1)} px off ${a.sel}`) }
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `the outline is on ${a.sel} (${first.d.toFixed(1)} and ${later.d.toFixed(1)} px)`)
+      }
+      case 'previewScrollSame': case 'previewScrollChanged': {
+        const now = await page.evaluate(() => Math.round(document.querySelector('iframe[title="Preview"]').contentWindow.scrollY * 10) / 10), was = scrollSnaps[a.against]
+        if (a.k === 'previewScrollSame') return R(was !== undefined && Math.abs(now - was) <= a.tol, `the preview is at ${now}, was ${was}`)
+        return R(was !== undefined && Math.abs(now - was) >= a.min, `the preview is at ${now}, was ${was} (it should have moved by at least ${a.min})`)
+      }
+      case 'scrollListeners': {
+        const g = await page.evaluate(() => {
+          const m = window.__sl ?? new Map(); const f = document.querySelector('iframe[title="Preview"]'); const liveDoc = f?.contentDocument, liveWin = f?.contentWindow
+          let live = 0, dropped = 0
+          for (const [k, n] of m) { const isPreview = (k.nodeType === 9 && k !== document) || (k.window === k && k !== window); if (!isPreview) continue; if (k === liveDoc || k === liveWin) live += n; else if (n > 0) dropped += n }
+          return { live, dropped }
+        })
+        const bad = []
+        if (a.live !== undefined && g.live !== a.live) bad.push(`${g.live} scroll listener(s) on the live preview, want ${a.live}`)
+        if (a.dropped !== undefined && g.dropped !== a.dropped) bad.push(`${g.dropped} left on dropped previews, want ${a.dropped}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${g.live} on the live preview, ${g.dropped} left on dropped ones`)
+      }
+      case 'outlineClipped': {
+        // What a person sees: nothing in the accent colour (or a thin line of it blended with what is behind: red well above green and blue) is drawn in the bands round the device's screen (above, below, left, right; the first `allow` px next to the screen are left out: the outline and the handles may
+        // stand that far outside it) over the page's own banner, ribbon or bezel. The screenshot is decoded in a page of its own.
+        const g = await page.evaluate(() => { const f = document.querySelector('iframe[title="Preview"]'); const r = f.getBoundingClientRect(); const c = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim(); const probe = document.createElement('i'); probe.style.color = c; document.body.appendChild(probe); const rgb = getComputedStyle(probe).color; probe.remove(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, rgb, ww: innerWidth, wh: innerHeight } })
+        const m = /(\d+)[, ]+(\d+)[, ]+(\d+)/.exec(g.rgb)
+        const depth = a.depth ?? 500, x0 = Math.max(0, g.left), w0 = Math.min(g.right, g.ww) - x0
+        const aboveY = Math.max(0, g.top - a.allow - depth)
+        const bands = [
+          { name: 'above', x: x0, y: aboveY, w: w0, h: Math.max(0, g.top - a.allow - aboveY) },
+          { name: 'below', x: x0, y: g.bottom + a.allow, w: w0, h: Math.min(depth, Math.max(0, g.wh - g.bottom - a.allow)) },
+        ].filter((b) => b.w > 4 && b.h > 4)
+        const hits = []
+        for (const b of bands) {
+          const clip = { x: b.x, y: b.y, width: b.w, height: b.h }
+          const withOutline = await page.screenshot({ clip })
+          await page.evaluate(() => { for (const e of document.querySelectorAll('[data-selection]')) { e.dataset.vis = e.style.visibility; e.style.visibility = 'hidden' } })
+          const without = await page.screenshot({ clip })
+          await page.evaluate(() => { for (const e of document.querySelectorAll('[data-selection]')) { e.style.visibility = e.dataset.vis ?? ''; delete e.dataset.vis } })
+          const n = await page.evaluate(async ([a64, b64]) => {
+            const px = async (s) => { const bmp = await createImageBitmap(await (await fetch('data:image/png;base64,' + s)).blob()); const c = new OffscreenCanvas(bmp.width, bmp.height); const x = c.getContext('2d'); x.drawImage(bmp, 0, 0); return x.getImageData(0, 0, bmp.width, bmp.height).data }
+            const A = await px(a64), B = await px(b64); let k = 0
+            for (let i = 0; i < A.length; i += 4) if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 40) k++
+            return k
+          }, [withOutline.toString('base64'), without.toString('base64')])
+          if (process.env.UI_GATE_VERBOSE) console.log('      outlineClipped', JSON.stringify(b), n)
+          if (n > 0) hits.push(`${n} pixels of the outline or its handles drawn ${b.name} the screen`)
+        }
+        return R(hits.length === 0, hits.length ? hits.join('; ') : `no outline or handle drawn outside the screen (${bands.map((b) => b.name).join(', ') || 'no room to look'})`)
+      }
+      // ---- VIEWS STAGE 2 BANNER (docs/ui-editor-gate-rules-views2-banner.md section 5) ----
+      case 'bannerState': {
+        const names = a.view ? [a.view] : ['Phone', 'Tablet']
+        let seen = null
+        for (const v of names) { const g = page.getByRole('group', { name: `About the ${v} view`, exact: true }); if (await g.count() && await g.first().isVisible()) seen = { v, g: g.first() } }
+        if (a.state === 'absent') return R(!seen, seen ? `the banner of ${seen.v} is there` : 'no banner')
+        if (!seen) return R(false, `no banner named About the ${a.view} view`)
+        const text = (await seen.g.innerText()).replace(/\s+/g, ' ').trim()
+        const V = seen.v
+        const btn = seen.g.getByRole('button', { name: 'Reset to Desktop view', exact: true })
+        const shown = (await btn.count()) > 0 && (await btn.first().isVisible())
+        const bad = []
+        if (a.state === 'follows') { if (text !== `${V} follows Desktop. Changes you make here apply to ${V} only.`) bad.push(`text "${text.slice(0, 120)}"`); if (shown) bad.push('a button is there') }
+        else { if (!text.startsWith(`This ${V} view has changes that don't follow Desktop. Reset to Desktop view removes them.`)) bad.push(`text "${text.slice(0, 120)}"`); if (!shown) bad.push('no Reset to Desktop view button') }
+        if (a.name) { const role = await seen.g.getAttribute('role'); if (role !== 'group') bad.push(`role ${role}`) }
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${V}: ${a.state}`)
+      }
+      case 'stageSame': {
+        const now = await stageBoxes(), was = stageSnaps[a.against], bad = []
+        if (!was) return R(false, `no snapshot ${a.against}`)
+        for (const k of ['area', 'frame', 'preview']) if (was[k] !== null && (now[k] === null || Math.abs(now[k] - was[k]) > a.tol)) bad.push(`${k} top ${now[k]?.toFixed(1)}, was ${was[k].toFixed(1)}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `the stage stayed (preview top ${now.preview?.toFixed(1)})`)
+      }
+      case 'bannerHeightSame': {
+        const h = await page.evaluate(() => document.querySelector('[data-view-banner]')?.getBoundingClientRect().height ?? -1), was = bannerSnaps[a.against]
+        return R(was > 0 && Math.abs(h - was) <= a.tol, `banner ${h.toFixed(1)} px, was ${was?.toFixed?.(1)}`)
+      }
+      case 'bannerOneLine': {
+        const m = await page.evaluate(() => { const g = document.querySelector('[data-view-banner]'); const p = [...g.querySelectorAll('p')].find((e) => e.getClientRects().length && getComputedStyle(e.closest('.ue-banner-row, .b-row')).visibility !== 'hidden'); if (!p) return null; const r = p.getBoundingClientRect(), lh = parseFloat(getComputedStyle(p).lineHeight); const b = g.querySelector('button'); const br = b && b.getClientRects().length && getComputedStyle(b.closest('.ue-banner-row, .b-row')).visibility !== 'hidden' ? b.getBoundingClientRect() : null; return { h: r.height, lh, level: br ? br.top < r.bottom && br.bottom > r.top : true } })
+        return R(!!m && m.h < m.lh * 1.6 && m.level, m ? `sentence ${m.h.toFixed(0)} px high (line ${m.lh.toFixed(0)}), button ${m.level ? 'level' : 'below'}` : 'no sentence')
+      }
+      // ---- VIEWS STAGE 2 (docs/ui-editor-gate-rules-views2.md section 5) ----
+      case 'viewButtons': {
+        const got = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[role=group][aria-label="View"] button')].map((b) => { const word = b.textContent.trim().split(/\s+/)[0]; return [word, { name: b.getAttribute('aria-label'), title: b.getAttribute('title') ?? '', mark: !!b.querySelector('.ue-mark') }] })))
+        const bad = []
+        for (const [key, view] of [['desktop', 'Desktop'], ['tablet', 'Tablet'], ['phone', 'Phone']]) {
+          const g = got[view]
+          if (!g) { bad.push(`no ${view} button`); continue }
+          const want = !!a[key], wantName = want ? `${view}, customised` : view
+          if (g.name !== wantName) bad.push(`${view} is named "${g.name}", want "${wantName}"`)
+          if (g.mark !== want) bad.push(`${view} ${g.mark ? 'shows' : 'lacks'} the mark, want ${want ? 'one' : 'none'}`)
+          if (a.tip && /customised/i.test(g.title) !== want) bad.push(`${view} tooltip "${g.title.slice(0, 60)}" ${want ? 'lacks' : 'has'} customised`)
+        }
+        return R(bad.length === 0, bad.length ? bad.join('; ') : Object.values(got).map((g) => g.name).join(', '))
+      }
+      case 'viewButtonBoxes': {
+        const now = await viewBoxes(), was = barSnaps[a.against], bad = []
+        if (!was) return R(false, `no snapshot ${a.against}`)
+        for (const k of Object.keys(was)) for (const q of ['x', 'y', 'width', 'height']) if (!now[k] || Math.abs(now[k][q] - was[k][q]) > a.tol) bad.push(`${k} ${q} ${now[k] ? now[k][q].toFixed(1) : 'gone'}, was ${was[k][q].toFixed(1)}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : 'the three view buttons keep their size and place')
+      }
+      case 'resetButton': {
+        const g = await page.evaluate(() => { const b = [...document.querySelectorAll('[role=group][aria-label="Editor controls"] button')].find((x) => x.getAttribute('aria-label') === 'Reset to Desktop view'); if (!b) return null; return { visible: b.getClientRects().length > 0 && getComputedStyle(b).visibility !== 'hidden', disabled: b.disabled, title: b.getAttribute('title') ?? '', text: b.textContent.trim() } })
+        const there = !!g && g.visible
+        const bad = []
+        if (there !== a.present) bad.push(there ? 'the Reset to Desktop view button is there' : 'no visible Reset to Desktop view button')
+        if (there && a.present) {
+          if (a.enabled !== undefined && g.disabled === a.enabled) bad.push(`the button is ${g.disabled ? 'disabled' : 'enabled'}, want ${a.enabled ? 'enabled' : 'disabled'}`)
+          for (const s of a.tipHas ?? []) if (!g.title.toLowerCase().includes(s.toLowerCase())) bad.push(`tooltip lacks "${s}": "${g.title.slice(0, 120)}"`)
+        }
+        return R(bad.length === 0, bad.length ? bad.join('; ') : there ? `there, ${g.disabled ? 'disabled' : 'enabled'}: ${g.title.slice(0, 90)}` : 'not there')
+      }
+      case 'dialog': {
+        const g = await page.evaluate(() => { const d = document.querySelector('[role=group][aria-label="Confirm"]'); if (!d || d.hidden || !d.getClientRects().length) return null; return { text: d.querySelector('p')?.textContent ?? '', buttons: [...d.querySelectorAll('button')].map((b) => b.textContent.trim()) } })
+        const bad = []
+        if (!!g !== a.open) bad.push(g ? 'the dialog is open' : 'no dialog is open')
+        if (g && a.open) {
+          for (const s of a.has ?? []) if (!g.text.toLowerCase().includes(s.toLowerCase())) bad.push(`the text lacks "${s}"`)
+          if (a.buttons && JSON.stringify(g.buttons) !== JSON.stringify(a.buttons)) bad.push(`buttons ${JSON.stringify(g.buttons)}, want ${JSON.stringify(a.buttons)}`)
+        }
+        return R(bad.length === 0, bad.length ? bad.join('; ') + (g ? `; text: ${g.text.slice(0, 160)}` : '') : g ? g.text.slice(0, 80) : 'closed')
+      }
+      case 'listIs': {
+        const now = JSON.parse((await page.locator('[data-editor]').first().getAttribute('data-edit-list')) ?? '[]')
+        const ok = JSON.stringify(now) === JSON.stringify(listSnaps[a.snapshot])
+        return R(ok, ok ? `the list is the snapshot (${now.length} edits)` : `the list differs from the snapshot ${a.snapshot} (${now.length} edits, then ${listSnaps[a.snapshot]?.length})`)
+      }
+      case 'exportEqualsFiltered': {
+        const was = listSnaps[a.snapshot]
+        if (!was) return R(false, `no snapshot ${a.snapshot}`)
+        const isEl = (e) => e.op === 'set' || e.op === 'offset' || e.op === 'reorder'
+        const filtered = was.filter((e) => !(isEl(e) && (e.environment ?? 'desktop') === a.env))
+        const ref = await engineReplay(src.files, filtered)
+        const got = await grabAll()
+        const bad = src.order.filter((f) => ref.files[f] !== got[f])
+        return R(ref.ok && bad.length === 0, ref.ok ? (bad.length ? `${bad.join(', ')} differ from the engine's export of the list without the ${a.env} edits (${was.length} edits, ${filtered.length} kept)` : `the export equals the engine's export of the list without the ${a.env} edits (${filtered.length} of ${was.length} kept)`) : 'the engine refused the filtered list')
+      }
+      case 'layoutBaseline': {
+        const now = await page.evaluate(() => {
+          const round = (n) => Math.round(n * 100) / 100
+          const groups = [...document.querySelectorAll('[data-ribbon-group]')].map((g) => { const r = g.getBoundingClientRect(); return { id: g.getAttribute('data-ribbon-group'), x: r.left, width: r.width, top: r.top + scrollY, height: r.height } })
+          const bar = document.querySelector('[role=group][aria-label="Editor controls"]')
+          const buttons = [...bar.querySelectorAll('button')].filter((b) => b.getClientRects().length).map((b) => { const r = b.getBoundingClientRect(); return { name: b.getAttribute('aria-label') || b.textContent.trim(), x: r.left, y: r.top + scrollY, width: r.width, height: r.height } })
+          const br = bar.getBoundingClientRect()
+          return { ribbonBands: new Set(groups.map((g) => Math.round(g.top))).size, groups, bar: { height: br.height, rows: new Set(buttons.map((b) => Math.round(b.y / 10))).size, buttons } }
+        })
+        // scorer-check aids (the stub's layout is not the real page's): --record-views2-layout <file> writes what is measured; --views2-layout-baseline <file> compares with that instead of the locked baseline
+        if (opt('--record-views2-layout')) { const f = opt('--record-views2-layout'); const all = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {}; ;(all[a.width] ??= {})[a.view] = { ribbonBands: now.ribbonBands, groups: now.groups, bar: { height: now.bar.height, rows: now.bar.rows, buttons: now.bar.buttons } }; writeFileSync(f, JSON.stringify(all)); return R(true, `recorded ${a.width} ${a.view}`) }
+        const base = opt('--views2-layout-baseline') ? JSON.parse(readFileSync(opt('--views2-layout-baseline'), 'utf8'))[a.width][a.view] : a.baseline, bad = [], info = []
+        if (now.ribbonBands !== base.ribbonBands) bad.push(`${now.ribbonBands} ribbon bands, was ${base.ribbonBands}`)
+        for (const g of base.groups) {
+          const n = now.groups.find((x) => x.id === g.id)
+          if (!n) { bad.push(`group ${g.id} is gone`); continue }
+          for (const q of ['x', 'width', 'top', 'height']) if (Math.abs(n[q] - g[q]) > 0.5) bad.push(`${g.id} ${q} moved by ${(n[q] - g[q]).toFixed(2)}`)
+        }
+        if (now.bar.rows !== base.bar.rows) bad.push(`${now.bar.rows} bar rows, was ${base.bar.rows}`)
+        if (Math.abs(now.bar.height - base.bar.height) > 0.5) bad.push(`bar height ${now.bar.height.toFixed(1)}, was ${base.bar.height}`)
+        for (const b of base.bar.buttons) {
+          const n = now.bar.buttons.find((x) => x.name === b.name)
+          if (!n) { bad.push(`the button ${b.name} is gone`); continue }
+          if (Math.abs(n.width - b.width) > 0.5 || Math.abs(n.height - b.height) > 0.5) bad.push(`${b.name} is ${n.width.toFixed(1)} x ${n.height.toFixed(1)}, was ${b.width} x ${b.height}`)
+          if (Math.abs(n.x - b.x) > 0.5 || Math.abs(n.y - b.y) > 0.5) info.push(`${b.name} moved by ${(n.x - b.x).toFixed(1)}, ${(n.y - b.y).toFixed(1)}`)
+        }
+        const added = now.bar.buttons.filter((n) => !base.bar.buttons.some((b) => b.name === n.name)).map((n) => n.name)
+        const wantAdded = a.view === 'Desktop' || a.noNew || opt('--views2-layout-baseline') ? [] : ['Reset to Desktop view']
+        if (JSON.stringify(added) !== JSON.stringify(wantAdded)) bad.push(`new bar buttons ${JSON.stringify(added)}, want ${JSON.stringify(wantAdded)}`)
+        return R(bad.length === 0, bad.length ? bad.slice(0, 6).join('; ') : `${a.width} px ${a.view}: no ribbon group moved, ${now.bar.rows} bar row(s) of ${now.bar.height.toFixed(0)} px${added.length ? ', new: ' + added.join(', ') : ''}${info.length ? ' (moved: ' + info.join('; ') + ')' : ''}`)
+      }
       // ---- NO-NUDGE (docs/ui-editor-gate-rules-views1-nonudge.md section 5) ----
       case 'noNudge': {
         const bad = await page.evaluate(() => {
@@ -900,6 +1191,7 @@ async function runSpec(spec) {
         if (a.overlayAlways && f.some((x) => !x.sel)) bad.push(`${f.filter((x) => !x.sel).length} frames without the selection overlay`)
         if (a.scrollSame) { const sc = new Set([fr.y0 + ':' + fr.st0, ...f.map((x) => x.sy + ':' + x.st)]); if (sc.size > 1) bad.push(`scroll moved: ${[...sc].join(' ')}`) }
         if (a.stageHeightSame && new Set(f.map((x) => x.stage)).size > 1) bad.push(`stage height changed: ${[...new Set(f.map((x) => x.stage))].join(' ')}`)
+        if (a.stageTopSame) { const tops = new Set([fr.ft0, ...f.map((x) => x.ft)].filter((x) => x !== null)); if (tops.size > 1) bad.push(`the preview's top took ${tops.size} values: ${[...tops].join(' ')}`) }
         if (a.restIframes !== undefined && fr.rest !== a.restIframes) bad.push(`${fr.rest} preview iframes at rest, want ${a.restIframes}`)
         if (process.env.UI_GATE_VERBOSE) console.log('      frames:', spec.id, bad.length ? bad.join('; ') : 'ok', `${f.length} frames, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}, flash ${flash}`)
         return R(bad.length === 0, bad.length ? bad.join('; ') : `${f.length} frames, ${flash} flash frames, ${fr.rest} iframe at rest, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}`)
@@ -1535,7 +1827,7 @@ async function runSpec(spec) {
         return R(t === a.text, `env "${t}"`)
       }
       case 'viewPressed': {
-        const p = await page.getByRole('group', { name: 'View' }).getByRole('button', { name: a.name, exact: true }).getAttribute('aria-pressed')
+        const p = await page.getByRole('group', { name: 'View' }).getByRole('button', { name: new RegExp(`^${a.name}(, customised)?$`) }).getAttribute('aria-pressed')
         return R(p === 'true', `aria-pressed ${p}`)
       }
       case 'iframeWidth': {
@@ -1961,7 +2253,7 @@ async function runSpec(spec) {
           return { t, ff: cs.fontFamily, fs: cs.fontSize, fw: cs.fontWeight, cls: h.className, lists: lists.length, items: lists[0]?.children.length ?? 0 }
         }), [a.titles])
         const p = []
-        for (const x of m) { if (x.missing) p.push(`no h2 "${x.t}"`); else { if (x.lists !== 1) p.push(`${x.t}: ${x.lists} lists`); if (x.items > a.maxItems || x.items < 1) p.push(`${x.t}: ${x.items} items`) } }
+        for (const x of m) { if (x.missing) p.push(`no h2 "${x.t}"`); else { if (x.lists !== 1) p.push(`${x.t}: ${x.lists} lists`); if (x.items > (a.maxItemsBy?.[x.t] ?? a.maxItems) || x.items < 1) p.push(`${x.t}: ${x.items} items`) } }
         const ok = m.filter((x) => !x.missing)
         if (new Set(ok.map((x) => `${x.ff}|${x.fs}|${x.fw}|${x.cls}`)).size > 1) p.push(`headings differ: ${ok.map((x) => `${x.fs}/${x.fw}/${x.cls}`).join(' ; ')}`)
         return R(p.length === 0, p.length ? p.slice(0, 3).join('; ') : `3 headings: ${ok[0].fs} ${ok[0].fw} class "${ok[0].cls}"; items ${ok.map((x) => x.items).join(', ')}`)
@@ -3093,7 +3385,7 @@ async function runSpec(spec) {
         await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
         continue
       } else if (step.do === 'view') {
-        await page.getByRole('group', { name: 'View' }).getByRole('button', { name: step.name, exact: true }).click()
+        await page.getByRole('group', { name: 'View' }).getByRole('button', { name: new RegExp(`^${step.name}(, customised)?$`) }).click()
       } else if (step.do === 'click') {
         lastClickSel = step.sel
         const p = await page.evaluate(([s, a]) => window.__gate.point(s, a), [step.sel, step.at])
@@ -3203,6 +3495,82 @@ async function runSpec(spec) {
         } else await b.click()
       } else if (step.do === 'fill') {
         await fieldOf(step.label).fill(step.text)
+      } else if (step.do === 'scrollPreview') {
+        const h = step.how
+        if (h === 'wheel') {
+          const c = await page.evaluate(() => { const r = document.querySelector('iframe[title="Preview"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: Math.min(r.top + r.height / 2, innerHeight - 100) } })
+          await page.mouse.move(c.x, c.y); await page.mouse.wheel(0, step.y ?? 140)
+        } else if (['pagedown', 'pageup', 'home', 'end', 'space'].includes(h)) {
+          await page.evaluate(() => document.querySelector('.ue-overlay, #cover')?.focus({ preventScroll: true }))
+          await page.keyboard.press({ pagedown: 'PageDown', pageup: 'PageUp', home: 'Home', end: 'End', space: 'Space' }[h])
+        } else if (h === 'scrollTo') await page.evaluate((y) => document.querySelector('iframe[title="Preview"]').contentWindow.scrollTo(0, y), step.y)
+        else if (h === 'scrollTop') await page.evaluate(([s, y]) => { const d = document.querySelector('iframe[title="Preview"]').contentDocument; (d.querySelector(s ?? '#scroller') ?? d.body).scrollTop = y }, [step.sel ?? null, step.y])
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+        await page.waitForTimeout(250)
+        continue
+      } else if (step.do === 'clickPreviewSide') {
+        // a click on the preview's left margin at mid height: on a page narrower than the screen (the email sample in Tablet) that is the page's own body, so the selection is cleared
+        const p = await page.evaluate(() => { const r = document.querySelector('iframe[title="Preview"]').getBoundingClientRect(); return { x: r.left + 16, y: Math.min(r.top + r.height / 2, innerHeight - 100) } })
+        await page.mouse.move(p.x, p.y); await page.mouse.click(p.x, p.y); await page.waitForTimeout(300)
+        continue
+      } else if (step.do === 'wait') {
+        await page.waitForTimeout(step.ms)
+        continue
+      } else if (step.do === 'resetCounters') {
+        await page.evaluate(() => {
+          const c = window.__cnt; c.raf = 0; c.gbcr = 0; c.mut = 0; c.t0 = performance.now()
+          window.__mo?.disconnect()
+          const o = document.querySelector('.ue-overlay') ?? document.querySelector('#screen') // the pointer layer of the page, or the screen of the scorer stub, which has the outline inside it
+          if (o) { window.__mo = new MutationObserver((ms) => { c.mut += ms.length }); window.__mo.observe(o, { attributes: true, childList: true, subtree: true, characterData: true }) }
+        })
+        continue
+      } else if (step.do === 'tabHidden') {
+        await page.evaluate((h) => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => h }); Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') }); document.dispatchEvent(new Event('visibilitychange')) }, step.hidden)
+        continue
+      } else if (step.do === 'navigate') {
+        await page.getByRole('link', { name: step.link, exact: true }).first().click()
+        await page.waitForTimeout(300)
+        continue
+      } else if (step.do === 'wheelBurst') {
+        await page.evaluate(() => {
+          const rec = (window.__burst = { frames: [], on: true })
+          const sel = null
+          const tick = () => {
+            if (!rec.on) return
+            const f = document.querySelector('iframe[title="Preview"]'); const o = document.querySelector('[data-selection]')
+            if (f && o) {
+              const fr = f.getBoundingClientRect(); const k = fr.width / f.offsetWidth
+              rec.frames.push({ y: f.contentWindow.scrollY, o: (() => { const r = o.getBoundingClientRect(); return [r.left, r.top, r.width, r.height] })(), fr: [fr.left, fr.top, k] })
+            }
+            requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        })
+        const c = await page.evaluate(() => { const r = document.querySelector('iframe[title="Preview"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: Math.min(r.top + r.height / 2, innerHeight - 100) } })
+        await page.mouse.move(c.x, c.y)
+        for (let i = 0; i < step.n; i++) { await page.mouse.wheel(0, step.dy); await page.waitForTimeout(step.gap) }
+        await page.waitForTimeout(300)
+        await page.evaluate(() => { window.__burst.on = false })
+        continue
+      } else if (step.do === 'scrollHost') {
+        await page.evaluate((y) => window.scrollTo(0, y), step.y)
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+        continue
+      } else if (step.do === 'snapshotScroll') {
+        scrollSnaps[step.name] = await page.evaluate(() => Math.round(document.querySelector('iframe[title="Preview"]').contentWindow.scrollY * 10) / 10)
+        continue
+      } else if (step.do === 'snapshotStage') {
+        stageSnaps[step.name] = await stageBoxes()
+        continue
+      } else if (step.do === 'snapshotBanner') {
+        bannerSnaps[step.name] = await page.evaluate(() => document.querySelector('[data-view-banner]')?.getBoundingClientRect().height ?? -1)
+        continue
+      } else if (step.do === 'snapshotList') {
+        listSnaps[step.name] = JSON.parse((await page.locator('[data-editor]').first().getAttribute('data-edit-list')) ?? '[]')
+        continue
+      } else if (step.do === 'snapshotBar') {
+        barSnaps[step.name] = await viewBoxes()
+        continue
       } else if (step.do === 'keys') {
         for (let i = 0; i < step.times; i++) { await page.keyboard.press(step.key); if (step.settle) await settle(page) }
         if (!step.settle) await settle(page)
@@ -3213,7 +3581,7 @@ async function runSpec(spec) {
       } else if (step.do === 'frames') {
         if (step.action === 'start') {
           await page.evaluate(() => {
-            const rec = { frames: [], on: true, rest: -1, y0: Math.round(scrollY), st0: Math.round(document.querySelector('.ue-scroll')?.scrollTop ?? -1) } // the scroll position when the recording starts counts as a frame of its own for scrollSame
+            const rec = { frames: [], on: true, rest: -1, ft0: (() => { const f = document.querySelector('iframe[title="Preview"]'); return f ? Math.round((f.getBoundingClientRect().top + scrollY) * 100) / 100 : null })(), y0: Math.round(scrollY), st0: Math.round(document.querySelector('.ue-scroll')?.scrollTop ?? -1) } // the scroll position when the recording starts counts as a frame of its own for scrollSame
             window.__frames = rec
             const tick = () => {
               if (!rec.on) return
@@ -3221,7 +3589,7 @@ async function runSpec(spec) {
               const vis = fs.filter((f) => { const r = f.getBoundingClientRect(); const c = getComputedStyle(f); return c.display !== 'none' && c.visibility !== 'hidden' && r.height > 0 && r.left > -1000 })
               const st = document.querySelector('.ue-frame')
               const sc = document.querySelector('.ue-scroll')
-              rec.frames.push({ n: fs.length, vis: vis.length, h: vis.map((f) => Math.round(f.getBoundingClientRect().height)), stage: st ? Math.round(st.getBoundingClientRect().height) : -1, sy: Math.round(scrollY), st: sc ? Math.round(sc.scrollTop) : -1, sel: !!document.querySelector('[data-selection]') })
+              rec.frames.push({ n: fs.length, vis: vis.length, h: vis.map((f) => Math.round(f.getBoundingClientRect().height)), stage: st ? Math.round(st.getBoundingClientRect().height) : -1, sy: Math.round(scrollY), st: sc ? Math.round(sc.scrollTop) : -1, sel: !!document.querySelector('[data-selection]'), ft: vis[0] ? Math.round((vis[0].getBoundingClientRect().top + scrollY) * 100) / 100 : null })
               requestAnimationFrame(tick)
             }
             requestAnimationFrame(tick)
@@ -3291,8 +3659,8 @@ async function runSpec(spec) {
 
     // ---- after the steps: P3 needs the preview now, P2 needs the export (round 1 specs list the checks that apply) ----
     const wants = (k) => !spec.checks || spec.checks.includes(k)
-    const isY = /^[JKQXYZ]\d/.test(spec.id)
-    if (/^[JQ]\d/.test(spec.id)) for (const k of ['P3', 'P4']) { const arr = res[k]; res[k] = { ok: arr.length > 0 && arr.every((c) => c.ok), detail: arr.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) } }
+    const isY = /^[BHJKLMQXYZ]\d/.test(spec.id)
+    if (/^[JQHBLM]\d/.test(spec.id)) for (const k of ['P3', 'P4']) { const arr = res[k]; res[k] = { ok: arr.length > 0 && arr.every((c) => c.ok), detail: arr.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) } }
     if (isY && wants('P2')) res.P2 = { ok: res.P2a.length > 0 && res.P2a.every((c) => c.ok), detail: res.P2a.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) }
     if (!isY && (wants('P2') || wants('P3') || wants('P4'))) {
     const afterDump = await dumps()
@@ -3358,10 +3726,10 @@ async function runSpec(spec) {
   // can fail: it is reported as vacuous, not scored. Only round 3 specs; the earlier files keep the strict reading.
   res.vacuous = []
   // R07 too: its only P5 assert (step 12) is one of the retired checks, so what is left lists P5 without an assert.
-  if (spec.checks && (/^[TUVWJQ]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
+  if (spec.checks && (/^[TUVWJQHBLM]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
     const ret = retiredFor(spec.id)
     const live = spec.steps.filter((x, i) => !(ret?.steps?.includes(i) || (ret?.asserts && x.do === 'assert' && ret.asserts.includes(x.k))))
-    res.vacuous = (/^[JQ]\d/.test(spec.id) ? ['P1', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P5', 'P6']).filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
+    res.vacuous = (/^[JQHBLM]\d/.test(spec.id) ? ['P1', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P5', 'P6']).filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
     res.checks = spec.checks.filter((k) => !res.vacuous.includes(k))
   }
   res.outcome = spec.checks ? outcomeOfRound1(res) : outcomeOf(res)
@@ -3526,14 +3894,25 @@ function views1Specs() {
 }
 // NO-NUDGE: the numbered amendments (steps replaced) of the Q file, for the real page and --stub12; every step keeps the number it had, so the retired steps still name the right ones.
 function amendNonudge(spec) {
-  const a = NONUDGE ? (amendNonudgeFile.specs?.[spec.id] ?? nonudgeFile.amendments?.[spec.id]) : undefined
-  if (!a) return spec
-  const steps = []
-  spec.steps.forEach((st, i) => {
-    if (a.replace?.[String(i)]) steps.push(...a.replace[String(i)].map((s) => ({ ...s, _i: i })))
-    else steps.push({ ...st, _i: i })
-  })
-  return { ...spec, steps, amendment: a.amendment }
+  const apply = (s, a) => {
+    const steps = [], done = new Set()
+    s.steps.forEach((st, i) => {
+      const o = st._i ?? i
+      if (a.replace?.[String(o)]) { if (!done.has(o)) { done.add(o); steps.push(...a.replace[String(o)].map((x) => ({ ...x, _i: o }))) } } // a step an earlier amendment spread over several is replaced once
+      else steps.push({ ...st, _i: o })
+    })
+    return { ...s, steps, amendment: a.amendment }
+  }
+  let s = spec
+  const a1 = NONUDGE ? (amendNonudgeFile.specs?.[spec.id] ?? nonudgeFile.amendments?.[spec.id]) : undefined
+  if (a1) s = apply(s, a1)
+  const a2 = VIEWS2 ? (amendViews2File.specs?.[spec.id] ?? views2File.amendments?.[spec.id]) : undefined
+  if (a2) s = apply(s, a2)
+  const a3 = VIEWS2B ? (amendBannerFile.specs?.[spec.id] ?? bannerFile.amendments?.[spec.id]) : undefined
+  if (a3) s = apply(s, a3)
+  const a4 = amendScroll2File.specs?.[spec.id]
+  if (a4) s = apply(s, a4)
+  return s
 }
 function insertSpecs() {
   if (STAGE) {
@@ -3551,7 +3930,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : []), ...(flag('--nudge2') || (only && only.some((id) => /^J\d/.test(id))) ? nudge2File.specs : []), ...(flag('--nonudge') || (only && only.some((id) => /^Q\d/.test(id))) ? nonudgeFile.specs : [])].filter((s) => !only || only.includes(s.id)).map(amendNonudge)
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : []), ...(flag('--nudge2') || (only && only.some((id) => /^J\d/.test(id))) ? nudge2File.specs : []), ...(flag('--nonudge') || (only && only.some((id) => /^Q\d/.test(id))) ? nonudgeFile.specs : []), ...(flag('--views2') || (only && only.some((id) => /^H\d/.test(id))) ? views2File.specs : []), ...(flag('--views2banner') || (only && only.some((id) => /^B\d/.test(id))) ? bannerFile.specs : []), ...(flag('--scrollfix') || (only && only.some((id) => /^L\d/.test(id))) ? scrollFile.specs : []), ...(flag('--scrollfix2') || (only && only.some((id) => /^M\d/.test(id))) ? scroll2File.specs : [])].filter((s) => !only || only.includes(s.id)).map(amendNonudge)
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -3600,7 +3979,7 @@ if (flag('--noop')) {
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
     if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZKJQ]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZKJQHBLM]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
   const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length, retired: tally(round4, 'RETIRED') }, round5: { pass: tally(round5, 'PASS'), fail: tally(round5, 'FAIL'), retired: tally(round5, 'RETIRED'), total: round5.length }, round6: { pass: tally(round6, 'PASS'), fail: tally(round6, 'FAIL'), notBuilt: tally(round6, 'NOT BUILT'), total: round6.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
@@ -3611,6 +3990,14 @@ if (flag('--noop')) {
   if (round6.length) console.log(`Round 6:   PASS ${summary.round6.pass}  FAIL ${summary.round6.fail}${summary.round6.notBuilt ? `  NOT BUILT ${summary.round6.notBuilt}` : ''}  of ${summary.round6.total}`)
   if (insert1.length) console.log(`Insert 1 (stage ${STAGE ?? 'as locked'}): PASS ${tally(insert1, 'PASS')}  FAIL ${tally(insert1, 'FAIL')}${tally(insert1, 'NOT BUILT') ? `  NOT BUILT ${tally(insert1, 'NOT BUILT')}` : ''}  of ${insert1.length}`)
   if (views1.length) console.log(`Views 1:   PASS ${tally(views1, 'PASS')}  FAIL ${tally(views1, 'FAIL')}  of ${views1.length}`)
+  const scroll2r = results.filter((r) => r.id.startsWith('M'))
+  if (scroll2r.length) console.log(`Scroll fix 2: PASS ${tally(scroll2r, 'PASS')}  FAIL ${tally(scroll2r, 'FAIL')}  of ${scroll2r.length}`)
+  const scrollr = results.filter((r) => r.id.startsWith('L'))
+  if (scrollr.length) console.log(`Scroll fix: PASS ${tally(scrollr, 'PASS')}  FAIL ${tally(scrollr, 'FAIL')}  of ${scrollr.length}`)
+  const bannerr = results.filter((r) => r.id.startsWith('B'))
+  if (bannerr.length) console.log(`Banner:    PASS ${tally(bannerr, 'PASS')}  FAIL ${tally(bannerr, 'FAIL')}  of ${bannerr.length}`)
+  const views2r = results.filter((r) => r.id.startsWith('H'))
+  if (views2r.length) console.log(`Views 2:   PASS ${tally(views2r, 'PASS')}  FAIL ${tally(views2r, 'FAIL')}  of ${views2r.length}`)
   const nonudge = results.filter((r) => r.id.startsWith('Q'))
   if (nonudge.length) console.log(`No-nudge:  PASS ${tally(nonudge, 'PASS')}  FAIL ${tally(nonudge, 'FAIL')}  of ${nonudge.length}`)
   const nudge2 = results.filter((r) => r.id.startsWith('J'))
@@ -3631,7 +4018,7 @@ if (flag('--noop')) {
   const r5Ok = round5.length !== 9 || round5.every((r) => r.outcome === 'PASS' || (ROUND6 && r.outcome === 'RETIRED'))
   const r6Ok = round6.length !== 12 || round6.every((r) => r.outcome === 'PASS' || r.outcome === 'NOT BUILT')
   const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT') || (VIEWS1 && r.outcome === 'RETIRED'))
-  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED') && results.filter((r) => /^[JQ]/.test(r.id)).every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED')
+  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED') && results.filter((r) => /^[JQHBLM]/.test(r.id)).every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED')
   // FORMATTING ROUND 7a: Z07 is PASS when the earlier specs of this run meet the pass line (the original 20, round 1, rounds 2 to 6, Y01 to Y14 all PASS); with --only it is not run.
   const z07Spec = round7bFile.specs.find((x) => x.aggregate7)
   const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS' || (VIEWS1 && r.outcome === 'RETIRED')) && ['Z01', 'Z02'].every((id) => round7a.find((r) => r.id === id)?.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12

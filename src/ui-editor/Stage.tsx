@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import { labels } from '../data/uiEditor'
-import { HANDLES, arrowNudge, handleAxes, movedFar, resizedBox, type Box, type Handle } from './geometry'
+import { HANDLES, arrowNudge, clipToScreen, scrollKeyDelta, handleAxes, movedFar, resizedBox, type Box, type Handle } from './geometry'
 import { HEIGHT_MARGIN, bezel, fitScale, frameSize, toCss, type Orientation, type ViewName } from './devices'
 import { canResize, isSvgElement, parentContentWidth, type Session } from './session'
 import { snapBox, snapMove, snaps } from './snap'
@@ -64,6 +64,8 @@ const boxOf = (el: Element): Box => {
   return { left: r.left, top: r.top, width: r.width, height: r.height }
 }
 const inside = (b: Box, x: number, y: number) => x >= b.left && x <= b.left + b.width && y >= b.top && y <= b.top + b.height
+/** The outline and its handles may stand this far outside the screen (the ring is 2 px, a handle sticks out 5). */
+const SCREEN_ALLOW = 6
 const place = (b: Box) => ({ left: b.left, top: b.top, width: b.width, height: b.height })
 
 /**
@@ -106,6 +108,13 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     sel.current = selected
   }, [selected])
 
+  const sessionRef = useRef(session)
+  useLayoutEffect(() => {
+    sessionRef.current = session
+  }, [session])
+  /** The measure of the effect below, for the frame loop. */
+  const measureNow = useRef<(() => void) | null>(null)
+
   const elementOf = useCallback((i: number | null) => (session && i !== null ? (session.preview.elements[i] ?? null) : null), [session])
 
   // Measure the selection again whenever the preview changed, the selection moved, or the page reflowed (images, fonts, a resize of the frame).
@@ -127,19 +136,66 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
         return k.length === Object.keys(prev).length && k.every((i) => prev[Number(i)] && prev[Number(i)].left === at[Number(i)].left && prev[Number(i)].top === at[Number(i)].top) ? prev : at
       })
     }
+    measureNow.current = measure
     measure()
     const doc = session?.preview.doc
     const root = doc?.documentElement
     if (!doc || !root || typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(measure)
     ro.observe(root)
-    // A device with its own screen height scrolls inside the frame: the outline follows the element.
-    doc.addEventListener('scroll', measure, { passive: true })
+    // A device with its own screen height scrolls inside the frame, and a page can scroll an element of its own (a scrolling body, a list): the outline follows the element. A scroll event does not bubble, so
+    // the listener is in the capture phase, which also sees the scroll of every element below the document.
+    doc.addEventListener('scroll', measure, { passive: true, capture: true })
     return () => {
       ro.disconnect()
-      doc.removeEventListener('scroll', measure)
+      doc.removeEventListener('scroll', measure, { capture: true })
     }
   }, [session, rev, selected, elementOf, pinKey])
+
+  // A frame loop while something is selected and the tab is visible. Safari delivers no scroll event from the preview (a sandboxed frame with scripts off), and a trackpad's momentum scroll can come late
+  // in any browser, so each frame the live preview document's scroll position, the selected element's box and the scale are read, and `measure` runs only when one of them changed since the last frame:
+  // an idle selection costs two cheap reads a frame and no write. The session is read from a ref every frame (a replay swaps it), and the loop stops when the selection is cleared, the tab is hidden and on unmount.
+  useEffect(() => {
+    if (selected === null) return
+    let id = 0
+    let last = ''
+    const key = () => {
+      const s = sessionRef.current
+      const el = s ? (s.preview.elements[selected] ?? null) : null
+      const win = s?.preview.doc.defaultView
+      const layer = overlay.current
+      if (!s || !el || !win || !el.isConnected) return 'none'
+      const r = el.getBoundingClientRect()
+      const k = layer && layer.offsetWidth ? layer.getBoundingClientRect().width / layer.offsetWidth : 1
+      return `${win.scrollX}|${win.scrollY}|${r.left}|${r.top}|${r.width}|${r.height}|${k}`
+    }
+    const frame = () => {
+      id = 0
+      if (document.hidden) return
+      const now = key()
+      if (now !== last) {
+        last = now
+        measureNow.current?.()
+      }
+      id = requestAnimationFrame(frame)
+    }
+    const start = () => {
+      if (!id && !document.hidden) id = requestAnimationFrame(frame)
+    }
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(id)
+        id = 0
+      } else start()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    start()
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      cancelAnimationFrame(id)
+      id = 0
+    }
+  }, [selected])
 
   // The pointer layer covers the frame, so the wheel is handed on to a screen that scrolls (a phone or tablet); at its end the page scrolls as usual.
   useEffect(() => {
@@ -370,11 +426,23 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       onDelete()
       return
     }
+    // PageDown, PageUp, Home, End and Space scroll the preview the way the wheel does, and only when it can scroll (else the host page scrolls as usual).
+    const win = session?.preview.doc.defaultView
+    const by = win ? scrollKeyDelta(e.key, e.shiftKey, win.innerHeight) : null
+    if (win && by !== null && e.target === e.currentTarget) {
+      const y = win.scrollY
+      win.scrollBy(0, by)
+      if (win.scrollY !== y) e.preventDefault()
+      return
+    }
     const n = arrowNudge(e.key, e.shiftKey)
     if (!n || sel.current === null || !editable) return
     e.preventDefault()
     onNudge(n.dx, n.dy)
   }
+
+  // What is drawn of an outline is what is on the device's screen (the frame's own size), a few px more for the ring and the handles.
+  const screenClip = (b: Box) => (session ? clipToScreen(b, session.preview.iframe.offsetWidth, session.preview.iframe.offsetHeight, SCREEN_ALLOW) : undefined)
 
   const el = elementOf(selected)
   const resizable = !!el && editable && canResize(el)
@@ -415,9 +483,9 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
               onDoubleClick={onDoubleClick}
               onKeyDown={onKeyDown}
             >
-              {hover && <div data-hover className="ue-hover" style={place(hover)} />}
+              {hover && <div data-hover className="ue-hover" style={{ ...place(hover), clipPath: screenClip(hover) }} />}
               {selBox && (
-                <div data-selection className="ue-selection" style={place(selBox)}>
+                <div data-selection className="ue-selection" style={{ ...place(selBox), clipPath: screenClip(selBox) }}>
                   {resizable && HANDLES.map((h) => <div key={h} data-handle={h} className={`ue-handle is-${h}`} aria-hidden="true" onPointerDown={(e) => onHandleDown(e, h)} />)}
                 </div>
               )}
