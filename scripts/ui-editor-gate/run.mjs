@@ -31,10 +31,13 @@ const flag = (n) => args.includes(n)
 const opt = (n) => (args.includes(n) ? args[args.indexOf(n) + 1] : undefined)
 
 let chromium
+let BROWSER_NAME = 'chromium'
 try {
   const require = createRequire(import.meta.url)
   const entry = require.resolve('playwright', process.env.PLAYWRIGHT_DIR ? { paths: [process.env.PLAYWRIGHT_DIR] } : undefined)
-  ;({ chromium } = require(entry))
+  const pwm = require(entry)
+  BROWSER_NAME = process.argv.includes('--browser') ? process.argv[process.argv.indexOf('--browser') + 1] : 'chromium'
+  chromium = pwm[BROWSER_NAME] // SCROLL FIX 2: --browser webkit runs the gate's browser in WebKit (the M specs)
 } catch {
   console.error('the gate needs Playwright with Chromium (set PLAYWRIGHT_DIR to a folder whose node_modules has it).')
   process.exit(2)
@@ -68,6 +71,8 @@ const amendViews2File = existsSync(join(here, 'amendments-views2.json')) ? JSON.
 const bannerFile = existsSync(join(here, 'specs-views2-banner.json')) ? JSON.parse(readFileSync(join(here, 'specs-views2-banner.json'), 'utf8')) : { specs: [], retiredChecks: {}, amendments: {} }
 const amendBannerFile = existsSync(join(here, 'amendments-views2-banner.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views2-banner.json'), 'utf8')) : { specs: {} }
 // SCROLL FIX (docs/ui-editor-gate-rules-scrollfix.md): the L specs run with --scrollfix (or --only Lnn).
+// SCROLL FIX 2 (docs/ui-editor-gate-rules-scrollfix2.md): the M specs run with --scrollfix2 (or --only Mnn), in Chromium or, with --browser webkit, in WebKit.
+const scroll2File = existsSync(join(here, 'specs-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix2.json'), 'utf8')) : { specs: [] }
 const scrollFile = existsSync(join(here, 'specs-scrollfix.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix.json'), 'utf8')) : { specs: [], fixtures: {} }
 const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
 const nudgeFile = existsSync(join(here, 'specs-views1-nudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge.json'), 'utf8')) : { specs: [] }
@@ -135,9 +140,9 @@ const refServer = createServer((q, r) => {
 const refPort = await listen(refServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12') || flag('--stub13') || flag('--stub14') || flag('--stub15')) {
+if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12') || flag('--stub13') || flag('--stub14') || flag('--stub15') || flag('--stub16')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub15') ? 'scrollfix.html' : flag('--stub14') ? 'views2-banner.html' : flag('--stub13') ? 'views2.html' : flag('--stub12') ? 'views1-nonudge.html' : flag('--stub11') ? 'views1-nudge2.html' : flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub16') ? 'scrollfix2.html' : flag('--stub15') ? 'scrollfix.html' : flag('--stub14') ? 'views2-banner.html' : flag('--stub13') ? 'views2.html' : flag('--stub12') ? 'views1-nonudge.html' : flag('--stub11') ? 'views1-nudge2.html' : flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -155,7 +160,7 @@ if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('-
 }
 if (!baseUrl) { console.error('give --url <page> or --stub'); process.exit(2) }
 
-const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+const browser = await chromium.launch(BROWSER_NAME === 'chromium' ? { headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] } : { headless: true })
 
 // ---- in-page helpers (strings are evaluated in the host page; they read the preview iframe's document) ----
 const PAGE_HELPERS = `(() => {
@@ -273,7 +278,7 @@ const settle = async (page) => {
 async function runSpec(spec) {
   if (TIMING) console.log(`TIME ${new Date().toISOString()} +${((Date.now() - T0) / 1000).toFixed(1)}s SPEC START ${spec.id}`)
   let src = sources[spec.sample] // ROUND 5 (log #31): follows the sample a `load` step opens (V05 and V06 open two)
-  const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
+  const ctx = await browser.newContext({ viewport: spec.host ?? specsFile.hostViewport, acceptDownloads: true, ...(BROWSER_NAME === 'chromium' ? { permissions: ['clipboard-read', 'clipboard-write'] } : {}) })
   // SCROLL FIX: the scroll listeners of the preview documents are counted from the host window (an L spec): when a preview iframe has loaded, addEventListener and removeEventListener of that frame are
   // replaced by host-side wrappers that keep the net count of `scroll` listeners per target in window.__sl. Nothing runs inside the sandboxed preview.
   if (/^L\d/.test(spec.id)) await ctx.addInitScript(() => {
@@ -291,11 +296,31 @@ async function runSpec(spec) {
     }
     new MutationObserver((ms) => { for (const r of ms) for (const n of r.addedNodes) if (n.nodeType === 1) for (const f of n.localName === 'iframe' ? [n] : n.querySelectorAll('iframe')) { patch(f); f.addEventListener('load', () => patch(f)) } }).observe(document, { childList: true, subtree: true })
   })
+  // SCROLL FIX 2: the frame callbacks the page requests (and those still pending), the measures of the preview's elements and the changes of the overlay are counted from the host window.
+  if (/^M\d/.test(spec.id)) await ctx.addInitScript(() => {
+    if (window !== window.top) return
+    const c = (window.__cnt = { raf: 0, pending: new Set(), gbcr: 0, mut: 0, t0: performance.now() })
+    const raf = window.requestAnimationFrame.bind(window), caf = window.cancelAnimationFrame.bind(window)
+    // only the tool's own frame callbacks count: a request whose call stack runs through the UiEditor chunk (or, on the scorer stub, a function named selectionLoop); the site's other pages animate on their own
+    const mine = () => /UiEditor|selectionLoop/.test(new Error().stack ?? '')
+    window.requestAnimationFrame = (cb) => { const m = mine(); if (m) c.raf++; const id = raf((ts) => { c.pending.delete(id); cb(ts) }); if (m) c.pending.add(id); return id }
+    window.cancelAnimationFrame = (id) => { c.pending.delete(id); caf(id) }
+    const patch = (f) => {
+      const w = f.contentWindow
+      if (!w) return
+      const proto = w.Element.prototype
+      if (proto.__probed) return
+      Object.defineProperty(proto, '__probed', { value: true })
+      const g = proto.getBoundingClientRect
+      proto.getBoundingClientRect = function () { c.gbcr++; return g.call(this) }
+    }
+    new MutationObserver((ms) => { for (const r of ms) for (const n of r.addedNodes) if (n.nodeType === 1) for (const f of n.localName === 'iframe' ? [n] : n.querySelectorAll('iframe')) { patch(f); f.addEventListener('load', () => patch(f)) } }).observe(document, { childList: true, subtree: true })
+  })
   const page = await ctx.newPage()
   if (flag('--fast-fail')) page.setDefaultTimeout(4000) // a development flag: a control that is gone fails in 4 s, not 30 s (used with --no-retire-views1, rules section 7)
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
-  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: /^[JQHBL]\d/.test(spec.id) ? [] : null, P4: /^[JQHBL]\d/.test(spec.id) ? [] : null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
+  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: /^[JQHBLM]\d/.test(spec.id) ? [] : null, P4: /^[JQHBLM]\d/.test(spec.id) ? [] : null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
   const snaps = {}
   let statusAtCopy = null
   let before = {}
@@ -852,6 +877,58 @@ async function runSpec(spec) {
         return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : `${a.prop} of ${a.sel} (${a.via}): ${widths.map((w) => `${w} ${have[w]}`).join(', ')}`)
       }
       // ---- NUDGE FIX 2 (docs/ui-editor-gate-rules-views1-nudge2.md section 3) ----
+      // ---- SCROLL FIX 2 (docs/ui-editor-gate-rules-scrollfix2.md section 4) ----
+      case 'outlineLag': {
+        // the frames of the burst: each frame's outline against the element's box in that frame and in the frame before; the element's box is read afterwards from the scroll position of the frame (the element's own offset does not move)
+        const g = await page.evaluate((s) => {
+          const f = document.querySelector('iframe[title="Preview"]'); const el = f.contentDocument.querySelector(s)
+          const rec = window.__burst; if (!rec) return null
+          // the element's top and left in the preview's own coordinates at scroll 0
+          const w = f.contentWindow, y0 = w.scrollY; const r = el.getBoundingClientRect()
+          return { frames: rec.frames, elTop0: r.top + y0, elLeft: r.left, w: r.width, h: r.height }
+        }, a.sel)
+        if (!g) return R(false, 'no burst recorded')
+        const box = (fr, y) => { const [fl, ft, k] = fr; return [fl + g.elLeft * k, ft + (g.elTop0 - y) * k, g.w * k, g.h * k] }
+        const diff = (o, e) => Math.max(...o.map((v, i) => Math.abs(v - e[i])))
+        const bad = []
+        let worst = 0
+        g.frames.forEach((fm, i) => {
+          const here = diff(fm.o, box(fm.fr, fm.y))
+          const before = i > 0 ? diff(fm.o, box(fm.fr, g.frames[i - 1].y)) : here
+          const d = Math.min(here, before)
+          worst = Math.max(worst, d)
+          if (d > a.tol) bad.push(`frame ${i}: the outline is ${d.toFixed(1)} px from the element of this frame and of the one before`)
+        })
+        const tail = g.frames.slice(-3).map((fm) => diff(fm.o, box(fm.fr, fm.y)))
+        if (tail.some((d) => d > a.tol)) bad.push(`after the burst the outline is ${Math.max(...tail).toFixed(1)} px off`)
+        return R(bad.length === 0 && g.frames.length > 5, bad.length ? `${bad.length} frames: ${bad.slice(0, 2).join('; ')}` : `${g.frames.length} frames sampled, the outline never more than ${worst.toFixed(1)} px from the element of its frame or the one before`)
+      }
+      case 'outlineStays': {
+        const bad = []
+        for (let t = 0; t <= a.ms; t += a.every) {
+          const m = await page.evaluate((s) => {
+            const f = document.querySelector('iframe[title="Preview"]'); const fr = f.getBoundingClientRect(); const k = fr.width / f.offsetWidth
+            const el = f.contentDocument.querySelector(s); const o = document.querySelector('[data-selection]')
+            if (!el || !o) return { error: !el ? 'no element' : 'no outline' }
+            const er = el.getBoundingClientRect(), r = o.getBoundingClientRect()
+            return { d: Math.max(Math.abs(r.left - (fr.left + er.left * k)), Math.abs(r.top - (fr.top + er.top * k)), Math.abs(r.width - er.width * k), Math.abs(r.height - er.height * k)) }
+          }, a.sel)
+          if (m.error) bad.push(`${t} ms: ${m.error}`); else if (m.d > a.tol) bad.push(`${t} ms: ${m.d.toFixed(1)} px off`)
+          await page.waitForTimeout(a.every)
+        }
+        return R(bad.length === 0, bad.length ? bad.slice(0, 3).join('; ') : `within ${a.tol} px every ${a.every} ms for ${a.ms} ms`)
+      }
+      case 'counters': {
+        const c = await page.evaluate(() => { const c = window.__cnt; const s = (performance.now() - c.t0) / 1000; return { raf: c.raf, gbcr: c.gbcr, mut: c.mut, pending: c.pending.size, s } })
+        const bad = []
+        const rps = c.raf / c.s, gps = c.gbcr / c.s
+        if (a.rafPerSecMin !== undefined && rps < a.rafPerSecMin) bad.push(`${rps.toFixed(0)} frame callbacks a second, at least ${a.rafPerSecMin} wanted`)
+        if (a.rafPerSecMax !== undefined && rps > a.rafPerSecMax) bad.push(`${rps.toFixed(0)} frame callbacks a second, at most ${a.rafPerSecMax} wanted`)
+        if (a.overlayMutations !== undefined && c.mut !== a.overlayMutations) bad.push(`${c.mut} changes of the overlay, ${a.overlayMutations} wanted`)
+        if (a.gbcrPerSecMax !== undefined && gps > a.gbcrPerSecMax) bad.push(`${gps.toFixed(0)} measures of the preview's elements a second, at most ${a.gbcrPerSecMax} wanted`)
+        if (a.pendingMax !== undefined && c.pending > a.pendingMax) bad.push(`${c.pending} frame callbacks pending, at most ${a.pendingMax}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${rps.toFixed(0)} frame callbacks and ${gps.toFixed(0)} measures a second, ${c.mut} overlay changes, ${c.pending} pending, over ${c.s.toFixed(1)} s`)
+      }
       // ---- SCROLL FIX (docs/ui-editor-gate-rules-scrollfix.md section 4) ----
       case 'outlineFollows': {
         const meas = () => page.evaluate((s) => {
@@ -3430,6 +3507,45 @@ async function runSpec(spec) {
         await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
         await page.waitForTimeout(250)
         continue
+      } else if (step.do === 'wait') {
+        await page.waitForTimeout(step.ms)
+        continue
+      } else if (step.do === 'resetCounters') {
+        await page.evaluate(() => {
+          const c = window.__cnt; c.raf = 0; c.gbcr = 0; c.mut = 0; c.t0 = performance.now()
+          window.__mo?.disconnect()
+          const o = document.querySelector('.ue-overlay')
+          if (o) { window.__mo = new MutationObserver((ms) => { c.mut += ms.length }); window.__mo.observe(o, { attributes: true, childList: true, subtree: true, characterData: true }) }
+        })
+        continue
+      } else if (step.do === 'tabHidden') {
+        await page.evaluate((h) => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => h }); Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') }); document.dispatchEvent(new Event('visibilitychange')) }, step.hidden)
+        continue
+      } else if (step.do === 'navigate') {
+        await page.getByRole('link', { name: step.link, exact: true }).first().click()
+        await page.waitForTimeout(300)
+        continue
+      } else if (step.do === 'wheelBurst') {
+        await page.evaluate(() => {
+          const rec = (window.__burst = { frames: [], on: true })
+          const sel = null
+          const tick = () => {
+            if (!rec.on) return
+            const f = document.querySelector('iframe[title="Preview"]'); const o = document.querySelector('[data-selection]')
+            if (f && o) {
+              const fr = f.getBoundingClientRect(); const k = fr.width / f.offsetWidth
+              rec.frames.push({ y: f.contentWindow.scrollY, o: (() => { const r = o.getBoundingClientRect(); return [r.left, r.top, r.width, r.height] })(), fr: [fr.left, fr.top, k] })
+            }
+            requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        })
+        const c = await page.evaluate(() => { const r = document.querySelector('iframe[title="Preview"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: Math.min(r.top + r.height / 2, innerHeight - 100) } })
+        await page.mouse.move(c.x, c.y)
+        for (let i = 0; i < step.n; i++) { await page.mouse.wheel(0, step.dy); await page.waitForTimeout(step.gap) }
+        await page.waitForTimeout(300)
+        await page.evaluate(() => { window.__burst.on = false })
+        continue
       } else if (step.do === 'scrollHost') {
         await page.evaluate((y) => window.scrollTo(0, y), step.y)
         await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
@@ -3537,8 +3653,8 @@ async function runSpec(spec) {
 
     // ---- after the steps: P3 needs the preview now, P2 needs the export (round 1 specs list the checks that apply) ----
     const wants = (k) => !spec.checks || spec.checks.includes(k)
-    const isY = /^[BHJKLQXYZ]\d/.test(spec.id)
-    if (/^[JQHBL]\d/.test(spec.id)) for (const k of ['P3', 'P4']) { const arr = res[k]; res[k] = { ok: arr.length > 0 && arr.every((c) => c.ok), detail: arr.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) } }
+    const isY = /^[BHJKLMQXYZ]\d/.test(spec.id)
+    if (/^[JQHBLM]\d/.test(spec.id)) for (const k of ['P3', 'P4']) { const arr = res[k]; res[k] = { ok: arr.length > 0 && arr.every((c) => c.ok), detail: arr.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) } }
     if (isY && wants('P2')) res.P2 = { ok: res.P2a.length > 0 && res.P2a.every((c) => c.ok), detail: res.P2a.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) }
     if (!isY && (wants('P2') || wants('P3') || wants('P4'))) {
     const afterDump = await dumps()
@@ -3604,10 +3720,10 @@ async function runSpec(spec) {
   // can fail: it is reported as vacuous, not scored. Only round 3 specs; the earlier files keep the strict reading.
   res.vacuous = []
   // R07 too: its only P5 assert (step 12) is one of the retired checks, so what is left lists P5 without an assert.
-  if (spec.checks && (/^[TUVWJQHBL]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
+  if (spec.checks && (/^[TUVWJQHBLM]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
     const ret = retiredFor(spec.id)
     const live = spec.steps.filter((x, i) => !(ret?.steps?.includes(i) || (ret?.asserts && x.do === 'assert' && ret.asserts.includes(x.k))))
-    res.vacuous = (/^[JQHBL]\d/.test(spec.id) ? ['P1', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P5', 'P6']).filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
+    res.vacuous = (/^[JQHBLM]\d/.test(spec.id) ? ['P1', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P5', 'P6']).filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
     res.checks = spec.checks.filter((k) => !res.vacuous.includes(k))
   }
   res.outcome = spec.checks ? outcomeOfRound1(res) : outcomeOf(res)
@@ -3806,7 +3922,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : []), ...(flag('--nudge2') || (only && only.some((id) => /^J\d/.test(id))) ? nudge2File.specs : []), ...(flag('--nonudge') || (only && only.some((id) => /^Q\d/.test(id))) ? nonudgeFile.specs : []), ...(flag('--views2') || (only && only.some((id) => /^H\d/.test(id))) ? views2File.specs : []), ...(flag('--views2banner') || (only && only.some((id) => /^B\d/.test(id))) ? bannerFile.specs : []), ...(flag('--scrollfix') || (only && only.some((id) => /^L\d/.test(id))) ? scrollFile.specs : [])].filter((s) => !only || only.includes(s.id)).map(amendNonudge)
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : []), ...(flag('--nudge2') || (only && only.some((id) => /^J\d/.test(id))) ? nudge2File.specs : []), ...(flag('--nonudge') || (only && only.some((id) => /^Q\d/.test(id))) ? nonudgeFile.specs : []), ...(flag('--views2') || (only && only.some((id) => /^H\d/.test(id))) ? views2File.specs : []), ...(flag('--views2banner') || (only && only.some((id) => /^B\d/.test(id))) ? bannerFile.specs : []), ...(flag('--scrollfix') || (only && only.some((id) => /^L\d/.test(id))) ? scrollFile.specs : []), ...(flag('--scrollfix2') || (only && only.some((id) => /^M\d/.test(id))) ? scroll2File.specs : [])].filter((s) => !only || only.includes(s.id)).map(amendNonudge)
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -3855,7 +3971,7 @@ if (flag('--noop')) {
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
     if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZKJQHBL]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZKJQHBLM]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
   const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length, retired: tally(round4, 'RETIRED') }, round5: { pass: tally(round5, 'PASS'), fail: tally(round5, 'FAIL'), retired: tally(round5, 'RETIRED'), total: round5.length }, round6: { pass: tally(round6, 'PASS'), fail: tally(round6, 'FAIL'), notBuilt: tally(round6, 'NOT BUILT'), total: round6.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
@@ -3866,6 +3982,8 @@ if (flag('--noop')) {
   if (round6.length) console.log(`Round 6:   PASS ${summary.round6.pass}  FAIL ${summary.round6.fail}${summary.round6.notBuilt ? `  NOT BUILT ${summary.round6.notBuilt}` : ''}  of ${summary.round6.total}`)
   if (insert1.length) console.log(`Insert 1 (stage ${STAGE ?? 'as locked'}): PASS ${tally(insert1, 'PASS')}  FAIL ${tally(insert1, 'FAIL')}${tally(insert1, 'NOT BUILT') ? `  NOT BUILT ${tally(insert1, 'NOT BUILT')}` : ''}  of ${insert1.length}`)
   if (views1.length) console.log(`Views 1:   PASS ${tally(views1, 'PASS')}  FAIL ${tally(views1, 'FAIL')}  of ${views1.length}`)
+  const scroll2r = results.filter((r) => r.id.startsWith('M'))
+  if (scroll2r.length) console.log(`Scroll fix 2: PASS ${tally(scroll2r, 'PASS')}  FAIL ${tally(scroll2r, 'FAIL')}  of ${scroll2r.length}`)
   const scrollr = results.filter((r) => r.id.startsWith('L'))
   if (scrollr.length) console.log(`Scroll fix: PASS ${tally(scrollr, 'PASS')}  FAIL ${tally(scrollr, 'FAIL')}  of ${scrollr.length}`)
   const bannerr = results.filter((r) => r.id.startsWith('B'))
@@ -3892,7 +4010,7 @@ if (flag('--noop')) {
   const r5Ok = round5.length !== 9 || round5.every((r) => r.outcome === 'PASS' || (ROUND6 && r.outcome === 'RETIRED'))
   const r6Ok = round6.length !== 12 || round6.every((r) => r.outcome === 'PASS' || r.outcome === 'NOT BUILT')
   const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT') || (VIEWS1 && r.outcome === 'RETIRED'))
-  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED') && results.filter((r) => /^[JQHBL]/.test(r.id)).every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED')
+  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED') && results.filter((r) => /^[JQHBLM]/.test(r.id)).every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED')
   // FORMATTING ROUND 7a: Z07 is PASS when the earlier specs of this run meet the pass line (the original 20, round 1, rounds 2 to 6, Y01 to Y14 all PASS); with --only it is not run.
   const z07Spec = round7bFile.specs.find((x) => x.aggregate7)
   const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS' || (VIEWS1 && r.outcome === 'RETIRED')) && ['Z01', 'Z02'].every((id) => round7a.find((r) => r.id === id)?.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12
