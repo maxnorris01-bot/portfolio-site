@@ -28,13 +28,14 @@ export type PlanetPanel = { id: PlanetId; label: string; paragraphs: Copy[]; lin
 export const HOME_DEFAULT_PLANET: PlanetId = 'satpov'
 export const HOME_SLOT_LABEL = 'Explore the site'
 
-export const HOME_INFO: InfoPanel[] = [
+/** The info cards; the UI Editor sentence of the Backend row is there only while the flag is on (the tool is hidden in Production until the release). */
+export const homeInfo = (uiEditorOn: boolean): InfoPanel[] => [
   {
     id: 'background',
     label: 'Background',
     bullets: [
       { lead: 'Experience', text: '10+ years at Northrop Grumman and Joby Aviation, as an aerospace mass-properties engineer.', compact: '10+ years, Northrop Grumman and Joby Aviation.' },
-      { lead: 'Focus', text: 'applied AI and data pipelines that are fast, transparent and grounded in real physics.', compact: 'applied AI and data pipelines grounded in real physics.' },
+      { lead: 'Focus', text: 'applied AI and data tools that are fast, transparent and tested, built by an engineer who checks the numbers.', compact: 'applied AI and data tools that are fast, transparent and tested.' },
       { lead: 'Education', text: 'Physics degrees, Cal State Northridge.' },
     ],
   },
@@ -45,14 +46,16 @@ export const HOME_INFO: InfoPanel[] = [
       { lead: 'Purpose', text: 'a working portfolio of applied AI and data projects. Every tool here runs live; none of it is a mock-up.', compact: 'a working portfolio of applied AI and data projects; every tool here runs live.' },
       {
         lead: 'Backend',
-        text: 'ShopAI runs on a Python service (Fly.io) with Postgres, reachable only through this site. Spending is capped per session, per visitor and per day, with 1,700+ automated tests and a locked evaluation set.',
-        compact: 'ShopAI: Python on Fly.io with Postgres, spending caps, 1,700+ tests.',
+        text: `SatPOV and ShopAI run on Python services (Fly.io); ShopAI adds Postgres, spending caps per session, per visitor and per day, 1,700+ automated tests and a locked evaluation set.${uiEditorOn ? ' UI Editor runs in your browser.' : ''}`,
+        compact: 'SatPOV and ShopAI: Python on Fly.io; ShopAI adds Postgres, spending caps, 1,700+ tests.',
       },
       { lead: 'What it shows', text: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment, and the physics background to sanity-check results.', compact: 'end-to-end ownership: pipelines, LLM ranking with cost controls, evaluation, deployment.' },
       { lead: 'Stack', text: 'Python, Fly.io, Postgres, React, TypeScript, Vercel.', compactHide: true },
     ],
   },
 ]
+
+export const HOME_INFO: InfoPanel[] = homeInfo(UI_EDITOR_ON)
 
 const BASE_PLANETS: PlanetPanel[] = [
   {
