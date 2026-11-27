@@ -46,3 +46,16 @@ test('the dialog gives the focus back: to the Reset button when nothing was done
   assert.match(icons, /data-reset-view=/)
   assert.match(icons, /data-view-button=/)
 })
+
+test('the words say a view can be reset, that customised properties stay when Desktop changes, and that one property cannot be handed back', async () => {
+  const { how, limits, paragraphs } = await import('../src/data/uiEditor.ts')
+  const adapt = how.steps.find((s) => s.name === 'Adapt')?.detail ?? ''
+  assert.match(adapt, /“Reset to Desktop view” removes all the changes made in the Phone or Tablet view you have open, and nothing else \(text, inserted items and notes stay\), and Undo brings them back/)
+  assert.match(adapt, /a later Desktop change does not override it/)
+  assert.ok(limits.items.some((t) => /stays as you set it when Desktop changes; only the whole view can be reset to the Desktop setup, never one property/.test(t)))
+  for (const p of paragraphs(limits.items, limits.groups)) assert.ok(p.split(/\s+/).length <= 50, p.slice(0, 40))
+  assert.equal(paragraphs(limits.items, limits.groups).join(' '), limits.items.join(' '))
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
+  assert.match(readme, /three views \(Desktop, Tablet, Phone\)/)
+  assert.match(readme, /"Reset to Desktop view" takes all of that view's changes back/)
+})

@@ -297,11 +297,11 @@ test('the code view shows the whole file line by line, marks changed lines with 
   assert.match(tool, /<CodeView key=\{file\}/)
 })
 
-test('the three bottom sections: one h2 class, at most six items each, each about 35 words (at most 50), no bullets, a rule between items, every fact kept', async () => {
+test('the three bottom sections: one h2 class, at most six items each (seven for the Limits, views stage 2), each about 35 words (at most 50), no bullets, a rule between items, every fact kept', async () => {
   const { how, limits, credits, paragraphs } = await import('../src/data/uiEditor.ts')
   const lists = [how.measured, paragraphs(limits.items, limits.groups), credits.items]
   for (const l of lists) {
-    assert.ok(l.length >= 3 && l.length <= 6, `${l.length} items`)
+    assert.ok(l.length >= 3 && l.length <= (l === lists[1] ? 7 : 6), `${l.length} items`)
     for (const t of l) assert.ok(t.split(/\s+/).length <= 50, `${t.split(/\s+/).length} words: ${t.slice(0, 40)}`)
   }
   assert.equal(paragraphs(limits.items, limits.groups).join(' '), limits.items.join(' '), 'every sentence is shown once, in order')

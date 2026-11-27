@@ -55,10 +55,10 @@ test('the select\'s options: the page\'s own family first (by its first name), t
   assert.doesNotMatch(read('src/ui-editor/ribbonfields.ts'), /@import|<link|fonts\.googleapis/)
 })
 
-test('the limits list says a font shows only if the computer has it, and its paragraphs stay six of at most 50 words', () => {
+test('the limits list says a font shows only if the computer has it, and its paragraphs stay at most seven (views stage 2) of at most 50 words', () => {
   assert.ok(limits.items.some((t) => /Fonts show only if your computer has them/.test(t)))
   const ps = paragraphs(limits.items, limits.groups)
-  assert.ok(ps.length <= 6)
+  assert.ok(ps.length <= 7)
   for (const p of ps) assert.ok(p.split(/\s+/).length <= 50, p.slice(0, 40))
   assert.equal(ps.join(' '), limits.items.join(' '))
 })

@@ -78,7 +78,7 @@ test('How it works says what the three views do, and the limits say what is edit
   assert.match(adapt, /sizes in proportion, colours, fonts, order and text as they are, except what you customised in Phone or Tablet/)
   assert.match(adapt, /A change made in Phone or Tablet applies to that view only, and a later Desktop change does not override it/)
   assert.doesNotMatch(adapt, /Link|Review|unlinked|other way round/i)
-  assert.doesNotMatch(adapt, /reset/i, 'no word about a feature that does not exist yet')
+  assert.match(adapt, /Reset to Desktop view/, 'views stage 2: the way back exists, and Adapt says so')
   const everything = [adapt, ...how.measured, ...limits.items, ...Object.values(labels).filter((v): v is string => typeof v === 'string'), ...Object.values(panel).filter((v): v is string => typeof v === 'string')].join('\n')
   assert.doesNotMatch(everything, /Review unlinked|Link to |Link on|Link off|Tablet is view-only|one size only|always unlinked/)
   assert.ok(limits.items.includes('Desktop, Tablet and Phone upright are editable; turned sideways they are view-only.'))
