@@ -25,7 +25,7 @@ import { listNotes, tabletMin, type Edit, type Environment, type InsertKind } fr
 import './UiEditorTool.css'
 
 type Msg = { kind: 'ok' | 'refusal' | 'info'; text: string; notes?: string[]; /** One plain extra line said after the message (round 5: a dragged edge that could not follow the pointer). */ extra?: string }
-type Confirm = { text: string; run: () => void }
+type Confirm = { text: string; run: () => void; /** Views stage 2: the words of the yes button, and where the focus goes (the Reset button when nothing was done, the open view's button when it was). */ yes?: string; back?: string; after?: string }
 
 const VIEWS: { name: ViewName; icon: IconName }[] = [
   { name: 'Desktop', icon: 'desktop' },
@@ -201,6 +201,11 @@ export default function UiEditorTool() {
     if (confirm) keepRef.current?.focus()
   }, [confirm])
 
+  /** After a dialog closes the focus goes back to a button of the bar (a view reset: the Reset button when nothing was done, the open view's button when it was). */
+  const giveFocusTo = (selector?: string) => {
+    if (!selector) return
+    window.setTimeout(() => rootRef.current?.querySelector<HTMLElement>(`${selector}:not(:disabled)`)?.focus({ preventScroll: true }), 0)
+  }
   const onPickSample = (id: SampleId) => replaceDocument(() => load(SAMPLES[id], []))
   /** The Samples button: over an open document it shows or hides the gallery; on a first visit the gallery is already there, so it takes the visitor to it. */
   const onSamples = () => {
@@ -457,7 +462,7 @@ export default function UiEditorTool() {
     const before = listRef.current
     const next = listReduce(before, action)
     if (next === before) return
-    const changed = action.type === 'undo' ? before.edits.slice(next.edits.length) : action.type === 'redo' ? next.edits.slice(before.edits.length) : before.edits
+    const changed = action.type === 'undo' ? before.edits.slice(next.edits.length) : action.type === 'redo' ? next.edits.slice(before.edits.length) : action.type === 'resetView' ? [] : before.edits
     // A reorder changes which element a path names: the selection is let go rather than guessed.
     if (changed.some((e) => e.op === 'reorder' || e.op === 'insert' || e.op === 'remove')) setSelPath(null)
     setPlacing(null)
@@ -472,8 +477,22 @@ export default function UiEditorTool() {
   }
   // Views stage 2: the small views' own changes (the engine's list of them, with the view resets applied): the mark on a view button reads them.
   const customised = { Tablet: customCount(list.edits, 'tablet') > 0, Phone: customCount(list.edits, 'phone') > 0 }
-  const onUndo = () => stepList({ type: 'undo' }, messages.undone)
-  const onRedo = () => stepList({ type: 'redo' }, messages.redone)
+  const viewOf = (e: { environment: 'phone' | 'tablet' }) => (e.environment === 'phone' ? 'Phone' : 'Tablet')
+  const onUndo = () => {
+    const last = list.edits[list.edits.length - 1]
+    stepList({ type: 'undo' }, last?.op === 'resetView' ? messages.undoneViewReset(viewOf(last)) : messages.undone)
+  }
+  const onRedo = () => {
+    const next = list.redo[list.redo.length - 1]
+    stepList({ type: 'redo' }, next?.op === 'resetView' ? messages.redoneViewReset(viewOf(next)) : messages.redone)
+  }
+  const small = view === 'Phone' || view === 'Tablet'
+  /** "Reset to Desktop view": takes every change made in the open small view out of the list (one history entry, so one Undo brings them back); the dialog says so first. */
+  const onResetView = () => {
+    if (!small || !customised[view] || busyRef.current) return
+    const environment = view === 'Phone' ? 'phone' : 'tablet'
+    setConfirm({ text: labels.resetViewText(view), yes: labels.resetViewYes(view), back: '[data-reset-view]', after: '[data-view-button][aria-pressed="true"]', run: () => stepList({ type: 'resetView', environment }, messages.viewReset(view)) })
+  }
   const onReset = () => setConfirm({ text: labels.resetText, run: () => stepList({ type: 'reset' }, messages.reset) })
 
   const onRootKey = (e: KeyboardEvent<HTMLElement>) => {
@@ -678,6 +697,16 @@ export default function UiEditorTool() {
                   return <IconButton key={v.name} icon={v.icon} label={v.name} showLabel named={mark ? labels.viewNameCustom(v.name) : undefined} tip={mark ? labels.viewTipCustom(v.name) : labels.viewTip(v.name)} mark={mark} view pressed={view === v.name} onClick={() => onView(v.name)} />
                 })}
                 {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} tip={labels.rotateTip} onClick={onRotate} />}
+                {small && (
+                  <IconButton
+                    icon="resetView"
+                    label={labels.resetView}
+                    resetView
+                    tip={svgDoc ? labels.resetViewTipSvg(view) : customised[view] ? labels.resetViewTip(view) : labels.resetViewTipNone(view)}
+                    disabled={!customised[view] || busy}
+                    onClick={onResetView}
+                  />
+                )}
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group">
@@ -738,11 +767,21 @@ export default function UiEditorTool() {
               const c = confirm
               setConfirm(null)
               c.run()
+              giveFocusTo(c.after)
             }}
           >
-            {labels.discard}
+            {confirm.yes ?? labels.discard}
           </button>
-          <button ref={keepRef} type="button" className="btn btn-secondary" onClick={() => setConfirm(null)}>
+          <button
+            ref={keepRef}
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              const c = confirm
+              setConfirm(null)
+              giveFocusTo(c.back)
+            }}
+          >
             {labels.keep}
           </button>
         </div>

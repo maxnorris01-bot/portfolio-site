@@ -120,6 +120,12 @@ export const labels = {
   viewTip: (name: string) => `Show the ${name} size`,
   /** Views stage 2: a Phone or Tablet that has changes of its own: the name says so (a dot is not enough), and the tip says what it means. */
   customised: 'customised',
+  resetView: 'Reset to Desktop view',
+  resetViewTip: (name: string) => `Reset the ${name} view to the Desktop setup. It removes the changes made in ${name} only; text, inserted items and notes stay, and Undo brings the changes back.`,
+  resetViewTipNone: (name: string) => `Reset the ${name} view to the Desktop setup. Not available now: the ${name} view has no changes of its own.`,
+  resetViewTipSvg: (name: string) => `Reset the ${name} view to the Desktop setup. Not available: an SVG has no separate ${name} changes.`,
+  resetViewText: (name: string) => `Reset the ${name} view to the Desktop setup? This removes the changes made in ${name} only. Desktop and the other small view are untouched, text, inserted items and notes stay, and Undo brings the changes back.`,
+  resetViewYes: (name: string) => `Reset ${name} view`,
   viewNameCustom: (name: string) => `${name}, customised`,
   viewTipCustom: (name: string) => `Show the ${name} size. This view is customised: it has changes of its own that a Desktop change does not override.`,
   file: 'File',
@@ -304,6 +310,9 @@ export const messages = {
   undone: 'Undid the last edit.',
   redone: 'Redid the edit.',
   reset: 'Reset: the code is the original again.',
+  viewReset: (name: string) => `${name} view reset to the Desktop setup. Undo brings the changes back.`,
+  undoneViewReset: (name: string) => `Undid the reset: the ${name} view has its changes again.`,
+  redoneViewReset: (name: string) => `Redid the reset: the ${name} view is back to the Desktop setup.`,
 }
 
 /** "How it works": five steps in the Search-pipeline style, then what is measured and what is not. */
