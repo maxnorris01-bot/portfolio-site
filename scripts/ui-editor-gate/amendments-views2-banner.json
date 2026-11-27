@@ -1,5 +1,59 @@
 {
  "version": 1,
- "note": "Numbered amendments to specs-views2-banner.json (locked). None yet.",
- "specs": {}
+ "note": "Numbered amendments to specs-views2-banner.json (locked), found in the scorer check on the stub before anything was scored on the page. A1 B03: the Desktop edit was made in whichever view the spec was in (Tablet), not in Desktop: it now switches to Desktop first (my slip). A2 B04: the confirm dialog is in the page's flow above the preview (existing behaviour, not the banner's), so the preview moves down while it is open and back when it closes; frame sampling of the reset would see that. The reset is therefore checked by the boxes before the dialog opens and after the reset (stageSame), and frame sampling stays on the first edit, Undo and Redo, where it measures the banner. A3 B08: the status line is read before the runner's own Download (the lesson of stage 2; my slip). A4 B09: Grid spacing is a select, not a button, so it is focused with focusField (my slip). Nothing else changes; the first stub runs stay on record in docs/ui-editor-gate-log.md.",
+ "specs": {
+  "B03": {
+   "amendment": "A1",
+   "replace": {
+    "11": [
+     {
+      "do": "view",
+      "name": "Desktop"
+     },
+     {
+      "do": "click",
+      "sel": "#headline",
+      "at": "center"
+     }
+    ]
+   }
+  },
+  "B04": {
+   "amendment": "A2",
+   "replace": {
+    "19": [],
+    "22": [],
+    "23": []
+   }
+  },
+  "B08": {
+   "amendment": "A3",
+   "replace": {
+    "10": [
+     {
+      "do": "assert",
+      "p": "P5",
+      "k": "statusContains",
+      "text": "Phone view reset to the Desktop setup"
+     },
+     {
+      "do": "snapshotExport",
+      "name": "s2"
+     }
+    ],
+    "12": []
+   }
+  },
+  "B09": {
+   "amendment": "A4",
+   "replace": {
+    "5": [
+     {
+      "do": "focusField",
+      "name": "Grid spacing"
+     }
+    ]
+   }
+  }
+ }
 }

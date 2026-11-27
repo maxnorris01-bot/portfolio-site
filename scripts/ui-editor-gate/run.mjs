@@ -64,6 +64,9 @@ const amendNonudgeFile = existsSync(join(here, 'amendments-views1-nonudge.json')
 // VIEWS STAGE 2 (docs/ui-editor-gate-rules-views2.md): the H specs run with --views2 (or --only Hnn); its amendments (and those of amendments-views2.json) apply to the real page and --stub13 only.
 const views2File = existsSync(join(here, 'specs-views2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views2.json'), 'utf8')) : { specs: [], retiredChecks: {}, amendments: {} }
 const amendViews2File = existsSync(join(here, 'amendments-views2.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views2.json'), 'utf8')) : { specs: {} }
+// VIEWS STAGE 2 BANNER (docs/ui-editor-gate-rules-views2-banner.md): the B specs run with --views2banner (or --only Bnn); its retirements and amendments apply to the real page and --stub14 only.
+const bannerFile = existsSync(join(here, 'specs-views2-banner.json')) ? JSON.parse(readFileSync(join(here, 'specs-views2-banner.json'), 'utf8')) : { specs: [], retiredChecks: {}, amendments: {} }
+const amendBannerFile = existsSync(join(here, 'amendments-views2-banner.json')) ? JSON.parse(readFileSync(join(here, 'amendments-views2-banner.json'), 'utf8')) : { specs: {} }
 const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
 const nudgeFile = existsSync(join(here, 'specs-views1-nudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge.json'), 'utf8')) : { specs: [] }
 const views1File = existsSync(join(here, 'specs-views1.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1.json'), 'utf8')) : { retiredChecks: {}, specs: [] }
@@ -83,11 +86,12 @@ const ROUND5 = !(OLD_STUB || flag('--stub5'))
 const ROUND6 = !(OLD_STUB || flag('--stub5') || flag('--stub6'))
 // VIEWS ROUND 1: the retired checks of the views round apply to the real page and the views stub (--stub9) only; the earlier stubs still have the Link checkbox, the dots and Review unlinked.
 const VIEWS1 = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8'))
+const VIEWS2B = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12') || flag('--stub13'))
 const VIEWS2 = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12'))
 const NONUDGE = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11'))
 const retiredFor = (id) => {
-  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined, d = ROUND6 ? round6File.retiredChecks?.[id] : undefined, e = VIEWS1 && !flag('--no-retire-views1') ? views1File.retiredChecks?.[id] : undefined, f = NONUDGE ? nonudgeFile.retiredChecks?.[id] : undefined, g = VIEWS2 ? views2File.retiredChecks?.[id] : undefined
-  const parts = [a, b, c, d, e, f, g].filter(Boolean)
+  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined, d = ROUND6 ? round6File.retiredChecks?.[id] : undefined, e = VIEWS1 && !flag('--no-retire-views1') ? views1File.retiredChecks?.[id] : undefined, f = NONUDGE ? nonudgeFile.retiredChecks?.[id] : undefined, g = VIEWS2 ? views2File.retiredChecks?.[id] : undefined, h = VIEWS2B ? bannerFile.retiredChecks?.[id] : undefined
+  const parts = [a, b, c, d, e, f, g, h].filter(Boolean)
   if (!parts.length) return undefined
   return { steps: parts.flatMap((p) => p.steps ?? []), asserts: parts.flatMap((p) => p.asserts ?? []), wholeSpec: parts.some((p) => p.wholeSpec), replacedBy: parts.map((p) => p.replacedBy).filter(Boolean).join('; '), reason: parts.map((p) => p.reason).filter(Boolean).join(' ') }
 }
@@ -129,9 +133,9 @@ const refServer = createServer((q, r) => {
 const refPort = await listen(refServer)
 let stubServer = null
 let baseUrl = opt('--url')
-if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12') || flag('--stub13')) {
+if (OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12') || flag('--stub13') || flag('--stub14')) {
   const refDir = join(here, 'reference')
-  const page1 = flag('--stub13') ? 'views2.html' : flag('--stub12') ? 'views1-nonudge.html' : flag('--stub11') ? 'views1-nudge2.html' : flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
+  const page1 = flag('--stub14') ? 'views2-banner.html' : flag('--stub13') ? 'views2.html' : flag('--stub12') ? 'views1-nonudge.html' : flag('--stub11') ? 'views1-nudge2.html' : flag('--stub10') ? 'views1-nudge.html' : flag('--stub9') ? 'views1.html' : flag('--stub8') ? 'insert1.html' : flag('--stub7') ? 'round6.html' : flag('--stub6') ? 'round5.html' : flag('--stub5') ? 'round4.html' : flag('--stub4') ? 'round3.html' : flag('--stub3') ? 'round2.html' : flag('--stub2') ? 'round1.html' : 'index.html'
   const engine = process.env.ENGINE_JS ?? join(root, 'src', 'ui-editor', 'vendor', 'engine.js')
   stubServer = createServer((q, r) => {
     const u = new URL(q.url, 'http://x'); const p = u.pathname
@@ -272,7 +276,7 @@ async function runSpec(spec) {
   if (flag('--fast-fail')) page.setDefaultTimeout(4000) // a development flag: a control that is gone fails in 4 s, not 30 s (used with --no-retire-views1, rules section 7)
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
-  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: /^[JQH]\d/.test(spec.id) ? [] : null, P4: /^[JQH]\d/.test(spec.id) ? [] : null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
+  const res = { id: spec.id, name: spec.name, sample: spec.sample, expected: spec.expected, P1: [], P2a: [], P2: null, P3: /^[JQHB]\d/.test(spec.id) ? [] : null, P4: /^[JQHB]\d/.test(spec.id) ? [] : null, P5: [], P6: [], setup: [], notes: [], errors, checks: spec.checks ?? null }
   const snaps = {}
   let statusAtCopy = null
   let before = {}
@@ -326,7 +330,8 @@ async function runSpec(spec) {
     return out
   }
   // VIEWS STAGE 2: kept lists and boxes, and the boxes of the three view buttons
-  const listSnaps = {}, barSnaps = {}
+  const listSnaps = {}, barSnaps = {}, stageSnaps = {}, bannerSnaps = {}
+  const stageBoxes = () => page.evaluate(() => { const top = (e) => (e ? e.getBoundingClientRect().top + scrollY : null); return { area: top(document.querySelector('[data-stage-area]')), frame: top(document.querySelector('[data-device-frame]')), preview: top(document.querySelector('iframe[title="Preview"]')) } })
   const viewBoxes = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[role=group][aria-label="View"] button')].map((b) => { const r = b.getBoundingClientRect(); return [b.textContent.trim().split(/\s+/)[0] || b.getAttribute('data-view'), { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height }] })))
   const dumps = async () => {
     const out = {}
@@ -391,7 +396,7 @@ async function runSpec(spec) {
 
   // ---- ROUND 6 (docs/ui-editor-gate-log.md #33): the menus of the new ribbon, and the page colours of a document ----
   // INSERT ROUND 1: the Insert menu button is in the quick bar, so a menu button is looked for in the ribbon and in the bar.
-  const ribbonBtn = (name) => page.locator('[data-ribbon], [role=group][aria-label="Editor controls"]').getByRole('button', { name, exact: true })
+  const ribbonBtn = (name) => page.locator('[data-ribbon], [role=group][aria-label="Editor controls"], [data-view-banner]').getByRole('button', { name, exact: true })
   const spinOf = (field, dir) => page.locator(`[data-ribbon] [data-spin="${dir === '+' ? 'up' : 'down'}"][data-for="${field}"]`)
   const controlNamed = (name) => page.locator(`[data-ribbon] [aria-label="${name}"], [data-ribbon] [data-name="${name}"]`)
   const MENU_FOR = { Background: 'Shape Fill', 'Border colour': 'Shape Outline', 'Text colour': 'Font colour' }
@@ -828,6 +833,37 @@ async function runSpec(spec) {
         return R(bad.length === 0, bad.length ? bad.slice(0, 4).join('; ') : `${a.prop} of ${a.sel} (${a.via}): ${widths.map((w) => `${w} ${have[w]}`).join(', ')}`)
       }
       // ---- NUDGE FIX 2 (docs/ui-editor-gate-rules-views1-nudge2.md section 3) ----
+      // ---- VIEWS STAGE 2 BANNER (docs/ui-editor-gate-rules-views2-banner.md section 5) ----
+      case 'bannerState': {
+        const names = a.view ? [a.view] : ['Phone', 'Tablet']
+        let seen = null
+        for (const v of names) { const g = page.getByRole('group', { name: `About the ${v} view`, exact: true }); if (await g.count() && await g.first().isVisible()) seen = { v, g: g.first() } }
+        if (a.state === 'absent') return R(!seen, seen ? `the banner of ${seen.v} is there` : 'no banner')
+        if (!seen) return R(false, `no banner named About the ${a.view} view`)
+        const text = (await seen.g.innerText()).replace(/\s+/g, ' ').trim()
+        const V = seen.v
+        const btn = seen.g.getByRole('button', { name: 'Reset to Desktop view', exact: true })
+        const shown = (await btn.count()) > 0 && (await btn.first().isVisible())
+        const bad = []
+        if (a.state === 'follows') { if (text !== `${V} follows Desktop. Changes you make here apply to ${V} only.`) bad.push(`text "${text.slice(0, 120)}"`); if (shown) bad.push('a button is there') }
+        else { if (!text.startsWith(`This ${V} view has changes that don't follow Desktop. Reset to Desktop view removes them.`)) bad.push(`text "${text.slice(0, 120)}"`); if (!shown) bad.push('no Reset to Desktop view button') }
+        if (a.name) { const role = await seen.g.getAttribute('role'); if (role !== 'group') bad.push(`role ${role}`) }
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `${V}: ${a.state}`)
+      }
+      case 'stageSame': {
+        const now = await stageBoxes(), was = stageSnaps[a.against], bad = []
+        if (!was) return R(false, `no snapshot ${a.against}`)
+        for (const k of ['area', 'frame', 'preview']) if (was[k] !== null && (now[k] === null || Math.abs(now[k] - was[k]) > a.tol)) bad.push(`${k} top ${now[k]?.toFixed(1)}, was ${was[k].toFixed(1)}`)
+        return R(bad.length === 0, bad.length ? bad.join('; ') : `the stage stayed (preview top ${now.preview?.toFixed(1)})`)
+      }
+      case 'bannerHeightSame': {
+        const h = await page.evaluate(() => document.querySelector('[data-view-banner]')?.getBoundingClientRect().height ?? -1), was = bannerSnaps[a.against]
+        return R(was > 0 && Math.abs(h - was) <= a.tol, `banner ${h.toFixed(1)} px, was ${was?.toFixed?.(1)}`)
+      }
+      case 'bannerOneLine': {
+        const m = await page.evaluate(() => { const g = document.querySelector('[data-view-banner]'); const p = [...g.querySelectorAll('p')].find((e) => e.getClientRects().length && getComputedStyle(e.closest('.ue-banner-row, .b-row')).visibility !== 'hidden'); if (!p) return null; const r = p.getBoundingClientRect(), lh = parseFloat(getComputedStyle(p).lineHeight); const b = g.querySelector('button'); const br = b && b.getClientRects().length && getComputedStyle(b.closest('.ue-banner-row, .b-row')).visibility !== 'hidden' ? b.getBoundingClientRect() : null; return { h: r.height, lh, level: br ? br.top < r.bottom && br.bottom > r.top : true } })
+        return R(!!m && m.h < m.lh * 1.6 && m.level, m ? `sentence ${m.h.toFixed(0)} px high (line ${m.lh.toFixed(0)}), button ${m.level ? 'level' : 'below'}` : 'no sentence')
+      }
       // ---- VIEWS STAGE 2 (docs/ui-editor-gate-rules-views2.md section 5) ----
       case 'viewButtons': {
         const got = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[role=group][aria-label="View"] button')].map((b) => { const word = b.textContent.trim().split(/\s+/)[0]; return [word, { name: b.getAttribute('aria-label'), title: b.getAttribute('title') ?? '', mark: !!b.querySelector('.ue-mark') }] })))
@@ -911,7 +947,7 @@ async function runSpec(spec) {
           if (Math.abs(n.x - b.x) > 0.5 || Math.abs(n.y - b.y) > 0.5) info.push(`${b.name} moved by ${(n.x - b.x).toFixed(1)}, ${(n.y - b.y).toFixed(1)}`)
         }
         const added = now.bar.buttons.filter((n) => !base.bar.buttons.some((b) => b.name === n.name)).map((n) => n.name)
-        const wantAdded = a.view === 'Desktop' || opt('--views2-layout-baseline') ? [] : ['Reset to Desktop view']
+        const wantAdded = a.view === 'Desktop' || a.noNew || opt('--views2-layout-baseline') ? [] : ['Reset to Desktop view']
         if (JSON.stringify(added) !== JSON.stringify(wantAdded)) bad.push(`new bar buttons ${JSON.stringify(added)}, want ${JSON.stringify(wantAdded)}`)
         return R(bad.length === 0, bad.length ? bad.slice(0, 6).join('; ') : `${a.width} px ${a.view}: no ribbon group moved, ${now.bar.rows} bar row(s) of ${now.bar.height.toFixed(0)} px${added.length ? ', new: ' + added.join(', ') : ''}${info.length ? ' (moved: ' + info.join('; ') + ')' : ''}`)
       }
@@ -994,6 +1030,7 @@ async function runSpec(spec) {
         if (a.overlayAlways && f.some((x) => !x.sel)) bad.push(`${f.filter((x) => !x.sel).length} frames without the selection overlay`)
         if (a.scrollSame) { const sc = new Set([fr.y0 + ':' + fr.st0, ...f.map((x) => x.sy + ':' + x.st)]); if (sc.size > 1) bad.push(`scroll moved: ${[...sc].join(' ')}`) }
         if (a.stageHeightSame && new Set(f.map((x) => x.stage)).size > 1) bad.push(`stage height changed: ${[...new Set(f.map((x) => x.stage))].join(' ')}`)
+        if (a.stageTopSame) { const tops = new Set([fr.ft0, ...f.map((x) => x.ft)].filter((x) => x !== null)); if (tops.size > 1) bad.push(`the preview's top took ${tops.size} values: ${[...tops].join(' ')}`) }
         if (a.restIframes !== undefined && fr.rest !== a.restIframes) bad.push(`${fr.rest} preview iframes at rest, want ${a.restIframes}`)
         if (process.env.UI_GATE_VERBOSE) console.log('      frames:', spec.id, bad.length ? bad.join('; ') : 'ok', `${f.length} frames, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}, flash ${flash}`)
         return R(bad.length === 0, bad.length ? bad.join('; ') : `${f.length} frames, ${flash} flash frames, ${fr.rest} iframe at rest, scroll ${Math.min(...f.map((x) => x.sy))}..${Math.max(...f.map((x) => x.sy))}, most iframes ${Math.max(...f.map((x) => x.n))}`)
@@ -3297,6 +3334,12 @@ async function runSpec(spec) {
         } else await b.click()
       } else if (step.do === 'fill') {
         await fieldOf(step.label).fill(step.text)
+      } else if (step.do === 'snapshotStage') {
+        stageSnaps[step.name] = await stageBoxes()
+        continue
+      } else if (step.do === 'snapshotBanner') {
+        bannerSnaps[step.name] = await page.evaluate(() => document.querySelector('[data-view-banner]')?.getBoundingClientRect().height ?? -1)
+        continue
       } else if (step.do === 'snapshotList') {
         listSnaps[step.name] = JSON.parse((await page.locator('[data-editor]').first().getAttribute('data-edit-list')) ?? '[]')
         continue
@@ -3313,7 +3356,7 @@ async function runSpec(spec) {
       } else if (step.do === 'frames') {
         if (step.action === 'start') {
           await page.evaluate(() => {
-            const rec = { frames: [], on: true, rest: -1, y0: Math.round(scrollY), st0: Math.round(document.querySelector('.ue-scroll')?.scrollTop ?? -1) } // the scroll position when the recording starts counts as a frame of its own for scrollSame
+            const rec = { frames: [], on: true, rest: -1, ft0: (() => { const f = document.querySelector('iframe[title="Preview"]'); return f ? Math.round((f.getBoundingClientRect().top + scrollY) * 100) / 100 : null })(), y0: Math.round(scrollY), st0: Math.round(document.querySelector('.ue-scroll')?.scrollTop ?? -1) } // the scroll position when the recording starts counts as a frame of its own for scrollSame
             window.__frames = rec
             const tick = () => {
               if (!rec.on) return
@@ -3321,7 +3364,7 @@ async function runSpec(spec) {
               const vis = fs.filter((f) => { const r = f.getBoundingClientRect(); const c = getComputedStyle(f); return c.display !== 'none' && c.visibility !== 'hidden' && r.height > 0 && r.left > -1000 })
               const st = document.querySelector('.ue-frame')
               const sc = document.querySelector('.ue-scroll')
-              rec.frames.push({ n: fs.length, vis: vis.length, h: vis.map((f) => Math.round(f.getBoundingClientRect().height)), stage: st ? Math.round(st.getBoundingClientRect().height) : -1, sy: Math.round(scrollY), st: sc ? Math.round(sc.scrollTop) : -1, sel: !!document.querySelector('[data-selection]') })
+              rec.frames.push({ n: fs.length, vis: vis.length, h: vis.map((f) => Math.round(f.getBoundingClientRect().height)), stage: st ? Math.round(st.getBoundingClientRect().height) : -1, sy: Math.round(scrollY), st: sc ? Math.round(sc.scrollTop) : -1, sel: !!document.querySelector('[data-selection]'), ft: vis[0] ? Math.round((vis[0].getBoundingClientRect().top + scrollY) * 100) / 100 : null })
               requestAnimationFrame(tick)
             }
             requestAnimationFrame(tick)
@@ -3391,8 +3434,8 @@ async function runSpec(spec) {
 
     // ---- after the steps: P3 needs the preview now, P2 needs the export (round 1 specs list the checks that apply) ----
     const wants = (k) => !spec.checks || spec.checks.includes(k)
-    const isY = /^[HJKQXYZ]\d/.test(spec.id)
-    if (/^[JQH]\d/.test(spec.id)) for (const k of ['P3', 'P4']) { const arr = res[k]; res[k] = { ok: arr.length > 0 && arr.every((c) => c.ok), detail: arr.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) } }
+    const isY = /^[BHJKQXYZ]\d/.test(spec.id)
+    if (/^[JQHB]\d/.test(spec.id)) for (const k of ['P3', 'P4']) { const arr = res[k]; res[k] = { ok: arr.length > 0 && arr.every((c) => c.ok), detail: arr.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) } }
     if (isY && wants('P2')) res.P2 = { ok: res.P2a.length > 0 && res.P2a.every((c) => c.ok), detail: res.P2a.filter((c) => !c.ok).slice(0, 3).map((c) => `${c.name}: ${c.detail}`) }
     if (!isY && (wants('P2') || wants('P3') || wants('P4'))) {
     const afterDump = await dumps()
@@ -3458,10 +3501,10 @@ async function runSpec(spec) {
   // can fail: it is reported as vacuous, not scored. Only round 3 specs; the earlier files keep the strict reading.
   res.vacuous = []
   // R07 too: its only P5 assert (step 12) is one of the retired checks, so what is left lists P5 without an assert.
-  if (spec.checks && (/^[TUVWJQH]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
+  if (spec.checks && (/^[TUVWJQHB]\d+[a-d]?$/.test(spec.id) || retiredFor(spec.id))) {
     const ret = retiredFor(spec.id)
     const live = spec.steps.filter((x, i) => !(ret?.steps?.includes(i) || (ret?.asserts && x.do === 'assert' && ret.asserts.includes(x.k))))
-    res.vacuous = (/^[JQH]\d/.test(spec.id) ? ['P1', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P5', 'P6']).filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
+    res.vacuous = (/^[JQHB]\d/.test(spec.id) ? ['P1', 'P3', 'P4', 'P5', 'P6'] : ['P1', 'P5', 'P6']).filter((k) => spec.checks.includes(k) && !live.some((x) => x.do === 'assert' && x.p === k))
     res.checks = spec.checks.filter((k) => !res.vacuous.includes(k))
   }
   res.outcome = spec.checks ? outcomeOfRound1(res) : outcomeOf(res)
@@ -3627,10 +3670,10 @@ function views1Specs() {
 // NO-NUDGE: the numbered amendments (steps replaced) of the Q file, for the real page and --stub12; every step keeps the number it had, so the retired steps still name the right ones.
 function amendNonudge(spec) {
   const apply = (s, a) => {
-    const steps = []
+    const steps = [], done = new Set()
     s.steps.forEach((st, i) => {
       const o = st._i ?? i
-      if (a.replace?.[String(o)]) steps.push(...a.replace[String(o)].map((x) => ({ ...x, _i: o })))
+      if (a.replace?.[String(o)]) { if (!done.has(o)) { done.add(o); steps.push(...a.replace[String(o)].map((x) => ({ ...x, _i: o }))) } } // a step an earlier amendment spread over several is replaced once
       else steps.push({ ...st, _i: o })
     })
     return { ...s, steps, amendment: a.amendment }
@@ -3640,6 +3683,8 @@ function amendNonudge(spec) {
   if (a1) s = apply(s, a1)
   const a2 = VIEWS2 ? (amendViews2File.specs?.[spec.id] ?? views2File.amendments?.[spec.id]) : undefined
   if (a2) s = apply(s, a2)
+  const a3 = VIEWS2B ? (amendBannerFile.specs?.[spec.id] ?? bannerFile.amendments?.[spec.id]) : undefined
+  if (a3) s = apply(s, a3)
   return s
 }
 function insertSpecs() {
@@ -3658,7 +3703,7 @@ if (flag('--noop')) {
   exitCode = rows.every((r) => r.ok) ? 0 : 1
 } else {
   const retired = Object.keys(round2File.retired ?? {})
-  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : []), ...(flag('--nudge2') || (only && only.some((id) => /^J\d/.test(id))) ? nudge2File.specs : []), ...(flag('--nonudge') || (only && only.some((id) => /^Q\d/.test(id))) ? nonudgeFile.specs : []), ...(flag('--views2') || (only && only.some((id) => /^H\d/.test(id))) ? views2File.specs : [])].filter((s) => !only || only.includes(s.id)).map(amendNonudge)
+  const list = [...specsFile.specs, ...round1File.specs.filter((s) => !retired.includes(s.id)), ...round2File.specs, ...round3File.specs, ...round4File.specs, ...round5File.specs, ...round6File.specs, ...insertSpecs(), ...round7Specs(), ...views1Specs(), ...(flag('--nudge') || (only && only.some((id) => /^K\d/.test(id))) ? nudgeFile.specs : []), ...(flag('--nudge2') || (only && only.some((id) => /^J\d/.test(id))) ? nudge2File.specs : []), ...(flag('--nonudge') || (only && only.some((id) => /^Q\d/.test(id))) ? nonudgeFile.specs : []), ...(flag('--views2') || (only && only.some((id) => /^H\d/.test(id))) ? views2File.specs : []), ...(flag('--views2banner') || (only && only.some((id) => /^B\d/.test(id))) ? bannerFile.specs : [])].filter((s) => !only || only.includes(s.id)).map(amendNonudge)
   for (const id of retired) if (!only || only.includes(id)) console.log(`${id}  RETIRED  ${round2File.retired[id]}`)
   const results = []
   for (const spec of list) {
@@ -3707,7 +3752,7 @@ if (flag('--noop')) {
     if (r.vacuous?.length) console.log(`      VACUOUS: ${r.vacuous.join(', ')} listed but the spec has no ${r.vacuous.join('/')} assert (log #24)`)
     if (r.retiredCount) console.log(`      RETIRED CHECK (${r.retiredCount} steps skipped, replaced by ${r.retiredChecks.join(', ')}): ${retiredFor(r.id).reason}`)
   }
-  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZKJQH]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
+  const orig = results.filter((r) => !r.checks), round1 = results.filter((r) => r.checks && !/^[RTUVWXYZKJQHB]\d/.test(r.id)), round2 = results.filter((r) => r.id.startsWith('R')), round3 = results.filter((r) => r.id.startsWith('T')), round4 = results.filter((r) => r.id.startsWith('U')), round5 = results.filter((r) => r.id.startsWith('V')), round6 = results.filter((r) => r.id.startsWith('W')), insert1 = results.filter((r) => r.id.startsWith('Y')), round7a = results.filter((r) => r.id.startsWith('Z')), views1 = results.filter((r) => r.id.startsWith('X')), nudge = results.filter((r) => r.id.startsWith('K'))
   const tally = (rs, o) => rs.filter((r) => r.outcome === o).length
   const summary = { fault, url: baseUrl, originals: { pass: tally(orig, 'PASS'), refused: tally(orig, 'REFUSED'), fail: tally(orig, 'FAIL'), total: orig.length }, round1: { pass: tally(round1, 'PASS'), fail: tally(round1, 'FAIL'), total: round1.length, retired: retired.length }, round2: { pass: tally(round2, 'PASS'), fail: tally(round2, 'FAIL'), total: round2.length, withRetiredChecks: round2.filter((r) => r.retiredCount).map((r) => r.id) }, round3: { pass: tally(round3, 'PASS'), fail: tally(round3, 'FAIL'), retired: tally(round3, 'RETIRED'), total: round3.length, withRetiredChecks: round3.filter((r) => r.retiredCount).map((r) => r.id) }, round4: { pass: tally(round4, 'PASS'), fail: tally(round4, 'FAIL'), notApplicable: tally(round4, 'NOT APPLICABLE'), total: round4.length, retired: tally(round4, 'RETIRED') }, round5: { pass: tally(round5, 'PASS'), fail: tally(round5, 'FAIL'), retired: tally(round5, 'RETIRED'), total: round5.length }, round6: { pass: tally(round6, 'PASS'), fail: tally(round6, 'FAIL'), notBuilt: tally(round6, 'NOT BUILT'), total: round6.length } }
   if (orig.length) console.log(`\nOriginals: PASS ${summary.originals.pass}  REFUSED ${summary.originals.refused}  FAIL ${summary.originals.fail}  of ${summary.originals.total}`)
@@ -3718,6 +3763,8 @@ if (flag('--noop')) {
   if (round6.length) console.log(`Round 6:   PASS ${summary.round6.pass}  FAIL ${summary.round6.fail}${summary.round6.notBuilt ? `  NOT BUILT ${summary.round6.notBuilt}` : ''}  of ${summary.round6.total}`)
   if (insert1.length) console.log(`Insert 1 (stage ${STAGE ?? 'as locked'}): PASS ${tally(insert1, 'PASS')}  FAIL ${tally(insert1, 'FAIL')}${tally(insert1, 'NOT BUILT') ? `  NOT BUILT ${tally(insert1, 'NOT BUILT')}` : ''}  of ${insert1.length}`)
   if (views1.length) console.log(`Views 1:   PASS ${tally(views1, 'PASS')}  FAIL ${tally(views1, 'FAIL')}  of ${views1.length}`)
+  const bannerr = results.filter((r) => r.id.startsWith('B'))
+  if (bannerr.length) console.log(`Banner:    PASS ${tally(bannerr, 'PASS')}  FAIL ${tally(bannerr, 'FAIL')}  of ${bannerr.length}`)
   const views2r = results.filter((r) => r.id.startsWith('H'))
   if (views2r.length) console.log(`Views 2:   PASS ${tally(views2r, 'PASS')}  FAIL ${tally(views2r, 'FAIL')}  of ${views2r.length}`)
   const nonudge = results.filter((r) => r.id.startsWith('Q'))
@@ -3740,7 +3787,7 @@ if (flag('--noop')) {
   const r5Ok = round5.length !== 9 || round5.every((r) => r.outcome === 'PASS' || (ROUND6 && r.outcome === 'RETIRED'))
   const r6Ok = round6.length !== 12 || round6.every((r) => r.outcome === 'PASS' || r.outcome === 'NOT BUILT')
   const yOk = insert1.every((r) => r.outcome === 'PASS' || (STAGE !== null && r.outcome === 'NOT BUILT') || (VIEWS1 && r.outcome === 'RETIRED'))
-  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED') && results.filter((r) => /^[JQH]/.test(r.id)).every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED')
+  const xOk = views1.every((r) => r.outcome === 'PASS') && nudge.every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED') && results.filter((r) => /^[JQHB]/.test(r.id)).every((r) => r.outcome === 'PASS' || r.outcome === 'RETIRED')
   // FORMATTING ROUND 7a: Z07 is PASS when the earlier specs of this run meet the pass line (the original 20, round 1, rounds 2 to 6, Y01 to Y14 all PASS); with --only it is not run.
   const z07Spec = round7bFile.specs.find((x) => x.aggregate7)
   const earlierOk = origOk && r1Ok && r2Ok && r3Ok && r4Ok && r5Ok && r6Ok && insert1.length === 14 && insert1.every((r) => r.outcome === 'PASS' || (VIEWS1 && r.outcome === 'RETIRED')) && ['Z01', 'Z02'].every((id) => round7a.find((r) => r.id === id)?.outcome === 'PASS') && orig.length === 20 && round1.length === 9 && round2.length === 16 && round3.length === 16 && round4.length === 13 && round5.length === 9 && round6.length === 12
