@@ -9,7 +9,7 @@ export interface UiEditorInfo {
   route: string
   /** Two sentences, in the style of the other Home cards (Max approves the wording before release). */
   planet: { text: string; compact: string }[]
-  /** Where the "View on GitHub" button goes; null (no button) while the engine repository is private. */
+  /** Where the "View on GitHub" button goes (the engine repository, public); null draws no button. */
   repoUrl: string | null
   /** The browser tab title and meta description while the page is open. */
   pageTitle: string
@@ -29,7 +29,7 @@ export const uiEditor: UiEditorInfo = {
       compact: 'It writes each change back into your code and leaves every other line alone. Everything runs in your browser.',
     },
   ],
-  repoUrl: null,
+  repoUrl: 'https://github.com/maxnorris01-bot/ui-editor',
   pageTitle: 'UI Editor — Max Norris',
   pageDescription: 'Paste or upload your own HTML or SVG, change it from a ribbon or by dragging, check it at Desktop, Tablet and Phone sizes, then copy the updated code. Runs entirely in your browser.',
 }

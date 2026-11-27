@@ -136,3 +136,27 @@
     content: none !important;
   }
 }
+
+/* The "View on GitHub" button in the page header: the same size as the satellite page's (.sat-github). From 1100px it sits at the top right,
+   out of the grid (the pattern of ShopAI's .shop-github), so the title, chips and lead lay out exactly as without it; narrower, it goes under the title block. */
+.ue-github {
+  flex: none;
+  padding: 0.35em 0.9em;
+  font-size: var(--text-small);
+}
+
+@media (min-width: 1100px) {
+  .ue-page .page-header {
+    position: relative;
+  }
+
+  .ue-page .page-header.is-aside-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ue-page .page-header-aside {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+}

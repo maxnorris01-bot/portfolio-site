@@ -2,7 +2,7 @@
 
 `engine.js` is the editing engine of the UI Editor, copied in as one built file. The page (`src/pages/UiEditor.tsx` and
 `src/ui-editor/`) imports only this file, through `engine.d.ts` (strict types, no `any`). It is **not** a dependency: the
-engine's source lives in a private repository (`ui-editor`), and this copy is public once merged (see the README at the repo root).
+engine's source lives in its own repository (`ui-editor`, https://github.com/maxnorris01-bot/ui-editor, public, MIT), and this copy is public too (see the README at the repo root).
 
 - **Source:** the `ui-editor` repository at commit `02b946673684aa26e5699fefcde49ad673a4888d` (`main`).
 - **Size:** 292,819 bytes, 82.8 KB gzip. SHA-256 `a073a76d306cf8326cd833fd34ff449ef046144d20d05464518b566e9bede9bb`.

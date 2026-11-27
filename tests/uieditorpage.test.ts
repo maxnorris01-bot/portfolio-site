@@ -42,13 +42,13 @@ test('How it works: five steps, says Phone and Tablet follow Desktop and that a 
   assert.match(labels.previewHint, /arrow keys/)
 })
 
-test('Data and credits says nothing is fetched, the samples are original, names the engine caveats; the GitHub button has no URL while the engine repository is private', () => {
+test('Data and credits says nothing is fetched, the samples are original, names the engine caveats; the GitHub button goes to the public engine repository', () => {
   const all = credits.items.join('\n')
   assert.match(all, /No external data/)
   assert.match(all, /original/)
   assert.match(all, /private repository/)
   assert.match(all, /caveats/)
-  assert.equal(uiEditor.repoUrl, null)
+  assert.equal(uiEditor.repoUrl, 'https://github.com/maxnorris01-bot/ui-editor')
   assert.match(uiEditorPage.githubLabel, /View on GitHub/)
   assert.match(read('src/pages/UiEditor.tsx'), /uiEditor\.repoUrl \?/)
   assert.ok(messages.badType.includes('.html') && /1 MB/.test(messages.tooBig))
