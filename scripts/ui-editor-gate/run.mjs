@@ -2055,7 +2055,7 @@ async function runSpec(spec) {
           return { t, ff: cs.fontFamily, fs: cs.fontSize, fw: cs.fontWeight, cls: h.className, lists: lists.length, items: lists[0]?.children.length ?? 0 }
         }), [a.titles])
         const p = []
-        for (const x of m) { if (x.missing) p.push(`no h2 "${x.t}"`); else { if (x.lists !== 1) p.push(`${x.t}: ${x.lists} lists`); if (x.items > a.maxItems || x.items < 1) p.push(`${x.t}: ${x.items} items`) } }
+        for (const x of m) { if (x.missing) p.push(`no h2 "${x.t}"`); else { if (x.lists !== 1) p.push(`${x.t}: ${x.lists} lists`); if (x.items > (a.maxItemsBy?.[x.t] ?? a.maxItems) || x.items < 1) p.push(`${x.t}: ${x.items} items`) } }
         const ok = m.filter((x) => !x.missing)
         if (new Set(ok.map((x) => `${x.ff}|${x.fs}|${x.fw}|${x.cls}`)).size > 1) p.push(`headings differ: ${ok.map((x) => `${x.fs}/${x.fw}/${x.cls}`).join(' ; ')}`)
         return R(p.length === 0, p.length ? p.slice(0, 3).join('; ') : `3 headings: ${ok[0].fs} ${ok[0].fw} class "${ok[0].cls}"; items ${ok.map((x) => x.items).join(', ')}`)
