@@ -388,7 +388,7 @@ export const credits = {
   items: [
     'No external data: nothing is fetched or sent anywhere. Your code stays in your browser and is gone when you close the tab.',
     'The three samples (a landing page, an HTML email and an SVG chart) are original, written for this tool.',
-    'The editing engine is the author’s own code, kept in a private repository for now and shipped in this site as one built file. It bundles parse5 (reads HTML and SVG, with source positions) and postcss (reads CSS); their licences are in src/ui-editor/vendor/THIRD-PARTY-NOTICES.md in the site’s repository.',
+    'The editing engine is the author’s own code, in its own public repository on GitHub, and shipped in this site as one built file. It bundles parse5 (reads HTML and SVG, with source positions) and postcss (reads CSS); their licences are in src/ui-editor/vendor/THIRD-PARTY-NOTICES.md in the site’s repository.',
     'Engine caveats: SVG is read by the HTML parser, so SVG that is only valid as XML can be split wrongly; broken markup is read the way the parser reads it; a stylesheet without a final newline gets one before the added rules.',
   ],
 }

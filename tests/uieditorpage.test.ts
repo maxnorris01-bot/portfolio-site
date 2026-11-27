@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { credits, how, labels, limits, messages, panel, uiEditor, uiEditorPage, VIEW_WIDTHS } from '../src/data/uiEditor.ts'
+import { credits, how, labels, limits, messages, panel, paragraphs, uiEditor, uiEditorPage, VIEW_WIDTHS } from '../src/data/uiEditor.ts'
 import { SAMPLE_FILES } from '../src/ui-editor/samples/manifest.ts'
 
 const root = new URL('..', import.meta.url).pathname
@@ -46,7 +46,8 @@ test('Data and credits says nothing is fetched, the samples are original, names 
   const all = credits.items.join('\n')
   assert.match(all, /No external data/)
   assert.match(all, /original/)
-  assert.match(all, /private repository/)
+  assert.ok(all.includes('The editing engine is the author’s own code, in its own public repository on GitHub, and shipped in this site as one built file.'))
+  assert.doesNotMatch(JSON.stringify([credits, how, limits, paragraphs, uiEditor, uiEditorPage]), /private repository/i, 'no string of the page calls the engine repository private')
   assert.match(all, /caveats/)
   assert.equal(uiEditor.repoUrl, 'https://github.com/maxnorris01-bot/ui-editor')
   assert.match(uiEditorPage.githubLabel, /View on GitHub/)
