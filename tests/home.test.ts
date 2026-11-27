@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { StaticRouter } from 'react-router-dom'
 import { BODIES, CHOSEN, LABEL_SLOTS, ORBITS, VIEW, advance, labelWidth, labelsOverlap, layoutLabels, place, positionAt, shouldMove } from '../src/components/solarmodel.ts'
 import * as contentModule from '../src/content/home.ts'
-import { HOME_DEFAULT_PLANET, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../src/content/home.ts'
+import { HOME_DEFAULT_PLANET, HOME_INFO, homeInfo, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../src/content/home.ts'
 import { closeServer, loadModule, render } from './helpers/ssr.ts'
 
 after(closeServer)
@@ -24,13 +24,22 @@ test('Background and About this site (DRAFT, all in content/home.ts) say what th
   const bg = HOME_INFO.find((p) => p.id === 'background')
   assert.deepEqual(bg?.bullets.map((b) => b.lead), ['Experience', 'Focus', 'Education'])
   const text = bg?.bullets.map((b) => b.text).join(' ') ?? ''
-  for (const fact of ['aerospace mass-properties engineer', '10+ years', 'Northrop Grumman', 'Joby Aviation', 'applied AI and data pipelines', 'transparent', 'real physics', 'Cal State Northridge']) assert.ok(text.includes(fact), fact)
+  for (const fact of ['aerospace mass-properties engineer', '10+ years', 'Northrop Grumman', 'Joby Aviation', 'applied AI and data tools', 'transparent', 'tested', 'checks the numbers', 'Cal State Northridge']) assert.ok(text.includes(fact), fact)
   const site = HOME_INFO.find((p) => p.id === 'site')
   assert.equal(site?.label, 'About this site')
   assert.deepEqual(site?.bullets.map((b) => b.lead), ['Purpose', 'Backend', 'What it shows', 'Stack'])
   const all = site?.bullets.map((b) => b.text).join(' ') ?? ''
-  for (const fact of ['working portfolio', 'Python service (Fly.io) with Postgres', 'reachable only through this site', 'Spending is capped', '1,700+ automated tests', 'locked evaluation set', 'end-to-end ownership', 'LLM ranking with cost controls', 'React, TypeScript, Vercel']) assert.ok(all.includes(fact), fact)
+  for (const fact of ['working portfolio', 'SatPOV and ShopAI run on Python services (Fly.io)', 'ShopAI adds Postgres', 'spending caps per session, per visitor and per day', '1,700+ automated tests', 'locked evaluation set', 'end-to-end ownership', 'LLM ranking with cost controls', 'React, TypeScript, Vercel']) assert.ok(all.includes(fact), fact)
   assert.doesNotMatch(src('content/home.ts'), /DRAFT/, 'the owner has confirmed the copy')
+})
+
+test('the UI Editor sentence of the Backend row is there only with the flag on, in the long copy only; the compact copy is the same in both states', () => {
+  const backend = (on: boolean) => homeInfo(on)[1].bullets.find((b) => b.lead === 'Backend')!
+  assert.ok(backend(true).text?.endsWith(' UI Editor runs in your browser.'))
+  assert.equal(backend(true).compact, backend(false).compact, 'the compact copy is the same in both states')
+  assert.doesNotMatch(backend(true).compact ?? '', /UI Editor/)
+  for (const on of [true, false]) assert.ok(backend(on).text?.startsWith('SatPOV and ShopAI run on Python services (Fly.io); ShopAI adds Postgres'))
+  assert.doesNotMatch(JSON.stringify(homeInfo(false)), /UI Editor/)
 })
 
 test('the Stack row is back, and is the one row a short window leaves out; every other row has a compact cut or none needed', () => {

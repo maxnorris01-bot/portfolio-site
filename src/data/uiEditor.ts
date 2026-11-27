@@ -21,8 +21,8 @@ export const uiEditor: UiEditorInfo = {
   route: '/ui-editor',
   planet: [
     {
-      text: 'UI Editor lets you paste or upload your own HTML or SVG, click an element and change its text, size, colours or position from a ribbon or by dragging.',
-      compact: 'UI Editor lets you paste your own HTML or SVG, click an element and change it from a ribbon or by dragging.',
+      text: 'UI Editor lets you paste or upload your own HTML or SVG, change its text, size, colours or position from a ribbon or by dragging, and see it at three sizes.',
+      compact: 'UI Editor lets you paste your own HTML or SVG, change it from a ribbon or by dragging, and see it at three sizes.',
     },
     {
       text: 'It writes each change back into your own code and leaves every other line as you wrote it, then you copy or download the updated code. Everything runs in your browser.',
@@ -31,7 +31,7 @@ export const uiEditor: UiEditorInfo = {
   ],
   repoUrl: null,
   pageTitle: 'UI Editor — Max Norris',
-  pageDescription: 'Paste or upload your own HTML or SVG, click an element and change it from a ribbon or by dragging, then copy the updated code. Runs entirely in your browser.',
+  pageDescription: 'Paste or upload your own HTML or SVG, change it from a ribbon or by dragging, check it at Desktop, Tablet and Phone sizes, then copy the updated code. Runs entirely in your browser.',
 }
 
 /** The chips under the title (the same kind of list as SatPOV's and ShopAI's). Only what is true: the page is React, the engine is TypeScript,
@@ -47,7 +47,7 @@ export const sampleDescriptions = {
 
 /** The page's header and the sections under the editor. */
 export const uiEditorPage = {
-  lead: 'Paste or upload your own HTML or SVG, click an element and change it from a ribbon or by dragging, then copy the updated code. It runs entirely in your browser.',
+  lead: 'Paste or upload your own HTML or SVG, change it from a ribbon or by dragging, check it at Desktop, Tablet and Phone sizes, then copy the updated code. It runs entirely in your browser.',
   howLink: 'How it works and limits',
   githubLabel: 'View on GitHub ↗',
 }
