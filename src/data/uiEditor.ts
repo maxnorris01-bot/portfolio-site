@@ -47,7 +47,7 @@ export const sampleDescriptions = {
 
 /** The page's header and the sections under the editor. */
 export const uiEditorPage = {
-  lead: 'Paste or upload your own HTML or SVG, change it from a ribbon or by dragging, check it at Desktop, Tablet and Phone sizes, then copy the updated code. It runs entirely in your browser.',
+  lead: 'Paste or upload your HTML or SVG, edit it from a ribbon or by dragging, check Desktop, Tablet and Phone, then copy the code. It runs in your browser.',
   howLink: 'How it works and limits',
   githubLabel: 'View on GitHub ↗',
 }
