@@ -1,0 +1,65 @@
+{
+ "version": 1,
+ "note": "Numbered amendments of the gate flakes round (docs/ui-editor-gate-log.md). A1 (L07, the control of the check, a pre-score flaw: it counts every changed pixel of the bands above the screen, and the bands reach up over the page's own quick bar, where the four view-button icons change by 4 by 4 px (16 pixels) between the shot with the outline shown and the one with it hidden, in 18 of 20 runs of the unchanged page, whatever is written to the page between the shots; the cause of that raster difference was NOT found: not the mouse, not a transition or animation, not the wait, not the way the outline is hidden). The assert now carries `below: '[data-ribbon]'`: the rows above the ribbon's bottom edge are left out. THIS IS A MASKING, NOT A DIAGNOSIS. What it costs: a leak of the outline over the page's own quick bar or ribbon is no longer seen; the outline of the headline is about 100 px high and the rows between the ribbon and the screen are about 130, so the check keeps the part where a leak of the straddling element would be. The locked spec, its expectation and the allow of 8 px are unchanged; `--no-gateflakes` runs the spec as locked.",
+ "specs": {
+  "L07": {
+   "amendment": "A1",
+   "replace": {
+    "5": [
+     {
+      "do": "assert",
+      "p": "P1",
+      "k": "outlineClipped",
+      "allow": 8,
+      "below": "[data-ribbon]"
+     }
+    ],
+    "8": [
+     {
+      "do": "assert",
+      "p": "P1",
+      "k": "outlineClipped",
+      "allow": 8,
+      "below": "[data-ribbon]"
+     }
+    ],
+    "11": [
+     {
+      "do": "assert",
+      "p": "P1",
+      "k": "outlineClipped",
+      "allow": 8,
+      "below": "[data-ribbon]"
+     }
+    ],
+    "14": [
+     {
+      "do": "assert",
+      "p": "P1",
+      "k": "outlineClipped",
+      "allow": 8,
+      "below": "[data-ribbon]"
+     }
+    ],
+    "20": [
+     {
+      "do": "assert",
+      "p": "P1",
+      "k": "outlineClipped",
+      "allow": 8,
+      "below": "[data-ribbon]"
+     }
+    ],
+    "24": [
+     {
+      "do": "assert",
+      "p": "P1",
+      "k": "outlineClipped",
+      "allow": 8,
+      "below": "[data-ribbon]"
+     }
+    ]
+   }
+  }
+ }
+}

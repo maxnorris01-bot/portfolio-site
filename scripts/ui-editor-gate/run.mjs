@@ -74,6 +74,8 @@ const amendBannerFile = existsSync(join(here, 'amendments-views2-banner.json')) 
 // SCROLL FIX 2 (docs/ui-editor-gate-rules-scrollfix2.md): the M specs run with --scrollfix2 (or --only Mnn), in Chromium or, with --browser webkit, in WebKit.
 const scroll2File = existsSync(join(here, 'specs-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix2.json'), 'utf8')) : { specs: [] }
 const amendScroll2File = existsSync(join(here, 'amendments-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'amendments-scrollfix2.json'), 'utf8')) : { specs: {} }
+// GATE FLAKES (docs/ui-editor-gate-log.md, the gate flakes round): numbered amendments of L07's check, in their own file; --no-gateflakes runs the spec as it was locked.
+const amendFlakesFile = existsSync(join(here, 'amendments-gateflakes.json')) ? JSON.parse(readFileSync(join(here, 'amendments-gateflakes.json'), 'utf8')) : { specs: {} }
 const scrollFile = existsSync(join(here, 'specs-scrollfix.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix.json'), 'utf8')) : { specs: [], fixtures: {} }
 const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
 const nudgeFile = existsSync(join(here, 'specs-views1-nudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge.json'), 'utf8')) : { specs: [] }
@@ -968,10 +970,11 @@ async function runSpec(spec) {
       case 'outlineClipped': {
         // What a person sees: nothing in the accent colour (or a thin line of it blended with what is behind: red well above green and blue) is drawn in the bands round the device's screen (above, below, left, right; the first `allow` px next to the screen are left out: the outline and the handles may
         // stand that far outside it) over the page's own banner, ribbon or bezel. The screenshot is decoded in a page of its own.
-        const g = await page.evaluate(() => { const f = document.querySelector('iframe[title="Preview"]'); const r = f.getBoundingClientRect(); const c = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim(); const probe = document.createElement('i'); probe.style.color = c; document.body.appendChild(probe); const rgb = getComputedStyle(probe).color; probe.remove(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, rgb, ww: innerWidth, wh: innerHeight } })
+        const g = await page.evaluate((below) => { const f = document.querySelector('iframe[title="Preview"]'); const r = f.getBoundingClientRect(); const rb = below ? document.querySelector(below)?.getBoundingClientRect().bottom ?? 0 : 0; const c = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim(); const probe = document.createElement('i'); probe.style.color = c; document.body.appendChild(probe); const rgb = getComputedStyle(probe).color; probe.remove(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, rgb, ww: innerWidth, wh: innerHeight, rb } }, a.below ?? null)
         const m = /(\d+)[, ]+(\d+)[, ]+(\d+)/.exec(g.rgb)
         const depth = a.depth ?? 500, x0 = Math.max(0, g.left), w0 = Math.min(g.right, g.ww) - x0
-        const aboveY = Math.max(0, g.top - a.allow - depth)
+        // GATE FLAKES, amendment A1 (amendments-gateflakes.json): `below` is a selector; the rows above its bottom edge are not looked at (the page's own ribbon and quick bar: a masking, not a diagnosis)
+        const aboveY = Math.max(0, g.top - a.allow - depth, g.rb)
         const bands = [
           { name: 'above', x: x0, y: aboveY, w: w0, h: Math.max(0, g.top - a.allow - aboveY) },
           { name: 'below', x: x0, y: g.bottom + a.allow, w: w0, h: Math.min(depth, Math.max(0, g.wh - g.bottom - a.allow)) },
@@ -3912,6 +3915,8 @@ function amendNonudge(spec) {
   if (a3) s = apply(s, a3)
   const a4 = amendScroll2File.specs?.[spec.id]
   if (a4) s = apply(s, a4)
+  const a5 = flag('--no-gateflakes') ? undefined : amendFlakesFile.specs?.[spec.id]
+  if (a5) s = apply(s, a5)
   return s
 }
 function insertSpecs() {
