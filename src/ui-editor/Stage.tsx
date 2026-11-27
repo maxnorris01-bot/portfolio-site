@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import { labels } from '../data/uiEditor'
-import { HANDLES, arrowNudge, handleAxes, movedFar, resizedBox, type Box, type Handle } from './geometry'
+import { HANDLES, arrowNudge, clipToScreen, scrollKeyDelta, handleAxes, movedFar, resizedBox, type Box, type Handle } from './geometry'
 import { HEIGHT_MARGIN, bezel, fitScale, frameSize, toCss, type Orientation, type ViewName } from './devices'
 import { canResize, isSvgElement, parentContentWidth, type Session } from './session'
 import { snapBox, snapMove, snaps } from './snap'
@@ -64,6 +64,8 @@ const boxOf = (el: Element): Box => {
   return { left: r.left, top: r.top, width: r.width, height: r.height }
 }
 const inside = (b: Box, x: number, y: number) => x >= b.left && x <= b.left + b.width && y >= b.top && y <= b.top + b.height
+/** The outline and its handles may stand this far outside the screen (the ring is 2 px, a handle sticks out 5). */
+const SCREEN_ALLOW = 6
 const place = (b: Box) => ({ left: b.left, top: b.top, width: b.width, height: b.height })
 
 /**
@@ -133,11 +135,12 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
     if (!doc || !root || typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(measure)
     ro.observe(root)
-    // A device with its own screen height scrolls inside the frame: the outline follows the element.
-    doc.addEventListener('scroll', measure, { passive: true })
+    // A device with its own screen height scrolls inside the frame, and a page can scroll an element of its own (a scrolling body, a list): the outline follows the element. A scroll event does not bubble, so
+    // the listener is in the capture phase, which also sees the scroll of every element below the document.
+    doc.addEventListener('scroll', measure, { passive: true, capture: true })
     return () => {
       ro.disconnect()
-      doc.removeEventListener('scroll', measure)
+      doc.removeEventListener('scroll', measure, { capture: true })
     }
   }, [session, rev, selected, elementOf, pinKey])
 
@@ -370,11 +373,23 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
       onDelete()
       return
     }
+    // PageDown, PageUp, Home, End and Space scroll the preview the way the wheel does, and only when it can scroll (else the host page scrolls as usual).
+    const win = session?.preview.doc.defaultView
+    const by = win ? scrollKeyDelta(e.key, e.shiftKey, win.innerHeight) : null
+    if (win && by !== null && e.target === e.currentTarget) {
+      const y = win.scrollY
+      win.scrollBy(0, by)
+      if (win.scrollY !== y) e.preventDefault()
+      return
+    }
     const n = arrowNudge(e.key, e.shiftKey)
     if (!n || sel.current === null || !editable) return
     e.preventDefault()
     onNudge(n.dx, n.dy)
   }
+
+  // What is drawn of an outline is what is on the device's screen (the frame's own size), a few px more for the ring and the handles.
+  const screenClip = (b: Box) => (session ? clipToScreen(b, session.preview.iframe.offsetWidth, session.preview.iframe.offsetHeight, SCREEN_ALLOW) : undefined)
 
   const el = elementOf(selected)
   const resizable = !!el && editable && canResize(el)
@@ -415,9 +430,9 @@ export default function Stage({ frameHost, session, rev, selected, editable, vie
               onDoubleClick={onDoubleClick}
               onKeyDown={onKeyDown}
             >
-              {hover && <div data-hover className="ue-hover" style={place(hover)} />}
+              {hover && <div data-hover className="ue-hover" style={{ ...place(hover), clipPath: screenClip(hover) }} />}
               {selBox && (
-                <div data-selection className="ue-selection" style={place(selBox)}>
+                <div data-selection className="ue-selection" style={{ ...place(selBox), clipPath: screenClip(selBox) }}>
                   {resizable && HANDLES.map((h) => <div key={h} data-handle={h} className={`ue-handle is-${h}`} aria-hidden="true" onPointerDown={(e) => onHandleDown(e, h)} />)}
                 </div>
               )}

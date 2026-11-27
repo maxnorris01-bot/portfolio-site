@@ -145,7 +145,12 @@ export default function UiEditorTool() {
         setDoc(null)
         return
       }
-      if (buffer && old) swap.current = { buffer, old }
+      // A replay builds the new preview where the old one was scrolled (clamped to what it allows), before it is shown: a merged move, Undo, Redo or a view reset do not throw the page back to the top.
+      if (buffer && old) {
+        const was = old.preview.doc.defaultView
+        if (was && (was.scrollX || was.scrollY)) r.session.preview.doc.defaultView?.scrollTo(was.scrollX, was.scrollY)
+        swap.current = { buffer, old }
+      }
       sessionRef.current = r.session
       setSession(r.session)
       setHoldHeight(0)
