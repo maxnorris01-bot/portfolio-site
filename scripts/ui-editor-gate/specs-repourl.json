@@ -1,0 +1,24 @@
+{
+ "version": 1,
+ "note": "GitHub button round (docs/ui-editor-gate-rules-repourl.md). Locked. A, B and C are external: repourl.mjs runs them.",
+ "specs": [
+  {
+   "id": "RP-A",
+   "name": "The button: exact href, new tab, rel noreferrer, keyboard focus with a visible ring",
+   "external": "repourl",
+   "expected": "PASS"
+  },
+  {
+   "id": "RP-B",
+   "name": "Layout at five sizes against main: same lead lines, no horizontal overflow, the tool top within 0.5 px",
+   "external": "repourl",
+   "expected": "PASS"
+  },
+  {
+   "id": "RP-C",
+   "name": "Look: btn btn-secondary, padding, font size and height as SatPOV's .sat-github at 1280 and 390",
+   "external": "repourl",
+   "expected": "PASS"
+  }
+ ]
+}

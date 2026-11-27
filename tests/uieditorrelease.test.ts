@@ -164,13 +164,24 @@ test('N4: no noindex anywhere: vercel.json has no X-Robots-Tag header and still 
   for (const f of ['robots.txt', 'sitemap.xml']) assert.equal(existsSync(new URL(`../public/${f}`, import.meta.url)), false, f)
 })
 
-test('every name and string of the page is in src/data/uiEditor.ts: no other source file spells the tool\'s name as a string', () => {
+test('every name and string of the page is in src/data/uiEditor.ts: no other source file spells the tool\'s name as a string', async () => {
   assert.equal(uiEditor.name, 'UI Editor')
   assert.equal(uiEditor.route, '/ui-editor')
-  assert.equal(uiEditor.repoUrl, null, 'the engine repository is private: no GitHub button until Max makes it public')
+  assert.equal(uiEditor.repoUrl, 'https://github.com/maxnorris01-bot/ui-editor', 'the engine repository is public: the GitHub button is drawn')
+  const page = await loadModule<{ default: ComponentType }>('/src/pages/UiEditor.tsx')
+  assert.match(inRouter('/ui-editor', createElement(page.default)), /<a href="https:\/\/github\.com\/maxnorris01-bot\/ui-editor" class="btn btn-secondary ue-github" target="_blank" rel="noreferrer">View on GitHub ↗<\/a>/)
   assert.ok(uiEditor.pageTitle.startsWith(uiEditor.name))
   assert.ok(uiEditor.pageDescription.length <= 300)
   for (const f of ['App.tsx', 'components/NavBar.tsx', 'components/navtabs.ts', 'components/solarmodel.ts', 'content/home.ts', 'pages/UiEditor.tsx']) {
     assert.doesNotMatch(src(f), /['"`>]UI Editor['"`<]|'\/ui-editor'/, f)
   }
+})
+
+test('the GitHub button is sized like SatPOV\'s and sits out of the header grid above the phone width (641 px), so the lead keeps its width', () => {
+  const css = readFileSync(new URL('../src/pages/UiEditor.css', import.meta.url), 'utf8')
+  const sat = readFileSync(new URL('../src/pages/SatelliteTool.css', import.meta.url), 'utf8')
+  const rule = (text: string, sel: string) => new RegExp(`${sel.replace('.', '\\.')} \\{([^}]*)\\}`).exec(text)?.[1].replace(/\s+/g, ' ').trim()
+  assert.equal(rule(css, '.ue-github'), rule(sat, '.sat-github')?.replace(/^/, ''), 'the same declarations as .sat-github')
+  assert.match(css, /@media \(min-width: 641px\) \{[^@]*\.ue-page \.page-header\.is-aside-narrow \{\s*grid-template-columns: minmax\(0, 1fr\);/)
+  assert.match(css, /\.ue-page \.page-header-aside \{\s*position: absolute;/)
 })

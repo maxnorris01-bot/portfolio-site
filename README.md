@@ -37,7 +37,7 @@ Known limit: the bucket's CORS rule allows only the production origin and localh
 
 ## The UI Editor
 
-The UI Editor is released: `/ui-editor` is always on, shown in the nav and on Home as the fourth planet, and indexable (there is no build-time flag and no `noindex`). Its page is a lazy chunk, requested only when `/ui-editor` is opened. The GitHub button on the page is not drawn yet: `repoUrl` in `src/data/uiEditor.ts` stays `null` until the engine repository is public. The repository is public, so the code, including the vendored engine (`src/ui-editor/vendor/engine.js`), was always visible.
+The UI Editor is released: `/ui-editor` is always on, shown in the nav and on Home as the fourth planet, and indexable (there is no build-time flag and no `noindex`). Its page is a lazy chunk, requested only when `/ui-editor` is opened. The page header has a "View on GitHub" button to the engine repository (`repoUrl` in `src/data/uiEditor.ts`, https://github.com/maxnorris01-bot/ui-editor, public with an MIT licence). This repository is public too, so the vendored engine (`src/ui-editor/vendor/engine.js`) was always visible.
 
 To try it locally: `npm run dev`, or `npm run build && npm run preview`. How it was released is in `docs/working-notes-and-decisions.md`.
 

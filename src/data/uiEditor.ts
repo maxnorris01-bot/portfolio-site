@@ -9,7 +9,7 @@ export interface UiEditorInfo {
   route: string
   /** Two sentences, in the style of the other Home cards (Max approves the wording before release). */
   planet: { text: string; compact: string }[]
-  /** Where the "View on GitHub" button goes; null (no button) while the engine repository is private. */
+  /** Where the "View on GitHub" button goes (the engine repository, public); null draws no button. */
   repoUrl: string | null
   /** The browser tab title and meta description while the page is open. */
   pageTitle: string
@@ -29,7 +29,7 @@ export const uiEditor: UiEditorInfo = {
       compact: 'It writes each change back into your code and leaves every other line alone. Everything runs in your browser.',
     },
   ],
-  repoUrl: null,
+  repoUrl: 'https://github.com/maxnorris01-bot/ui-editor',
   pageTitle: 'UI Editor — Max Norris',
   pageDescription: 'Paste or upload your own HTML or SVG, change it from a ribbon or by dragging, check it at Desktop, Tablet and Phone sizes, then copy the updated code. Runs entirely in your browser.',
 }
@@ -388,7 +388,7 @@ export const credits = {
   items: [
     'No external data: nothing is fetched or sent anywhere. Your code stays in your browser and is gone when you close the tab.',
     'The three samples (a landing page, an HTML email and an SVG chart) are original, written for this tool.',
-    'The editing engine is the author’s own code, kept in a private repository for now and shipped in this site as one built file. It bundles parse5 (reads HTML and SVG, with source positions) and postcss (reads CSS); their licences are in src/ui-editor/vendor/THIRD-PARTY-NOTICES.md in the site’s repository.',
+    'The editing engine is the author’s own code, in its own public repository on GitHub, and shipped in this site as one built file. It bundles parse5 (reads HTML and SVG, with source positions) and postcss (reads CSS); their licences are in src/ui-editor/vendor/THIRD-PARTY-NOTICES.md in the site’s repository.',
     'Engine caveats: SVG is read by the HTML parser, so SVG that is only valid as XML can be split wrongly; broken markup is read the way the parser reads it; a stylesheet without a final newline gets one before the added rules.',
   ],
 }
