@@ -1,0 +1,999 @@
+{
+ "version": 1,
+ "note": "UI Editor scroll fix 2: the per-frame re-measure, in Chromium and WebKit. M01 to M09; the prefix M is used by no earlier spec file. Independent checks: real boxes, counters made from the host window; never the page's own state. Run with --browser webkit for the WebKit cases (M01 to M08).",
+ "hostViewport": {
+  "width": 1920,
+  "height": 1080
+ },
+ "previewHeight": 800,
+ "outcomes": [
+  "PASS",
+  "FAIL"
+ ],
+ "vocabulary": {
+  "note": "as specs-scrollfix.json, plus: step wheelBurst {n, dy, gap} (n real wheel steps over the preview, gap ms apart, while the page samples the outline and the element every animation frame), step wait {ms}, step resetCounters (frame callbacks requested by the page, measures of the preview's elements, changes of the overlay), step tabHidden {hidden} (the page's visibility state), step navigate {link} (follow a link of the site's nav); assert outlineLag {sel, tol, maxLagFrames} (every sampled frame's outline equals the element's box of that frame or of the frame before, and the last frames equal the element's), assert outlineStays {sel, ms, every, tol}, assert counters {rafPerSecMin, rafPerSecMax, overlayMutations, gbcrPerSecMax, pendingMax} since the last resetCounters. See docs/ui-editor-gate-rules-scrollfix2.md section 4."
+ },
+ "specs": [
+  {
+   "id": "M01",
+   "name": "Many small wheel steps (16 of 14 px, a trackpad's burst) over the Phone preview: the outline matches the element's box of the same frame or of the frame before (1 px) at every frame while the content moves, and within 1 px by the next frame after it stops; for the headline and a lower element; then it stays within 1 px for 1 s",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "wheelBurst",
+     "n": 16,
+     "dy": 14,
+     "gap": 16
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineLag",
+     "sel": "#headline",
+     "tol": 1,
+     "maxLagFrames": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#headline",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#headline",
+     "ms": 1000,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan h3",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "wheelBurst",
+     "n": 16,
+     "dy": 14,
+     "gap": 16
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineLag",
+     "sel": "#card-plan h3",
+     "tol": 1,
+     "maxLagFrames": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#card-plan h3",
+     "ms": 1000,
+     "every": 100,
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "M02",
+   "name": "scrollTo and the keyboard: the outline is within 1 px by the next frame and stays there for 1 s, for two elements, in Phone upright, Tablet upright and Phone sideways",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#headline",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#headline",
+     "ms": 1000,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#headline",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#headline",
+     "ms": 1000,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "end"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#headline",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "home"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#headline",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#headline",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "click",
+     "sel": "#card-plan h3",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 0
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 120
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#card-plan h3",
+     "ms": 1000,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "pagedown"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#card-plan h3",
+     "ms": 1000,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "end"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "scrollPreview",
+     "how": "home"
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#card-plan h3",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#card-plan h3",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "click",
+     "sel": "#headline",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 90
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#headline",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#headline",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 60
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": "#headline",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": "#headline",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "M03",
+   "name": "After an edit, Undo, Redo, a view switch and a replay (a merged arrow-key move) the outline still follows a scroll within 1 px, at every frame of a wheel burst and by the next frame after it stops",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Increase Font size"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": ".lead",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "wheelBurst",
+     "n": 16,
+     "dy": 14,
+     "gap": 16
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineLag",
+     "sel": ".lead",
+     "tol": 1,
+     "maxLagFrames": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": ".lead",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "wheelBurst",
+     "n": 16,
+     "dy": 14,
+     "gap": 16
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineLag",
+     "sel": ".lead",
+     "tol": 1,
+     "maxLagFrames": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": ".lead",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "wheelBurst",
+     "n": 16,
+     "dy": 14,
+     "gap": 16
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineLag",
+     "sel": ".lead",
+     "tol": 1,
+     "maxLagFrames": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": ".lead",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "wheelBurst",
+     "n": 16,
+     "dy": 14,
+     "gap": 16
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineLag",
+     "sel": ".lead",
+     "tol": 1,
+     "maxLagFrames": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "keys",
+     "key": "ArrowRight",
+     "times": 3,
+     "settle": true
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 100
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineStays",
+     "sel": ".lead",
+     "ms": 500,
+     "every": 100,
+     "tol": 1
+    },
+    {
+     "do": "wheelBurst",
+     "n": 16,
+     "dy": 14,
+     "gap": 16
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineLag",
+     "sel": ".lead",
+     "tol": 1,
+     "maxLagFrames": 1
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "M04",
+   "name": "An idle selection costs almost nothing: with an element selected and the scroll position unchanged for 1 s the outline is not written at all (0 changes of the overlay) and the preview's elements are measured at most 4 times a frame, while a frame loop is running (at least 20 frames a second)",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "wait",
+     "ms": 600
+    },
+    {
+     "do": "resetCounters"
+    },
+    {
+     "do": "wait",
+     "ms": 1000
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "counters",
+     "overlayMutations": 0,
+     "gbcrPerSecMax": 240,
+     "rafPerSecMin": 20
+    }
+   ]
+  },
+  {
+   "id": "M05",
+   "name": "The frame loop runs only while something is selected: selected 20 or more frames a second, after the selection is cleared (a click on the stage's blank) at most 2, selected again 20 or more",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "wait",
+     "ms": 300
+    },
+    {
+     "do": "resetCounters"
+    },
+    {
+     "do": "wait",
+     "ms": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "counters",
+     "rafPerSecMin": 20
+    },
+    {
+     "do": "clickBlank"
+    },
+    {
+     "do": "wait",
+     "ms": 300
+    },
+    {
+     "do": "resetCounters"
+    },
+    {
+     "do": "wait",
+     "ms": 1000
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "counters",
+     "rafPerSecMax": 2
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "wait",
+     "ms": 300
+    },
+    {
+     "do": "resetCounters"
+    },
+    {
+     "do": "wait",
+     "ms": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "counters",
+     "rafPerSecMin": 20
+    }
+   ]
+  },
+  {
+   "id": "M06",
+   "name": "The frame loop stops when the tab is hidden and starts again when it is shown: with the page's visibility set to hidden at most 2 frames a second, shown again 20 or more",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "wait",
+     "ms": 300
+    },
+    {
+     "do": "tabHidden",
+     "hidden": true
+    },
+    {
+     "do": "wait",
+     "ms": 300
+    },
+    {
+     "do": "resetCounters"
+    },
+    {
+     "do": "wait",
+     "ms": 1000
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "counters",
+     "rafPerSecMax": 2
+    },
+    {
+     "do": "tabHidden",
+     "hidden": false
+    },
+    {
+     "do": "wait",
+     "ms": 300
+    },
+    {
+     "do": "resetCounters"
+    },
+    {
+     "do": "wait",
+     "ms": 800
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "counters",
+     "rafPerSecMin": 20
+    }
+   ]
+  },
+  {
+   "id": "M07",
+   "name": "Exactly one frame loop per live selection: after ten Undo and Redo replays, a view switch and a rotate the page runs at most 90 frames a second of its own (one loop is about 60, two would be about 120) and the outline is still on the element after a scroll",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "clickButton",
+     "name": "Increase Font size"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Undo"
+    },
+    {
+     "do": "clickButton",
+     "name": "Redo"
+    },
+    {
+     "do": "view",
+     "name": "Tablet"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "button",
+     "name": "Rotate"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "wait",
+     "ms": 400
+    },
+    {
+     "do": "resetCounters"
+    },
+    {
+     "do": "wait",
+     "ms": 1000
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "counters",
+     "rafPerSecMax": 90,
+     "rafPerSecMin": 20
+    },
+    {
+     "do": "scrollPreview",
+     "how": "scrollTo",
+     "y": 110
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "outlineFollows",
+     "sel": ".lead",
+     "tol": 1
+    }
+   ]
+  },
+  {
+   "id": "M08",
+   "name": "No frame callback is left when the tool is unmounted: after the Home link is followed, at most 2 frames a second are requested by the page and none is pending",
+   "sample": "landing",
+   "checks": [
+    "P1"
+   ],
+   "expected": "PASS",
+   "steps": [
+    {
+     "do": "load",
+     "sample": "landing"
+    },
+    {
+     "do": "view",
+     "name": "Phone"
+    },
+    {
+     "do": "click",
+     "sel": ".lead",
+     "at": "center"
+    },
+    {
+     "do": "wait",
+     "ms": 300
+    },
+    {
+     "do": "navigate",
+     "link": "Home"
+    },
+    {
+     "do": "wait",
+     "ms": 500
+    },
+    {
+     "do": "resetCounters"
+    },
+    {
+     "do": "wait",
+     "ms": 1000
+    },
+    {
+     "do": "assert",
+     "p": "P1",
+     "k": "counters",
+     "rafPerSecMax": 2,
+     "pendingMax": 0
+    }
+   ]
+  },
+  {
+   "id": "M09",
+   "name": "Flag OFF: the build without VITE_SHOW_UI_EDITOR behaves exactly as before (flags.mjs, 16 of 16) and every file of that build except the UiEditor chunks is byte for byte the main build's",
+   "sample": "landing",
+   "checks": [],
+   "expected": "PASS",
+   "steps": [],
+   "external": "flagOff"
+  }
+ ]
+}
