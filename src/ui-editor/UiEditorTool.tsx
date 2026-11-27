@@ -697,16 +697,6 @@ export default function UiEditorTool() {
                   return <IconButton key={v.name} icon={v.icon} label={v.name} showLabel named={mark ? labels.viewNameCustom(v.name) : undefined} tip={mark ? labels.viewTipCustom(v.name) : labels.viewTip(v.name)} mark={mark} view pressed={view === v.name} onClick={() => onView(v.name)} />
                 })}
                 {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} tip={labels.rotateTip} onClick={onRotate} />}
-                {small && (
-                  <IconButton
-                    icon="resetView"
-                    label={labels.resetView}
-                    resetView
-                    tip={svgDoc ? labels.resetViewTipSvg(view) : customised[view] ? labels.resetViewTip(view) : labels.resetViewTipNone(view)}
-                    disabled={!customised[view] || busy}
-                    onClick={onResetView}
-                  />
-                )}
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group">
@@ -824,6 +814,17 @@ export default function UiEditorTool() {
       {hasDoc && (
         <div className="ue-work">
           <div className="ue-preview">
+            {small && !svgDoc && (
+              <div className="ue-banner" role="group" aria-label={labels.bannerName(view)} data-view-banner>
+                <p className={`ue-banner-row${customised[view] ? ' is-off' : ''}`}>{labels.bannerFollows(view)}</p>
+                <div className={`ue-banner-row has-button${customised[view] ? '' : ' is-off'}`}>
+                  <p>{labels.bannerChanged(view)}</p>
+                  <button type="button" className="btn btn-secondary" data-reset-view disabled={!customised[view] || busy} onClick={onResetView}>
+                    {labels.resetView}
+                  </button>
+                </div>
+              </div>
+            )}
             {galleryShown && <Gallery overlay onPick={onPickSample} onPaste={onPasteCard} onUpload={onUploadCard} onClose={() => setGalleryOpen(false)} />}
             <div className="ue-scroll" data-stage-area inert={galleryShown || undefined} style={holdHeight ? { minHeight: holdHeight } : undefined}>
               <Stage frameHost={frameHost} session={session} rev={rev} selected={selIndex} editable={editable} view={view} orientation={orientation} onSelect={(i) => setSelPath(i === null || !session ? null : pathOf(session.preview.model, i))} onMove={onMove} onResize={onResize} onNudge={onNudge} grid={grid} snap={snap} spacing={spacing} placing={placing} trialInsert={trialInsert} onPlace={onPlace} onPlaceReason={onPlaceReason} textEdit={editingText !== null && editingText === selPath} onTextApply={applyText} onTextCancel={() => stopTextEdit(true)} onEditText={(i) => startTextEdit(i)} onDelete={deleteElement} pins={pinRows} onPin={(i) => { selectIndexOnly(i); openComment({ target: i, opener: 'pin', pin: pinRows.find((r) => r.index === i)?.n }) }} />
