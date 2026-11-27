@@ -18,7 +18,7 @@ import { copyName, nameList, sectionHeader } from './sections'
 import { SAMPLES, type SampleId } from './samples'
 import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, trialEdit, type Applied, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
-import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, effectiveEdits, type EditList, type ListAction } from './state'
+import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, customCount, effectiveEdits, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
 import { listNotes, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
@@ -470,6 +470,8 @@ export default function UiEditorTool() {
     setReplay((n) => n + 1)
     show({ kind: 'info', text: what })
   }
+  // Views stage 2: the small views' own changes (the engine's list of them, with the view resets applied): the mark on a view button reads them.
+  const customised = { Tablet: customCount(list.edits, 'tablet') > 0, Phone: customCount(list.edits, 'phone') > 0 }
   const onUndo = () => stepList({ type: 'undo' }, messages.undone)
   const onRedo = () => stepList({ type: 'redo' }, messages.redone)
   const onReset = () => setConfirm({ text: labels.resetText, run: () => stepList({ type: 'reset' }, messages.reset) })
@@ -671,9 +673,10 @@ export default function UiEditorTool() {
               </div>
               <span className="ue-flex" />
               <div className="ue-bar-group" role="group" aria-label={labels.view}>
-                {VIEWS.map((v) => (
-                  <IconButton key={v.name} icon={v.icon} label={v.name} showLabel tip={labels.viewTip(v.name)} pressed={view === v.name} onClick={() => onView(v.name)} />
-                ))}
+                {VIEWS.map((v) => {
+                  const mark = v.name !== 'Desktop' && customised[v.name]
+                  return <IconButton key={v.name} icon={v.icon} label={v.name} showLabel named={mark ? labels.viewNameCustom(v.name) : undefined} tip={mark ? labels.viewTipCustom(v.name) : labels.viewTip(v.name)} mark={mark} view pressed={view === v.name} onClick={() => onView(v.name)} />
+                })}
                 {canRotate(view) && <IconButton icon="rotate" label={labels.rotate} text={labels.rotate} tip={labels.rotateTip} onClick={onRotate} />}
               </div>
               <span className="ue-flex" />

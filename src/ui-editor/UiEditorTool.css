@@ -127,6 +127,23 @@
   flex: none;
 }
 
+/* Views stage 2: the mark on a Phone or Tablet button whose view has changes of its own. It sits in the corner and takes no room (the button keeps its size); the name and the tooltip say it too. */
+.ue-tool .btn.ue-icon.is-customised {
+  position: relative;
+}
+
+.ue-tool .ue-mark {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-surface);
+  pointer-events: none;
+}
+
 /* An icon button that also shows its word (the view buttons, Rotate, Copy code, Download, Reset all). */
 .ue-tool .btn.ue-icon.has-text {
   width: auto;

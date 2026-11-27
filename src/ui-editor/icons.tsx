@@ -2,7 +2,7 @@
 // No icon library. Each icon is decoration: the button it sits in carries the accessible name (aria-label) and the tooltip (title).
 import type { ReactNode } from 'react'
 
-export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow' | 'insert' | 'comment'
+export type IconName = 'desktop' | 'tablet' | 'phone' | 'undo' | 'redo' | 'reset' | 'resetView' | 'copy' | 'download' | 'rotate' | 'alignLeft' | 'alignCentre' | 'alignRight' | 'alignJustify' | 'moveUp' | 'moveDown' | 'grid' | 'snap' | 'chevron' | 'bucket' | 'pencil' | 'textGrow' | 'textShrink' | 'letterA' | 'italic' | 'underline' | 'lineSpacing' | 'shadow' | 'insert' | 'comment'
 
 const PATHS: Record<IconName, ReactNode> = {
   desktop: (
@@ -27,6 +27,13 @@ const PATHS: Record<IconName, ReactNode> = {
   redo: <path d="m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />,
   // A page with a revert arrow in its corner (not the arrows of Undo and Redo, nor the turning device of Rotate).
   reset: <path d="M13 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h5M13 3l5 5v2.5M17.5 21a4.5 4.5 0 1 0-3.2-7.7M14 13v3.2h3.2" />,
+  // A small device with a revert arrow beside it (the view's own reset; not the page of Reset all).
+  resetView: (
+    <>
+      <rect x="11" y="8" width="9" height="13" rx="1.5" />
+      <path d="M7.5 7.5A6 6 0 0 0 4 13M7.5 3.5v4h-4" />
+    </>
+  ),
   copy: (
     <>
       <rect x="9" y="9" width="11" height="11" rx="2" />
@@ -104,18 +111,26 @@ interface Props {
   showLabel?: boolean
   /** The tooltip, when it says more than the name (the name is the aria-label, and the tooltip then becomes the accessible description). */
   tip?: string
+  /** Views stage 2: a small mark on the button (the view has changes of its own). It is in the name and the tooltip too, and takes no room. */
+  mark?: boolean
+  /** Views stage 2: the accessible name when it says more than the visible word ("Phone, customised"). */
+  named?: string
+  /** Views stage 2: the view buttons and the Reset to Desktop view button, found by the page to give the focus back after its dialog. */
+  view?: boolean
+  resetView?: boolean
   /** Stage 2: marks the button that opens a popover, so the popover can give the focus back to it and ignore its click. */
   opens?: 'comment' | 'notes'
   onClick: () => void
 }
 
 /** An icon button: aria-label for the name, title for the visible tooltip, a focus ring from the stylesheet. */
-export function IconButton({ icon, label, tip, disabled, pressed, text, showLabel, opens, onClick }: Props) {
+export function IconButton({ icon, label, tip, disabled, pressed, text, showLabel, mark, named, view, resetView, opens, onClick }: Props) {
   const word = text ?? (showLabel ? label : undefined)
   return (
-    <button type="button" data-opens={opens} className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}`} aria-label={label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} onClick={onClick}>
+    <button type="button" data-opens={opens} data-customised={mark ? '' : undefined} data-view-button={view ? '' : undefined} data-reset-view={resetView ? '' : undefined} className={`btn btn-secondary ue-icon${word ? ' has-text' : ''}${mark ? ' is-customised' : ''}`} aria-label={named ?? label} title={tip ?? label} disabled={disabled} aria-pressed={pressed} onClick={onClick}>
       <Icon name={icon} />
       {word && <span className="ue-icon-text">{word}</span>}
+      {mark && <span className="ue-mark" aria-hidden="true" />}
     </button>
   )
 }

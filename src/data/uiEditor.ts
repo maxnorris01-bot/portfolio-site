@@ -118,6 +118,10 @@ export const labels = {
   resetTip: 'Reset every edit and go back to the original',
   rotateTip: 'Turn the device sideways or upright',
   viewTip: (name: string) => `Show the ${name} size`,
+  /** Views stage 2: a Phone or Tablet that has changes of its own: the name says so (a dot is not enough), and the tip says what it means. */
+  customised: 'customised',
+  viewNameCustom: (name: string) => `${name}, customised`,
+  viewTipCustom: (name: string) => `Show the ${name} size. This view is customised: it has changes of its own that a Desktop change does not override.`,
   file: 'File',
   copy: 'Copy code',
   /** The tooltips (and so the accessible descriptions) of Copy code and Download name the file they act on; the accessible names stay `Copy code` and `Download`. */
