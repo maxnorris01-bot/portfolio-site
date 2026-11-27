@@ -1,5 +1,5 @@
 {
  "version": 1,
- "note": "Numbered amendments to specs-scrollfix.json (locked). None yet.",
+ "note": "Numbered amendments to specs-scrollfix.json (locked). A1 (L07, rules section 4): the first reading of `outlineClipped` counted pixels of the accent colour in the bands round the screen; on the scorer-check stub, whose own page has accent-coloured parts of its own in those bands, it counted 10857 pixels with no fault. The check is now independent of any colour: a screenshot of each band with the outline and its handles shown and one with them hidden are compared pixel by pixel, and any change counts (the spec's words say 'accent-coloured': read them as 'drawn'). My slip in the locked wording; the unchanged real page still passes L07 either way.",
  "specs": {}
 }
