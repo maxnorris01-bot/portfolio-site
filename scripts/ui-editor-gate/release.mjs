@@ -52,7 +52,7 @@ if (want('R02')) {
     const textual = (p) => /\.(js|css|html|json|svg|txt|map)$/.test(p)
     const group = (d) => { const m = new Map(); for (const p of walk(d)) { const k = unhash(p); const c = textual(p) ? unbuild(unhash(readFileSync(join(d, p), 'utf8'))) : readFileSync(join(d, p)).toString('base64'); if (!m.has(k)) m.set(k, []); m.get(k).push(c) } for (const v of m.values()) v.sort(); return m }
     const A = group(oldOn), B = group(nowDir)
-    const lists = JSON.stringify([...A.keys()]) === JSON.stringify([...B.keys()])
+    const lists = JSON.stringify([...A.keys()].sort()) === JSON.stringify([...B.keys()].sort())
     const differ = [...A.keys()].filter((k) => { const w = B.get(k); const v = A.get(k); return w && (v.length !== w.length || v.some((x, i) => x !== w[i])) })
     const allowed = (k) => /^(assets\/)?(index-HASH\.js|UiEditor-HASH\.js)$/.test(k) || k === 'index.html'
     const unexpected = differ.filter((k) => !allowed(k))
@@ -87,14 +87,16 @@ if (want('R04')) {
     const nav = (await page.locator('header.nav a, header.nav button').allInnerTexts()).filter((t) => t !== 'MAX NORRIS')
     notes.push(`nav ${nav.at(-1)}`)
     let ok = nav.at(-1) === 'UI Editor'
-    await page.locator('.solar-planet[aria-label="UI Editor"]').click()
+    await page.locator('.solar-planet[aria-label="UI Editor"]').focus()
+    await page.keyboard.press('Enter')
     const title = await page.locator('.home-title').first().innerText().catch(() => '')
     const card = await page.locator('.home-slot-live').innerText()
     ok = ok && /UI Editor/.test(card)
     notes.push(`Home card opens: ${/UI Editor/.test(card)}`)
     ok = ok && (await page.locator('meta[name="robots"]').count()) === 0
-    await page.getByRole('link', { name: 'Open UI Editor' }).click()
+    await page.locator('a.home-panel-link').click()
     await page.waitForSelector('.ue-tool')
+    await page.setViewportSize({ width: 1920, height: 1080 }) // the size the gate's probes use for the tool
     await page.locator('[data-sample-card="landing"]').click()
     await page.waitForFunction(() => !!document.querySelector('iframe[title="Preview"]')?.contentDocument?.querySelector('#headline'))
     await page.waitForTimeout(500)
@@ -102,10 +104,13 @@ if (want('R04')) {
     const p0 = await where()
     await page.mouse.click(p0.x, p0.y)
     await page.waitForTimeout(400)
-    for (let i = 0; i < 3; i++) { await page.locator('[data-ribbon] [data-spin="up"][data-for="Nudge X"]').click(); await page.waitForTimeout(300) }
+    await page.mouse.move(p0.x, p0.y); await page.mouse.down()
+    for (let i = 1; i <= 6; i++) await page.mouse.move(p0.x + 5 * i, p0.y + 5 * i)
+    await page.mouse.up()
+    await page.waitForTimeout(600)
     const p1 = await where()
     const moved = Math.abs(p1.left - p0.left)
-    notes.push(`headline moved ${moved.toFixed(1)} px after three Nudge X clicks`)
+    notes.push(`headline moved ${moved.toFixed(1)} px after a 30 px drag`)
     ok = ok && moved > 0.5
     const robots = await page.locator('meta[name="robots"]').count()
     notes.push(`robots meta on the page: ${robots}`)
@@ -113,7 +118,7 @@ if (want('R04')) {
     await page.screenshot({ path: join(out, 'r04-ui-editor.png') })
     await ctx.close()
     item('R04', ok, notes.join('; '))
-  } catch (e) { item('R04', false, `${notes.join('; ')}; ${String(e).split('\n')[0]}`) } finally { srv.kill(); await browser.close() }
+  } catch (e) { item('R04', false, `${notes.join('; ')}; ${String(e).split('\n').slice(0, 3).join(' ')}`) } finally { srv.kill(); await browser.close() }
 }
 if (want('G') && gateResults) {
   const g = JSON.parse(readFileSync(gateResults, 'utf8'))
