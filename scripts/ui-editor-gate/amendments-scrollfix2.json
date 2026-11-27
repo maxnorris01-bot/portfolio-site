@@ -1,39 +1,14 @@
 {
  "version": 1,
- "note": "Numbered amendments to specs-scrollfix2.json (locked). A1 M05: the runner's clickBlank clicks the bottom-left corner of the screen, which on the landing page is an element, not the page's blank, so it never cleared the selection (my slip). The spec now uses the email sample in Tablet, where the page (600 px) is narrower than the screen (768 px) and a click on the left margin lands on the page's own body, which clears the selection (new step clickPreviewSide). Nothing else changes.",
+ "note": "Numbered amendments to specs-scrollfix2.json (locked). A1 M05: the runner's clickBlank clicks the bottom-left corner of the screen, which on the landing page is an element, not the page's blank, so it never cleared the selection (my slip). The spec now uses the email sample in Tablet, where the page (600 px) is narrower than the screen (768 px) and a click on the left margin lands on the page's own body, which clears the selection (new step clickPreviewSide). Nothing else changes. A2 (supersedes A1, found when M05 was first run on the real page): on the real page a click on the preview's side margin in Tablet does not clear the selection (the page's body is a hit), so A1's step could not do what it said; what does clear it is the runner's clickBlank at the bottom-left of the Desktop frame (checked by hand: selected before, cleared after). M05 therefore runs in the Desktop view with the original clickBlank step; A1's step clickPreviewSide stays in the runner, unused. The stub clears its selection on a click of the page's blank, so its controls are unchanged.",
  "specs": {
   "M05": {
-   "amendment": "A1",
+   "amendment": "A2",
    "replace": {
-    "0": [
-     {
-      "do": "load",
-      "sample": "email"
-     }
-    ],
     "1": [
      {
       "do": "view",
-      "name": "Tablet"
-     }
-    ],
-    "2": [
-     {
-      "do": "click",
-      "sel": "#hello",
-      "at": "center"
-     }
-    ],
-    "7": [
-     {
-      "do": "clickPreviewSide"
-     }
-    ],
-    "12": [
-     {
-      "do": "click",
-      "sel": "#hello",
-      "at": "center"
+      "name": "Desktop"
      }
     ]
    }
