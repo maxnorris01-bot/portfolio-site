@@ -150,7 +150,7 @@
     position: relative;
   }
 
-  .ue-page .page-header.is-aside-wide {
+  .ue-page .page-header.is-aside-narrow {
     grid-template-columns: minmax(0, 1fr);
   }
 

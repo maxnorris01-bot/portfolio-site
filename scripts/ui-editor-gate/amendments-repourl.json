@@ -1,4 +1,9 @@
 {
  "note": "Numbered amendments to docs/ui-editor-gate-rules-repourl.md (locked in 9b7be19). Each is labelled pre-score or post-run.",
- "amendments": {}
+ "amendments": {
+  "A1": {
+   "kind": "pre-score, a flaw in my own locked text and CSS, found when the control of the scorer check failed B, before any scored run",
+   "what": "The UI Editor page passes asideSize 'narrow' to PageHeader, so its header class is is-aside-narrow (a 30% aside column), not is-aside-wide as the locked rules section 1 and my first CSS said. The CSS rule and the source test now name .page-header.is-aside-narrow; nothing else in the rules changes (the measured lead wrap, 2 lines at 1280, 1366 and 1440 px with the button and no CSS, is the same). The first scorer run (control F: B failed, 1280 lead 2 lines; F1 to F4 failed the items they target but B was already failing, so they proved nothing about B) is on record and the scorer check is rerun in full."
+  }
+ }
 }
