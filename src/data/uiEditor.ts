@@ -1,5 +1,5 @@
 // Every name and string of the UI Editor page, in one place, so a rename is one line (like satelliteTool.ts for the satellite tool).
-// The page is behind a flag (uiEditorFlag.ts) until Max releases it. Labels that the gate's UI contract names (docs/ui-editor-gate-rules.md)
+// Labels that the gate's UI contract names (docs/ui-editor-gate-rules.md)
 // are tested against this file (tests/uieditor*.test.ts).
 
 export interface UiEditorInfo {

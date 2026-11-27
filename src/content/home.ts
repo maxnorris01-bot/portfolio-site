@@ -1,5 +1,4 @@
 import { uiEditor } from '../data/uiEditor.ts'
-import { UI_EDITOR_ON } from '../data/uiEditorFlag.ts'
 
 // The Home page's words, in one place.
 // Background and About this site are always on the page (left column); the planets (SatPOV, ShopAI, Résumé) each fill the card under the solar system (right column).
@@ -28,8 +27,8 @@ export type PlanetPanel = { id: PlanetId; label: string; paragraphs: Copy[]; lin
 export const HOME_DEFAULT_PLANET: PlanetId = 'satpov'
 export const HOME_SLOT_LABEL = 'Explore the site'
 
-/** The info cards; the UI Editor sentence of the Backend row is there only while the flag is on (the tool is hidden in Production until the release). */
-export const homeInfo = (uiEditorOn: boolean): InfoPanel[] => [
+/** The info cards; the long Backend copy ends with the UI Editor sentence, the compact copy has none. */
+export const HOME_INFO: InfoPanel[] = [
   {
     id: 'background',
     label: 'Background',
@@ -46,7 +45,7 @@ export const homeInfo = (uiEditorOn: boolean): InfoPanel[] => [
       { lead: 'Purpose', text: 'a working portfolio of applied AI and data projects. Every tool here runs live; none of it is a mock-up.', compact: 'a working portfolio of applied AI and data projects; every tool here runs live.' },
       {
         lead: 'Backend',
-        text: `SatPOV and ShopAI run on Python services (Fly.io); ShopAI adds Postgres, spending caps per session, per visitor and per day, 1,700+ automated tests and a locked evaluation set.${uiEditorOn ? ' UI Editor runs in your browser.' : ''}`,
+        text: `SatPOV and ShopAI run on Python services (Fly.io); ShopAI adds Postgres, spending caps per session, per visitor and per day, 1,700+ automated tests and a locked evaluation set. UI Editor runs in your browser.`,
         compact: 'SatPOV and ShopAI: Python on Fly.io; ShopAI adds Postgres, spending caps, 1,700+ tests.',
       },
       { lead: 'What it shows', text: 'end-to-end ownership: data pipelines, LLM ranking with cost controls, evaluation, deployment, and the physics background to sanity-check results.', compact: 'end-to-end ownership: pipelines, LLM ranking with cost controls, evaluation, deployment.' },
@@ -54,8 +53,6 @@ export const homeInfo = (uiEditorOn: boolean): InfoPanel[] => [
     ],
   },
 ]
-
-export const HOME_INFO: InfoPanel[] = homeInfo(UI_EDITOR_ON)
 
 const BASE_PLANETS: PlanetPanel[] = [
   {
@@ -96,7 +93,7 @@ const BASE_PLANETS: PlanetPanel[] = [
   },
 ]
 
-/** The UI Editor's planet: it exists only while the page's flag is on. */
+/** The UI Editor's planet. */
 const UI_EDITOR_PLANET: PlanetPanel = {
   id: 'uieditor',
   label: uiEditor.name,
@@ -104,7 +101,5 @@ const UI_EDITOR_PLANET: PlanetPanel = {
   link: { to: uiEditor.route, text: `Open ${uiEditor.name}` },
 }
 
-/** The planets a visitor can choose: the three of the site, and the UI Editor as a fourth when its flag is on. */
-export const homePlanets = (uiEditorOn: boolean): PlanetPanel[] => (uiEditorOn ? [...BASE_PLANETS, UI_EDITOR_PLANET] : BASE_PLANETS)
-
-export const HOME_PLANETS: PlanetPanel[] = homePlanets(UI_EDITOR_ON)
+/** The planets a visitor can choose: the three of the site, and the UI Editor as the fourth. */
+export const HOME_PLANETS: PlanetPanel[] = [...BASE_PLANETS, UI_EDITOR_PLANET]

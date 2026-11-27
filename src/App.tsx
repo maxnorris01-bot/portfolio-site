@@ -3,7 +3,6 @@ import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import NavBar from './components/NavBar'
 import PageHeader from './components/PageHeader'
 import { uiEditor } from './data/uiEditor'
-import { UI_EDITOR_ON } from './data/uiEditorFlag'
 import Home from './pages/Home'
 import Resume from './pages/Resume'
 import SatelliteTool from './pages/SatelliteTool'
@@ -11,8 +10,8 @@ import SatelliteTool from './pages/SatelliteTool'
 // Unlisted for now: not in the nav yet.
 const Shop = lazy(() => import('./pages/Shop'))
 
-// Behind a build-time flag (src/data/uiEditorFlag.ts): with it off there is no route (the NotFound page shows) and the page's chunk is never requested.
-const UiEditor = UI_EDITOR_ON ? lazy(() => import('./pages/UiEditor')) : null
+// The UI Editor's page is a lazy chunk: it is requested only when /ui-editor is opened.
+const UiEditor = lazy(() => import('./pages/UiEditor'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -53,16 +52,14 @@ export default function App() {
             </Suspense>
           }
         />
-        {UiEditor && (
-          <Route
-            path={uiEditor.route}
-            element={
-              <Suspense fallback={null}>
-                <UiEditor />
-              </Suspense>
-            }
-          />
-        )}
+        <Route
+          path={uiEditor.route}
+          element={
+            <Suspense fallback={null}>
+              <UiEditor />
+            </Suspense>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <footer className="site-footer page-container">

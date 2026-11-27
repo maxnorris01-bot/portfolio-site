@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { StaticRouter } from 'react-router-dom'
 import { BODIES, CHOSEN, LABEL_SLOTS, ORBITS, VIEW, advance, labelWidth, labelsOverlap, layoutLabels, place, positionAt, shouldMove } from '../src/components/solarmodel.ts'
 import * as contentModule from '../src/content/home.ts'
-import { HOME_DEFAULT_PLANET, HOME_INFO, homeInfo, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../src/content/home.ts'
+import { HOME_DEFAULT_PLANET, HOME_INFO, HOME_PLANETS, HOME_TITLE, type PlanetId } from '../src/content/home.ts'
 import { closeServer, loadModule, render } from './helpers/ssr.ts'
 
 after(closeServer)
@@ -33,13 +33,12 @@ test('Background and About this site (DRAFT, all in content/home.ts) say what th
   assert.doesNotMatch(src('content/home.ts'), /DRAFT/, 'the owner has confirmed the copy')
 })
 
-test('the UI Editor sentence of the Backend row is there only with the flag on, in the long copy only; the compact copy is the same in both states', () => {
-  const backend = (on: boolean) => homeInfo(on)[1].bullets.find((b) => b.lead === 'Backend')!
-  assert.ok(backend(true).text?.endsWith(' UI Editor runs in your browser.'))
-  assert.equal(backend(true).compact, backend(false).compact, 'the compact copy is the same in both states')
-  assert.doesNotMatch(backend(true).compact ?? '', /UI Editor/)
-  for (const on of [true, false]) assert.ok(backend(on).text?.startsWith('SatPOV and ShopAI run on Python services (Fly.io); ShopAI adds Postgres'))
-  assert.doesNotMatch(JSON.stringify(homeInfo(false)), /UI Editor/)
+test('the UI Editor sentence ends the long Backend copy; the compact copy has none', () => {
+  const backend = HOME_INFO[1].bullets.find((b) => b.lead === 'Backend')!
+  assert.ok(backend.text?.startsWith('SatPOV and ShopAI run on Python services (Fly.io); ShopAI adds Postgres'))
+  assert.ok(backend.text?.endsWith(' UI Editor runs in your browser.'))
+  assert.equal(backend.compact, 'SatPOV and ShopAI: Python on Fly.io; ShopAI adds Postgres, spending caps, 1,700+ tests.')
+  assert.doesNotMatch(backend.compact ?? '', /UI Editor/)
 })
 
 test('the Stack row is back, and is the one row a short window leaves out; every other row has a compact cut or none needed', () => {
@@ -48,13 +47,14 @@ test('the Stack row is back, and is the one row a short window leaves out; every
   assert.deepEqual(rows.filter((b) => b.compactHide).map((b) => b.lead), ['Stack'])
 })
 
-test('only three planets lead somewhere, each with an Open link to its route; the card is never empty (SatPOV is chosen from the start)', () => {
+test('only four planets lead somewhere, each with an Open link to its route; the card is never empty (SatPOV is chosen from the start)', () => {
   assert.deepEqual(HOME_INFO.map((p) => p.id), ['background', 'site'])
-  assert.deepEqual(HOME_PLANETS.map((p) => p.label), ['SatPOV', 'ShopAI', 'Résumé'])
+  assert.deepEqual(HOME_PLANETS.map((p) => p.label), ['SatPOV', 'ShopAI', 'Résumé', 'UI Editor'])
   assert.deepEqual(HOME_PLANETS.map((p) => p.link), [
     { to: '/satellite-conjunction-screening', text: 'Open SatPOV' },
     { to: '/shop', text: 'Open ShopAI' },
     { to: '/resume', text: 'Open Résumé' },
+    { to: '/ui-editor', text: 'Open UI Editor' },
   ])
   assert.equal(HOME_DEFAULT_PLANET, 'satpov')
 })
@@ -68,12 +68,12 @@ test('the planet descriptions say only what the README, the pages and the Résum
   assert.ok(Math.min(...sizes) >= Math.max(...sizes) * 0.6, `totals ${sizes.join(', ')}`)
 })
 
-test('exactly three planets can be chosen (SatPOV, ShopAI, Résumé), on different orbits and at different speeds; the rest are decoration', () => {
-  assert.deepEqual(CHOSEN.map((b) => b.select?.label), ['SatPOV', 'ShopAI', 'Résumé'])
+test('exactly four planets can be chosen (SatPOV, ShopAI, Résumé, UI Editor), on different orbits and at different speeds; the rest are decoration', () => {
+  assert.deepEqual(CHOSEN.map((b) => b.select?.label), ['SatPOV', 'ShopAI', 'Résumé', 'UI Editor'])
   assert.deepEqual(CHOSEN.map((b) => b.select?.id), HOME_PLANETS.map((p) => p.id))
   assert.ok(BODIES.length - CHOSEN.length >= 5, 'several decorative planets')
-  assert.equal(new Set(CHOSEN.map((b) => b.orbit)).size, 3)
-  assert.equal(new Set(CHOSEN.map((b) => b.period)).size, 3)
+  assert.equal(new Set(CHOSEN.map((b) => b.orbit)).size, 4)
+  assert.equal(new Set(CHOSEN.map((b) => b.period)).size, 4)
 })
 
 test('choosing another planet switches the card; choosing the chosen one again does nothing', () => {
@@ -211,26 +211,26 @@ const planets = async () => {
 
 const buttonsOf = (html: string) => [...html.matchAll(/<g [^>]*role="button"[^>]*>/g)].map((m) => m[0])
 
-test('the three planets are buttons in reading order with names and pressed state; decoration is hidden from assistive technology', async () => {
-  const names = ['SatPOV', 'ShopAI', 'Résumé']
+test('the four planets are buttons in reading order with names and pressed state; decoration is hidden from assistive technology', async () => {
+  const names = ['SatPOV', 'ShopAI', 'Résumé', 'UI Editor']
   const start = render(await planets(), { selected: HOME_DEFAULT_PLANET, onSelect: () => {} })
   const buttons = buttonsOf(start)
-  assert.equal(buttons.length, 3)
+  assert.equal(buttons.length, 4)
   buttons.forEach((b, i) => {
     assert.ok(b.includes(`aria-label="${names[i]}"`), names[i])
     assert.match(b, /tabindex="0"/)
   })
-  assert.deepEqual(buttons.map((b) => b.includes('aria-pressed="true"')), [true, false, false], 'SatPOV is chosen from the start')
+  assert.deepEqual(buttons.map((b) => b.includes('aria-pressed="true"')), [true, false, false, false], 'SatPOV is chosen from the start')
   assert.equal(start.match(/aria-hidden="true"/g)?.length, BODIES.filter((b) => !b.select).length + 1, 'decorative planets and the orbits and sun')
   assert.match(start, /role="group" aria-label="Choose a planet to read about"/)
-  for (const [i, id] of (['satpov', 'shopai', 'resume'] as const).entries()) {
+  for (const [i, id] of (['satpov', 'shopai', 'resume', 'uieditor'] as const).entries()) {
     const chosen = render(await planets(), { selected: id, onSelect: () => {} })
-    assert.deepEqual(buttonsOf(chosen).map((b) => b.includes('aria-pressed="true"')), [0, 1, 2].map((k) => k === i))
+    assert.deepEqual(buttonsOf(chosen).map((b) => b.includes('aria-pressed="true"')), [0, 1, 2, 3].map((k) => k === i))
     assert.match(chosen, /solar-planet is-selected/)
   }
 })
 
-test('all three planets share one dashed ring; there is no separate info or go style', async () => {
+test('all four planets share one dashed ring; there is no separate info or go style', async () => {
   const html = render(await planets(), { selected: 'satpov', onSelect: () => {} })
   assert.doesNotMatch(html, /is-go/)
   assert.match(src('components/SolarSystem.css'), /\.solar-ring \{[^}]*stroke-dasharray/s)

@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { deviceNote, panel, VIEW_WIDTHS } from '../src/data/uiEditor.ts'
-import { isUiEditorOn } from '../src/data/uiEditorFlag.ts'
 import { bezel, canRotate, frameSize, viewOnlyReason, viewport } from '../src/ui-editor/devices.ts'
 
 const root = new URL('..', import.meta.url).pathname
@@ -49,14 +48,9 @@ test('the note under the stage is the sentence the brief gave, and the frames ar
   assert.match(stage, /data-device-scale/)
 })
 
-test('flag OFF behaviour is unchanged: only exactly "true" turns the page on, and nothing of this round is imported outside the page\'s own lazy chunk', () => {
-  assert.equal(isUiEditorOn(undefined), false)
-  assert.equal(isUiEditorOn(''), false)
-  assert.equal(isUiEditorOn('TRUE'), false)
-  assert.equal(isUiEditorOn('1'), false)
-  assert.equal(isUiEditorOn('true'), true)
+test('nothing of this round is imported outside the page\'s own lazy chunk', () => {
   const app = read('src/App.tsx')
-  assert.match(app, /UI_EDITOR_ON \? lazy\(\(\) => import\('\.\/pages\/UiEditor'\)\) : null/)
+  assert.match(app, /const UiEditor = lazy\(\(\) => import\('\.\/pages\/UiEditor'\)\)/)
   for (const f of ['src/App.tsx', 'src/components/NavBar.tsx', 'src/components/PageHeader.tsx', 'src/content/home.ts']) {
     assert.doesNotMatch(read(f), /ui-editor\/(devices|Gallery|Stage|icons|miniature)/, f)
   }

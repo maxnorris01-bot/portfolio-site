@@ -1,0 +1,10 @@
+{
+ "note": "Numbered amendments to docs/ui-editor-gate-rules-release.md (locked in 9feca8c). Each is labelled pre-score (found before any scored run) or post-run.",
+ "amendments": {
+  "A1": {
+   "kind": "pre-score, a flaw in my own list in the locked rules (section 2 item 2 and section 3.1), found when the unit tests were first run on the implementation, before any scored run",
+   "what": "Four more existing tests pinned the OFF state (three planets, five nav labels) and failed once the flag was gone: tests/home.test.ts 'only three planets lead somewhere ...', 'exactly three planets can be chosen ...', 'the three planets are buttons in reading order ...' and tests/shopnav.test.ts 'the nav tabs are Home, Résumé, Contact ..., SatPOV and ShopAI ...'. They are kept, not deleted: only the assertions that pin the three-planet or five-label state are changed to the four-planet or six-label state (the UI Editor added as the fourth planet and the sixth nav button, its link { to: '/ui-editor', text: 'Open UI Editor' }, orbit and period counts 4, the pressed-state loop over four ids); their titles say four where they said three. Section 3.1 gains these four rows (retired assertions: the three-planet and five-label expectations).",
+   "count": "The locked count said 5 new tests; there are 4 (N1, N2, N3, N4: the 'route exists with no env var' check is the old NotFound test rewritten, listed as modified in 3.1, not a new one). The expected result of pass line item 2 is therefore 941 tests, 925 pass, 0 fail, 16 skipped (940 minus 3 whole tests retired plus 4 new)."
+  }
+ }
+}
