@@ -413,7 +413,7 @@ function loopKey(doc) {
 function selectionLoop() {
   loopId = 0
   if (sel === null && fault !== 'loop-keeps-on-clear') return
-  if (document.hidden || $('[data-editor]').hidden) return
+  if (document.hidden) return
   if (!preview) return
   const doc = fault === 'disposed-doc' ? (loopDoc ??= preview.doc) : preview.doc
   if (fault === 'rewrite-every-frame') { const box = $('#screen').querySelector('[data-selection]'); if (box) box.dataset.f = String(performance.now()); }

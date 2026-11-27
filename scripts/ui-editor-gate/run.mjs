@@ -3520,7 +3520,7 @@ async function runSpec(spec) {
         await page.evaluate(() => {
           const c = window.__cnt; c.raf = 0; c.gbcr = 0; c.mut = 0; c.t0 = performance.now()
           window.__mo?.disconnect()
-          const o = document.querySelector('.ue-overlay')
+          const o = document.querySelector('.ue-overlay') ?? document.querySelector('#screen') // the pointer layer of the page, or the screen of the scorer stub, which has the outline inside it
           if (o) { window.__mo = new MutationObserver((ms) => { c.mut += ms.length }); window.__mo.observe(o, { attributes: true, childList: true, subtree: true, characterData: true }) }
         })
         continue
