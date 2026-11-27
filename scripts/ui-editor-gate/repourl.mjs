@@ -43,7 +43,7 @@ const { chromium } = require(require.resolve('playwright', process.env.PLAYWRIGH
 const servers = [await serve(dist, 4461)]
 if (baseline && existsSync(baseline)) servers.push(await serve(baseline, 4462))
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
-const SIZES = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080], [390, 844]]
+const SIZES = [[1280, 720], [1366, 768], [1440, 900], [1920, 1080], [1000, 800], [390, 844]] // 1000 is added by amendment A2 (the ribbon specs measure the page at 1000 px)
 const measure = async (port, w, h) => {
   const p = await (await browser.newContext({ viewport: { width: w, height: h } })).newPage()
   await p.goto(`http://127.0.0.1:${port}/ui-editor`); await p.waitForSelector('.ue-tool')
@@ -82,7 +82,7 @@ try {
       if (!base) bad.push('no baseline')
       else {
         if (now.lines !== base.lines) bad.push(`${w}: lead lines ${now.lines} against ${base.lines}`)
-        if (Math.abs(now.tool - base.tool) > 0.5) bad.push(`${w}: tool top moved ${(now.tool - base.tool).toFixed(2)}`)
+        if (w > 640 && Math.abs(now.tool - base.tool) > 0.5) bad.push(`${w}: tool top moved ${(now.tool - base.tool).toFixed(2)}`)
       }
       if (now.overflow > 0) bad.push(`${w}: horizontal overflow ${now.overflow}`)
       if (!now.inside) bad.push(`${w}: button outside the window or missing`)

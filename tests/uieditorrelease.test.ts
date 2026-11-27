@@ -177,11 +177,11 @@ test('every name and string of the page is in src/data/uiEditor.ts: no other sou
   }
 })
 
-test('the GitHub button is sized like SatPOV\'s and sits out of the header grid from 1100 px, so the lead keeps its width', () => {
+test('the GitHub button is sized like SatPOV\'s and sits out of the header grid above the phone width (641 px), so the lead keeps its width', () => {
   const css = readFileSync(new URL('../src/pages/UiEditor.css', import.meta.url), 'utf8')
   const sat = readFileSync(new URL('../src/pages/SatelliteTool.css', import.meta.url), 'utf8')
   const rule = (text: string, sel: string) => new RegExp(`${sel.replace('.', '\\.')} \\{([^}]*)\\}`).exec(text)?.[1].replace(/\s+/g, ' ').trim()
   assert.equal(rule(css, '.ue-github'), rule(sat, '.sat-github')?.replace(/^/, ''), 'the same declarations as .sat-github')
-  assert.match(css, /@media \(min-width: 1100px\) \{[^@]*\.ue-page \.page-header\.is-aside-narrow \{\s*grid-template-columns: minmax\(0, 1fr\);/)
+  assert.match(css, /@media \(min-width: 641px\) \{[^@]*\.ue-page \.page-header\.is-aside-narrow \{\s*grid-template-columns: minmax\(0, 1fr\);/)
   assert.match(css, /\.ue-page \.page-header-aside \{\s*position: absolute;/)
 })

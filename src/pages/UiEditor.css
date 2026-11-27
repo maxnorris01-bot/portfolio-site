@@ -137,15 +137,16 @@
   }
 }
 
-/* The "View on GitHub" button in the page header: the same size as the satellite page's (.sat-github). From 1100px it sits at the top right,
-   out of the grid (the pattern of ShopAI's .shop-github), so the title, chips and lead lay out exactly as without it; narrower, it goes under the title block. */
+/* The "View on GitHub" button in the page header: the same size as the satellite page's (.sat-github). Above the phone width (641px) it sits at the top
+   right, out of the grid (the pattern of ShopAI's .shop-github, with a lower breakpoint because the ribbon specs measure the page at 1000px), so the title, chips and lead
+   lay out exactly as without it; on a phone it goes under the title block. */
 .ue-github {
   flex: none;
   padding: 0.35em 0.9em;
   font-size: var(--text-small);
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 641px) {
   .ue-page .page-header {
     position: relative;
   }
