@@ -1,5 +1,42 @@
 {
  "version": 1,
- "note": "Numbered amendments to specs-scrollfix2.json (locked). None yet.",
- "specs": {}
+ "note": "Numbered amendments to specs-scrollfix2.json (locked). A1 M05: the runner's clickBlank clicks the bottom-left corner of the screen, which on the landing page is an element, not the page's blank, so it never cleared the selection (my slip). The spec now uses the email sample in Tablet, where the page (600 px) is narrower than the screen (768 px) and a click on the left margin lands on the page's own body, which clears the selection (new step clickPreviewSide). Nothing else changes.",
+ "specs": {
+  "M05": {
+   "amendment": "A1",
+   "replace": {
+    "0": [
+     {
+      "do": "load",
+      "sample": "email"
+     }
+    ],
+    "1": [
+     {
+      "do": "view",
+      "name": "Tablet"
+     }
+    ],
+    "2": [
+     {
+      "do": "click",
+      "sel": "#hello",
+      "at": "center"
+     }
+    ],
+    "7": [
+     {
+      "do": "clickPreviewSide"
+     }
+    ],
+    "12": [
+     {
+      "do": "click",
+      "sel": "#hello",
+      "at": "center"
+     }
+    ]
+   }
+  }
+ }
 }

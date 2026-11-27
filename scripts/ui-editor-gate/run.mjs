@@ -73,6 +73,7 @@ const amendBannerFile = existsSync(join(here, 'amendments-views2-banner.json')) 
 // SCROLL FIX (docs/ui-editor-gate-rules-scrollfix.md): the L specs run with --scrollfix (or --only Lnn).
 // SCROLL FIX 2 (docs/ui-editor-gate-rules-scrollfix2.md): the M specs run with --scrollfix2 (or --only Mnn), in Chromium or, with --browser webkit, in WebKit.
 const scroll2File = existsSync(join(here, 'specs-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix2.json'), 'utf8')) : { specs: [] }
+const amendScroll2File = existsSync(join(here, 'amendments-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'amendments-scrollfix2.json'), 'utf8')) : { specs: {} }
 const scrollFile = existsSync(join(here, 'specs-scrollfix.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix.json'), 'utf8')) : { specs: [], fixtures: {} }
 const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
 const nudgeFile = existsSync(join(here, 'specs-views1-nudge.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge.json'), 'utf8')) : { specs: [] }
@@ -3507,6 +3508,11 @@ async function runSpec(spec) {
         await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
         await page.waitForTimeout(250)
         continue
+      } else if (step.do === 'clickPreviewSide') {
+        // a click on the preview's left margin at mid height: on a page narrower than the screen (the email sample in Tablet) that is the page's own body, so the selection is cleared
+        const p = await page.evaluate(() => { const r = document.querySelector('iframe[title="Preview"]').getBoundingClientRect(); return { x: r.left + 16, y: Math.min(r.top + r.height / 2, innerHeight - 100) } })
+        await page.mouse.move(p.x, p.y); await page.mouse.click(p.x, p.y); await page.waitForTimeout(300)
+        continue
       } else if (step.do === 'wait') {
         await page.waitForTimeout(step.ms)
         continue
@@ -3904,6 +3910,8 @@ function amendNonudge(spec) {
   if (a2) s = apply(s, a2)
   const a3 = VIEWS2B ? (amendBannerFile.specs?.[spec.id] ?? bannerFile.amendments?.[spec.id]) : undefined
   if (a3) s = apply(s, a3)
+  const a4 = amendScroll2File.specs?.[spec.id]
+  if (a4) s = apply(s, a4)
   return s
 }
 function insertSpecs() {
