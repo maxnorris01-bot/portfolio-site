@@ -1,7 +1,6 @@
 // The solar system's geometry and timing, apart from the drawing (so it can be tested).
 import type { PlanetId } from '../content/home.ts'
 import { uiEditor } from '../data/uiEditor.ts'
-import { UI_EDITOR_ON } from '../data/uiEditorFlag.ts'
 
 export type { PlanetId }
 
@@ -31,7 +30,7 @@ export type Body = {
   phase: number
   /** Seconds for one trip round its orbit. */
   period: number
-  /** Set for the planets you can choose (three, and a fourth while the UI Editor's flag is on), in reading order. */
+  /** Set for the planets you can choose (four, the UI Editor's last), in reading order. */
   select?: { id: PlanetId; label: string }
 }
 
@@ -48,16 +47,15 @@ const BASE_BODIES: Body[] = [
 ]
 
 /**
- * The UI Editor's planet, on the second orbit; it exists only while the flag is on. Its start and orbit time were found by a search
- * (tests/uieditorflag.test.ts holds the result): well apart from every other body at rest, and, over a long run, the labels of all
+ * The UI Editor's planet, on the second orbit; its start and orbit time were found by a search
+ * (tests/uieditorrelease.test.ts holds the result): well apart from every other body at rest, and, over a long run, the labels of all
  * four chosen planets overlap no more often (under 2%) than the three did.
  */
 const UI_EDITOR_BODY: Body = { key: 'uieditor', orbit: 1, phase: 345, period: 59, select: { id: 'uieditor', label: uiEditor.name } }
 
-export const bodiesFor = (uiEditorOn: boolean): Body[] => (uiEditorOn ? [...BASE_BODIES, UI_EDITOR_BODY] : BASE_BODIES)
 export const chosenOf = (bodies: Body[]) => bodies.filter((b) => b.select)
 
-export const BODIES: Body[] = bodiesFor(UI_EDITOR_ON)
+export const BODIES: Body[] = [...BASE_BODIES, UI_EDITOR_BODY]
 export const CHOSEN = chosenOf(BODIES)
 
 /** A point on a tilted orbit at an angle (degrees round the ellipse). */

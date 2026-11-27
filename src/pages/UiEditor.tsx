@@ -1,14 +1,12 @@
 import PageHeader from '../components/PageHeader'
 import { credits, how, limits, paragraphs, techStack, uiEditor, uiEditorPage } from '../data/uiEditor'
 import { usePageMeta } from '../hooks/usePageMeta'
-import { useNoIndex } from '../hooks/useNoIndex'
 import UiEditorTool from '../ui-editor/UiEditorTool'
 import './UiEditor.css'
 
-/** The UI Editor page: a lazy-loaded tool page, mounted only while its flag is on (App.tsx). */
+/** The UI Editor page: a lazy-loaded tool page (App.tsx). */
 export default function UiEditor() {
   usePageMeta(uiEditor.pageTitle, uiEditor.pageDescription)
-  useNoIndex()
   return (
     <main className="page ue-page">
       <div className="page-container is-scaled">

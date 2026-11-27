@@ -1,5 +1,5 @@
 // Every name and string of the UI Editor page, in one place, so a rename is one line (like satelliteTool.ts for the satellite tool).
-// The page is behind a flag (uiEditorFlag.ts) until Max releases it. Labels that the gate's UI contract names (docs/ui-editor-gate-rules.md)
+// Labels that the gate's UI contract names (docs/ui-editor-gate-rules.md)
 // are tested against this file (tests/uieditor*.test.ts).
 
 export interface UiEditorInfo {
@@ -47,7 +47,7 @@ export const sampleDescriptions = {
 
 /** The page's header and the sections under the editor. */
 export const uiEditorPage = {
-  lead: 'Paste or upload your own HTML or SVG, change it from a ribbon or by dragging, check it at Desktop, Tablet and Phone sizes, then copy the updated code. It runs entirely in your browser.',
+  lead: 'Paste or upload your HTML or SVG, edit it from a ribbon or by dragging, check Desktop, Tablet and Phone, then copy the code. It runs in your browser.',
   howLink: 'How it works and limits',
   githubLabel: 'View on GitHub ↗',
 }

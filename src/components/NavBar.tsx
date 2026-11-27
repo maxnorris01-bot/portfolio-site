@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import ContactModal from './ContactModal.tsx'
 import { CONTACT_LABEL } from './contact.ts'
-import { UI_EDITOR_ON } from '../data/uiEditorFlag.ts'
 import { withUiEditor, type Tab } from './navtabs.ts'
 import './NavBar.css'
 
@@ -12,14 +11,11 @@ const pages: Tab[] = [
   { to: '/resume', label: 'Résumé' },
 ]
 
-/** The tools, at the right, as buttons (the UI Editor is a third only while its flag is on). */
-const tools: Tab[] = withUiEditor(
-  [
-    { to: '/satellite-conjunction-screening', label: 'SatPOV' },
-    { to: '/shop', label: 'ShopAI' },
-  ],
-  UI_EDITOR_ON,
-)
+/** The tools, at the right, as buttons (the UI Editor is the third). */
+const tools: Tab[] = withUiEditor([
+  { to: '/satellite-conjunction-screening', label: 'SatPOV' },
+  { to: '/shop', label: 'ShopAI' },
+])
 
 function Tabs({ tabs, className, linkClass, after }: { tabs: Tab[]; className: string; linkClass: string; after?: ReactNode }) {
   return (

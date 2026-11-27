@@ -1,0 +1,68 @@
+{
+ "version": 1,
+ "note": "Release round (docs/ui-editor-gate-rules-release.md). Locked. The R specs are external: release.mjs runs them; run.mjs --release reports the six flag-OFF specs RETIRED and reads release.mjs's results.",
+ "retiredChecks": {
+  "X32": {
+   "wholeSpec": true,
+   "file": "specs-views1.json",
+   "reason": "the flag-OFF build no longer exists: the flag is deleted (docs/ui-editor-gate-rules-release.md section 3.2)",
+   "replacedBy": "R01, R02"
+  },
+  "Q09": {
+   "wholeSpec": true,
+   "file": "specs-views1-nonudge.json",
+   "reason": "the flag-OFF build no longer exists: the flag is deleted (docs/ui-editor-gate-rules-release.md section 3.2)",
+   "replacedBy": "R01, R02"
+  },
+  "H14": {
+   "wholeSpec": true,
+   "file": "specs-views2.json",
+   "reason": "the flag-OFF build no longer exists: the flag is deleted (docs/ui-editor-gate-rules-release.md section 3.2)",
+   "replacedBy": "R01, R02"
+  },
+  "B10": {
+   "wholeSpec": true,
+   "file": "specs-views2-banner.json",
+   "reason": "the flag-OFF build no longer exists: the flag is deleted (docs/ui-editor-gate-rules-release.md section 3.2)",
+   "replacedBy": "R01, R02"
+  },
+  "L11": {
+   "wholeSpec": true,
+   "file": "specs-scrollfix.json",
+   "reason": "the flag-OFF build no longer exists: the flag is deleted (docs/ui-editor-gate-rules-release.md section 3.2)",
+   "replacedBy": "R01, R02"
+  },
+  "M09": {
+   "wholeSpec": true,
+   "file": "specs-scrollfix2.json",
+   "reason": "the flag-OFF build no longer exists: the flag is deleted (docs/ui-editor-gate-rules-release.md section 3.2)",
+   "replacedBy": "R01, R02"
+  }
+ },
+ "specs": [
+  {
+   "id": "R01",
+   "name": "A build with no environment variable: nav link, four planets, /ui-editor loads, no robots meta, no noindex string in dist or vercel.json, the variable is unused (flags.mjs, 12 of 12)",
+   "external": "release",
+   "expected": "PASS"
+  },
+  {
+   "id": "R02",
+   "name": "The no-variable build against the old flag-ON build of main: only index-*.js, UiEditor-*.js and index.html differ (after hash and build-commit normalisation), the file lists are equal",
+   "external": "release",
+   "expected": "PASS"
+  },
+  {
+   "id": "R03",
+   "name": "check-layout --home at four sizes, four planets, long and compact copy: exit 0 and the old ON build's output line for line",
+   "external": "release",
+   "expected": "PASS"
+  },
+  {
+   "id": "R04",
+   "name": "Headless preview of the no-variable build: nav link, Home planet, /ui-editor loads, one real edit moves the element, no robots meta",
+   "external": "release",
+   "expected": "PASS"
+  }
+ ]
+}

@@ -19,10 +19,6 @@
     {
       "source": "/api/shop/:path*",
       "headers": [{ "key": "x-vercel-enable-rewrite-caching", "value": "0" }]
-    },
-    {
-      "source": "/ui-editor",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     }
   ]
 }

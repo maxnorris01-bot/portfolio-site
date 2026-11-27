@@ -75,6 +75,8 @@ const amendBannerFile = existsSync(join(here, 'amendments-views2-banner.json')) 
 const scroll2File = existsSync(join(here, 'specs-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix2.json'), 'utf8')) : { specs: [] }
 const amendScroll2File = existsSync(join(here, 'amendments-scrollfix2.json')) ? JSON.parse(readFileSync(join(here, 'amendments-scrollfix2.json'), 'utf8')) : { specs: {} }
 // GATE FLAKES (docs/ui-editor-gate-log.md, the gate flakes round): numbered amendments of L07's check, in their own file; --no-gateflakes runs the spec as it was locked.
+// RELEASE (docs/ui-editor-gate-rules-release.md): with --release the six flag-OFF specs (X32, Q09, H14, B10, L11, M09) read RETIRED, never PASS: there is no OFF build. The R specs are run by release.mjs.
+const releaseFile = existsSync(join(here, 'specs-release.json')) ? JSON.parse(readFileSync(join(here, 'specs-release.json'), 'utf8')) : { retiredChecks: {}, specs: [] }
 const amendFlakesFile = existsSync(join(here, 'amendments-gateflakes.json')) ? JSON.parse(readFileSync(join(here, 'amendments-gateflakes.json'), 'utf8')) : { specs: {} }
 const scrollFile = existsSync(join(here, 'specs-scrollfix.json')) ? JSON.parse(readFileSync(join(here, 'specs-scrollfix.json'), 'utf8')) : { specs: [], fixtures: {} }
 const nudge2File = existsSync(join(here, 'specs-views1-nudge2.json')) ? JSON.parse(readFileSync(join(here, 'specs-views1-nudge2.json'), 'utf8')) : { specs: [] }
@@ -100,8 +102,8 @@ const VIEWS2B = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub
 const VIEWS2 = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11') || flag('--stub12'))
 const NONUDGE = !(OLD_STUB || flag('--stub5') || flag('--stub6') || flag('--stub7') || flag('--stub8') || flag('--stub9') || flag('--stub10') || flag('--stub11'))
 const retiredFor = (id) => {
-  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined, d = ROUND6 ? round6File.retiredChecks?.[id] : undefined, e = VIEWS1 && !flag('--no-retire-views1') ? views1File.retiredChecks?.[id] : undefined, f = NONUDGE ? nonudgeFile.retiredChecks?.[id] : undefined, g = VIEWS2 ? views2File.retiredChecks?.[id] : undefined, h = VIEWS2B ? bannerFile.retiredChecks?.[id] : undefined
-  const parts = [a, b, c, d, e, f, g, h].filter(Boolean)
+  const a = round3File.retiredChecks?.[id], b = OLD_STUB ? undefined : round4File.retiredChecks?.[id], c = ROUND5 ? round5File.retiredChecks?.[id] : undefined, d = ROUND6 ? round6File.retiredChecks?.[id] : undefined, e = VIEWS1 && !flag('--no-retire-views1') ? views1File.retiredChecks?.[id] : undefined, f = NONUDGE ? nonudgeFile.retiredChecks?.[id] : undefined, g = VIEWS2 ? views2File.retiredChecks?.[id] : undefined, h = VIEWS2B ? bannerFile.retiredChecks?.[id] : undefined, i = flag('--release') ? releaseFile.retiredChecks?.[id] : undefined
+  const parts = [a, b, c, d, e, f, g, h, i].filter(Boolean)
   if (!parts.length) return undefined
   return { steps: parts.flatMap((p) => p.steps ?? []), asserts: parts.flatMap((p) => p.asserts ?? []), wholeSpec: parts.some((p) => p.wholeSpec), replacedBy: parts.map((p) => p.replacedBy).filter(Boolean).join('; '), reason: parts.map((p) => p.reason).filter(Boolean).join(' ') }
 }
