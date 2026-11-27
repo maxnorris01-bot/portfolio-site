@@ -18,7 +18,7 @@ import { copyName, nameList, sectionHeader } from './sections'
 import { SAMPLES, type SampleId } from './samples'
 import { applyOne, closeSession, indexOfPath, isSvgElement, labelOf, moveTarget, openSession, parentContentWidth, pathOf, setViewport, trialEdges, trialEdit, type Applied, type Session } from './session'
 import Stage, { type ResizeRequest } from './Stage'
-import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, type EditList, type ListAction } from './state'
+import { emptyList, listReduce, mergeOffsets, canRedo, canUndo, effectiveEdits, type EditList, type ListAction } from './state'
 import { noteSentence, refusalSentence } from './values'
 import { widthToWrite, type WidthUnit } from './units'
 import { listNotes, tabletMin, type Edit, type Environment, type InsertKind } from './vendor/engine.js'
@@ -126,7 +126,7 @@ export default function UiEditorTool() {
     }
     busyRef.current = true
     setBusy(true)
-    void openSession(doc, listRef.current.edits, buffer ?? host, viewport(viewRef.current, orientRef.current)).then((r) => {
+    void openSession(doc, effectiveEdits(listRef.current.edits), buffer ?? host, viewport(viewRef.current, orientRef.current)).then((r) => {
       if (mine !== generation.current) {
         if (r.ok) closeSession(r.session)
         buffer?.remove()
@@ -436,7 +436,7 @@ export default function UiEditorTool() {
     const margins = compensated(handle, { width: num(cs.width), height: num(cs.height), marginLeft: parseFloat(cs.marginLeft), marginTop: parseFloat(cs.marginTop) }, size)
     const compEdit: Edit = { op: 'set', target: t, properties: { ...properties, ...Object.fromEntries(Object.entries(margins).filter(([k]) => k.startsWith('margin'))) }, ...scope() }
     busyRef.current = true
-    const tried = await trialEdges(session, listRef.current.edits, compEdit, viewport(viewRef.current, orientRef.current), t, handle, box.left - rect.left, box.top - rect.top).finally(() => {
+    const tried = await trialEdges(session, effectiveEdits(listRef.current.edits), compEdit, viewport(viewRef.current, orientRef.current), t, handle, box.left - rect.left, box.top - rect.top).finally(() => {
       busyRef.current = false
     })
     if (sessionRef.current !== session) return
@@ -552,7 +552,7 @@ export default function UiEditorTool() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const noteList = useMemo(() => (session ? listNotes(session.preview.model) : { page: null, notes: [] }), [session, rev])
   // The edit list as the gate reads it (a read-only attribute of the tool): written again only when the list changed.
-  const editListJson = useMemo(() => JSON.stringify(list.edits), [list.edits])
+  const editListJson = useMemo(() => JSON.stringify(effectiveEdits(list.edits)), [list.edits])
   const notesTotal = noteCount(noteList)
   const pinRows = noteRows(noteList)
   // With no notes the switch is on again, so a note written next is in the code.

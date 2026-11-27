@@ -120,7 +120,7 @@ test('one Download saves every file and there is no File selector; each code sec
 
 test('west and north resize is tried on a scratch preview and falls back to the old behaviour with one plain line; Alt+Up selects the parent and is not a nudge', () => {
   const tool = read('src/ui-editor/UiEditorTool.tsx')
-  assert.match(tool, /trialEdges\(session, listRef\.current\.edits, compEdit/)
+  assert.match(tool, /trialEdges\(session, effectiveEdits\(listRef\.current\.edits\), compEdit/)
   assert.match(tool, /run\(plain, what, undefined, line\)/)
   assert.match(messages.edgeFallback.west, /could not follow the pointer/)
   assert.match(messages.edgeFallback.north, /could not follow the pointer/)

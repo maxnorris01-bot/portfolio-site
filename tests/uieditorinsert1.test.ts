@@ -138,7 +138,7 @@ test('a note is a content edit (no Link, no environment); what is copied, downlo
   assert.match(tool, /const text = outFiles\[file\]/, 'Copy')
   assert.match(tool, /text=\{outFiles\[file\] \?\? ''\}/, 'the Updated code view')
   assert.match(tool, /data-edit-list=\{editListJson\}/)
-  assert.match(tool, /const editListJson = useMemo\(\(\) => JSON\.stringify\(list\.edits\), \[list\.edits\]\)/)
+  assert.match(tool, /const editListJson = useMemo\(\(\) => JSON\.stringify\(effectiveEdits\(list\.edits\)\), \[list\.edits\]\)/)
 })
 
 test('the stage 2 words: the names are exactly the brief\'s and Comment disabled says why', () => {
